@@ -1,1 +1,166 @@
-THIS SHOULD BE A LINTER ERROR
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Map - SOLUNA Maintenance Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.map-container {
+    background-color: #1a2238;
+    min-height: 100vh;
+    color: white;
+    padding: 20px;
+}
+
+.map-header {
+    background-color: #0f1419;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #2d3748;
+}
+
+.map-content {
+    background-color: #2d3748;
+    border-radius: 8px;
+    padding: 20px;
+    min-height: 70vh;
+}
+
+.location-marker {
+    background-color: #4299e1;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    margin: 5px;
+    display: inline-block;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.location-marker:hover {
+    background-color: #3182ce;
+    transform: scale(1.05);
+}
+
+.equipment-marker {
+    background-color: #38a169;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 15px;
+    margin: 3px;
+    display: inline-block;
+    font-size: 0.9em;
+}
+
+.site-section {
+    background-color: #0f1419;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.legend {
+    background-color: #0f1419;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="map-container">
+    <div class="map-header">
+        <h2 class="mb-0">
+            <i class="fas fa-map me-2"></i>
+            SOLUNA Site Map
+        </h2>
+        <p class="mb-0 text-light">Interactive view of all sites, locations, and equipment</p>
+    </div>
+
+    <div class="legend">
+        <h5>Legend</h5>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #4299e1;"></div>
+            <span>Locations</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #38a169;"></div>
+            <span>Equipment</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #f56565;"></div>
+            <span>Out of Service</span>
+        </div>
+    </div>
+
+    <div class="map-content">
+        {% regroup locations by parent_location as location_groups %}
+        
+        {% for group in location_groups %}
+            <div class="site-section">
+                <h4>
+                    {% if group.grouper %}
+                        <i class="fas fa-building me-2"></i>{{ group.grouper.name }}
+                    {% else %}
+                        <i class="fas fa-map-marker-alt me-2"></i>Independent Locations
+                    {% endif %}
+                </h4>
+                
+                <div class="locations-grid">
+                    {% for location in group.list %}
+                        <div class="location-marker" data-location-id="{{ location.id }}">
+                            <i class="fas fa-map-marker-alt me-1"></i>
+                            {{ location.name }}
+                            
+                            <!-- Equipment for this location -->
+                            {% for equip in equipment %}
+                                {% if equip.location == location %}
+                                    <div class="equipment-marker {% if not equip.is_active or equip.status == 'maintenance' %}bg-danger{% endif %}">
+                                        {{ equip.name }}
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% empty %}
+            <div class="text-center">
+                <i class="fas fa-map-signs fa-3x mb-3 text-muted"></i>
+                <h4>No Locations Found</h4>
+                <p class="text-muted">No locations have been configured yet.</p>
+                <a href="{% url 'core:locations_settings' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Add Locations
+                </a>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('.location-marker').on('click', function() {
+        const locationId = $(this).data('location-id');
+        // Future: Could integrate with equipment list filtered by location
+        window.location.href = "{% url 'equipment:equipment_list' %}?location=" + locationId;
+    });
+});
+</script>
+{% endblock %}
