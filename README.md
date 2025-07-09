@@ -19,7 +19,129 @@ A Django-based web application for managing equipment maintenance, events, and r
 - Redis (for background tasks with Celery)
 - Git
 
-## Installation
+## Installation Options
+
+Choose one of the following installation methods:
+
+> **💡 Recommendation**: Use Docker installation for the easiest setup experience with all dependencies automatically configured.
+
+## Docker Installation (Recommended)
+
+Docker provides an easy way to run the entire application stack without manual setup of PostgreSQL, Redis, or Python dependencies.
+
+### Prerequisites
+
+- Docker and Docker Compose installed on your system
+- Git
+
+### Quick Start with Docker
+
+1. **Clone the Repository**
+```bash
+git clone <repository-url>
+cd maintenance-dashboard
+```
+
+2. **Build and Start Services**
+```bash
+docker-compose up --build
+```
+
+This command will:
+- Build the Django application image
+- Start PostgreSQL database
+- Start Redis server
+- Run database migrations
+- Start the Django application
+- Start Celery worker and scheduler
+
+3. **Access the Application**
+
+The application will be available at `http://localhost:8000`
+
+4. **Create a Superuser**
+
+In a new terminal, run:
+```bash
+docker-compose exec web python manage.py createsuperuser
+```
+
+### Docker Commands
+
+**Start services in background:**
+```bash
+docker-compose up -d
+```
+
+**View logs:**
+```bash
+docker-compose logs -f
+```
+
+**Stop services:**
+```bash
+docker-compose down
+```
+
+**Stop services and remove volumes (WARNING: This will delete all data):**
+```bash
+docker-compose down -v
+```
+
+**Rebuild services:**
+```bash
+docker-compose up --build
+```
+
+**Run Django management commands:**
+```bash
+docker-compose exec web python manage.py <command>
+```
+
+**Access Django shell:**
+```bash
+docker-compose exec web python manage.py shell
+```
+
+**Access database shell:**
+```bash
+docker-compose exec db psql -U postgres -d maintenance_dashboard
+```
+
+### Production Docker Setup
+
+For production deployment, create a `docker-compose.prod.yml` file:
+
+```yaml
+version: '3.8'
+
+services:
+  web:
+    build: .
+    environment:
+      - DEBUG=False
+      - SECRET_KEY=your-production-secret-key
+      - ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
+      - DB_PASSWORD=your-secure-password
+    restart: unless-stopped
+
+  db:
+    environment:
+      POSTGRES_PASSWORD: your-secure-password
+    restart: unless-stopped
+
+  redis:
+    restart: unless-stopped
+```
+
+Run production setup:
+```bash
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+## Manual Installation (Alternative)
+
+If you prefer to install without Docker, follow these steps:
 
 ### 1. Clone the Repository
 
@@ -208,16 +330,53 @@ python manage.py dbshell
 
 ## Troubleshooting
 
-### Common Issues
+### Docker Issues
+
+1. **Port already in use**: If port 8000, 5432, or 6379 is already in use:
+   ```bash
+   docker-compose down
+   # Kill processes using the ports or change ports in docker-compose.yml
+   ```
+
+2. **Permission denied errors**: 
+   ```bash
+   sudo chown -R $USER:$USER .
+   docker-compose down -v
+   docker-compose up --build
+   ```
+
+3. **Database connection issues**:
+   ```bash
+   docker-compose down -v  # This will remove all data
+   docker-compose up --build
+   ```
+
+4. **View Docker logs**:
+   ```bash
+   docker-compose logs web
+   docker-compose logs db
+   docker-compose logs redis
+   ```
+
+5. **Reset everything**:
+   ```bash
+   docker-compose down -v
+   docker system prune -a --volumes
+   docker-compose up --build
+   ```
+
+### Common Issues (Manual Installation)
 
 1. **Database Connection Error**: Ensure PostgreSQL is running and credentials are correct
 2. **Static Files Not Loading**: Run `python manage.py collectstatic`
 3. **Migration Issues**: Try `python manage.py makemigrations` followed by `python manage.py migrate`
 4. **Permission Errors**: Ensure proper file permissions on media and static directories
+5. **Virtual Environment Issues**: Make sure virtual environment is activated
 
 ### Logs
 
-Application logs are stored in `debug.log` in the project root directory.
+- **Docker**: Use `docker-compose logs -f` to view real-time logs
+- **Manual Installation**: Application logs are stored in `debug.log` in the project root directory
 
 ## Contributing
 
