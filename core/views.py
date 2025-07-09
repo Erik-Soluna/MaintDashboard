@@ -23,8 +23,13 @@ import json
 def dashboard(request):
     """Enhanced dashboard view with location-based data layout."""
     
-    # Get selected site from session or request
-    selected_site_id = request.GET.get('site_id', request.session.get('selected_site_id'))
+    # Get selected site from request, session, or user default
+    selected_site_id = request.GET.get('site_id')
+    if not selected_site_id:
+        selected_site_id = request.session.get('selected_site_id')
+    if not selected_site_id and hasattr(request.user, 'userprofile') and request.user.userprofile.default_site:
+        selected_site_id = str(request.user.userprofile.default_site.id)
+    
     if selected_site_id:
         request.session['selected_site_id'] = selected_site_id
     
@@ -109,21 +114,79 @@ def dashboard(request):
 def profile_view(request):
     """User profile view."""
     if request.method == 'POST':
-        user = request.user
-        user.first_name = request.POST.get('first_name', '')
-        user.last_name = request.POST.get('last_name', '')
-        user.email = request.POST.get('email', '')
-        user.save()
+        action = request.POST.get('action', 'update_profile')
         
-        profile = user.userprofile
-        profile.phone_number = request.POST.get('phone_number', '')
-        profile.department = request.POST.get('department', '')
-        profile.save()
-        
-        messages.success(request, 'Profile updated successfully!')
-        return redirect('core:profile')
+        if action == 'update_profile':
+            user = request.user
+            user.first_name = request.POST.get('first_name', '')
+            user.last_name = request.POST.get('last_name', '')
+            user.email = request.POST.get('email', '')
+            user.save()
+            
+            profile = user.userprofile
+            profile.phone_number = request.POST.get('phone_number', '')
+            profile.department = request.POST.get('department', '')
+            
+            # Handle default site selection
+            default_site_id = request.POST.get('default_site')
+            if default_site_id:
+                try:
+                    profile.default_site = Location.objects.get(id=default_site_id, is_site=True)
+                except Location.DoesNotExist:
+                    profile.default_site = None
+            else:
+                profile.default_site = None
+            
+            # Handle default location selection
+            default_location_id = request.POST.get('default_location')
+            if default_location_id:
+                try:
+                    profile.default_location = Location.objects.get(id=default_location_id)
+                except Location.DoesNotExist:
+                    profile.default_location = None
+            else:
+                profile.default_location = None
+            
+            # Handle theme preference
+            theme_preference = request.POST.get('theme_preference', 'dark')
+            if theme_preference in ['dark', 'light']:
+                profile.theme_preference = theme_preference
+            
+            # Handle notification preferences
+            profile.notifications_enabled = 'notifications_enabled' in request.POST
+            profile.email_notifications = 'email_notifications' in request.POST
+            profile.sms_notifications = 'sms_notifications' in request.POST
+            
+            profile.save()
+            
+            messages.success(request, 'Profile updated successfully!')
+            return redirect('core:profile')
+            
+        elif action == 'change_password':
+            from django.contrib.auth import update_session_auth_hash
+            from django.contrib.auth.forms import PasswordChangeForm
+            
+            form = PasswordChangeForm(request.user, request.POST)
+            if form.is_valid():
+                user = form.save()
+                update_session_auth_hash(request, user)  # Important for keeping user logged in
+                messages.success(request, 'Password changed successfully!')
+                return redirect('core:profile')
+            else:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f'{field}: {error}')
     
-    return render(request, 'core/profile.html', {'user': request.user})
+    # Get data for the template
+    sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
+    locations = Location.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'user': request.user,
+        'sites': sites,
+        'locations': locations,
+    }
+    return render(request, 'core/profile.html', context)
 
 
 def is_staff_or_superuser(user):

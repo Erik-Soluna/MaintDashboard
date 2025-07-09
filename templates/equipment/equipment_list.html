@@ -7,177 +7,356 @@
 <li class="breadcrumb-item active">Equipment</li>
 {% endblock %}
 
-{% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="page-header">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-0">
-                        <i class="fas fa-cogs me-2"></i>
-                        Equipment Management
-                    </h1>
-                    <p class="text-muted mb-0">Manage and monitor all equipment</p>
-                </div>
-                <div>
-                    <a href="{% url 'equipment:add_equipment' %}" class="btn btn-primary">
-                        <i class="fas fa-plus me-1"></i> Add Equipment
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+{% block extra_css %}
+<style>
+/* Equipment page specific styles */
+.equipment-header {
+    background-color: #2d3748;
+    border-bottom: 1px solid #4a5568;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+}
 
-<!-- Search and Filters -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-body">
-                <form method="get" class="row align-items-end">
-                    <div class="col-md-3 mb-2">
-                        <label for="search" class="form-label">Search</label>
-                        <input type="text" class="form-control" id="search" name="search" 
-                               value="{{ search_term }}" placeholder="Search equipment...">
-                    </div>
-                    <div class="col-md-2 mb-2">
-                        <label for="category" class="form-label">Category</label>
-                        <select class="form-control" id="category" name="category">
-                            <option value="">All Categories</option>
-                            {% for category in categories %}
-                            <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
-                                {{ category.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-2 mb-2">
-                        <label for="location" class="form-label">Location</label>
-                        <select class="form-control" id="location" name="location">
-                            <option value="">All Locations</option>
-                            {% for location in locations %}
-                            <option value="{{ location.id }}" {% if selected_location == location.id|stringformat:"s" %}selected{% endif %}>
-                                {{ location.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-2 mb-2">
-                        <label for="status" class="form-label">Status</label>
-                        <select class="form-control" id="status" name="status">
-                            <option value="">All Statuses</option>
-                            {% for status_value, status_display in statuses %}
-                            <option value="{{ status_value }}" {% if selected_status == status_value %}selected{% endif %}>
-                                {{ status_display }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <button type="submit" class="btn btn-primary me-2">
-                            <i class="fas fa-search me-1"></i> Search
-                        </button>
-                        <a href="{% url 'equipment:equipment_list' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-times me-1"></i> Clear
-                        </a>
-                    </div>
-                </form>
-            </div>
+.equipment-filters {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-group label {
+    color: #e2e8f0;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    margin: 0;
+}
+
+.filter-select {
+    background-color: #1a2238;
+    color: white;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 14px;
+    min-width: 120px;
+}
+
+.filter-select:focus {
+    background-color: #1a2238;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+    color: white;
+}
+
+.search-input {
+    background-color: #1a2238;
+    color: white;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 14px;
+    min-width: 200px;
+}
+
+.search-input:focus {
+    background-color: #1a2238;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+    color: white;
+}
+
+.search-input::placeholder {
+    color: #a0aec0;
+}
+
+.action-buttons {
+    margin-left: auto;
+    display: flex;
+    gap: 10px;
+}
+
+.btn-group {
+    display: flex;
+    gap: 2px;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+/* Equipment table styling */
+.equipment-table-container {
+    background-color: #2d3748;
+    border-radius: 8px;
+    border: 1px solid #4a5568;
+    overflow: hidden;
+}
+
+.equipment-table-header {
+    background-color: #1a2238;
+    padding: 15px 20px;
+    border-bottom: 1px solid #4a5568;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.equipment-table-header h5 {
+    color: #e2e8f0;
+    margin: 0;
+}
+
+.table-responsive {
+    background-color: #2d3748;
+}
+
+.table thead th {
+    background-color: #1a2238;
+    color: #e2e8f0;
+    border-bottom: 2px solid #4a5568;
+    padding: 12px 15px;
+    font-weight: 600;
+}
+
+.table tbody tr {
+    border-bottom: 1px solid #4a5568;
+}
+
+.table tbody td {
+    padding: 12px 15px;
+    color: #e2e8f0;
+    border-bottom: 1px solid #4a5568;
+}
+
+.table tbody tr:hover {
+    background-color: #374151;
+}
+
+/* Badge styling for dark theme */
+.badge {
+    font-size: 11px;
+    padding: 4px 8px;
+}
+
+.pagination {
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.page-link {
+    background-color: #2d3748;
+    border-color: #4a5568;
+    color: #e2e8f0;
+}
+
+.page-link:hover {
+    background-color: #4299e1;
+    border-color: #4299e1;
+    color: white;
+}
+
+.page-item.active .page-link {
+    background-color: #4299e1;
+    border-color: #4299e1;
+}
+
+/* Empty state styling */
+.empty-equipment-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #a0aec0;
+}
+
+.empty-equipment-state i {
+    font-size: 48px;
+    margin-bottom: 20px;
+    color: #4a5568;
+}
+
+.dropdown-menu {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+}
+
+.dropdown-item {
+    color: #e2e8f0;
+}
+
+.dropdown-item:hover {
+    background-color: #4a5568;
+    color: white;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Equipment Filters Header -->
+<div class="equipment-header">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="mb-0 text-white">
+                <i class="fas fa-cogs me-2"></i>
+                Equipment Management
+            </h3>
+            <p class="text-muted mb-0">Manage and monitor all equipment</p>
         </div>
+        <a href="{% url 'equipment:add_equipment' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Add Equipment
+        </a>
     </div>
+    
+    <!-- Filters -->
+    <form method="get" class="equipment-filters">
+        <div class="filter-group">
+            <label for="search">Search:</label>
+            <input type="text" id="search" name="search" class="search-input"
+                   value="{{ search_term }}" placeholder="Search equipment...">
+        </div>
+        
+        <div class="filter-group">
+            <label for="category">Category:</label>
+            <select id="category" name="category" class="filter-select">
+                <option value="">All Categories</option>
+                {% for category in categories %}
+                <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
+                    {{ category.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label for="location">Location:</label>
+            <select id="location" name="location" class="filter-select">
+                <option value="">All Locations</option>
+                {% for location in locations %}
+                <option value="{{ location.id }}" {% if selected_location == location.id|stringformat:"s" %}selected{% endif %}>
+                    {{ location.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label for="status">Status:</label>
+            <select id="status" name="status" class="filter-select">
+                <option value="">All Statuses</option>
+                {% for status_value, status_display in statuses %}
+                <option value="{{ status_value }}" {% if selected_status == status_value %}selected{% endif %}>
+                    {{ status_display }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="action-buttons">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-search me-1"></i> Search
+            </button>
+            <a href="{% url 'equipment:equipment_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-times me-1"></i> Clear
+            </a>
+        </div>
+    </form>
 </div>
 
 <!-- Equipment List -->
 <div class="row">
     <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Equipment List</h5>
+        <div class="equipment-table-container">
+            <div class="equipment-table-header">
+                <h5>Equipment List</h5>
                 <span class="badge badge-primary">{{ page_obj.paginator.count }} Total</span>
             </div>
-            <div class="card-body">
+            <div class="table-responsive">
                 {% if page_obj %}
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Equipment Name</th>
-                                    <th>Category</th>
-                                    <th>Location</th>
-                                    <th>Serial Number</th>
-                                    <th>Asset Tag</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for equipment in page_obj %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ equipment.name }}</strong><br>
-                                        {% if equipment.manufacturer %}
-                                            <small class="text-muted">{{ equipment.manufacturer }}</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if equipment.category %}
-                                            <span class="badge badge-secondary">{{ equipment.category.name }}</span>
-                                        {% else %}
-                                            <small class="text-muted">No category</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if equipment.location %}
-                                            {{ equipment.location.name }}
-                                        {% else %}
-                                            <small class="text-muted">No location</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ equipment.manufacturer_serial|default:"-" }}</td>
-                                    <td>
-                                        <code>{{ equipment.asset_tag }}</code>
-                                    </td>
-                                    <td>
-                                        {% if equipment.status == 'active' %}
-                                            <span class="badge badge-success">{{ equipment.get_status_display }}</span>
-                                        {% elif equipment.status == 'maintenance' %}
-                                            <span class="badge badge-warning">{{ equipment.get_status_display }}</span>
-                                        {% elif equipment.status == 'inactive' %}
-                                            <span class="badge badge-secondary">{{ equipment.get_status_display }}</span>
-                                        {% elif equipment.status == 'retired' %}
-                                            <span class="badge badge-dark">{{ equipment.get_status_display }}</span>
-                                        {% else %}
-                                            <span class="badge badge-light">{{ equipment.get_status_display }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <div class="btn-group" role="group">
-                                            <a href="{% url 'equipment:equipment_detail' equipment.id %}" 
-                                               class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="View Details">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            <a href="{% url 'equipment:edit_equipment' equipment.id %}" 
-                                               class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="Edit">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            <button class="btn btn-sm btn-outline-danger btn-delete" 
-                                                    data-equipment-id="{{ equipment.id }}" 
-                                                    data-equipment-name="{{ equipment.name }}" 
-                                                    data-toggle="tooltip" title="Delete">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Equipment Name</th>
+                                <th>Category</th>
+                                <th>Location</th>
+                                <th>Serial Number</th>
+                                <th>Asset Tag</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for equipment in page_obj %}
+                            <tr>
+                                <td>
+                                    <strong>{{ equipment.name }}</strong><br>
+                                    {% if equipment.manufacturer %}
+                                        <small class="text-muted">{{ equipment.manufacturer }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if equipment.category %}
+                                        <span class="badge badge-secondary">{{ equipment.category.name }}</span>
+                                    {% else %}
+                                        <small class="text-muted">No category</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if equipment.location %}
+                                        {{ equipment.location.name }}
+                                    {% else %}
+                                        <small class="text-muted">No location</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ equipment.manufacturer_serial|default:"-" }}</td>
+                                <td>
+                                    <code>{{ equipment.asset_tag }}</code>
+                                </td>
+                                <td>
+                                    {% if equipment.status == 'active' %}
+                                        <span class="badge badge-success">{{ equipment.get_status_display }}</span>
+                                    {% elif equipment.status == 'maintenance' %}
+                                        <span class="badge badge-warning">{{ equipment.get_status_display }}</span>
+                                    {% elif equipment.status == 'inactive' %}
+                                        <span class="badge badge-secondary">{{ equipment.get_status_display }}</span>
+                                    {% elif equipment.status == 'retired' %}
+                                        <span class="badge badge-dark">{{ equipment.get_status_display }}</span>
+                                    {% else %}
+                                        <span class="badge badge-light">{{ equipment.get_status_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'equipment:equipment_detail' equipment.id %}" 
+                                           class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'equipment:edit_equipment' equipment.id %}" 
+                                           class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" 
+                                                data-equipment-id="{{ equipment.id }}" 
+                                                data-equipment-name="{{ equipment.name }}" 
+                                                data-toggle="tooltip" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                     
                     <!-- Pagination -->
                     {% if page_obj.has_other_pages %}
-                    <nav aria-label="Equipment pagination">
-                        <ul class="pagination justify-content-center mt-4">
+                    <nav aria-label="Equipment pagination" class="p-3">
+                        <ul class="pagination justify-content-center">
                             {% if page_obj.has_previous %}
                                 <li class="page-item">
                                     <a class="page-link" href="?page=1{% if search_term %}&search={{ search_term }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">
@@ -219,8 +398,8 @@
                     </nav>
                     {% endif %}
                 {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-cogs fa-3x text-muted mb-3"></i>
+                    <div class="empty-equipment-state">
+                        <i class="fas fa-cogs"></i>
                         <h5 class="text-muted">No Equipment Found</h5>
                         <p class="text-muted">No equipment matches your search criteria.</p>
                         <a href="{% url 'equipment:add_equipment' %}" class="btn btn-primary">
@@ -283,7 +462,7 @@ $(document).ready(function() {
         
         // Make AJAX request to delete
         $.ajax({
-            url: `/equipment/${equipmentId}/delete/`,
+            url: '/equipment/' + equipmentId + '/delete/',
             type: 'POST',
             headers: {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()

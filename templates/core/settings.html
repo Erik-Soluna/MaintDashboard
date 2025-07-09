@@ -1,0 +1,304 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}General Settings - Maintenance Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Settings</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.settings-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.settings-section {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.settings-header {
+    background-color: #1a2238;
+    padding: 15px 20px;
+    border-bottom: 1px solid #4a5568;
+}
+
+.settings-header h5 {
+    color: #e2e8f0;
+    margin: 0;
+    font-weight: 600;
+}
+
+.settings-body {
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    color: #e2e8f0;
+    font-weight: 500;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.form-control, .form-select {
+    background-color: #1a2238;
+    color: #e2e8f0;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: #1a2238;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+    color: #e2e8f0;
+}
+
+.form-check {
+    margin-bottom: 15px;
+}
+
+.form-check-input {
+    background-color: #1a2238;
+    border-color: #4a5568;
+}
+
+.form-check-input:checked {
+    background-color: #4299e1;
+    border-color: #4299e1;
+}
+
+.form-check-label {
+    color: #e2e8f0;
+    margin-left: 8px;
+}
+
+.settings-actions {
+    padding: 15px 20px;
+    background-color: #1a2238;
+    border-top: 1px solid #4a5568;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.info-text {
+    color: #a0aec0;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.quick-action-card {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.quick-action-card:hover {
+    background-color: #374151;
+    transform: translateY(-2px);
+}
+
+.quick-action-icon {
+    font-size: 24px;
+    color: #4299e1;
+    margin-bottom: 10px;
+}
+
+.quick-action-title {
+    color: #e2e8f0;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.quick-action-desc {
+    color: #a0aec0;
+    font-size: 14px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <div class="page-header">
+        <h2 class="mb-0">
+            <i class="fas fa-cog me-2"></i>
+            General Settings
+        </h2>
+        <p class="text-muted mb-0">Manage your preferences and system settings</p>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        <a href="{% url 'core:locations_settings' %}" class="quick-action-card text-decoration-none">
+            <div class="quick-action-icon">
+                <i class="fas fa-map-marker-alt"></i>
+            </div>
+            <div class="quick-action-title">Locations</div>
+            <div class="quick-action-desc">Manage sites and equipment locations</div>
+        </a>
+        
+        <a href="{% url 'core:equipment_items_settings' %}" class="quick-action-card text-decoration-none">
+            <div class="quick-action-icon">
+                <i class="fas fa-tools"></i>
+            </div>
+            <div class="quick-action-title">Equipment Items</div>
+            <div class="quick-action-desc">Manage equipment and categories</div>
+        </a>
+        
+        <a href="{% url 'core:user_management' %}" class="quick-action-card text-decoration-none">
+            <div class="quick-action-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="quick-action-title">User Management</div>
+            <div class="quick-action-desc">Manage user accounts and permissions</div>
+        </a>
+        
+        <a href="{% url 'admin:index' %}" class="quick-action-card text-decoration-none">
+            <div class="quick-action-icon">
+                <i class="fas fa-cogs"></i>
+            </div>
+            <div class="quick-action-title">Advanced Settings</div>
+            <div class="quick-action-desc">Access Django admin panel</div>
+        </a>
+    </div>
+
+    <!-- User Preferences -->
+    <div class="settings-section">
+        <div class="settings-header">
+            <h5>
+                <i class="fas fa-user-cog me-2"></i>
+                User Preferences
+            </h5>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <div class="settings-body">
+                <div class="form-group">
+                    <label for="default_location" class="form-label">Default Location</label>
+                    <select id="default_location" name="default_location" class="form-control">
+                        <option value="">Select a default location</option>
+                        {% for location in locations %}
+                        <option value="{{ location.id }}" 
+                                {% if user.userprofile.default_location_id == location.id %}selected{% endif %}>
+                            {{ location.get_full_path }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <div class="info-text">This location will be pre-selected when creating new equipment or maintenance activities.</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Notification Settings</label>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="notifications_enabled" 
+                               name="notifications_enabled" 
+                               {% if user.userprofile.notifications_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="notifications_enabled">
+                            Enable notifications
+                        </label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="email_notifications" 
+                               name="email_notifications" 
+                               {% if user.userprofile.email_notifications %}checked{% endif %}>
+                        <label class="form-check-label" for="email_notifications">
+                            Email notifications
+                        </label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="sms_notifications" 
+                               name="sms_notifications" 
+                               {% if user.userprofile.sms_notifications %}checked{% endif %}>
+                        <label class="form-check-label" for="sms_notifications">
+                            SMS notifications
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>
+                    Save Settings
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- System Information -->
+    <div class="settings-section">
+        <div class="settings-header">
+            <h5>
+                <i class="fas fa-info-circle me-2"></i>
+                System Information
+            </h5>
+        </div>
+        <div class="settings-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Current User</label>
+                        <div class="info-text">{{ user.get_full_name|default:user.username }}</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">User Role</label>
+                        <div class="info-text">{{ user.userprofile.get_role_display }}</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Last Login</label>
+                        <div class="info-text">{{ user.last_login|date:"M d, Y H:i" }}</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Account Created</label>
+                        <div class="info-text">{{ user.date_joined|date:"M d, Y" }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Enable/disable dependent notification options
+    $('#notifications_enabled').on('change', function() {
+        const enabled = $(this).is(':checked');
+        $('#email_notifications, #sms_notifications').prop('disabled', !enabled);
+        if (!enabled) {
+            $('#email_notifications, #sms_notifications').prop('checked', false);
+        }
+    });
+    
+    // Trigger initial state
+    $('#notifications_enabled').trigger('change');
+});
+</script>
+{% endblock %}

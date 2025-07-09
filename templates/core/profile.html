@@ -1,0 +1,692 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}User Profile - Maintenance Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Profile</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.profile-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.profile-header {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 30px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.profile-avatar {
+    width: 100px;
+    height: 100px;
+    background-color: #4299e1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 36px;
+    margin: 0 auto 20px;
+}
+
+.profile-name {
+    color: var(--text-primary);
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.profile-username {
+    color: var(--text-secondary);
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+.profile-role {
+    display: inline-block;
+    background-color: #4299e1;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.profile-section {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.section-header {
+    background-color: var(--bg-secondary);
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.section-header h5 {
+    color: var(--text-primary);
+    margin: 0;
+    font-weight: 600;
+}
+
+.section-body {
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.form-control, .form-select {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--bg-secondary);
+    border-color: #4299e1;
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+    color: var(--text-primary);
+}
+
+.form-check {
+    margin-bottom: 15px;
+}
+
+.form-check-input {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+}
+
+.form-check-input:checked {
+    background-color: #4299e1;
+    border-color: #4299e1;
+}
+
+.form-check-label {
+    color: var(--text-primary);
+    margin-left: 8px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+    flex: 0 0 150px;
+}
+
+.info-value {
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.section-actions {
+    padding: 15px 20px;
+    background-color: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    background-color: #4299e1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    margin-right: 15px;
+    font-size: 14px;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-title {
+    color: var(--text-primary);
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.activity-time {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.theme-selector {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.theme-option {
+    padding: 8px 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.theme-option.active {
+    border-color: #4299e1;
+    background-color: #4299e1;
+    color: white;
+}
+
+.theme-option:hover {
+    border-color: #4299e1;
+}
+
+.theme-preview {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    margin-right: 8px;
+    display: inline-block;
+}
+
+.theme-preview.dark {
+    background: linear-gradient(45deg, #1a2238 50%, #2d3748 50%);
+}
+
+.theme-preview.light {
+    background: linear-gradient(45deg, #ffffff 50%, #f7fafc 50%);
+    border: 1px solid #e2e8f0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <!-- Profile Header -->
+    <div class="profile-header">
+        <div class="profile-avatar">
+            <i class="fas fa-user"></i>
+        </div>
+        <div class="profile-name">{{ user.get_full_name|default:user.username }}</div>
+        <div class="profile-username">@{{ user.username }}</div>
+        {% if user.userprofile.role %}
+        <div class="profile-role">{{ user.userprofile.get_role_display }}</div>
+        {% endif %}
+    </div>
+
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Personal Information -->
+            <div class="profile-section">
+                <div class="section-header">
+                    <h5>
+                        <i class="fas fa-user-edit me-2"></i>
+                        Personal Information
+                    </h5>
+                </div>
+                <form method="post" id="profileForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_profile">
+                    <div class="section-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="first_name" class="form-label">First Name</label>
+                                    <input type="text" id="first_name" name="first_name" class="form-control" 
+                                           value="{{ user.first_name }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="last_name" class="form-label">Last Name</label>
+                                    <input type="text" id="last_name" name="last_name" class="form-control" 
+                                           value="{{ user.last_name }}" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" id="email" name="email" class="form-control" 
+                                   value="{{ user.email }}" required>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="phone_number" class="form-label">Phone Number</label>
+                                    <input type="tel" id="phone_number" name="phone_number" class="form-control" 
+                                           value="{{ user.userprofile.phone_number }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="department" class="form-label">Department</label>
+                                    <input type="text" id="department" name="department" class="form-control" 
+                                           value="{{ user.userprofile.department }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="section-actions">
+                        <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                            <i class="fas fa-undo me-1"></i>
+                            Reset
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Preferences -->
+            <div class="profile-section">
+                <div class="section-header">
+                    <h5>
+                        <i class="fas fa-cog me-2"></i>
+                        Preferences
+                    </h5>
+                </div>
+                <form method="post" id="preferencesForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_profile">
+                    <div class="section-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="default_site" class="form-label">Default Site</label>
+                                    <select id="default_site" name="default_site" class="form-control">
+                                        <option value="">All Sites</option>
+                                        {% for site in sites %}
+                                        <option value="{{ site.id }}" 
+                                                {% if user.userprofile.default_site_id == site.id %}selected{% endif %}>
+                                            {{ site.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="text-muted">This site will be pre-selected on the dashboard</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="default_location" class="form-label">Default Location</label>
+                                    <select id="default_location" name="default_location" class="form-control">
+                                        <option value="">No default location</option>
+                                        {% for location in locations %}
+                                        <option value="{{ location.id }}" 
+                                                {% if user.userprofile.default_location_id == location.id %}selected{% endif %}>
+                                            {{ location.get_full_path }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="text-muted">Default location for new equipment</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Theme Preference</label>
+                            <div class="theme-selector">
+                                <div class="theme-option {% if user.userprofile.theme_preference == 'dark' %}active{% endif %}" 
+                                     data-theme="dark">
+                                    <span class="theme-preview dark"></span>
+                                    Dark Theme
+                                </div>
+                                <div class="theme-option {% if user.userprofile.theme_preference == 'light' %}active{% endif %}" 
+                                     data-theme="light">
+                                    <span class="theme-preview light"></span>
+                                    Light Theme
+                                </div>
+                            </div>
+                            <input type="hidden" id="theme_preference" name="theme_preference" 
+                                   value="{{ user.userprofile.theme_preference }}">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Notification Settings</label>
+                            
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="notifications_enabled" 
+                                       name="notifications_enabled" 
+                                       {% if user.userprofile.notifications_enabled %}checked{% endif %}>
+                                <label class="form-check-label" for="notifications_enabled">
+                                    Enable notifications
+                                </label>
+                            </div>
+                            
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="email_notifications" 
+                                       name="email_notifications" 
+                                       {% if user.userprofile.email_notifications %}checked{% endif %}>
+                                <label class="form-check-label" for="email_notifications">
+                                    Email notifications
+                                </label>
+                            </div>
+                            
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="sms_notifications" 
+                                       name="sms_notifications" 
+                                       {% if user.userprofile.sms_notifications %}checked{% endif %}>
+                                <label class="form-check-label" for="sms_notifications">
+                                    SMS notifications
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="section-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>
+                            Save Preferences
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-lg-4">
+            <!-- Account Information -->
+            <div class="profile-section">
+                <div class="section-header">
+                    <h5>
+                        <i class="fas fa-info-circle me-2"></i>
+                        Account Information
+                    </h5>
+                </div>
+                <div class="section-body">
+                    <div class="info-item">
+                        <div class="info-label">Username</div>
+                        <div class="info-value">{{ user.username }}</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Employee ID</div>
+                        <div class="info-value">
+                            {% if user.userprofile.employee_id %}
+                                {{ user.userprofile.employee_id }}
+                            {% else %}
+                                <em>Not set</em>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Account Status</div>
+                        <div class="info-value">
+                            {% if user.is_active %}
+                                <span class="badge badge-success">Active</span>
+                            {% else %}
+                                <span class="badge badge-secondary">Inactive</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">User Role</div>
+                        <div class="info-value">
+                            {% if user.userprofile.role %}
+                                {{ user.userprofile.get_role_display }}
+                            {% else %}
+                                <em>No role assigned</em>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Permissions</div>
+                        <div class="info-value">
+                            {% if user.is_superuser %}
+                                <span class="badge badge-danger me-1">Superuser</span>
+                            {% endif %}
+                            {% if user.is_staff %}
+                                <span class="badge badge-warning me-1">Staff</span>
+                            {% endif %}
+                            {% if not user.is_staff and not user.is_superuser %}
+                                <span class="badge badge-secondary">Standard User</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Member Since</div>
+                        <div class="info-value">{{ user.date_joined|date:"F d, Y" }}</div>
+                    </div>
+                    
+                    <div class="info-item">
+                        <div class="info-label">Last Login</div>
+                        <div class="info-value">
+                            {% if user.last_login %}
+                                {{ user.last_login|date:"M d, Y H:i" }}
+                            {% else %}
+                                <em>Never logged in</em>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Password Change -->
+            <div class="profile-section">
+                <div class="section-header">
+                    <h5>
+                        <i class="fas fa-key me-2"></i>
+                        Change Password
+                    </h5>
+                </div>
+                <form method="post" id="passwordForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="change_password">
+                    <div class="section-body">
+                        <div class="form-group">
+                            <label for="old_password" class="form-label">Current Password</label>
+                            <input type="password" id="old_password" name="old_password" class="form-control" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="new_password1" class="form-label">New Password</label>
+                            <input type="password" id="new_password1" name="new_password1" class="form-control" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="new_password2" class="form-label">Confirm New Password</label>
+                            <input type="password" id="new_password2" name="new_password2" class="form-control" required>
+                        </div>
+                    </div>
+                    
+                    <div class="section-actions">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-key me-1"></i>
+                            Change Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="profile-section">
+                <div class="section-header">
+                    <h5>
+                        <i class="fas fa-history me-2"></i>
+                        Recent Activity
+                    </h5>
+                </div>
+                <div class="section-body">
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="fas fa-sign-in-alt"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">Logged into the system</div>
+                            <div class="activity-time">{{ user.last_login|date:"M d, Y H:i"|default:"Never" }}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="fas fa-user-edit"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-title">Profile created</div>
+                            <div class="activity-time">{{ user.date_joined|date:"M d, Y H:i" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Store original form values
+    const originalValues = {};
+    $('#profileForm input, #preferencesForm input, #preferencesForm select').each(function() {
+        originalValues[this.name] = this.value;
+    });
+    
+    // Theme selector functionality
+    $('.theme-option').on('click', function() {
+        const theme = $(this).data('theme');
+        
+        // Update UI
+        $('.theme-option').removeClass('active');
+        $(this).addClass('active');
+        
+        // Update hidden input
+        $('#theme_preference').val(theme);
+        
+        // Apply theme immediately for preview
+        if (theme === 'light') {
+            $('body').removeClass('theme-dark').addClass('theme-light');
+        } else {
+            $('body').removeClass('theme-light').addClass('theme-dark');
+        }
+    });
+    
+    // Handle form submissions with loading states
+    $('#profileForm, #preferencesForm').on('submit', function(e) {
+        const submitBtn = $(this).find('button[type="submit"]');
+        const originalText = submitBtn.html();
+        
+        submitBtn.prop('disabled', true).html(
+            '<i class="fas fa-spinner fa-spin me-1"></i> Saving...'
+        );
+        
+        // Reset button after 5 seconds if form doesn't redirect
+        setTimeout(function() {
+            submitBtn.prop('disabled', false).html(originalText);
+        }, 5000);
+    });
+    
+    // Password form handling
+    $('#passwordForm').on('submit', function(e) {
+        const newPassword1 = $('#new_password1').val();
+        const newPassword2 = $('#new_password2').val();
+        
+        if (newPassword1 !== newPassword2) {
+            e.preventDefault();
+            alert('New passwords do not match!');
+            return false;
+        }
+        
+        const submitBtn = $(this).find('button[type="submit"]');
+        submitBtn.prop('disabled', true).html(
+            '<i class="fas fa-spinner fa-spin me-1"></i> Changing Password...'
+        );
+        
+        // Reset button after 5 seconds if form doesn't redirect
+        setTimeout(function() {
+            submitBtn.prop('disabled', false).html(
+                '<i class="fas fa-key me-1"></i> Change Password'
+            );
+        }, 5000);
+    });
+    
+    // Enable/disable dependent notification options
+    $('#notifications_enabled').on('change', function() {
+        const enabled = $(this).is(':checked');
+        $('#email_notifications, #sms_notifications').prop('disabled', !enabled);
+        if (!enabled) {
+            $('#email_notifications, #sms_notifications').prop('checked', false);
+        }
+    });
+    
+    // Trigger initial state for notifications
+    $('#notifications_enabled').trigger('change');
+    
+    // Auto-save preferences when changed (optional UX enhancement)
+    $('#default_site, #default_location, .theme-option').on('change click', function() {
+        // Add a subtle visual indicator that preferences will be saved
+        const preferencesForm = $('#preferencesForm');
+        if (!preferencesForm.hasClass('has-changes')) {
+            preferencesForm.addClass('has-changes');
+            preferencesForm.find('.section-actions').prepend(
+                '<small class="text-warning me-3"><i class="fas fa-exclamation-triangle me-1"></i>You have unsaved changes</small>'
+            );
+        }
+    });
+});
+
+function resetForm() {
+    if (confirm('Are you sure you want to reset all changes?')) {
+        location.reload();
+    }
+}
+
+// Function to show theme change confirmation
+function confirmThemeChange(newTheme) {
+    return confirm('This will change your theme preference. The change will be applied immediately. Continue?');
+}
+</script>
+{% endblock %}
