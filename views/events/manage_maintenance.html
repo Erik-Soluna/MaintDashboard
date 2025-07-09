@@ -1,0 +1,75 @@
+{{extend 'layout.html'}}
+
+<div id="flash-message"></div>
+
+<h1>Manage Maintenance</h1>
+
+<!-- Filter & Column Control -->
+<div class="d-flex justify-content-between mb-3">
+  <input type="text" class="form-control w-25" id="searchInput" placeholder="Search Maintenance...">
+  <div>
+    <button class="btn btn-outline-secondary" id="toggleColumns">Manage Columns</button>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#sharedEventModal" onclick="resetModalForNewEvent()">Add Maintenance</button>
+  </div>
+</div>
+
+<!-- Maintenance Table -->
+<div class="table-responsive">
+  <table class="table table-striped" id="maintenanceTable">
+    <thead>
+      <tr>
+        <th>Equipment</th>
+        <th>Title</th>
+        <th>Description</th>
+        <th>Required Status</th>
+        {{if auth.has_membership('manager') or auth.has_membership('admin'):}}
+        <th>Actions</th>
+        {{pass}}
+      </tr>
+    </thead>
+    <tbody>
+      {{for category, maintenance_items in maintenance_by_category.items():}}
+        {{for item in maintenance_items:}}
+        <tr data-id="{{=item.get('id', '')}}">
+          <td>{{=item.get('equipment_name', 'Unknown Equipment')}}</td>
+          <td>{{=item.get('title', 'Untitled')}}</td>
+          <td>{{=item.get('description', 'No Description')}}</td>
+          <td>{{=item.get('required_status', 'Unknown')}}</td>
+          {{if auth.has_membership('manager') or auth.has_membership('admin'):}}
+          <td>
+            <button class="btn btn-sm btn-warning edit-btn" data-id="{{=item.get('id', '')}}">Edit</button>
+          </td>
+          {{pass}}
+        </tr>
+        {{pass}}
+      {{pass}}
+    </tbody>
+  </table>
+</div>
+
+<!-- Include Shared Modal -->
+{{include 'default/shared_modal.html'}}
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const searchInput = document.getElementById("searchInput");
+    const maintenanceTable = document.getElementById("maintenanceTable");
+
+    searchInput.addEventListener("input", function() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const rows = maintenanceTable.getElementsByTagName("tr");
+
+        for (let i = 1; i < rows.length; i++) {
+            const cells = rows[i].getElementsByTagName("td");
+            let match = false;
+            for (let cell of cells) {
+                if (cell.textContent.toLowerCase().includes(searchTerm)) {
+                    match = true;
+                    break;
+                }
+            }
+            rows[i].style.display = match ? "" : "none";
+        }
+    });
+});
+</script>

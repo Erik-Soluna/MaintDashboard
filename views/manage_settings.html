@@ -1,0 +1,357 @@
+{{extend 'layout.html'}}
+
+<h1>Manage Settings</h1>
+
+<!-- Flash Messages Container -->
+<div id="flash-message"></div>
+
+<!-- Settings Navigation -->
+<ul class="nav nav-tabs" id="settingsTabs">
+  <li class="nav-item">
+    <a class="nav-link active" id="general-tab" data-bs-toggle="tab" href="#generalSettings">General</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="site-tab" data-bs-toggle="tab" href="#siteSettings">Site Locations</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="equipment-tab" data-bs-toggle="tab" href="#equipmentSettings">Equipment Locations</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="category-tab" data-bs-toggle="tab" href="#categorySettings">Categories</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="user-tab" data-bs-toggle="tab" href="#userSettings">User Preferences</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="admin-tab" data-bs-toggle="tab" href="#adminSettings">User Management</a>
+  </li>
+</ul>
+
+<div class="tab-content mt-3">
+  <!-- General Settings -->
+  <div class="tab-pane fade show active" id="generalSettings">
+    <h3>General Settings</h3>
+    <p>Configure general application settings here.</p>
+    <!-- General settings content goes here -->
+  </div>
+
+  <!-- Site Locations -->
+    <div class="tab-pane fade" id="siteSettings">
+        <h3>Site Locations</h3>
+        <p>Manage site locations used in the system.</p>
+
+        <!-- Add Site Location Form -->
+        <h4>Add Site Location</h4>
+        <form id="addSiteForm">
+            <div class="mb-3">
+                <label for="siteName" class="form-label">Site Name</label>
+                <input type="text" class="form-control" id="siteName" name="site_name" required>
+            </div>
+            <input type="hidden" name="_formkey" value="{{=formkey}}">
+            <button type="button" class="btn btn-primary" id="addSiteBtn">Add Site</button>
+        </form>
+
+        <!-- Site Location Table -->
+        <h4>Existing Site Locations</h4>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{for site in site_locations:}}
+                <tr>
+                    <td>{{=site.id}}</td>
+                    <td>{{=site.name}}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger deleteSiteBtn" data-site-id="{{=site.id}}">Delete</button>
+                    </td>
+                </tr>
+                {{pass}}
+            </tbody>
+        </table>
+    </div>
+
+  <!-- Equipment Locations -->
+  <div class="tab-pane fade" id="equipmentSettings">
+    <h3>Equipment Locations</h3>
+    <p>Manage equipment locations.</p>
+
+    <!-- Add Equipment Location Form -->
+    <h4>Add Equipment Location</h4>
+    <form id="addEquipmentLocationForm">
+      <div class="mb-3">
+        <label for="locationName" class="form-label">Location Name</label>
+        <input type="text" class="form-control" id="locationName" name="location_name" required>
+      </div>
+      <div class="mb-3">
+        <label for="siteLocation" class="form-label">Site Location</label>
+        <select class="form-select" id="siteLocation" name="site_location_id" required>
+          <option value="">Select Site</option>
+          {{for site in site_locations:}}
+          <option value="{{=site.id}}">{{=site.name}}</option>
+          {{pass}}
+        </select>
+      </div>
+      <input type="hidden" name="_formkey" value="{{=formkey}}">
+      <button type="button" class="btn btn-primary" id="addEquipmentLocationBtn">Add Location</button>
+    </form>
+
+    <!-- Equipment Location Table -->
+    <h4>Existing Equipment Locations</h4>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Site</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{for location in equipment_locations:}}
+        <tr>
+          <td>{{=location.id}}</td>
+          <td>{{=location.name}}</td>
+          <td>{{=db.site_location[location.site_location].name if location.site_location else 'N/A'}}</td>
+          <td>
+              <button class="btn btn-sm btn-danger deleteEquipmentLocationBtn" data-location-id="{{=location.id}}">Delete</button>
+          </td>
+        </tr>
+        {{pass}}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Categories -->
+    <div class="tab-pane fade" id="categorySettings">
+        <h3>Categories</h3>
+        <p>Manage equipment categories.</p>
+
+        <!-- Add Category Form -->
+        <h4>Add Category</h4>
+        <form id="addCategoryForm">
+            <div class="mb-3">
+                <label for="categoryName" class="form-label">Category Name</label>
+                <input type="text" class="form-control" id="categoryName" name="category_name" required>
+            </div>
+            <input type="hidden" name="_formkey" value="{{=formkey}}">
+            <button type="button" class="btn btn-primary" id="addCategoryBtn">Add Category</button>
+        </form>
+
+        <!-- Category Table -->
+        <h4>Existing Categories</h4>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{for category in categories:}}
+                <tr>
+                    <td>{{=category.id}}</td>
+                    <td>{{=category.name}}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger deleteCategoryBtn" data-category-id="{{=category.id}}">Delete</button>
+                    </td>
+                </tr>
+                {{pass}}
+            </tbody>
+        </table>
+    </div>
+
+  <!-- User Preferences -->
+  <div class="tab-pane fade" id="userSettings">
+    <h3>User Preferences</h3>
+    <p>Set user-specific preferences.</p>
+    <!-- User preferences content goes here -->
+  </div>
+
+  <!-- User Management (Admin Only) -->
+  <div class="tab-pane fade" id="adminSettings">
+    <h3>Manage Users</h3>
+    <p>Below is a table of users where you can edit roles or remove users.</p>
+
+    <!-- User Role Update Form -->
+    <form method="post" action="{{=URL('settings', 'manage_user_parameters')}}">
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>User ID</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Email</th>
+            <th>Group</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{for user in users:}}
+          <tr>
+            <td>{{=user.id}}</td>
+            <td>{{=user.first_name}}</td>
+            <td>{{=user.last_name}}</td>
+            <td>{{=user.email}}</td>
+            <td>
+              <select name="groupID_{{=user.id}}" class="form-control">
+                {{for group in db(db.auth_group).select():}}
+                <option value="{{=group.id}}" 
+                  {{='selected' if hasattr(user, 'groupID') and user.groupID == group.id else ''}}>
+                  {{=group.role}}
+                </option>
+                {{pass}}
+              </select>
+            </td>
+            <td>
+              <button type="submit" name="update_user" value="{{=user.id}}" class="btn btn-sm btn-secondary">Update</button>
+            </td>
+          </tr>
+          {{pass}}
+        </tbody>
+      </table>
+    </form>
+
+    <!-- Bulk Delete Form -->
+    <form id="bulkDeleteForm" method="post" action="{{=URL('settings', 'bulk_delete_users')}}">
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAll"></th>
+            <th>User ID</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Email</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{for user in users:}}
+          <tr>
+            <td><input type="checkbox" name="user_ids" value="{{=user.id}}"></td>
+            <td>{{=user.id}}</td>
+            <td>{{=user.first_name}}</td>
+            <td>{{=user.last_name}}</td>
+            <td>{{=user.email}}</td>
+            <td>
+              <a href="{{=URL('settings', 'edit_user', args=[user.id])}}" class="btn btn-sm btn-primary">Edit</a>
+            </td>
+          </tr>
+          {{pass}}
+        </tbody>
+      </table>
+      <button type="submit" class="btn btn-danger">Delete Selected Users</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    var formkey = "{{=formkey}}";
+
+    // Function to handle AJAX requests
+    function handleAjax(url, data, successMessage, tabAnchor) {
+        data['_formkey'] = formkey;
+        $.ajax({
+            url: url,
+            method: 'POST',
+            data: data,
+            dataType: 'json',
+            success: function(response) {
+                if (response.status === 'success') {
+                    $('#flash-message').html('<div class="alert alert-success">' + successMessage + '</div>');
+                    setTimeout(function() {
+                        window.location.reload(); // Reload the page to reflect changes
+                    }, 1500); // Wait for 1.5 seconds before reloading
+                } else {
+                    $('#flash-message').html('<div class="alert alert-danger">' + response.message + '</div>');
+                }
+            },
+            error: function(jqXHR, textStatus, errorThrown) {
+                console.error('AJAX error:', textStatus, errorThrown);
+                $('#flash-message').html('<div class="alert alert-danger">An unexpected error occurred. Please check the console for details.</div>');
+            }
+        });
+    }
+
+    // Add Category
+    $('#addCategoryBtn').click(function() {
+        var categoryName = $('#categoryName').val();
+        handleAjax(
+            "{{=URL('settings', 'add_category')}}",
+            { category_name: categoryName },
+            "Category added successfully.",
+            'categorySettings'
+        );
+    });
+
+    // Delete Category
+    $('.deleteCategoryBtn').click(function() {
+        var categoryId = $(this).data('category-id');
+        handleAjax(
+            "{{=URL('settings', 'delete_category')}}",
+            { category_id: categoryId },
+            "Category deleted successfully.",
+            'categorySettings'
+        );
+    });
+
+    // Add Site
+    $('#addSiteBtn').click(function() {
+        var siteName = $('#siteName').val();
+        handleAjax(
+            "{{=URL('settings', 'add_site_location')}}",
+            { site_name: siteName },
+            "Site added successfully.",
+            'siteSettings'
+        );
+    });
+
+    // Delete Site
+    $('.deleteSiteBtn').click(function() {
+        var siteId = $(this).data('site-id');
+        handleAjax(
+            "{{=URL('settings', 'delete_site_location')}}",
+            { site_id: siteId },
+            "Site deleted successfully.",
+            'siteSettings'
+        );
+    });
+        // Add Equipment Location
+    $('#addEquipmentLocationBtn').click(function() {
+        var locationName = $('#locationName').val();
+        var siteLocationId = $('#siteLocation').val();
+        handleAjax(
+            "{{=URL('settings', 'add_equipment_location')}}",
+            { location_name: locationName, site_location_id: siteLocationId },
+            "Equipment location added successfully.",
+            'equipmentSettings'
+        );
+    });
+
+    // Delete Equipment Location
+    $('.deleteEquipmentLocationBtn').click(function() {
+        var locationId = $(this).data('location-id');
+        handleAjax(
+            "{{=URL('settings', 'delete_equipment_location')}}",
+            { location_id: locationId },
+            "Equipment location deleted successfully.",
+            'equipmentSettings'
+        );
+    });
+
+    // Ensure selectAll checkbox works for User Management
+    document.getElementById('selectAll').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('input[name="user_ids"]');
+        for (const checkbox of checkboxes) {
+            checkbox.checked = this.checked;
+        }
+    });
+});
+</script>

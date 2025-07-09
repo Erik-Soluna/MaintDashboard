@@ -1,0 +1,3 @@
+{{extend 'layout.html'}}
+<h1>This is the equipment/details.html template</h1>
+{{=BEAUTIFY(response._vars)}}

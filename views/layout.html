@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="{{=T.accepted_language or 'en'}}">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="X-UA-Compatible"
+      content="IE=edge{{=not request.is_local and ',chrome=1' or ''}}"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Dynamically Set Page Title -->
+    <title>{{=response.title or 'SLNH Maintenance Dashboard'}}</title>
+
+    <meta name="application-name" content="{{=request.application}}" />
+
+    <!-- Favicon -->
+    <link
+      rel="shortcut icon"
+      href="{{=URL('static','images/favicon.ico')}}"
+      type="image/x-icon"
+    />
+
+    <!-- Bootstrap 5 CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    />
+
+    <!-- Font Awesome Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+      referrerpolicy="no-referrer"
+    />
+
+    <!-- Custom CSS with versioning -->
+    <link
+      rel="stylesheet"
+      href="{{=URL('static','css/custom.css')}}?v=1.1.0"
+    />
+
+    <!-- FullCalendar CSS (Keep only in head) -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css"
+    />
+
+    <!-- Modernizr -->
+    <script src="{{=URL('static','js/modernizr-2.8.3.min.js')}}"></script>
+
+    {{include 'web2py_ajax.html'}}
+    {{block head}}{{end head}}
+  </head>
+  <body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+          <img
+            src="{{=URL('static', 'images/soluna_logo.png')}}"
+            alt="Soluna Logo"
+            height="30"
+          />
+          Maintenance Dashboard
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+          aria-controls="navbarNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav me-auto">
+            {{for _item in response.menu or []:}}
+            <!-- Iterate through each item in response.menu or an empty list if response.menu is None -->
+            {{if len(_item)<4 or not _item[3]:}}
+            <!-- Check if the length of the item is less than 4 or if the 4th element of the item is None -->
+            <li class="nav-item {{if _item[1]:}}active{{pass}}">
+              <!-- Create a list item with class 'nav-item', add class 'active' if the 2nd element of the item is True -->
+              <a class="nav-link" href="{{=_item[2]}}">{{=_item[0]}}</a>
+              <!-- Create a link with class 'nav-link', set href to the 3rd element of the item, and set text to the 1st element of the item -->
+            </li>
+            {{else:}}
+            <!-- If the length of the item is not less than 4 and the 4th element of the item is not None -->
+            <li class="nav-item dropdown">
+              <!-- Create a list item with class 'nav-item' and 'dropdown' -->
+              <a
+                class="nav-link dropdown-toggle"
+                href="{{=_item[2]}}"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                <!-- Create a link with class 'nav-link', 'dropdown-toggle', set href to the 3rd element of the item, and set text to the 1st element of the item, set 'data-bs-toggle' to 'dropdown' and 'aria-expanded' to 'false' -->
+                {{=_item[0]}}
+              </a>
+              <ul class="dropdown-menu">
+                <!-- Create an unordered list with class 'dropdown-menu' -->
+                {{for _subitem in _item[3]:}}
+                <!-- Iterate through each subitem in the 4th element of the item -->
+                <li>
+                  <!-- Create a list item -->
+                  <a class="dropdown-item" href="{{=_subitem[2]}}"
+                    >{{=_subitem[0]}}</a
+                  >
+                  <!-- Create a link with class 'dropdown-item', set href to the 3rd element of the subitem, and set text to the 1st element of the subitem -->
+                </li>
+                {{pass}}
+                <!-- End the for loop -->
+              </ul>
+              <!-- End the unordered list -->
+            </li>
+            {{pass}}
+            <!-- End the if statement -->
+            {{pass}}
+            <!-- End the for loop -->
+          </ul>
+
+          <!-- Select Site Dropdown -->
+          <div class="d-flex align-items-center">
+            <div class="me-3">
+              <label class="text-white me-2" for="siteSelect">Select Site:</label>
+              <div class="dropdown">
+                <button
+                  class="btn btn-secondary dropdown-toggle"
+                  type="button"
+                  id="siteSelect"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  All - Soluna
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="siteSelect">
+                  <li><a class="dropdown-item" href="#">Sophie</a></li>
+                  <li><a class="dropdown-item" href="#">Dorothy 1A</a></li>
+                  <li><a class="dropdown-item" href="#">Dorothy 1B</a></li>
+                  <li><a class="dropdown-item" href="#">Dorothy 2</a></li>
+                  <li><a class="dropdown-item" href="#">Kati</a></li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- User Icon with Dropdown -->
+            <div class="dropdown">
+              <a
+                class="navbar-text dropdown-toggle"
+                href="#"
+                id="userDropdown"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
+                <i class="fas fa-user text-white"></i>
+              </a>
+              <ul
+                class="dropdown-menu dropdown-menu-end"
+                aria-labelledby="userDropdown"
+              >
+                <li>
+                  <a
+                    class="dropdown-item"
+                    href="{{=URL('settings', 'manage_settings')}}"
+                    >Settings</a
+                  >
+                </li>
+                <li>
+                  <a class="dropdown-item" href="{{=URL('auth', 'logout')}}"
+                    >Logout</a
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container-fluid main-container mt-3">
+      {{include}}
+      <!-- CHECK THIS: Ensure this tag is placed correctly and that it is inside all the correct wrappers -->
+      {{=response.toolbar() if response.show_toolbar else ''}}
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer container-fluid mt-4 py-3 custom-footer">
+      <div class="row">
+        <div class="col-md-12 text-center">
+          <p class="mb-0">{{=T('Copyright')}} &#169; {{=request.now.year}}</p>
+          <small
+            >{{=T('Powered by')}}
+            <a href="http://www.web2py.com/">web2py</a></small
+          >
+        </div>
+      </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        if (typeof FullCalendar === 'undefined') {
+          console.error("Error: FullCalendar did not load in layout.html.");
+        } else {
+          console.log("FullCalendar loaded successfully in layout.html.");
+        }
+      });
+    </script>
+
+    {{block page_js}}{{end page_js}}
+    <!-- Ensure this tag is here -->
+  </body>
+</html>

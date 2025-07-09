@@ -1,0 +1,179 @@
+{{extend 'layout.html'}}
+
+<h1>Manage Equipment</h1>
+
+<!-- Button to Add Equipment -->
+<button class="btn btn-primary mb-3" data-toggle="modal" data-target="#addEquipmentModal">Add New Equipment</button>
+
+<!-- Equipment Table -->
+<div class="table-responsive mt-4">
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Category</th>
+        <th>Manufacturer Serial</th>
+        <th>Soluna Asset Tag</th>
+        <th>Location</th>
+        <th>Power Ratings</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="equipmentTableBody">
+      {{for equipment in equipment_list:}}
+      <tr data-id="{{=equipment.id}}">
+        <td>{{=equipment.name}}</td>
+        <td>{{=equipment.category_name}}</td>
+        <td>{{=equipment.manufacturer_serial}}</td>
+        <td>{{=equipment.soluna_asset_tag}}</td>
+        <td>{{=equipment.location_name}}</td>
+        <td>{{=equipment.power_ratings}}</td>
+        <td>
+          <button class="btn btn-sm btn-warning edit-btn" data-id="{{=equipment.id}}" data-toggle="modal" data-target="#editEquipmentModal">Edit</button>
+          <button class="btn btn-sm btn-danger delete-btn" data-id="{{=equipment.id}}">Delete</button>
+        </td>
+      </tr>
+      {{pass}}
+    </tbody>
+  </table>
+</div>
+
+<!-- Add Equipment Modal -->
+<div class="modal fade" id="addEquipmentModal" tabindex="-1" role="dialog" aria-labelledby="addEquipmentModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add New Equipment</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="addEquipmentForm">
+          <div class="form-group">
+            <label for="equipmentName">Equipment Name</label>
+            <input type="text" class="form-control" id="equipmentName" required>
+          </div>
+          <div class="form-group">
+            <label for="equipmentCategory">Category</label>
+            <select class="form-control" id="equipmentCategory">
+              {{for category in categories:}}
+              <option value="{{=category.id}}">{{=category.name}}</option>
+              {{pass}}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="manufacturerSerial">Manufacturer Serial</label>
+            <input type="text" class="form-control" id="manufacturerSerial">
+          </div>
+          <div class="form-group">
+            <label for="solunaAssetTag">Soluna Asset Tag</label>
+            <input type="text" class="form-control" id="solunaAssetTag">
+          </div>
+          <div class="form-group">
+            <label for="equipmentLocation">Location</label>
+            <select class="form-control" id="equipmentLocation">
+              {{for location in locations:}}
+              <option value="{{=location.id}}">{{=location.name}}</option>
+              {{pass}}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="powerRatings">Power Ratings</label>
+            <input type="text" class="form-control" id="powerRatings">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveEquipment">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Equipment Modal -->
+<div class="modal fade" id="editEquipmentModal" tabindex="-1" role="dialog" aria-labelledby="editEquipmentModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Equipment</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="editEquipmentForm">
+          <input type="hidden" id="editEquipmentId">
+          <div class="form-group">
+            <label for="editEquipmentName">Equipment Name</label>
+            <input type="text" class="form-control" id="editEquipmentName" required>
+          </div>
+          <div class="form-group">
+            <label for="editEquipmentCategory">Category</label>
+            <select class="form-control" id="editEquipmentCategory">
+              {{for category in categories:}}
+              <option value="{{=category.id}}">{{=category.name}}</option>
+              {{pass}}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="editManufacturerSerial">Manufacturer Serial</label>
+            <input type="text" class="form-control" id="editManufacturerSerial">
+          </div>
+          <div class="form-group">
+            <label for="editSolunaAssetTag">Soluna Asset Tag</label>
+            <input type="text" class="form-control" id="editSolunaAssetTag">
+          </div>
+          <div class="form-group">
+            <label for="editEquipmentLocation">Location</label>
+            <select class="form-control" id="editEquipmentLocation">
+              {{for location in locations:}}
+              <option value="{{=location.id}}">{{=location.name}}</option>
+              {{pass}}
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="editPowerRatings">Power Ratings</label>
+            <input type="text" class="form-control" id="editPowerRatings">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="updateEquipment">Update</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    attachEventListeners();
+  });
+
+  function attachEventListeners() {
+    document.querySelectorAll('.edit-btn').forEach(button => {
+      button.addEventListener('click', function () {
+        const equipmentId = this.getAttribute('data-id');
+        fetch('{{=URL("equipment", "get_equipment")}}?id=' + equipmentId)
+          .then(response => response.json())
+          .then(data => {
+            if (data.status === 'success') {
+              document.getElementById('editEquipmentId').value = data.equipment.id;
+              document.getElementById('editEquipmentName').value = data.equipment.name;
+              document.getElementById('editEquipmentCategory').value = data.equipment.category_id;
+              document.getElementById('editManufacturerSerial').value = data.equipment.manufacturer_serial;
+              document.getElementById('editSolunaAssetTag').value = data.equipment.soluna_asset_tag;
+              document.getElementById('editEquipmentLocation').value = data.equipment.location_id;
+              document.getElementById('editPowerRatings').value = data.equipment.power_ratings;
+              $('#editEquipmentModal').modal('show');
+            } else {
+              alert('Error loading equipment details');
+            }
+          });
+      });
+    });
+  }
+</script>

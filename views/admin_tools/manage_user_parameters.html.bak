@@ -1,0 +1,181 @@
+{{extend 'layout.html'}}
+
+<h1>Manage Settings</h1>
+
+<!-- Flash Messages Container -->
+<div id="flash-message"></div>
+
+<!-- Settings Navigation -->
+<ul class="nav nav-tabs" id="settingsTabs">
+  <li class="nav-item">
+    <a class="nav-link active" id="general-tab" data-bs-toggle="tab" href="#generalSettings">General</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="site-tab" data-bs-toggle="tab" href="#siteSettings">Site Locations</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="equipment-tab" data-bs-toggle="tab" href="#equipmentSettings">Equipment Locations</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="user-tab" data-bs-toggle="tab" href="#userSettings">User Preferences</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="admin-tab" data-bs-toggle="tab" href="#adminSettings">User Management</a>
+  </li>
+</ul>
+
+<div class="tab-content mt-3">
+  <!-- General Settings -->
+  <div class="tab-pane fade show active" id="generalSettings">
+    <h3>General Settings</h3>
+    <form id="generalSettingsForm">
+      <div class="mb-3">
+        <label for="settingExample" class="form-label">Example Setting</label>
+        <input type="text" class="form-control" id="settingExample" value="Default Value">
+      </div>
+      <button type="submit" class="btn btn-primary">Save</button>
+    </form>
+  </div>
+
+  <!-- Site Locations -->
+  <div class="tab-pane fade" id="siteSettings">
+    <h3>Manage Site Locations</h3>
+    <button class="btn btn-primary mb-3" onclick="openSiteModal()">Add Site Location</button>
+
+    <div class="table-responsive">
+      <table class="table table-striped" id="siteTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{for site in db(db.site_location).select():}}
+            <tr>
+              <td>{{=site.name}}</td>
+              <td>
+                <button class="btn btn-warning btn-sm edit-site-btn" data-id="{{=site.id}}">Edit</button>
+                <button class="btn btn-danger btn-sm delete-site-btn" data-id="{{=site.id}}">Delete</button>
+              </td>
+            </tr>
+          {{pass}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Equipment Locations -->
+  <div class="tab-pane fade" id="equipmentSettings">
+    <h3>Manage Equipment Locations</h3>
+    <button class="btn btn-primary mb-3" onclick="openEquipmentModal()">Add Equipment Location</button>
+
+    <div class="table-responsive">
+      <table class="table table-striped" id="equipmentTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Latitude</th>
+            <th>Longitude</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{for location in db(db.equipment_location).select():}}
+            <tr>
+              <td>{{=location.name}}</td>
+              <td>{{=location.latitude if location.latitude else "N/A"}}</td>
+              <td>{{=location.longitude if location.longitude else "N/A"}}</td>
+              <td>
+                <button class="btn btn-warning btn-sm edit-equipment-btn" data-id="{{=location.id}}">Edit</button>
+                <button class="btn btn-danger btn-sm delete-equipment-btn" data-id="{{=location.id}}">Delete</button>
+              </td>
+            </tr>
+          {{pass}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- User Preferences -->
+  <div class="tab-pane fade" id="userSettings">
+    <h3>User Preferences</h3>
+    <form id="userPreferencesForm">
+      <div class="mb-3">
+        <label for="themeSetting" class="form-label">Theme</label>
+        <select class="form-control" id="themeSetting">
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="notificationSetting" class="form-label">Enable Notifications</label>
+        <input type="checkbox" id="notificationSetting">
+      </div>
+      <button type="submit" class="btn btn-primary">Save Preferences</button>
+    </form>
+  </div>
+
+  <!-- User Management (Admin Only) -->
+  <div class="tab-pane fade" id="adminSettings">
+    <h3>Manage Users</h3>
+    <p>Below is a table of users where you can edit roles or remove users.</p>
+
+    <!-- Bulk Delete Form -->
+    <form id="bulkDeleteForm" method="post" action="{{=URL('admin_tools', 'bulk_delete_users')}}">
+      <div>
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th><input type="checkbox" id="selectAll"></th>
+              <th>User ID</th>
+              <th>First Name</th>
+              <th>Last Name</th>
+              <th>Email</th>
+              <th>Roles</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{for user in users:}}
+            <tr>
+              <td><input type="checkbox" name="user_ids" value="{{=user.id}}"></td>
+              <td>{{=user.id}}</td>
+              <td>{{=user.first_name}}</td>
+              <td>{{=user.last_name}}</td>
+              <td>{{=user.email}}</td>
+              <td>
+                <form method="post" action="{{=URL('admin_tools', 'manage_user_parameters')}}">
+                  <input type="hidden" name="user_id" value="{{=user.id}}">
+                  <select name="roles" multiple class="form-control">
+                    {{for role in roles:}}
+                    <option value="{{=role.id}}" 
+                      {{='selected' if role.id in [m.group_id for m in db(db.auth_membership.user_id == user.id).select()] else ''}}>
+                      {{=role.role}}
+                    </option>
+                    {{pass}}
+                  </select>
+                  <button type="submit" class="btn btn-sm btn-secondary mt-2">Update Roles</button>
+                </form>
+              </td>
+              <td>
+                <a href="{{=URL('admin_tools', 'edit_user', args=[user.id])}}" class="btn btn-sm btn-primary">Edit</a>
+              </td>
+            </tr>
+            {{pass}}
+          </tbody>
+        </table>
+      </div>
+      <button type="submit" class="btn btn-danger">Delete Selected Users</button>
+    </form>
+  </div>
+</div>
+
+<script>
+document.getElementById('selectAll').addEventListener('change', function() {
+  const checkboxes = document.querySelectorAll('input[name="user_ids"]');
+  for (const checkbox of checkboxes) {
+    checkbox.checked = this.checked;
+  }
+});
+</script>

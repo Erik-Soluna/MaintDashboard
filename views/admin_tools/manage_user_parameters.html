@@ -1,0 +1,62 @@
+<!-- File: views/admin_tools/manage_user_parameters.html -->
+{{extend 'layout.html'}}
+
+<h1>Manage User Parameters</h1>
+<p>Below is a table of users where you can edit roles or remove users.</p>
+
+<!-- Bulk Delete Form -->
+<form id="bulkDeleteForm" method="post" action="{{=URL('admin_tools', 'bulk_delete_users')}}">
+    <div>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="selectAll"></th>
+                    <th>User ID</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Email</th>
+                    <th>Roles</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{for user in users:}}
+                <tr>
+                    <td><input type="checkbox" name="user_ids" value="{{=user.id}}"></td>
+                    <td>{{=user.id}}</td>
+                    <td>{{=user.first_name}}</td>
+                    <td>{{=user.last_name}}</td>
+                    <td>{{=user.email}}</td>
+                    <td>
+                        <form method="post" action="{{=URL('admin_tools', 'manage_user_parameters')}}">
+                            <input type="hidden" name="user_id" value="{{=user.id}}">
+                            <select name="roles" multiple class="form-control">
+                                {{for role in roles:}}
+                                <option value="{{=role.id}}" 
+                                    {{='selected' if role.id in [m.group_id for m in db(db.auth_membership.user_id == user.id).select()] else ''}}>
+                                    {{=role.role}}
+                                </option>
+                                {{pass}}
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-secondary mt-2">Update Roles</button>
+                        </form>
+                    </td>
+                    <td>
+                        <a href="{{=URL('admin_tools', 'edit_user', args=[user.id])}}" class="btn btn-sm btn-primary">Edit</a>
+                    </td>
+                </tr>
+                {{pass}}
+            </tbody>
+        </table>
+    </div>
+    <button type="submit" class="btn btn-danger">Delete Selected Users</button>
+</form>
+
+<script>
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('input[name="user_ids"]');
+    for (const checkbox of checkboxes) {
+        checkbox.checked = this.checked;
+    }
+});
+</script>

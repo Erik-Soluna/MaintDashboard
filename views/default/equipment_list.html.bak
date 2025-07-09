@@ -1,0 +1,67 @@
+<!-- File: views/equipment/equipment_list.html -->
+{{extend 'layout.html'}}
+
+<h1>Equipment List</h1>
+
+<div class="table-responsive mt-4">
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Equipment Name</th>
+        <th>Category</th>
+        <th>Manufacturer Serial</th>
+        <th>Soluna Asset Tag</th>
+        <th>Location</th>
+        <th>Power Ratings</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{if equipment_list:}}
+        {{for equipment in equipment_list:}}
+        <tr data-id="{{=equipment.id}}">
+          <td>{{=equipment.id}}</td>
+          <td>{{=equipment.name}}</td>
+          <td>{{=equipment.get('category_name', 'Unknown Category')}}</td>
+          <td>{{=equipment.manufacturer_serial}}</td>
+          <td>{{=equipment.soluna_asset_tag}}</td>
+          <td>{{=equipment.get('location_name', 'Unknown Location')}}</td>
+          <td>{{=equipment.power_ratings}}</td>
+          <td>
+            <button class="btn btn-sm btn-warning edit-btn" data-id="{{=equipment.id}}" data-toggle="modal" data-target="#editEquipmentModal">Edit</button>
+            <button class="btn btn-sm btn-danger delete-btn" data-id="{{=equipment.id}}">Delete</button>
+          </td>
+        </tr>
+        {{pass}}
+      {{else:}}
+        <tr>
+          <td colspan="8" class="text-center">No Equipment Found</td>
+        </tr>
+      {{pass}}
+    </tbody>
+  </table>
+</div>
+
+<!-- Optional: You may include modals for editing/deleting equipment here -->
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Attach listeners for Edit and Delete buttons
+    document.querySelectorAll('.edit-btn').forEach(button => {
+      button.addEventListener('click', function () {
+        const equipmentId = this.getAttribute('data-id');
+        // TODO: Implement Edit functionality
+        console.log('Edit equipment with id:', equipmentId);
+      });
+    });
+    
+    document.querySelectorAll('.delete-btn').forEach(button => {
+      button.addEventListener('click', function () {
+        const equipmentId = this.getAttribute('data-id');
+        // TODO: Implement Delete functionality
+        console.log('Delete equipment with id:', equipmentId);
+      });
+    });
+  });
+</script>

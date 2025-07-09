@@ -1,0 +1,140 @@
+{{extend 'layout.html'}}
+
+<h1>Manage Settings</h1>
+
+<!-- Flash Messages Container -->
+<div id="flash-message"></div>
+
+<!-- Settings Navigation -->
+<ul class="nav nav-tabs" id="settingsTabs">
+  <li class="nav-item">
+    <a class="nav-link active" id="general-tab" data-bs-toggle="tab" href="#generalSettings">General</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="site-tab" data-bs-toggle="tab" href="#siteSettings">Site Locations</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="equipment-tab" data-bs-toggle="tab" href="#equipmentSettings">Equipment Locations</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="user-tab" data-bs-toggle="tab" href="#userSettings">User Preferences</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" id="admin-tab" data-bs-toggle="tab" href="#adminSettings">User Management</a>
+  </li>
+</ul>
+
+<div class="tab-content mt-3">
+  <!-- General Settings -->
+  <div class="tab-pane fade show active" id="generalSettings">
+    <h3>General Settings</h3>
+    <p>Configure general application settings here.</p>
+    <!-- Add general settings form here -->
+  </div>
+
+  <!-- Site Locations -->
+  <div class="tab-pane fade" id="siteSettings">
+    <h3>Site Locations</h3>
+    <p>Manage site locations used in the system.</p>
+    <!-- Add site location settings form here -->
+  </div>
+
+  <!-- Equipment Locations -->
+  <div class="tab-pane fade" id="equipmentSettings">
+    <h3>Equipment Locations</h3>
+    <p>Manage equipment locations.</p>
+    <!-- Add equipment location settings form here -->
+  </div>
+
+  <!-- User Preferences -->
+  <div class="tab-pane fade" id="userSettings">
+    <h3>User Preferences</h3>
+    <p>Set user-specific preferences.</p>
+    <!-- Add user preferences settings form here -->
+  </div>
+
+  <!-- User Management (Admin Only) -->
+  <div class="tab-pane fade" id="adminSettings">
+    <h3>Manage Users</h3>
+    <p>Below is a table of users where you can edit roles or remove users.</p>
+
+    <!-- User Role Update Form -->
+    <form method="post" action="{{=URL('admin_tools', 'manage_user_parameters')}}">
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>User ID</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Email</th>
+            <th>Group</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{for user in users:}}
+          <tr>
+            <td>{{=user.id}}</td>
+            <td>{{=user.first_name}}</td>
+            <td>{{=user.last_name}}</td>
+            <td>{{=user.email}}</td>
+            <td>
+              <select name="groupID_{{=user.id}}" class="form-control">
+                {{for group in db(db.auth_group).select():}}
+                <option value="{{=group.id}}" 
+                  {{='selected' if user.groupID == group.id else ''}}>
+                  {{=group.role}}
+                </option>
+                {{pass}}
+              </select>
+            </td>
+            <td>
+              <button type="submit" name="update_user" value="{{=user.id}}" class="btn btn-sm btn-secondary">Update</button>
+            </td>
+          </tr>
+          {{pass}}
+        </tbody>
+      </table>
+    </form>
+
+    <!-- Bulk Delete Form -->
+    <form id="bulkDeleteForm" method="post" action="{{=URL('admin_tools', 'bulk_delete_users')}}">
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th><input type="checkbox" id="selectAll"></th>
+            <th>User ID</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Email</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{for user in users:}}
+          <tr>
+            <td><input type="checkbox" name="user_ids" value="{{=user.id}}"></td>
+            <td>{{=user.id}}</td>
+            <td>{{=user.first_name}}</td>
+            <td>{{=user.last_name}}</td>
+            <td>{{=user.email}}</td>
+            <td>
+              <a href="{{=URL('admin_tools', 'edit_user', args=[user.id])}}" class="btn btn-sm btn-primary">Edit</a>
+            </td>
+          </tr>
+          {{pass}}
+        </tbody>
+      </table>
+      <button type="submit" class="btn btn-danger">Delete Selected Users</button>
+    </form>
+  </div>
+</div>
+
+<script>
+document.getElementById('selectAll').addEventListener('change', function() {
+  const checkboxes = document.querySelectorAll('input[name="user_ids"]');
+  for (const checkbox of checkboxes) {
+    checkbox.checked = this.checked;
+  }
+});
+</script>

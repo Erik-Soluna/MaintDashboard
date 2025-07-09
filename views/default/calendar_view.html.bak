@@ -1,0 +1,128 @@
+{{extend 'layout.html'}}
+
+<h1>Maintenance Calendar</h1>
+<div id="calendar"></div>
+
+<!-- Edit Event Modal (Ensure this is in the DOM) -->
+<div class="modal fade" id="editEventModal" tabindex="-1" aria-labelledby="editEventModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Maintenance Event</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editEventForm">
+          <input type="hidden" id="editEventId">
+          <div class="mb-3">
+            <label for="editEventTitle" class="form-label">Title</label>
+            <input type="text" class="form-control" id="editEventTitle" required>
+          </div>
+          <div class="mb-3">
+            <label for="editEventDescription" class="form-label">Description</label>
+            <textarea class="form-control" id="editEventDescription" rows="3"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FullCalendar JS -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar/index.global.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    console.log("DOM fully loaded");
+
+    const editEventModal = document.getElementById('editEventModal');
+    const editEventTitle = document.getElementById('editEventTitle');
+    const editEventDescription = document.getElementById('editEventDescription');
+    const editEventForm = document.getElementById('editEventForm');
+
+    if (!editEventModal || !editEventTitle || !editEventDescription) {
+      console.error("ERROR: Modal or form elements not found in the DOM!");
+      return;
+    }
+
+    const bootstrapModal = new bootstrap.Modal(editEventModal);
+    const calendarEl = document.getElementById('calendar');
+
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: 'dayGridMonth',
+      selectable: true,
+      editable: true,
+      eventSources: [
+        {
+          url: '{{=URL('calendar', 'fetch_events')}}',
+          method: 'GET',
+          failure: function() {
+            alert("Failed to load events!");
+          }
+        }
+      ],
+      eventClick: function(info) {
+        console.log("Event Clicked:", info.event);
+
+        // Populate modal with event details
+        document.getElementById('editEventId').value = info.event.id;
+        document.getElementById('editEventTitle').value = info.event.title;
+        document.getElementById('editEventDescription').value = info.event.extendedProps.description || '';
+
+        // Show the edit modal
+        bootstrapModal.show();
+      }
+    });
+
+    calendar.render();
+
+    // Handle Edit Event Form Submission
+    editEventForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const eventId = document.getElementById('editEventId').value;
+      const newTitle = document.getElementById('editEventTitle').value;
+      const newDescription = document.getElementById('editEventDescription').value;
+
+      console.log("Updating Event ID:", eventId);
+
+      // Send update request
+      fetch('{{=URL('calendar', 'update_event')}}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          id: eventId,
+          title: newTitle,
+          description: newDescription
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log("Server Response:", data);
+
+        if (data.status === 'success') {
+          const event = calendar.getEventById(eventId);
+          event.setProp('title', newTitle);
+          event.setExtendedProp('description', newDescription);
+          alert('Event updated successfully!');
+          bootstrapModal.hide();
+        } else {
+          alert('Failed to update event.');
+        }
+      })
+      .catch(error => {
+        console.error("Fetch Error:", error);
+        alert("Error updating event!");
+      });
+    });
+
+  });
+</script>
+
+<!-- Ensuring Calendar Uses Full Page Width -->
+<style>
+  #calendar {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+</style>

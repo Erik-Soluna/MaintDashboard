@@ -1,0 +1,107 @@
+{{extend 'layout.html'}}
+
+<h1>Add Equipment</h1>
+
+{{if session.flash:}}
+<div class="alert alert-info">{{=session.flash}}</div>
+{{pass}}
+
+<form method="post" action="{{=URL('equipment', 'add_equipment')}}"
+  enctype="multipart/form-data">
+  <div class="form-group">
+    <label for="name">Equipment Name:</label>
+    <input type="text" class="form-control" id="name" name="name" required>
+  </div>
+
+  <div class="form-group">
+    <label for="category">Category:</label>
+    <select class="form-control" id="category" name="category" required>
+      <option value="">Select Category</option>
+      {{for category in categories:}}
+      <option value="{{=category.id}}">{{=category.name}}</option>
+      {{pass}}
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="manufacturer_serial">Manufacturer Serial:</label>
+    <input type="text" class="form-control" id="manufacturer_serial"
+      name="manufacturer_serial">
+  </div>
+
+  <div class="form-group">
+    <label for="soluna_asset_tag">Asset Tag:</label>
+    <input type="text" class="form-control" id="soluna_asset_tag"
+      name="soluna_asset_tag">
+  </div>
+
+  <div class="form-group">
+    <label for="location">Location:</label>
+    <select class="form-control" id="location" name="location">
+      <option value="">Select Location</option>
+      {{for location in locations:}}
+      <option value="{{=location.id}}">{{=location.name}}</option>
+      {{pass}}
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="datasheet">Datasheet:</label>
+    <input type="file" class="form-control" id="datasheet" name="datasheet">
+  </div>
+
+  <div class="form-group">
+    <label for="warranty_details">Warranty Details:</label>
+    <textarea class="form-control" id="warranty_details"
+      name="warranty_details" rows="3"></textarea>
+  </div>
+
+  <div class="form-group">
+    <label for="installed_upgrades">Installed Upgrades:</label>
+    <textarea class="form-control" id="installed_upgrades"
+      name="installed_upgrades" rows="3"></textarea>
+  </div>
+
+  <div class="form-group">
+    <label for="power_ratings">Power Ratings:</label>
+    <input type="text" class="form-control" id="power_ratings"
+      name="power_ratings">
+  </div>
+
+  <div class="form-group">
+    <label for="trip_setpoints">Trip Setpoints:</label>
+    <input type="text" class="form-control" id="trip_setpoints"
+      name="trip_setpoints">
+  </div>
+
+  <div class="form-group">
+    <label for="schematics">Schematics:</label>
+    <input type="file" class="form-control" id="schematics" name="schematics">
+  </div>
+
+  <div class="form-group">
+    <label for="dga_due">DGA Due Date:</label>
+    <input type="date" class="form-control" id="dga_due" name="dga_due">
+  </div>
+
+  <div class="form-group">
+    <label for="item_due_date">Item Due Date:</label>
+    <input type="date" class="form-control" id="item_due_date"
+      name="item_due_date">
+  </div>
+
+  <div class="form-group">
+    <label for="active_items">Active Items:</label>
+    <input type="text" class="form-control" id="active_items"
+      name="active_items">
+  </div>
+
+  <div class="form-group">
+    <label for="item_status">Item Status:</label>
+    <input type="text" class="form-control" id="item_status"
+      name="item_status">
+  </div>
+
+  <button type="submit" class="btn btn-primary">Submit</button>
+  <a href="{{=URL('equipment', 'manage_equipment')}}" class="btn btn-default">Cancel</a>
+</form>

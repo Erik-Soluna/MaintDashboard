@@ -1,0 +1,167 @@
+<!-- File: views/default/shared_modal.html -->
+
+<!-- Flash Messages Container -->
+<div id="flash-message"></div>
+
+<!-- Shared Event Modal -->
+<div class="modal fade" id="sharedEventModal" tabindex="-1" aria-labelledby="sharedEventModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="sharedEventForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="sharedEventModalLabel">Event Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="sharedEventId">
+
+          <div class="mb-3">
+            <label for="sharedEventTitle" class="form-label">Title</label>
+            <input type="text" class="form-control" id="sharedEventTitle" required>
+          </div>
+
+          <div class="mb-3">
+            <label for="sharedEventDescription" class="form-label">Description</label>
+            <textarea class="form-control" id="sharedEventDescription" rows="3"></textarea>
+          </div>
+
+          <div class="mb-3">
+            <label for="sharedEventStart" class="form-label">Start Time</label>
+            <input type="datetime-local" class="form-control" id="sharedEventStart">
+          </div>
+
+          <div class="mb-3">
+            <label for="sharedEventEnd" class="form-label">End Time</label>
+            <input type="datetime-local" class="form-control" id="sharedEventEnd">
+          </div>
+
+          <div class="mb-3">
+            <label for="sharedEventEquipment" class="form-label">Equipment</label>
+            <select class="form-control" id="sharedEventEquipment" required>
+              <option value="">-- Select Equipment --</option>
+              {{if 'equipment_list' in globals():}}
+                {{for equipment in equipment_list:}}
+                  <option value="{{=equipment.id}}">{{=equipment.name}}</option>
+                {{pass}}
+              {{else:}}
+                <option disabled>No equipment available</option>
+              {{pass}}
+            </select>
+          </div>
+
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-danger" id="sharedDeleteEventButton" style="display:none;">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Shared JavaScript for Maintenance & Calendar -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  console.log("Initializing modal event listeners...");
+  setTimeout(attachSharedEventListeners, 500);
+});
+
+window.attachSharedEventListeners = function () {
+  console.log("Attaching event listeners to the modal...");
+
+  const sharedEventModal = document.getElementById('sharedEventModal');
+  if (!sharedEventModal) {
+    console.error("Error: Modal element not found in the DOM.");
+    return;
+  }
+
+  const bootstrapModal = new bootstrap.Modal(sharedEventModal);
+  const modalTitle = document.getElementById('sharedEventModalLabel');
+  const deleteButton = document.getElementById('sharedDeleteEventButton');
+  const saveButton = document.getElementById('sharedEventForm');
+  const flashMessageContainer = document.getElementById('flash-message');
+
+  function showFlashMessage(message, type = 'danger') {
+    console.log("Flash Message:", message);
+    flashMessageContainer.innerHTML = `<div class="alert alert-${type}" role="alert">${message}</div>`;
+    setTimeout(() => flashMessageContainer.innerHTML = '', 5000);
+  }
+
+  window.resetModalForNewEvent = function (dateStr) {
+    console.log("Resetting modal for new event...");
+    modalTitle.innerText = "Add Event";
+    document.getElementById('sharedEventId').value = "";
+    document.getElementById('sharedEventTitle').value = "";
+    document.getElementById('sharedEventDescription').value = "";
+    document.getElementById('sharedEventEquipment').value = "";
+    document.getElementById('sharedEventStart').value = dateStr ? dateStr + "T00:00" : "";
+    document.getElementById('sharedEventEnd').value = dateStr ? dateStr + "T01:00" : "";
+
+    deleteButton.style.display = "none";
+    deleteButton.setAttribute("data-type", "none");
+    
+    console.log("Opening modal...");
+    bootstrapModal.show();
+  };
+
+  window.loadEventIntoModal = function (data) {
+    console.log("Loading event into modal:", data);
+
+    if (!data.event || !data.event.id) {
+      showFlashMessage("Error: Event data is missing.", "danger");
+      return;
+    }
+
+    modalTitle.innerText = "Edit Event Details";
+    document.getElementById('sharedEventId').value = data.event.id;
+    document.getElementById('sharedEventTitle').value = data.event.title || "Untitled";
+    document.getElementById('sharedEventDescription').value = data.event.description || "No Description";
+    document.getElementById('sharedEventEquipment').value = data.event.equipment_id || "";
+    document.getElementById('sharedEventStart').value = new Date(data.event.start).toISOString().slice(0, 16);
+    document.getElementById('sharedEventEnd').value = new Date(data.event.end).toISOString().slice(0, 16);
+
+    deleteButton.style.display = "inline-block";
+    deleteButton.setAttribute("data-type", "event");
+
+    console.log("Opening modal...");
+    bootstrapModal.show();
+  };
+
+  saveButton.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const eventId = document.getElementById('sharedEventId').value;
+    const isEdit = eventId !== "";
+    const url = isEdit ? '{{=URL("events", "update_event")}}' : '{{=URL("events", "create_event")}}';
+
+    const eventData = {
+      id: eventId,
+      title: document.getElementById('sharedEventTitle').value,
+      description: document.getElementById('sharedEventDescription').value,
+      start: document.getElementById('sharedEventStart').value || null,
+      end: document.getElementById('sharedEventEnd').value || null,
+      equipment_id: document.getElementById('sharedEventEquipment').value
+    };
+
+    console.log("Saving event, data:", eventData);
+
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(eventData)
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log("Save Response:", data);
+      if (data.status === 'success') {
+        showFlashMessage(isEdit ? 'Event updated successfully!' : 'Event created successfully!', "success");
+        setTimeout(() => location.reload(), 1000);
+      } else {
+        showFlashMessage('Failed to save event: ' + data.message, "danger");
+      }
+    })
+    .catch(error => {
+      console.error("Error saving event:", error);
+      showFlashMessage("Error saving event: " + error, "danger");
+    });
+  });
+}
+</script>
