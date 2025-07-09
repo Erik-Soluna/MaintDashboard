@@ -1,257 +1,425 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Dashboard - Maintenance Dashboard{% endblock %}
+{% block title %}Dashboard - SOLUNA Maintenance Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Dashboard-specific dark theme styling */
+.dashboard-container {
+    background-color: #1a2238;
+    min-height: 100vh;
+    color: white;
+    padding: 0;
+}
+
+.dashboard-header {
+    background-color: #0f1419;
+    padding: 15px 20px;
+    border-bottom: 1px solid #2d3748;
+}
+
+.soluna-brand {
+    font-size: 20px;
+    font-weight: bold;
+    color: white;
+    text-decoration: none;
+}
+
+.soluna-brand:hover {
+    color: #4299e1;
+    text-decoration: none;
+}
+
+.nav-tabs-custom {
+    border-bottom: 1px solid #2d3748;
+    background-color: #0f1419;
+    padding: 0 20px;
+}
+
+.nav-tabs-custom .nav-link {
+    color: #a0aec0;
+    border: none;
+    padding: 15px 25px;
+    font-weight: 500;
+    background: transparent;
+}
+
+.nav-tabs-custom .nav-link.active {
+    color: white;
+    background-color: #2d3748;
+    border-bottom: 2px solid #4299e1;
+}
+
+.nav-tabs-custom .nav-link:hover {
+    color: white;
+    background-color: #2d3748;
+}
+
+.site-selector {
+    background-color: #2d3748;
+    color: white;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+
+.site-selector:focus {
+    background-color: #2d3748;
+    color: white;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+}
+
+.dashboard-content {
+    padding: 20px;
+         display: flex;
+     min-height: calc(100vh - 120px);
+}
+
+ .urgent-section, .upcoming-section {
+     background-color: #2d3748;
+     border-radius: 8px;
+     padding: 15px;
+     width: 250px;
+     height: fit-content;
+     margin-right: 20px;
+ }
+
+ .location-columns {
+     flex: 1;
+     display: flex;
+     overflow-x: auto;
+ }
+
+ .location-column {
+     background-color: #2d3748;
+     border-radius: 8px;
+     padding: 15px;
+     min-width: 280px;
+     height: fit-content;
+     margin-right: 20px;
+ }
+
+.section-header {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #4a5568;
+}
+
+.maintenance-item {
+    background-color: #1a2238;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 8px;
+    border-left: 3px solid #4299e1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.maintenance-item:hover {
+    background-color: #2a3441;
+    transform: translateX(3px);
+}
+
+.maintenance-item.urgent {
+    border-left-color: #f56565;
+}
+
+.maintenance-item.scheduled {
+    border-left-color: #48bb78;
+}
+
+.maintenance-item.in-progress {
+    border-left-color: #ed8936;
+}
+
+.item-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.item-meta {
+    font-size: 12px;
+    color: #a0aec0;
+    margin-bottom: 2px;
+}
+
+.item-equipment {
+    font-size: 11px;
+    color: #718096;
+}
+
+.priority-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: bold;
+    margin-left: auto;
+}
+
+.priority-badge.high {
+    background-color: #e53e3e;
+    color: white;
+}
+
+.priority-badge.medium {
+    background-color: #d69e2e;
+    color: white;
+}
+
+.priority-badge.low {
+    background-color: #38a169;
+    color: white;
+}
+
+.location-header {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #e2e8f0;
+}
+
+.subsection {
+    margin-bottom: 25px;
+}
+
+.subsection-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #cbd5e0;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.empty-state {
+    text-align: center;
+    color: #718096;
+    font-style: italic;
+    padding: 20px;
+    font-size: 13px;
+}
+
+.month-view {
+    font-size: 12px;
+    color: #a0aec0;
+    text-align: center;
+}
+
+/* Status indicators */
+.status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+.status-dot.pending { background-color: #ed8936; }
+.status-dot.scheduled { background-color: #4299e1; }
+.status-dot.in-progress { background-color: #f56565; }
+.status-dot.maintenance { background-color: #9f7aea; }
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #2d3748;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="page-header">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-0">
-                        <i class="fas fa-tachometer-alt me-2"></i>
-                        Dashboard
-                    </h1>
-                    <p class="text-muted mb-0">Welcome back, {{ user.get_full_name|default:user.username }}!</p>
-                </div>
-                <div class="text-right">
-                    <small class="text-muted">Last updated: {% now "M d, Y H:i" %}</small>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- KPI Cards -->
-<div class="row">
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card stats-card">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <h5 class="card-title text-white">{{ total_equipment|default:0 }}</h5>
-                    <p class="card-text">Total Equipment</p>
-                </div>
-                <div class="text-right">
-                    <i class="fas fa-cogs fa-2x"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card stats-card" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <h5 class="card-title text-white">{{ active_equipment|default:0 }}</h5>
-                    <p class="card-text">Active Equipment</p>
-                </div>
-                <div class="text-right">
-                    <i class="fas fa-check-circle fa-2x"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card stats-card" style="background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <h5 class="card-title text-white">{{ pending_maintenance|default:0 }}</h5>
-                    <p class="card-text">Pending Maintenance</p>
-                </div>
-                <div class="text-right">
-                    <i class="fas fa-clock fa-2x"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card stats-card" style="background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <h5 class="card-title text-white">{{ overdue_maintenance|default:0 }}</h5>
-                    <p class="card-text">Overdue Items</p>
-                </div>
-                <div class="text-right">
-                    <i class="fas fa-exclamation-triangle fa-2x"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Recent Maintenance Activities -->
-    <div class="col-lg-8 mb-4">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-wrench me-2"></i>
-                    Recent Maintenance Activities
-                </h5>
-                <a href="{% url 'maintenance:maintenance_list' %}" class="btn btn-sm btn-outline-primary">
-                    View All
-                </a>
-            </div>
-            <div class="card-body">
-                {% if recent_activities %}
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Equipment</th>
-                                    <th>Activity</th>
-                                    <th>Status</th>
-                                    <th>Due Date</th>
-                                    <th>Assigned To</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for activity in recent_activities %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ activity.equipment.name }}</strong><br>
-                                        <small class="text-muted">{{ activity.equipment.location.name }}</small>
-                                    </td>
-                                    <td>{{ activity.title }}</td>
-                                    <td>
-                                        {% if activity.status == 'completed' %}
-                                            <span class="badge badge-success">{{ activity.get_status_display }}</span>
-                                        {% elif activity.status == 'overdue' %}
-                                            <span class="badge badge-danger">{{ activity.get_status_display }}</span>
-                                        {% elif activity.status == 'in_progress' %}
-                                            <span class="badge badge-warning">{{ activity.get_status_display }}</span>
-                                        {% else %}
-                                            <span class="badge badge-secondary">{{ activity.get_status_display }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if activity.scheduled_end %}
-                                            {{ activity.scheduled_end|date:"M d, Y" }}
-                                        {% else %}
-                                            <small class="text-muted">Not scheduled</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if activity.assigned_to %}
-                                            {{ activity.assigned_to.get_full_name|default:activity.assigned_to.username }}
-                                        {% else %}
-                                            <small class="text-muted">Unassigned</small>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-tools fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No recent maintenance activities</p>
-                        <a href="{% url 'maintenance:add_activity' %}" class="btn btn-primary">
-                            <i class="fas fa-plus me-1"></i> Add Maintenance Activity
-                        </a>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    
-    <!-- Quick Actions -->
-    <div class="col-lg-4 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-bolt me-2"></i>
-                    Quick Actions
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{% url 'equipment:add_equipment' %}" class="btn btn-outline-primary">
-                        <i class="fas fa-plus me-2"></i> Add Equipment
-                    </a>
-                    <a href="{% url 'maintenance:add_activity' %}" class="btn btn-outline-success">
-                        <i class="fas fa-calendar-plus me-2"></i> Schedule Maintenance
-                    </a>
-                    <a href="{% url 'events:calendar_view' %}" class="btn btn-outline-info">
-                        <i class="fas fa-calendar me-2"></i> View Calendar
-                    </a>
-                    <a href="{% url 'maintenance:overdue_maintenance' %}" class="btn btn-outline-warning">
-                        <i class="fas fa-exclamation-triangle me-2"></i> Overdue Items
-                    </a>
-                </div>
-            </div>
+<div class="dashboard-container">
+    <!-- Dashboard Header -->
+    <div class="dashboard-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <a href="{% url 'core:dashboard' %}" class="soluna-brand">
+                SOLUNA | Maintenance Dashboard
+            </a>
         </div>
         
-        <!-- Alerts -->
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-bell me-2"></i>
-                    Alerts & Notifications
-                </h5>
-            </div>
-            <div class="card-body">
-                {% if alerts %}
-                    {% for alert in alerts %}
-                    <div class="alert alert-{{ alert.type }} alert-sm" role="alert">
-                        <strong>{{ alert.title }}</strong><br>
-                        {{ alert.message }}
-                    </div>
+                 <div class="d-flex align-items-center" style="gap: 15px;">
+            <!-- Site Selector -->
+            <div class="d-flex align-items-center">
+                <label for="site-selector" class="text-white me-2 mb-0">Select Site:</label>
+                <select id="site-selector" class="site-selector form-control form-control-sm" onchange="changeSite(this.value)">
+                    <option value="">All - Soluna</option>
+                    {% for site in sites %}
+                        <option value="{{ site.id }}" {% if selected_site and selected_site.id == site.id %}selected{% endif %}>
+                            {{ site.name }}
+                        </option>
                     {% endfor %}
-                {% else %}
-                    <div class="text-center py-3">
-                        <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                        <p class="text-muted mb-0">No active alerts</p>
-                    </div>
-                {% endif %}
+                </select>
+            </div>
+            
+            <!-- User Info -->
+            <div class="text-white">
+                <i class="fas fa-user me-1"></i>
+                {{ user.get_full_name|default:user.username }}
             </div>
         </div>
     </div>
-</div>
 
-<!-- Equipment Status Overview -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-chart-pie me-2"></i>
-                    Equipment Status Overview
-                </h5>
-                <a href="{% url 'equipment:equipment_list' %}" class="btn btn-sm btn-outline-primary">
-                    Manage Equipment
-                </a>
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs-custom">
+        <ul class="nav nav-tabs border-0">
+            <li class="nav-item">
+                <a class="nav-link active" href="{% url 'core:dashboard' %}">Overview</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showComingSoon('Map')">Map</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'maintenance:maintenance_list' %}">Maintenance</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" onclick="showComingSoon('Settings')">Settings</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Dashboard Content -->
+    <div class="dashboard-content">
+        <!-- Urgent Items Section -->
+        <div class="urgent-section">
+            <div class="section-header">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Urgent Items
             </div>
-            <div class="card-body">
-                {% if equipment_by_status %}
-                    <div class="row">
-                        {% for status_info in equipment_by_status %}
-                        <div class="col-md-3 col-sm-6 mb-3">
-                            <div class="text-center">
-                                <div class="progress mb-2" style="height: 8px;">
-                                    <div class="progress-bar bg-{{ status_info.color }}" 
-                                         style="width: {{ status_info.percentage }}%"></div>
-                                </div>
-                                <h6 class="mb-1">{{ status_info.count }}</h6>
-                                <p class="text-muted mb-0">{{ status_info.status|title }}</p>
+            {% if urgent_items %}
+                {% for item in urgent_items %}
+                <div class="maintenance-item urgent" onclick="viewMaintenanceItem({{ item.id }})">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="item-title">{{ item.title|truncatechars:30 }}</div>
+                            <div class="item-meta">
+                                <span class="status-dot pending"></span>
+                                {{ item.scheduled_end|date:"m/d" }} 
+                                {{ item.scheduled_end|date:"H:i" }} - {{ item.scheduled_end|date:"H:i" }}
+                            </div>
+                            <div class="item-equipment">{{ item.equipment.name }}</div>
+                        </div>
+                        <div class="priority-badge high">E</div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    No urgent items
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Upcoming Items Section -->
+        <div class="upcoming-section">
+            <div class="section-header">
+                <i class="fas fa-clock me-2"></i>
+                Upcoming Items
+                <div class="month-view">{{ upcoming_items|length }} Month</div>
+            </div>
+            {% if upcoming_items %}
+                {% for item in upcoming_items %}
+                <div class="maintenance-item scheduled" onclick="viewMaintenanceItem({{ item.id }})">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="item-title">{{ item.title|truncatechars:30 }}</div>
+                            <div class="item-meta">
+                                <span class="status-dot scheduled"></span>
+                                {{ item.scheduled_end|date:"m/d" }} 
+                                {{ item.scheduled_end|date:"H:i" }} - {{ item.scheduled_end|date:"H:i" }}
+                            </div>
+                            <div class="item-equipment">{{ item.equipment.name }}</div>
+                        </div>
+                        <div class="priority-badge medium">E</div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    No upcoming items
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Location Columns -->
+        <div class="location-columns">
+            {% for data in location_data %}
+            <div class="location-column">
+                <div class="location-header">{{ data.location.name }}</div>
+                
+                <!-- Scheduled Downtimes -->
+                <div class="subsection">
+                    <div class="subsection-title">Scheduled Downtimes</div>
+                    {% if data.downtimes %}
+                        {% for downtime in data.downtimes %}
+                        <div class="maintenance-item scheduled" onclick="viewMaintenanceItem({{ downtime.id }})">
+                            <div class="item-meta">
+                                <span class="status-dot scheduled"></span>
+                                {{ downtime.scheduled_start|date:"m/d/Y H:i" }} - {{ downtime.scheduled_end|date:"H:i" }}
+                            </div>
+                            <div class="item-equipment">{{ downtime.equipment.name }}</div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            No scheduled downtimes
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Equipment in Repair -->
+                <div class="subsection">
+                    <div class="subsection-title">Equipment in Repair</div>
+                    {% if data.equipment_in_repair %}
+                        {% for equipment in data.equipment_in_repair %}
+                        <div class="maintenance-item in-progress" onclick="viewEquipment({{ equipment.id }})">
+                            <div class="item-title">{{ equipment.name }}</div>
+                            <div class="item-meta">
+                                <span class="status-dot maintenance"></span>
+                                {{ equipment.status|title }}
                             </div>
                         </div>
                         {% endfor %}
-                    </div>
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-database fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">No equipment data available</p>
-                        <a href="{% url 'equipment:add_equipment' %}" class="btn btn-primary">
-                            <i class="fas fa-plus me-1"></i> Add Your First Equipment
-                        </a>
-                    </div>
-                {% endif %}
+                    {% else %}
+                        <div class="empty-state">
+                            No equipment in repair
+                        </div>
+                    {% endif %}
+                </div>
             </div>
+            {% endfor %}
+            
+            {% if not location_data %}
+            <div class="location-column">
+                <div class="empty-state">
+                    <i class="fas fa-map-marker-alt fa-2x mb-3"></i><br>
+                    No locations configured.<br>
+                    <a href="{% url 'admin:core_location_add' %}" class="text-primary">Add locations</a> to see data here.
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
@@ -259,14 +427,43 @@
 
 {% block extra_js %}
 <script>
-$(document).ready(function() {
-    // Auto-refresh dashboard every 5 minutes
-    setTimeout(function() {
-        location.reload();
-    }, 300000);
-    
-    // Initialize tooltips
-    $('[data-toggle="tooltip"]').tooltip();
-});
+function changeSite(siteId) {
+    const url = new URL(window.location);
+    if (siteId) {
+        url.searchParams.set('site_id', siteId);
+    } else {
+        url.searchParams.delete('site_id');
+    }
+    window.location.href = url.toString();
+}
+
+function viewMaintenanceItem(itemId) {
+    // Navigate to maintenance item detail
+    window.location.href = `/maintenance/activity/${itemId}/`;
+}
+
+function viewEquipment(equipmentId) {
+    // Navigate to equipment detail
+    window.location.href = `/equipment/${equipmentId}/`;
+}
+
+function showComingSoon(feature) {
+    alert(`${feature} functionality coming soon!`);
+}
+
+// Auto-refresh dashboard every 5 minutes
+setTimeout(function() {
+    location.reload();
+}, 300000);
+
+// Add real-time clock
+function updateClock() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString();
+    document.title = `Dashboard - ${timeString} - SOLUNA`;
+}
+
+setInterval(updateClock, 1000);
+updateClock();
 </script>
 {% endblock %}

@@ -1,0 +1,499 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Calendar - SOLUNA Maintenance Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Calendar-specific dark theme styling */
+.calendar-container {
+    background-color: #1a2238;
+    min-height: 100vh;
+    color: white;
+    padding: 0;
+}
+
+.calendar-header {
+    background-color: #0f1419;
+    padding: 15px 20px;
+    border-bottom: 1px solid #2d3748;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.soluna-brand {
+    font-size: 20px;
+    font-weight: bold;
+    color: white;
+    text-decoration: none;
+}
+
+.soluna-brand:hover {
+    color: #4299e1;
+    text-decoration: none;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.site-selector {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+}
+
+.site-selector:focus {
+    background-color: #2d3748;
+    border-color: #4299e1;
+    color: white;
+}
+
+.filter-section {
+    background-color: #0f1419;
+    padding: 15px 20px;
+    border-bottom: 1px solid #2d3748;
+}
+
+.filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.filter-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-item label {
+    color: #a0aec0;
+    font-size: 14px;
+    margin: 0;
+}
+
+.filter-item select, .filter-item input {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.active-filters {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.filter-tag {
+    background-color: #4299e1;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.filter-tag .remove {
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.calendar-content {
+    background-color: #1a2238;
+    padding: 20px;
+    min-height: calc(100vh - 160px);
+}
+
+/* FullCalendar customization for dark theme */
+.fc {
+    background-color: #1a2238;
+    color: white;
+}
+
+.fc-theme-standard td, .fc-theme-standard th {
+    border-color: #2d3748;
+}
+
+.fc-theme-standard .fc-scrollgrid {
+    border-color: #2d3748;
+}
+
+.fc-col-header-cell {
+    background-color: #0f1419;
+    color: white;
+    padding: 8px;
+}
+
+.fc-daygrid-day {
+    background-color: #1a2238;
+}
+
+.fc-daygrid-day:hover {
+    background-color: #2d3748;
+}
+
+.fc-day-today {
+    background-color: #2d3748 !important;
+}
+
+.fc-toolbar {
+    background-color: #0f1419;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.fc-toolbar-title {
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.fc-button {
+    background-color: #4299e1;
+    border-color: #4299e1;
+    color: white;
+}
+
+.fc-button:hover {
+    background-color: #3182ce;
+    border-color: #3182ce;
+}
+
+.fc-button:focus {
+    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5);
+}
+
+.fc-button-active {
+    background-color: #2b6cb0 !important;
+    border-color: #2b6cb0 !important;
+}
+
+.fc-event {
+    border-radius: 4px;
+    border: none;
+    padding: 2px 6px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.fc-event:hover {
+    filter: brightness(1.1);
+}
+
+.fc-daygrid-day-number {
+    color: white;
+    padding: 8px;
+}
+
+.fc-day-other .fc-daygrid-day-number {
+    color: #718096;
+}
+
+/* Action buttons */
+.add-event-btn {
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+}
+
+.add-event-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
+    color: white;
+    text-decoration: none;
+}
+
+/* Legend */
+.legend {
+    background-color: #0f1419;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.legend-items {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="calendar-container">
+    <!-- Header -->
+    <div class="calendar-header">
+        <div class="d-flex align-items-center" style="gap: 15px;">
+            <a class="soluna-brand" href="{% url 'core:dashboard' %}">
+                <i class="fas fa-calendar me-2"></i>SOLUNA
+            </a>
+            <span class="text-light">Maintenance Dashboard</span>
+        </div>
+        
+        <div class="header-controls">
+            <span class="text-light">Select Site:</span>
+            <select class="site-selector" id="siteSelector" onchange="handleSiteChange(this.value)">
+                <option value="">All - Soluna</option>
+                {% for site in sites %}
+                    <option value="{{ site.id }}" {% if selected_site and selected_site.id == site.id %}selected{% endif %}>
+                        {{ site.name }}
+                    </option>
+                {% endfor %}
+            </select>
+            <a href="{% url 'events:add_event' %}" class="add-event-btn">
+                <i class="fas fa-plus"></i>
+                Add Event
+            </a>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filter-section">
+        <div class="filter-controls">
+            <div class="filter-item">
+                <label>Event Type:</label>
+                <select id="eventTypeFilter" onchange="updateCalendar()">
+                    <option value="">All Types</option>
+                    {% for value, label in event_types %}
+                        <option value="{{ value }}" {% if selected_event_type == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-item">
+                <label>Equipment:</label>
+                <select id="equipmentFilter" onchange="updateCalendar()">
+                    <option value="">All Equipment</option>
+                    {% for equipment in equipment_list %}
+                        <option value="{{ equipment.id }}" {% if selected_equipment == equipment.id|stringformat:"s" %}selected{% endif %}>
+                            {{ equipment.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="filter-item">
+                <button type="button" class="btn btn-outline-light btn-sm" onclick="clearFilters()">
+                    <i class="fas fa-times me-1"></i>Clear Filters
+                </button>
+            </div>
+        </div>
+        
+        <!-- Active filters display -->
+        <div class="active-filters" id="activeFilters"></div>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <h6>Event Types</h6>
+        <div class="legend-items">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #dc3545;"></div>
+                <span>Maintenance</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ffc107;"></div>
+                <span>Inspection</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #17a2b8;"></div>
+                <span>Calibration</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #fd7e14;"></div>
+                <span>Outage</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #6f42c1;"></div>
+                <span>Upgrade</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #28a745;"></div>
+                <span>Testing</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calendar -->
+    <div class="calendar-content">
+        <div id="calendar"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        height: 'auto',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        events: {
+            url: '{% url "events:fetch_events" %}',
+            method: 'GET',
+            extraParams: function() {
+                return {
+                    equipment: document.getElementById('equipmentFilter').value,
+                    event_type: document.getElementById('eventTypeFilter').value,
+                    site_id: document.getElementById('siteSelector').value
+                };
+            },
+            failure: function() {
+                alert('There was an error while fetching events!');
+            }
+        },
+        eventClick: function(info) {
+            info.jsEvent.preventDefault();
+            if (info.event.url) {
+                window.location.href = info.event.url;
+            }
+        },
+        eventMouseEnter: function(info) {
+            // Create tooltip
+            var tooltip = document.createElement('div');
+            tooltip.className = 'fc-tooltip';
+            tooltip.innerHTML = `
+                <strong>${info.event.title}</strong><br>
+                Equipment: ${info.event.extendedProps.equipment}<br>
+                Location: ${info.event.extendedProps.location}<br>
+                Priority: ${info.event.extendedProps.priority}<br>
+                ${info.event.extendedProps.assigned_to ? 'Assigned to: ' + info.event.extendedProps.assigned_to : ''}
+            `;
+            tooltip.style.position = 'absolute';
+            tooltip.style.background = '#000';
+            tooltip.style.color = '#fff';
+            tooltip.style.padding = '8px';
+            tooltip.style.borderRadius = '4px';
+            tooltip.style.zIndex = '9999';
+            tooltip.style.fontSize = '12px';
+            tooltip.style.maxWidth = '200px';
+            
+            document.body.appendChild(tooltip);
+            
+            info.el.addEventListener('mousemove', function(e) {
+                tooltip.style.left = e.pageX + 10 + 'px';
+                tooltip.style.top = e.pageY + 10 + 'px';
+            });
+            
+            info.el.addEventListener('mouseleave', function() {
+                if (tooltip.parentNode) {
+                    tooltip.parentNode.removeChild(tooltip);
+                }
+            });
+        },
+        eventDidMount: function(info) {
+            // Add completion indicator
+            if (info.event.extendedProps.is_completed) {
+                info.el.style.opacity = '0.6';
+                info.el.style.textDecoration = 'line-through';
+            }
+        }
+    });
+    
+    calendar.render();
+    window.calendar = calendar; // Make it globally accessible
+    
+    updateActiveFilters();
+});
+
+function updateCalendar() {
+    if (window.calendar) {
+        window.calendar.refetchEvents();
+    }
+    updateActiveFilters();
+}
+
+function handleSiteChange(siteId) {
+    const url = new URL(window.location);
+    if (siteId) {
+        url.searchParams.set('site_id', siteId);
+    } else {
+        url.searchParams.delete('site_id');
+    }
+    window.location.href = url.toString();
+}
+
+function clearFilters() {
+    document.getElementById('eventTypeFilter').value = '';
+    document.getElementById('equipmentFilter').value = '';
+    updateCalendar();
+}
+
+function updateActiveFilters() {
+    const container = document.getElementById('activeFilters');
+    container.innerHTML = '';
+    
+    const eventType = document.getElementById('eventTypeFilter');
+    const equipment = document.getElementById('equipmentFilter');
+    
+    if (eventType.value) {
+        const tag = createFilterTag('Event Type', eventType.options[eventType.selectedIndex].text, () => {
+            eventType.value = '';
+            updateCalendar();
+        });
+        container.appendChild(tag);
+    }
+    
+    if (equipment.value) {
+        const tag = createFilterTag('Equipment', equipment.options[equipment.selectedIndex].text, () => {
+            equipment.value = '';
+            updateCalendar();
+        });
+        container.appendChild(tag);
+    }
+}
+
+function createFilterTag(label, value, onRemove) {
+    const tag = document.createElement('div');
+    tag.className = 'filter-tag';
+    tag.innerHTML = `
+        ${label}: ${value}
+        <span class="remove" onclick="this.parentElement.remove(); (${onRemove.toString()})()">×</span>
+    `;
+    return tag;
+}
+</script>
+{% endblock %}
