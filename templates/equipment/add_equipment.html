@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Add Equipment - Maintenance Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_list' %}">Equipment</a></li>
+<li class="breadcrumb-item active">Add Equipment</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-plus me-2"></i>
+                        Add New Equipment
+                    </h1>
+                    <p class="text-muted mb-0">Register new equipment in the maintenance system</p>
+                </div>
+                <div>
+                    <a href="{% url 'equipment:equipment_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>
+                    Equipment Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <!-- Display form errors if any -->
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger" role="alert">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Use crispy forms to render the form -->
+                    {% crispy form %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="helpModalLabel">Equipment Form Help</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <h6>Field Descriptions:</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl>
+                            <dt>Equipment Name</dt>
+                            <dd>Unique name to identify this equipment</dd>
+                            
+                            <dt>Category</dt>
+                            <dd>Classification of equipment type</dd>
+                            
+                            <dt>Asset Tag</dt>
+                            <dd>Internal tracking number or barcode</dd>
+                            
+                            <dt>Serial Number</dt>
+                            <dd>Manufacturer's serial number</dd>
+                            
+                            <dt>Location</dt>
+                            <dd>Physical location where equipment is installed</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl>
+                            <dt>Power Ratings</dt>
+                            <dd>Electrical specifications and ratings</dd>
+                            
+                            <dt>Trip Setpoints</dt>
+                            <dd>Protection relay settings and thresholds</dd>
+                            
+                            <dt>DGA Due Date</dt>
+                            <dd>Dissolved Gas Analysis testing due date</dd>
+                            
+                            <dt>Maintenance Date</dt>
+                            <dd>Next scheduled maintenance activity</dd>
+                            
+                            <dt>Documents</dt>
+                            <dd>Upload datasheets, schematics, or manuals</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-group .asteriskField {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .form-text {
+        font-size: 0.875em;
+        color: #6c757d;
+    }
+    
+    .fieldset {
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background-color: #f8f9fa;
+    }
+    
+    .fieldset legend {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #495057;
+        padding: 0 0.5rem;
+        margin-bottom: 0;
+        width: auto;
+    }
+    
+    .help-text {
+        font-size: 0.8rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    .required-field::after {
+        content: " *";
+        color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Add help button to form header
+    $('.card-header h5').append(
+        '<button type="button" class="btn btn-sm btn-outline-info ml-2" data-toggle="modal" data-target="#helpModal">' +
+        '<i class="fas fa-question-circle me-1"></i> Help</button>'
+    );
+    
+    // Form validation feedback
+    $('form').on('submit', function(e) {
+        let isValid = true;
+        
+        // Check required fields
+        $(this).find('input[required], select[required], textarea[required]').each(function() {
+            if (!$(this).val()) {
+                isValid = false;
+                $(this).addClass('is-invalid');
+                
+                // Add error message if not present
+                if (!$(this).siblings('.invalid-feedback').length) {
+                    $(this).after('<div class="invalid-feedback">This field is required.</div>');
+                }
+            } else {
+                $(this).removeClass('is-invalid');
+                $(this).siblings('.invalid-feedback').remove();
+            }
+        });
+        
+        // Validate asset tag format (letters, numbers, hyphens only)
+        const assetTagField = $('input[name="asset_tag"]');
+        if (assetTagField.length && assetTagField.val()) {
+            const assetTagPattern = /^[A-Za-z0-9\-]+$/;
+            if (!assetTagPattern.test(assetTagField.val())) {
+                isValid = false;
+                assetTagField.addClass('is-invalid');
+                if (!assetTagField.siblings('.invalid-feedback').length) {
+                    assetTagField.after('<div class="invalid-feedback">Asset tag can only contain letters, numbers, and hyphens.</div>');
+                }
+            }
+        }
+        
+        // Validate date fields
+        $('input[type="date"]').each(function() {
+            if ($(this).val()) {
+                const inputDate = new Date($(this).val());
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                // Check if commissioning date is not in the future
+                if ($(this).attr('name') === 'commissioning_date' && inputDate > today) {
+                    isValid = false;
+                    $(this).addClass('is-invalid');
+                    if (!$(this).siblings('.invalid-feedback').length) {
+                        $(this).after('<div class="invalid-feedback">Commissioning date cannot be in the future.</div>');
+                    }
+                }
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            
+            // Show alert
+            if (!$('.alert-danger').length) {
+                $('.card-body').prepend(
+                    '<div class="alert alert-danger alert-dismissible fade show" role="alert">' +
+                    '<i class="fas fa-exclamation-triangle me-2"></i>' +
+                    'Please correct the errors below before submitting.' +
+                    '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+                    '<span aria-hidden="true">&times;</span></button></div>'
+                );
+            }
+            
+            // Scroll to first error
+            const firstError = $('.is-invalid').first();
+            if (firstError.length) {
+                $('html, body').animate({
+                    scrollTop: firstError.offset().top - 100
+                }, 500);
+            }
+        }
+    });
+    
+    // Real-time validation for asset tag
+    $('input[name="asset_tag"]').on('input', function() {
+        const value = $(this).val();
+        const pattern = /^[A-Za-z0-9\-]*$/;
+        
+        if (value && !pattern.test(value)) {
+            $(this).addClass('is-invalid');
+            if (!$(this).siblings('.invalid-feedback').length) {
+                $(this).after('<div class="invalid-feedback">Only letters, numbers, and hyphens allowed.</div>');
+            }
+        } else {
+            $(this).removeClass('is-invalid');
+            $(this).siblings('.invalid-feedback').remove();
+        }
+    });
+    
+    // Auto-generate asset tag suggestion based on equipment name
+    $('input[name="name"]').on('blur', function() {
+        const equipmentName = $(this).val();
+        const assetTagField = $('input[name="asset_tag"]');
+        
+        if (equipmentName && !assetTagField.val()) {
+            // Generate suggestion: first 3 chars + random 3 digits
+            const prefix = equipmentName.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '');
+            const randomNum = Math.floor(Math.random() * 900) + 100;
+            const suggestion = prefix + '-' + randomNum;
+            
+            assetTagField.val(suggestion);
+            assetTagField.focus().select();
+        }
+    });
+    
+    // File upload preview
+    $('input[type="file"]').on('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const fileName = file.name;
+            const fileSize = (file.size / 1024 / 1024).toFixed(2); // MB
+            
+            // Remove existing preview
+            $(this).siblings('.file-preview').remove();
+            
+            // Add preview
+            $(this).after(
+                '<div class="file-preview mt-2 p-2 bg-light rounded">' +
+                '<small><i class="fas fa-file me-1"></i>' + fileName + ' (' + fileSize + ' MB)</small></div>'
+            );
+        }
+    });
+    
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+});
+</script>
+{% endblock %}

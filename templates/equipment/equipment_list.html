@@ -1,0 +1,314 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Equipment List - Maintenance Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Equipment</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-cogs me-2"></i>
+                        Equipment Management
+                    </h1>
+                    <p class="text-muted mb-0">Manage and monitor all equipment</p>
+                </div>
+                <div>
+                    <a href="{% url 'equipment:add_equipment' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> Add Equipment
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search and Filters -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="row align-items-end">
+                    <div class="col-md-3 mb-2">
+                        <label for="search" class="form-label">Search</label>
+                        <input type="text" class="form-control" id="search" name="search" 
+                               value="{{ search_term }}" placeholder="Search equipment...">
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <label for="category" class="form-label">Category</label>
+                        <select class="form-control" id="category" name="category">
+                            <option value="">All Categories</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}" {% if selected_category == category.id|stringformat:"s" %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <label for="location" class="form-label">Location</label>
+                        <select class="form-control" id="location" name="location">
+                            <option value="">All Locations</option>
+                            {% for location in locations %}
+                            <option value="{{ location.id }}" {% if selected_location == location.id|stringformat:"s" %}selected{% endif %}>
+                                {{ location.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 mb-2">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-control" id="status" name="status">
+                            <option value="">All Statuses</option>
+                            {% for status_value, status_display in statuses %}
+                            <option value="{{ status_value }}" {% if selected_status == status_value %}selected{% endif %}>
+                                {{ status_display }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="fas fa-search me-1"></i> Search
+                        </button>
+                        <a href="{% url 'equipment:equipment_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i> Clear
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Equipment List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Equipment List</h5>
+                <span class="badge badge-primary">{{ page_obj.paginator.count }} Total</span>
+            </div>
+            <div class="card-body">
+                {% if page_obj %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Equipment Name</th>
+                                    <th>Category</th>
+                                    <th>Location</th>
+                                    <th>Serial Number</th>
+                                    <th>Asset Tag</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for equipment in page_obj %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ equipment.name }}</strong><br>
+                                        {% if equipment.manufacturer %}
+                                            <small class="text-muted">{{ equipment.manufacturer }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if equipment.category %}
+                                            <span class="badge badge-secondary">{{ equipment.category.name }}</span>
+                                        {% else %}
+                                            <small class="text-muted">No category</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if equipment.location %}
+                                            {{ equipment.location.name }}
+                                        {% else %}
+                                            <small class="text-muted">No location</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ equipment.manufacturer_serial|default:"-" }}</td>
+                                    <td>
+                                        <code>{{ equipment.asset_tag }}</code>
+                                    </td>
+                                    <td>
+                                        {% if equipment.status == 'active' %}
+                                            <span class="badge badge-success">{{ equipment.get_status_display }}</span>
+                                        {% elif equipment.status == 'maintenance' %}
+                                            <span class="badge badge-warning">{{ equipment.get_status_display }}</span>
+                                        {% elif equipment.status == 'inactive' %}
+                                            <span class="badge badge-secondary">{{ equipment.get_status_display }}</span>
+                                        {% elif equipment.status == 'retired' %}
+                                            <span class="badge badge-dark">{{ equipment.get_status_display }}</span>
+                                        {% else %}
+                                            <span class="badge badge-light">{{ equipment.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'equipment:equipment_detail' equipment.id %}" 
+                                               class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'equipment:edit_equipment' equipment.id %}" 
+                                               class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <button class="btn btn-sm btn-outline-danger btn-delete" 
+                                                    data-equipment-id="{{ equipment.id }}" 
+                                                    data-equipment-name="{{ equipment.name }}" 
+                                                    data-toggle="tooltip" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="Equipment pagination">
+                        <ul class="pagination justify-content-center mt-4">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if search_term %}&search={{ search_term }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">
+                                        <i class="fas fa-angle-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_term %}&search={{ search_term }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">
+                                        <i class="fas fa-angle-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}{% if search_term %}&search={{ search_term }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_term %}&search={{ search_term }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">
+                                        <i class="fas fa-angle-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_term %}&search={{ search_term }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_location %}&location={{ selected_location }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">
+                                        <i class="fas fa-angle-double-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-cogs fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No Equipment Found</h5>
+                        <p class="text-muted">No equipment matches your search criteria.</p>
+                        <a href="{% url 'equipment:add_equipment' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i> Add Your First Equipment
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="equipmentName"></strong>?</p>
+                <p class="text-muted">This action cannot be undone and will also delete all associated maintenance records.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">
+                    <i class="fas fa-trash me-1"></i> Delete Equipment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+    
+    // Handle delete button clicks
+    $('.btn-delete').on('click', function() {
+        const equipmentId = $(this).data('equipment-id');
+        const equipmentName = $(this).data('equipment-name');
+        
+        $('#equipmentName').text(equipmentName);
+        $('#confirmDelete').data('equipment-id', equipmentId);
+        $('#deleteModal').modal('show');
+    });
+    
+    // Handle delete confirmation
+    $('#confirmDelete').on('click', function() {
+        const equipmentId = $(this).data('equipment-id');
+        
+        // Show loading state
+        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Deleting...');
+        
+        // Make AJAX request to delete
+        $.ajax({
+            url: `/equipment/${equipmentId}/delete/`,
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.status === 'success') {
+                    $('#deleteModal').modal('hide');
+                    location.reload(); // Refresh the page
+                } else {
+                    alert('Error deleting equipment: ' + response.message);
+                }
+            },
+            error: function() {
+                alert('Error deleting equipment. Please try again.');
+            },
+            complete: function() {
+                $('#confirmDelete').prop('disabled', false).html('<i class="fas fa-trash me-1"></i> Delete Equipment');
+            }
+        });
+    });
+    
+    // Auto-submit search form on filter change
+    $('#category, #location, #status').on('change', function() {
+        $(this).closest('form').submit();
+    });
+});
+</script>
+{% endblock %}
