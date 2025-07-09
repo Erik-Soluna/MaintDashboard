@@ -301,12 +301,22 @@
             z-index: 1050;
             min-width: 200px;
             padding: 8px 0;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            display: none;
+            float: left;
+            max-height: 400px;
+            overflow-y: auto;
         }
         
         .dropdown-item {
             color: var(--text-primary);
             padding: 8px 16px;
             transition: background-color 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .dropdown-item:hover {
@@ -329,18 +339,6 @@
             position: relative;
         }
         
-        .dropdown-menu {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            z-index: 1050;
-            display: none;
-            float: left;
-            min-width: 10rem;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        
         .dropdown.show .dropdown-menu {
             display: block;
         }
@@ -348,6 +346,41 @@
         .dropdown-menu-right {
             right: 0;
             left: auto;
+        }
+        
+        /* Form control dropdowns */
+        .form-control select {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 6px;
+            width: 100%;
+        }
+        
+        .form-control select:focus {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: #4299e1;
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+        }
+        
+        /* Select form control improvements */
+        select.form-control {
+            padding-right: 30px;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 8px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        
+        select.form-control option {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 8px 12px;
         }
         
         /* Site selector dropdown fixes */

@@ -5,10 +5,12 @@ Converted and improved from the original web2py controllers.
 
 import json
 import logging
+import csv
+import io
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.views.decorators.http import require_http_methods
@@ -421,3 +423,236 @@ def add_document(request, equipment_id):
     }
     
     return render(request, 'equipment/add_document.html', context)
+
+
+@login_required
+def import_equipment_csv(request):
+    """Import equipment from CSV file."""
+    if request.method == 'POST':
+        if 'csv_file' not in request.FILES:
+            messages.error(request, 'No file uploaded.')
+            return redirect('equipment:import_equipment_csv')
+        
+        csv_file = request.FILES['csv_file']
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, 'Please upload a CSV file.')
+            return redirect('equipment:import_equipment_csv')
+        
+        try:
+            file_data = csv_file.read().decode('utf-8')
+            io_string = io.StringIO(file_data)
+            reader = csv.DictReader(io_string)
+            
+            created_count = 0
+            errors = []
+            
+            for row_num, row in enumerate(reader, start=2):
+                try:
+                    # Required fields
+                    name = row.get('name', '').strip()
+                    category_name = row.get('category', '').strip()
+                    manufacturer_serial = row.get('manufacturer_serial', '').strip()
+                    asset_tag = row.get('asset_tag', '').strip()
+                    location_name = row.get('location', '').strip()
+                    
+                    if not all([name, category_name, manufacturer_serial, asset_tag, location_name]):
+                        errors.append(f"Row {row_num}: Missing required fields")
+                        continue
+                    
+                    # Get or create category
+                    category, created = EquipmentCategory.objects.get_or_create(
+                        name=category_name,
+                        defaults={'created_by': request.user}
+                    )
+                    
+                    # Get or create location
+                    location, created = Location.objects.get_or_create(
+                        name=location_name,
+                        defaults={'created_by': request.user}
+                    )
+                    
+                    # Check if equipment already exists
+                    if Equipment.objects.filter(
+                        Q(name=name) | Q(manufacturer_serial=manufacturer_serial) | Q(asset_tag=asset_tag)
+                    ).exists():
+                        errors.append(f"Row {row_num}: Equipment with this name, serial, or asset tag already exists")
+                        continue
+                    
+                    # Create equipment
+                    equipment = Equipment.objects.create(
+                        name=name,
+                        category=category,
+                        manufacturer_serial=manufacturer_serial,
+                        asset_tag=asset_tag,
+                        location=location,
+                        manufacturer=row.get('manufacturer', '').strip(),
+                        model_number=row.get('model_number', '').strip(),
+                        power_ratings=row.get('power_ratings', '').strip(),
+                        trip_setpoints=row.get('trip_setpoints', '').strip(),
+                        warranty_details=row.get('warranty_details', '').strip(),
+                        status=row.get('status', 'active').strip(),
+                        created_by=request.user,
+                        updated_by=request.user
+                    )
+                    
+                    created_count += 1
+                    
+                except Exception as e:
+                    errors.append(f"Row {row_num}: {str(e)}")
+                    continue
+            
+            if created_count > 0:
+                messages.success(request, f'Successfully imported {created_count} equipment items.')
+            
+            if errors:
+                error_msg = "Errors occurred during import:\n" + "\n".join(errors[:10])
+                if len(errors) > 10:
+                    error_msg += f"\n... and {len(errors) - 10} more errors"
+                messages.error(request, error_msg)
+            
+            return redirect('equipment:equipment_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error processing CSV file: {str(e)}')
+            return redirect('equipment:import_equipment_csv')
+    
+    return render(request, 'equipment/import_equipment_csv.html')
+
+
+@login_required
+def import_locations_csv(request):
+    """Import locations from CSV file."""
+    if request.method == 'POST':
+        if 'csv_file' not in request.FILES:
+            messages.error(request, 'No file uploaded.')
+            return redirect('equipment:import_locations_csv')
+        
+        csv_file = request.FILES['csv_file']
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, 'Please upload a CSV file.')
+            return redirect('equipment:import_locations_csv')
+        
+        try:
+            file_data = csv_file.read().decode('utf-8')
+            io_string = io.StringIO(file_data)
+            reader = csv.DictReader(io_string)
+            
+            created_count = 0
+            errors = []
+            
+            for row_num, row in enumerate(reader, start=2):
+                try:
+                    # Required fields
+                    name = row.get('name', '').strip()
+                    is_site = row.get('is_site', 'false').strip().lower() == 'true'
+                    parent_location_name = row.get('parent_location', '').strip()
+                    
+                    if not name:
+                        errors.append(f"Row {row_num}: Missing location name")
+                        continue
+                    
+                    # Check if location already exists
+                    if Location.objects.filter(name=name).exists():
+                        errors.append(f"Row {row_num}: Location '{name}' already exists")
+                        continue
+                    
+                    # Get parent location if specified
+                    parent_location = None
+                    if parent_location_name:
+                        try:
+                            parent_location = Location.objects.get(name=parent_location_name)
+                        except Location.DoesNotExist:
+                            errors.append(f"Row {row_num}: Parent location '{parent_location_name}' not found")
+                            continue
+                    
+                    # Create location
+                    location = Location.objects.create(
+                        name=name,
+                        parent_location=parent_location,
+                        is_site=is_site,
+                        address=row.get('address', '').strip(),
+                        latitude=float(row.get('latitude', 0)) if row.get('latitude') else None,
+                        longitude=float(row.get('longitude', 0)) if row.get('longitude') else None,
+                        created_by=request.user,
+                        updated_by=request.user
+                    )
+                    
+                    created_count += 1
+                    
+                except Exception as e:
+                    errors.append(f"Row {row_num}: {str(e)}")
+                    continue
+            
+            if created_count > 0:
+                messages.success(request, f'Successfully imported {created_count} locations.')
+            
+            if errors:
+                error_msg = "Errors occurred during import:\n" + "\n".join(errors[:10])
+                if len(errors) > 10:
+                    error_msg += f"\n... and {len(errors) - 10} more errors"
+                messages.error(request, error_msg)
+            
+            return redirect('core:locations_settings')
+            
+        except Exception as e:
+            messages.error(request, f'Error processing CSV file: {str(e)}')
+            return redirect('equipment:import_locations_csv')
+    
+    return render(request, 'equipment/import_locations_csv.html')
+
+
+@login_required
+def export_equipment_csv(request):
+    """Export equipment to CSV file."""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="equipment_export.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'name', 'category', 'manufacturer_serial', 'asset_tag', 'location',
+        'manufacturer', 'model_number', 'power_ratings', 'trip_setpoints',
+        'warranty_details', 'status'
+    ])
+    
+    equipment_list = Equipment.objects.select_related('category', 'location').all()
+    for equipment in equipment_list:
+        writer.writerow([
+            equipment.name,
+            equipment.category.name if equipment.category else '',
+            equipment.manufacturer_serial,
+            equipment.asset_tag,
+            equipment.location.name if equipment.location else '',
+            equipment.manufacturer,
+            equipment.model_number,
+            equipment.power_ratings,
+            equipment.trip_setpoints,
+            equipment.warranty_details,
+            equipment.status
+        ])
+    
+    return response
+
+
+@login_required
+def export_locations_csv(request):
+    """Export locations to CSV file."""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="locations_export.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'name', 'parent_location', 'is_site', 'address', 'latitude', 'longitude'
+    ])
+    
+    locations = Location.objects.all()
+    for location in locations:
+        writer.writerow([
+            location.name,
+            location.parent_location.name if location.parent_location else '',
+            location.is_site,
+            location.address,
+            location.latitude,
+            location.longitude
+        ])
+    
+    return response

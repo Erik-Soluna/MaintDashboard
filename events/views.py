@@ -251,59 +251,72 @@ def complete_event(request, event_id):
 @require_http_methods(["GET"])
 def fetch_events(request):
     """API endpoint to fetch events for calendar display."""
-    start_date = request.GET.get('start')
-    end_date = request.GET.get('end')
-    equipment_filter = request.GET.get('equipment')
-    event_type_filter = request.GET.get('event_type')
-    
-    # Base queryset
-    events = CalendarEvent.objects.select_related('equipment', 'equipment__location')
-    
-    # Date filtering
-    if start_date and end_date:
-        events = events.filter(
-            event_date__gte=start_date,
-            event_date__lte=end_date
-        )
-    
-    # Equipment filtering
-    if equipment_filter:
-        events = events.filter(equipment_id=equipment_filter)
-    
-    # Event type filtering
-    if event_type_filter:
-        events = events.filter(event_type=event_type_filter)
-    
-    # Convert to FullCalendar format
-    calendar_events = []
-    for event in events:
-        calendar_event = {
-            'id': event.id,
-            'title': f"{event.title} - {event.equipment.name}",
-            'start': str(event.event_date),
-            'allDay': event.all_day,
-            'backgroundColor': get_event_color(event.event_type, event.priority),
-            'borderColor': get_event_color(event.event_type, event.priority),
-            'textColor': '#ffffff',
-            'url': f"/events/events/{event.id}/",
-            'extendedProps': {
-                'equipment': event.equipment.name,
-                'location': event.equipment.location.name if event.equipment.location else '',
-                'priority': event.priority,
-                'event_type': event.event_type,
-                'assigned_to': event.assigned_to.get_full_name() if event.assigned_to else '',
-                'is_completed': event.is_completed,
-            }
-        }
+    try:
+        start_date = request.GET.get('start')
+        end_date = request.GET.get('end')
+        equipment_filter = request.GET.get('equipment')
+        event_type_filter = request.GET.get('event_type')
         
-        if not event.all_day and event.start_time:
-            calendar_event['start'] = f"{event.event_date}T{event.start_time}"
-            if event.end_time:
-                calendar_event['end'] = f"{event.event_date}T{event.end_time}"
+        # Base queryset
+        events = CalendarEvent.objects.select_related('equipment', 'equipment__location')
         
-        calendar_events.append(calendar_event)
+        # Date filtering
+        if start_date and end_date:
+            events = events.filter(
+                event_date__gte=start_date,
+                event_date__lte=end_date
+            )
+        
+        # Equipment filtering
+        if equipment_filter:
+            events = events.filter(equipment_id=equipment_filter)
+        
+        # Event type filtering
+        if event_type_filter:
+            events = events.filter(event_type=event_type_filter)
+        
+        # Convert to FullCalendar format
+        calendar_events = []
+        for event in events:
+            try:
+                calendar_event = {
+                    'id': event.id,
+                    'title': f"{event.title} - {event.equipment.name}",
+                    'start': str(event.event_date),
+                    'allDay': event.all_day,
+                    'backgroundColor': get_event_color(event.event_type, event.priority),
+                    'borderColor': get_event_color(event.event_type, event.priority),
+                    'textColor': '#ffffff',
+                    'url': f"/events/events/{event.id}/",
+                    'extendedProps': {
+                        'equipment': event.equipment.name if event.equipment else '',
+                        'location': event.equipment.location.name if event.equipment and event.equipment.location else '',
+                        'priority': event.priority,
+                        'event_type': event.event_type,
+                        'assigned_to': event.assigned_to.get_full_name() if event.assigned_to else '',
+                        'is_completed': event.is_completed,
+                    }
+                }
+                
+                if not event.all_day and event.start_time:
+                    calendar_event['start'] = f"{event.event_date}T{event.start_time}"
+                    if event.end_time:
+                        calendar_event['end'] = f"{event.event_date}T{event.end_time}"
+                
+                calendar_events.append(calendar_event)
+            except Exception as e:
+                # Log the error but continue with other events
+                print(f"Error processing event {event.id}: {str(e)}")
+                continue
+        
+        return JsonResponse(calendar_events, safe=False)
     
-    return JsonResponse(calendar_events, safe=False)
+    except Exception as e:
+        # Return error response for debugging
+        return JsonResponse({
+            'error': str(e),
+            'message': 'There was an error while fetching events'
+        }, status=500)
 
 
 def get_event_color(event_type, priority):

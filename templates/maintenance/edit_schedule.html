@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Schedule - {{ schedule.equipment.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Edit Schedule - {{ schedule.equipment.name }}</h1>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'maintenance:schedule_detail' schedule.id %}" class="btn btn-secondary">
+                        <i class="fas fa-eye"></i> View
+                    </a>
+                    <a href="{% url 'maintenance:schedule_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Schedules
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Edit Schedule Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.equipment.id_for_label }}" class="form-label">{{ form.equipment.label }}</label>
+                                    {{ form.equipment }}
+                                    {% if form.equipment.errors %}
+                                        <div class="text-danger">{{ form.equipment.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.activity_type.id_for_label }}" class="form-label">{{ form.activity_type.label }}</label>
+                                    {{ form.activity_type }}
+                                    {% if form.activity_type.errors %}
+                                        <div class="text-danger">{{ form.activity_type.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.frequency.id_for_label }}" class="form-label">{{ form.frequency.label }}</label>
+                                    {{ form.frequency }}
+                                    {% if form.frequency.errors %}
+                                        <div class="text-danger">{{ form.frequency.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.frequency_days.id_for_label }}" class="form-label">{{ form.frequency_days.label }}</label>
+                                    {{ form.frequency_days }}
+                                    {% if form.frequency_days.errors %}
+                                        <div class="text-danger">{{ form.frequency_days.errors }}</div>
+                                    {% endif %}
+                                    <div class="form-text">Only required for custom frequency</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.start_date.id_for_label }}" class="form-label">{{ form.start_date.label }}</label>
+                                    {{ form.start_date }}
+                                    {% if form.start_date.errors %}
+                                        <div class="text-danger">{{ form.start_date.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.end_date.id_for_label }}" class="form-label">{{ form.end_date.label }}</label>
+                                    {{ form.end_date }}
+                                    {% if form.end_date.errors %}
+                                        <div class="text-danger">{{ form.end_date.errors }}</div>
+                                    {% endif %}
+                                    <div class="form-text">Optional - leave blank for no end date</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.advance_notice_days.id_for_label }}" class="form-label">{{ form.advance_notice_days.label }}</label>
+                                    {{ form.advance_notice_days }}
+                                    {% if form.advance_notice_days.errors %}
+                                        <div class="text-danger">{{ form.advance_notice_days.errors }}</div>
+                                    {% endif %}
+                                    <div class="form-text">Days in advance to generate activities</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <div class="form-check">
+                                        {{ form.auto_generate }}
+                                        <label class="form-check-label" for="{{ form.auto_generate.id_for_label }}">
+                                            {{ form.auto_generate.label }}
+                                        </label>
+                                    </div>
+                                    {% if form.auto_generate.errors %}
+                                        <div class="text-danger">{{ form.auto_generate.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'maintenance:schedule_detail' schedule.id %}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Update Schedule
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Schedule History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="small">
+                        <strong>Created:</strong> {{ schedule.created_at|date:"Y-m-d H:i" }}
+                        {% if schedule.created_by %}
+                        <br>by {{ schedule.created_by.get_full_name }}
+                        {% endif %}
+                    </div>
+                    
+                    {% if schedule.updated_at %}
+                    <hr>
+                    <div class="small">
+                        <strong>Last Updated:</strong> {{ schedule.updated_at|date:"Y-m-d H:i" }}
+                        {% if schedule.updated_by %}
+                        <br>by {{ schedule.updated_by.get_full_name }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if schedule.last_generated %}
+                    <hr>
+                    <div class="small">
+                        <strong>Last Generated:</strong> {{ schedule.last_generated|date:"Y-m-d" }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
