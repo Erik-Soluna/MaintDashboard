@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}User Management - Maintenance Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'core:settings' %}">Settings</a></li>
+<li class="breadcrumb-item active">User Management</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="mb-0 text-white">
+                <i class="fas fa-users me-2"></i>
+                User Management
+            </h2>
+            <p class="text-muted mb-0">Manage user accounts and permissions</p>
+        </div>
+        <div>
+            <a href="{% url 'admin:auth_user_add' %}" class="btn btn-primary">
+                <i class="fas fa-user-plus me-1"></i>
+                Add User
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- User Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                <h5 class="card-title">{{ page_obj.paginator.count }}</h5>
+                <p class="card-text">Total Users</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-user-check fa-2x text-success mb-2"></i>
+                <h5 class="card-title">{{ users|length }}</h5>
+                <p class="card-text">Active Users</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-user-shield fa-2x text-warning mb-2"></i>
+                <h5 class="card-title">{{ users|length }}</h5>
+                <p class="card-text">Staff Users</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-crown fa-2x text-danger mb-2"></i>
+                <h5 class="card-title">{{ users|length }}</h5>
+                <p class="card-text">Superusers</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-table me-2"></i>
+            User Accounts
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if page_obj %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in page_obj %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-circle me-2">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div>
+                                    <strong>{{ user.get_full_name|default:user.username }}</strong><br>
+                                    <small class="text-muted">@{{ user.username }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if user.email %}
+                                {{ user.email }}
+                            {% else %}
+                                <small class="text-muted">No email</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.userprofile.role %}
+                                <span class="badge badge-secondary">{{ user.userprofile.get_role_display }}</span>
+                            {% else %}
+                                <small class="text-muted">No role</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex flex-column">
+                                {% if user.is_active %}
+                                    <span class="badge badge-success mb-1">Active</span>
+                                {% else %}
+                                    <span class="badge badge-secondary mb-1">Inactive</span>
+                                {% endif %}
+                                
+                                {% if user.is_superuser %}
+                                    <span class="badge badge-danger">Superuser</span>
+                                {% elif user.is_staff %}
+                                    <span class="badge badge-warning">Staff</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            {% if user.last_login %}
+                                {{ user.last_login|date:"M d, Y H:i" }}
+                            {% else %}
+                                <small class="text-muted">Never</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'admin:auth_user_change' user.id %}" 
+                                   class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="Edit User">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                
+                                {% if user != request.user %}
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="toggle_active">
+                                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                                    <button type="submit" class="btn btn-sm {% if user.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}" 
+                                            data-toggle="tooltip" title="{% if user.is_active %}Deactivate{% else %}Activate{% endif %} User">
+                                        <i class="fas {% if user.is_active %}fa-user-slash{% else %}fa-user-check{% endif %}"></i>
+                                    </button>
+                                </form>
+                                
+                                {% if not user.is_superuser %}
+                                <form method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="toggle_staff">
+                                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                                    <button type="submit" class="btn btn-sm {% if user.is_staff %}btn-outline-danger{% else %}btn-outline-info{% endif %}" 
+                                            data-toggle="tooltip" title="{% if user.is_staff %}Remove{% else %}Grant{% endif %} Staff Access">
+                                        <i class="fas fa-user-shield"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="User pagination" class="mt-3">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No users found</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    background-color: #4299e1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+}
+
+.badge {
+    font-size: 11px;
+    padding: 4px 8px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+    
+    // Confirm user actions
+    $('form').on('submit', function(e) {
+        const action = $(this).find('input[name="action"]').val();
+        const username = $(this).closest('tr').find('strong').text();
+        
+        let message = '';
+        if (action === 'toggle_active') {
+            message = 'Are you sure you want to change the active status for ' + username + '?';
+        } else if (action === 'toggle_staff') {
+            message = 'Are you sure you want to change staff privileges for ' + username + '?';
+        }
+        
+        if (message && !confirm(message)) {
+            e.preventDefault();
+        }
+    });
+});
+</script>
+{% endblock %}

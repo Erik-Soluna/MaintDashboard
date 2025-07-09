@@ -1,0 +1,400 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}User Profile - Maintenance Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Profile</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.profile-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.profile-header {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+    padding: 30px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.profile-avatar {
+    width: 100px;
+    height: 100px;
+    background-color: #4299e1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 36px;
+    margin: 0 auto 20px;
+}
+
+.profile-name {
+    color: #e2e8f0;
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.profile-username {
+    color: #a0aec0;
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+
+.profile-role {
+    display: inline-block;
+    background-color: #4299e1;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.profile-section {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.section-header {
+    background-color: #1a2238;
+    padding: 15px 20px;
+    border-bottom: 1px solid #4a5568;
+}
+
+.section-header h5 {
+    color: #e2e8f0;
+    margin: 0;
+    font-weight: 600;
+}
+
+.section-body {
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    color: #e2e8f0;
+    font-weight: 500;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.form-control {
+    background-color: #1a2238;
+    color: #e2e8f0;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+.form-control:focus {
+    background-color: #1a2238;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+    color: #e2e8f0;
+}
+
+.info-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #4a5568;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: #a0aec0;
+    font-weight: 500;
+    flex: 0 0 150px;
+}
+
+.info-value {
+    color: #e2e8f0;
+    flex: 1;
+}
+
+.section-actions {
+    padding: 15px 20px;
+    background-color: #1a2238;
+    border-top: 1px solid #4a5568;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #4a5568;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    background-color: #4299e1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    margin-right: 15px;
+    font-size: 14px;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-title {
+    color: #e2e8f0;
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.activity-time {
+    color: #a0aec0;
+    font-size: 14px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <!-- Profile Header -->
+    <div class="profile-header">
+        <div class="profile-avatar">
+            <i class="fas fa-user"></i>
+        </div>
+        <div class="profile-name">{{ user.get_full_name|default:user.username }}</div>
+        <div class="profile-username">@{{ user.username }}</div>
+        {% if user.userprofile.role %}
+        <div class="profile-role">{{ user.userprofile.get_role_display }}</div>
+        {% endif %}
+    </div>
+
+    <!-- Personal Information -->
+    <div class="profile-section">
+        <div class="section-header">
+            <h5>
+                <i class="fas fa-user-edit me-2"></i>
+                Personal Information
+            </h5>
+        </div>
+        <form method="post" id="profileForm">
+            {% csrf_token %}
+            <div class="section-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="first_name" class="form-label">First Name</label>
+                            <input type="text" id="first_name" name="first_name" class="form-control" 
+                                   value="{{ user.first_name }}" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="last_name" class="form-label">Last Name</label>
+                            <input type="text" id="last_name" name="last_name" class="form-control" 
+                                   value="{{ user.last_name }}" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email" class="form-label">Email Address</label>
+                    <input type="email" id="email" name="email" class="form-control" 
+                           value="{{ user.email }}" required>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="phone_number" class="form-label">Phone Number</label>
+                            <input type="tel" id="phone_number" name="phone_number" class="form-control" 
+                                   value="{{ user.userprofile.phone_number }}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="department" class="form-label">Department</label>
+                            <input type="text" id="department" name="department" class="form-control" 
+                                   value="{{ user.userprofile.department }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section-actions">
+                <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                    <i class="fas fa-undo me-1"></i>
+                    Reset
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Account Information -->
+    <div class="profile-section">
+        <div class="section-header">
+            <h5>
+                <i class="fas fa-info-circle me-2"></i>
+                Account Information
+            </h5>
+        </div>
+        <div class="section-body">
+            <div class="info-item">
+                <div class="info-label">Username</div>
+                <div class="info-value">{{ user.username }}</div>
+            </div>
+            
+            <div class="info-item">
+                <div class="info-label">Employee ID</div>
+                <div class="info-value">
+                    {% if user.userprofile.employee_id %}
+                        {{ user.userprofile.employee_id }}
+                    {% else %}
+                        <em>Not set</em>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="info-item">
+                <div class="info-label">Account Status</div>
+                <div class="info-value">
+                    {% if user.is_active %}
+                        <span class="badge badge-success">Active</span>
+                    {% else %}
+                        <span class="badge badge-secondary">Inactive</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="info-item">
+                <div class="info-label">User Role</div>
+                <div class="info-value">
+                    {% if user.userprofile.role %}
+                        {{ user.userprofile.get_role_display }}
+                    {% else %}
+                        <em>No role assigned</em>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="info-item">
+                <div class="info-label">Permissions</div>
+                <div class="info-value">
+                    {% if user.is_superuser %}
+                        <span class="badge badge-danger me-1">Superuser</span>
+                    {% endif %}
+                    {% if user.is_staff %}
+                        <span class="badge badge-warning me-1">Staff</span>
+                    {% endif %}
+                    {% if not user.is_staff and not user.is_superuser %}
+                        <span class="badge badge-secondary">Standard User</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="info-item">
+                <div class="info-label">Member Since</div>
+                <div class="info-value">{{ user.date_joined|date:"F d, Y" }}</div>
+            </div>
+            
+            <div class="info-item">
+                <div class="info-label">Last Login</div>
+                <div class="info-value">
+                    {% if user.last_login %}
+                        {{ user.last_login|date:"M d, Y H:i" }}
+                    {% else %}
+                        <em>Never logged in</em>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="profile-section">
+        <div class="section-header">
+            <h5>
+                <i class="fas fa-history me-2"></i>
+                Recent Activity
+            </h5>
+        </div>
+        <div class="section-body">
+            <div class="activity-item">
+                <div class="activity-icon">
+                    <i class="fas fa-sign-in-alt"></i>
+                </div>
+                <div class="activity-content">
+                    <div class="activity-title">Logged into the system</div>
+                    <div class="activity-time">{{ user.last_login|date:"M d, Y H:i"|default:"Never" }}</div>
+                </div>
+            </div>
+            
+            <div class="activity-item">
+                <div class="activity-icon">
+                    <i class="fas fa-user-edit"></i>
+                </div>
+                <div class="activity-content">
+                    <div class="activity-title">Profile created</div>
+                    <div class="activity-time">{{ user.date_joined|date:"M d, Y H:i" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Store original form values
+    const originalValues = {};
+    $('#profileForm input').each(function() {
+        originalValues[this.name] = this.value;
+    });
+    
+    // Handle form submission
+    $('#profileForm').on('submit', function(e) {
+        $(this).find('button[type="submit"]').prop('disabled', true).html(
+            '<i class="fas fa-spinner fa-spin me-1"></i> Saving...'
+        );
+    });
+});
+
+function resetForm() {
+    if (confirm('Are you sure you want to reset all changes?')) {
+        location.reload();
+    }
+}
+</script>
+{% endblock %}

@@ -156,9 +156,21 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
     phone_number = models.CharField(max_length=20, blank=True)
-    employee_id = models.CharField(max_length=50, blank=True, unique=True)
+    employee_id = models.CharField(max_length=50, blank=True, unique=True, null=True)
     department = models.CharField(max_length=100, blank=True)
     is_active = models.BooleanField(default=True)
+    
+    # Settings preferences
+    default_location = models.ForeignKey(
+        'Location', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        help_text="Default location for new equipment and maintenance activities"
+    )
+    notifications_enabled = models.BooleanField(default=True)
+    email_notifications = models.BooleanField(default=True)
+    sms_notifications = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.get_role_display()})"
