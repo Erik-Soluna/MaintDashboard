@@ -11,6 +11,7 @@ A Django-based web application for managing equipment maintenance, events, and r
 - **Responsive UI**: Bootstrap-based interface with crispy forms
 - **Filtering & Tables**: Advanced filtering and tabular data views
 - **Media Management**: File and image upload capabilities
+- **Container Management**: Integrated Portainer for Docker stack management and monitoring
 
 ## Prerequisites
 
@@ -107,6 +108,28 @@ docker-compose exec web python manage.py shell
 ```bash
 docker-compose exec db psql -U postgres -d maintenance_dashboard
 ```
+
+### Container Management with Portainer
+
+The stack includes Portainer for easy container management through a web interface:
+
+**Access Portainer:**
+- Development: `http://localhost:9000`
+- Production: `https://localhost:9443`
+
+**First-time setup:**
+1. Navigate to the Portainer URL
+2. Create an admin user (strong password required)
+3. Connect to the local Docker environment
+4. Start managing your containers through the web interface
+
+**Key features:**
+- Visual container management and monitoring
+- Real-time logs and resource usage
+- Stack management through web UI
+- Easy service scaling and configuration updates
+
+For detailed Portainer documentation, see [docs/PORTAINER.md](docs/PORTAINER.md).
 
 ### Production Docker Setup
 
@@ -250,6 +273,7 @@ Access the Django admin interface at `http://localhost:8000/admin/` using the su
 - **Maintenance**: Schedule and track maintenance activities
 - **Events**: Log and monitor maintenance events
 - **Reports**: View maintenance reports and analytics
+- **Container Management**: `http://localhost:9000/` - Portainer web interface for Docker management
 
 ## Project Structure
 
@@ -363,6 +387,18 @@ python manage.py dbshell
    docker-compose down -v
    docker system prune -a --volumes
    docker-compose up --build
+   ```
+
+6. **Portainer access issues**:
+   ```bash
+   # Check if Portainer is running
+   docker-compose ps portainer
+   
+   # View Portainer logs
+   docker-compose logs portainer
+   
+   # Restart Portainer only
+   docker-compose restart portainer
    ```
 
 ### Common Issues (Manual Installation)

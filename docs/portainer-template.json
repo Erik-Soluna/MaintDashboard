@@ -1,0 +1,88 @@
+{
+  "version": "2",
+  "templates": [
+    {
+      "type": 3,
+      "title": "Maintenance Dashboard",
+      "description": "Complete Django-based maintenance dashboard with PostgreSQL, Redis, Celery, and Portainer",
+      "note": "This template deploys the full Maintenance Dashboard stack including database, cache, web application, background workers, and container management.",
+      "categories": ["Web Applications", "Django", "Maintenance"],
+      "platform": "linux",
+      "logo": "https://raw.githubusercontent.com/docker-library/docs/master/django/logo.png",
+      "repository": {
+        "url": "https://github.com/your-username/maintenance-dashboard",
+        "stackfile": "docker-compose.yml"
+      },
+      "env": [
+        {
+          "name": "SECRET_KEY",
+          "label": "Django Secret Key",
+          "description": "Secret key for Django application (change in production)",
+          "default": "django-insecure-docker-development-key-change-in-production"
+        },
+        {
+          "name": "DEBUG",
+          "label": "Debug Mode",
+          "description": "Enable Django debug mode (set to False in production)",
+          "default": "True",
+          "select": [
+            {
+              "text": "True",
+              "value": "True"
+            },
+            {
+              "text": "False", 
+              "value": "False"
+            }
+          ]
+        },
+        {
+          "name": "DB_PASSWORD",
+          "label": "Database Password",
+          "description": "Password for PostgreSQL database",
+          "default": "postgres"
+        },
+        {
+          "name": "ALLOWED_HOSTS",
+          "label": "Allowed Hosts",
+          "description": "Comma-separated list of allowed hosts",
+          "default": "localhost,127.0.0.1,0.0.0.0"
+        }
+      ]
+    },
+    {
+      "type": 3,
+      "title": "Maintenance Dashboard (Production)",
+      "description": "Production-ready Maintenance Dashboard with SSL and Nginx reverse proxy",
+      "note": "This template deploys the production version with nginx reverse proxy and SSL support. Make sure to configure SSL certificates.",
+      "categories": ["Web Applications", "Django", "Production"],
+      "platform": "linux",
+      "logo": "https://raw.githubusercontent.com/docker-library/docs/master/django/logo.png",
+      "repository": {
+        "url": "https://github.com/your-username/maintenance-dashboard",
+        "stackfile": "docker-compose.yml",
+        "composeFilePathInRepository": "docker-compose.prod.yml"
+      },
+      "env": [
+        {
+          "name": "SECRET_KEY",
+          "label": "Django Secret Key",
+          "description": "Secret key for Django application (REQUIRED - use a strong secret key)",
+          "default": ""
+        },
+        {
+          "name": "DB_PASSWORD",
+          "label": "Database Password", 
+          "description": "Password for PostgreSQL database (REQUIRED - use a strong password)",
+          "default": ""
+        },
+        {
+          "name": "ALLOWED_HOSTS",
+          "label": "Allowed Hosts",
+          "description": "Comma-separated list of allowed hosts (include your domain)",
+          "default": "yourdomain.com,www.yourdomain.com"
+        }
+      ]
+    }
+  ]
+}
