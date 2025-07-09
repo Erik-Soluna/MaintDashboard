@@ -1,4 +1,4 @@
-"""
+THIS SHOULD BE A LINTER ERROR"""
 Django settings for maintenance_dashboard project.
 """
 
