@@ -16,6 +16,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -26,6 +27,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   web:
     image: maintenance-dashboard:latest  # Use your pre-built image
@@ -53,6 +55,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
 
   celery:
     image: maintenance-dashboard:latest  # Use your pre-built image
@@ -71,6 +74,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
 
   celery-beat:
     image: maintenance-dashboard:latest  # Use your pre-built image
@@ -89,6 +93,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:
