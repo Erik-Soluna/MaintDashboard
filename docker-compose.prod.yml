@@ -52,5 +52,12 @@ services:
       - web
     restart: unless-stopped
 
+  portainer:
+    environment:
+      - PORTAINER_HTTP_DISABLED=true  # Force HTTPS in production
+    volumes:
+      - ./ssl:/certs:ro  # SSL certificates for Portainer
+    restart: unless-stopped
+
 volumes:
   postgres_data_prod:
