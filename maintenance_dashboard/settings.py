@@ -1,4 +1,4 @@
-THIS SHOULD BE A LINTER ERROR"""
+"""
 Django settings for maintenance_dashboard project.
 """
 
@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'crispy_bootstrap4',
     'django_filters',
     'django_tables2',
+    'widget_tweaks',
     
     # Local apps
     'equipment',
