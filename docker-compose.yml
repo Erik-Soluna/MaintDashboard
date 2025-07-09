@@ -30,7 +30,7 @@ services:
   web:
     build: .
     command: >
-      sh -c "python manage.py migrate &&
+      sh -c "python manage.py init_database --admin-username admin --admin-email admin@maintenance.local --admin-password temppass123 &&
              python manage.py collectstatic --noinput &&
              gunicorn --bind 0.0.0.0:8000 --workers 3 maintenance_dashboard.wsgi:application"
     volumes:
