@@ -1,0 +1,159 @@
+# File: controllers/calendar.py
+import logging
+import datetime
+
+# Configure logging for debugging
+logging.basicConfig(level=logging.DEBUG)
+
+@auth.requires_login()
+def calendar_view():
+    """Render the calendar page with available equipment for selection."""
+    equipment_list = db(db.equipment).select(db.equipment.id, db.equipment.name)
+
+    return dict(equipment_list=equipment_list)
+
+@auth.requires_login()
+def fetch_events():
+    """Fetch maintenance schedules for FullCalendar."""
+    try:
+        schedules = db(db.schedule).select(
+            db.schedule.id,
+            db.schedule.maintenance_id,
+            db.schedule.start_datetime,
+            db.schedule.end_datetime,
+            left=db.maintenance.on(db.schedule.maintenance_id == db.maintenance.id)
+        )
+
+        events = []
+        for s in schedules:
+            events.append({
+                'id': s.id,
+                'title': s.maintenance_id.title if s.maintenance_id else "No Title",
+                'start': s.start_datetime.strftime('%Y-%m-%dT%H:%M:%S') if s.start_datetime else None,
+                'end': s.end_datetime.strftime('%Y-%m-%dT%H:%M:%S') if s.end_datetime else None,
+                'description': s.maintenance_id.description if s.maintenance_id else "",
+                'equipment_id': s.maintenance_id.equipment_id if s.maintenance_id else None
+            })
+
+        return response.json(events)
+    
+    except Exception as e:
+        logging.error(f"Fetch Events Error: {str(e)}")
+        return response.json({'status': 'error', 'message': str(e)})
+
+@auth.requires_login()
+def create_event():
+    """Create a new maintenance schedule event."""
+    logging.debug("Received POST vars: %s", request.post_vars)
+    
+    title = request.post_vars.get('title')
+    description = request.post_vars.get('description')
+    start = request.post_vars.get('start')
+    end = request.post_vars.get('end')
+    equipment_id = request.post_vars.get('equipment_id')
+
+    # Validate required fields
+    missing = []
+    if not title: missing.append("title")
+    if not start: missing.append("start")
+    if not end: missing.append("end")
+    if missing:
+        error_msg = f"Missing required fields: {', '.join(missing)}"
+        logging.error(error_msg)
+        return response.json({'status': 'error', 'message': error_msg})
+
+    # Validate date format
+    try:
+        start_datetime = datetime.datetime.strptime(start, '%Y-%m-%dT%H:%M')
+        end_datetime = datetime.datetime.strptime(end, '%Y-%m-%dT%H:%M')
+    except ValueError as e:
+        error_msg = f"Invalid date format: {str(e)}"
+        logging.error(error_msg)
+        return response.json({'status': 'error', 'message': error_msg})
+
+    # Validate equipment ID
+    if not db(db.equipment.id == equipment_id).count():
+        return response.json({'status': 'error', 'message': 'Invalid equipment ID'})
+
+    try:
+        # Insert a new maintenance record
+        maintenance_id = db.maintenance.insert(
+            equipment_id=equipment_id,
+            title=title,
+            description=description,
+            required_status="Scheduled"
+        )
+        logging.debug("Inserted Maintenance ID: %s", maintenance_id)
+        
+        # Insert into schedule table
+        schedule_id = db.schedule.insert(
+            maintenance_id=maintenance_id,
+            start_datetime=start_datetime,
+            end_datetime=end_datetime
+        )
+        db.commit()
+        logging.debug("Inserted Schedule ID: %s", schedule_id)
+        return response.json({'status': 'success', 'id': schedule_id})
+    
+    except Exception as e:
+        error_msg = f"Database Insert Error: {str(e)}"
+        logging.error(error_msg)
+        return response.json({'status': 'error', 'message': error_msg})
+
+@auth.requires_login()
+def update_event():
+    """Update an existing maintenance schedule."""
+    schedule_id = request.post_vars.get('id')
+    title = request.post_vars.get('title')
+    description = request.post_vars.get('description')
+    start = request.post_vars.get('start')
+    end = request.post_vars.get('end')
+
+    if not schedule_id or not title or not start or not end:
+        return response.json({'status': 'error', 'message': 'Missing required fields'})
+
+    try:
+        start_datetime = datetime.datetime.strptime(start, '%Y-%m-%dT%H:%M')
+        end_datetime = datetime.datetime.strptime(end, '%Y-%m-%dT%H:%M')
+    except ValueError:
+        return response.json({'status': 'error', 'message': 'Invalid date format'})
+
+    try:
+        schedule = db.schedule(schedule_id)
+        if schedule:
+            db(db.maintenance.id == schedule.maintenance_id).update(
+                title=title,
+                description=description
+            )
+            db(db.schedule.id == schedule_id).update(
+                start_datetime=start_datetime,
+                end_datetime=end_datetime
+            )
+
+            db.commit()
+            return response.json({'status': 'success'})
+        return response.json({'status': 'error', 'message': 'Schedule not found'})
+    except Exception as e:
+        return response.json({'status': 'error', 'message': str(e)})
+
+@auth.requires_membership('admin')
+def delete_event():
+    """Delete a maintenance schedule (Admin Only)."""
+    logging.debug(f"Delete Request Data: {request.vars}")
+
+    schedule_id = request.vars.id
+    if not schedule_id:
+        return response.json({'status': 'error', 'message': 'Schedule ID missing'})
+
+    try:
+        schedule = db.schedule(schedule_id)
+        if schedule:
+            db(db.schedule.id == schedule_id).delete()
+            db(db.maintenance.id == schedule.maintenance_id).delete()
+            db.commit()
+            logging.debug(f"Deleted Schedule ID: {schedule_id}")
+            return response.json({'status': 'success'})
+        return response.json({'status': 'error', 'message': 'Schedule not found'})
+    except Exception as e:
+        logging.error(f"Delete Error: {str(e)}")
+        return response.json({'status': 'error', 'message': str(e)})

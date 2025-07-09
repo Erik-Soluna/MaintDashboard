@@ -1,0 +1,98 @@
+# File: controllers/maintenance.py
+
+@auth.requires_login()
+def manage_maintenance():
+    """Retrieve maintenance records grouped by equipment category."""
+
+    # Fetch maintenance records with joins
+    maintenance_records = db(db.maintenance).select(
+        db.maintenance.id,
+        db.maintenance.title,
+        db.maintenance.description,
+        db.maintenance.required_status,
+        db.maintenance.equipment_id,
+        db.equipment.name.with_alias("equipment_name"),
+        db.equipment_category.name.with_alias("equipment_category"),
+        left=[
+            db.equipment.on(db.maintenance.equipment_id == db.equipment.id),
+            db.equipment_category.on(db.equipment.category == db.equipment_category.id)
+        ]
+    )
+
+    # Organize maintenance records by category
+    category_map = {}
+    for m in maintenance_records:
+        category = m.equipment_category or "Uncategorized"
+        if category not in category_map:
+            category_map[category] = []
+        category_map[category].append({
+            'id': m.maintenance.id,
+            'title': m.maintenance.title or "Untitled",
+            'description': m.maintenance.description or "No description",
+            'required_status': m.maintenance.required_status or "Unknown",
+            'equipment_id': m.maintenance.equipment_id,
+            'equipment_name': m.equipment_name or "Unknown Equipment"
+        })
+
+    # Fetch available equipment for the dropdown
+    equipment_list = db(db.equipment).select(db.equipment.id, db.equipment.name)
+
+    return dict(maintenance_by_category=category_map, equipment_list=equipment_list)
+
+@auth.requires_login()
+def get_maintenance():
+    """Retrieve maintenance details for editing."""
+    maintenance_id = request.vars.get('id')
+
+    if not maintenance_id:
+        return response.json({'status': 'error', 'message': 'No maintenance ID provided'})
+
+    maintenance = db.maintenance(maintenance_id)
+
+    if maintenance:
+        return response.json({'status': 'success', 'event': {  # ✅ Wrap data inside "event"
+            'id': maintenance.id,
+            'equipment_id': maintenance.equipment_id,
+            'title': maintenance.title,
+            'description': maintenance.description,
+            'required_status': maintenance.required_status
+        }})
+    else:
+        return response.json({'status': 'error', 'message': 'Maintenance record not found'})
+
+@auth.requires_login()
+def edit_maintenance():
+    """Update an existing maintenance record."""
+    maintenance_id = request.post_vars.get('id')
+
+    if not maintenance_id:
+        return response.json({'status': 'error', 'message': 'No maintenance ID provided'})
+
+    fields_to_update = {}
+    for field in ['equipment_id', 'title', 'description', 'required_status']:
+        value = request.post_vars.get(field)
+        if value is not None:
+            fields_to_update[field] = value
+
+    try:
+        db(db.maintenance.id == maintenance_id).update(**fields_to_update)
+        db.commit()
+        return response.json({'status': 'success'})
+    except Exception as e:
+        return response.json({'status': 'error', 'message': str(e)})
+
+
+@auth.requires_membership('manager')  # ✅ Only managers and admins can delete
+def delete_maintenance():
+    """Delete a maintenance record."""
+    maintenance_id = request.post_vars.get('id')
+
+    if not maintenance_id:
+        return response.json({'status': 'error', 'message': 'No maintenance ID provided'})
+
+    try:
+        db(db.maintenance.id == maintenance_id).delete()
+        db.commit()
+        return response.json({'status': 'success'})
+    except Exception as e:
+        return response.json({'status': 'error', 'message': str(e)})

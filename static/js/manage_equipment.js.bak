@@ -1,0 +1,36 @@
+document.addEventListener('DOMContentLoaded', function() {
+  // Search
+  const searchEquipment = document.getElementById('searchEquipment');
+
+  if (searchEquipment) {
+    searchEquipment.addEventListener('input', function() {
+      const searchTerm = this.value;
+
+      // Send an AJAX request to the server to get the searched data
+      fetch(`/equipment/search_equipment?search_term=${searchTerm}`)
+        .then(response => response.json())
+        .then(data => {
+          // Update the table with the searched data
+          updateTable(data.equipment);
+        })
+        .catch(error => {
+          console.error('Error:', error);
+        });
+    });
+  }
+
+  function updateTable(equipmentList) {
+    const tableBody = document.querySelector('table tbody');
+    tableBody.innerHTML = ''; // Clear the existing table rows
+
+    equipmentList.forEach(equipment => {
+      const row = document.createElement('tr');
+      fields.forEach(field => { // Assuming 'fields' is available in the global scope
+        const cell = document.createElement('td');
+        cell.textContent = equipment[field] || 'N/A';
+        row.appendChild(cell);
+      });
+      tableBody.appendChild(row);
+    });
+  }
+});

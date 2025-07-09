@@ -1,0 +1,146 @@
+# File: controllers/admin_tools.py
+
+@auth.requires_membership('admin')
+def manage_user_parameters():
+    """Manage parameters for users."""
+    users = db(db.auth_user).select()  # Fetch all users
+    roles = db(db.auth_group).select()  # Fetch all roles
+
+    if request.post_vars:
+        # Handle role updates
+        user_id = request.post_vars.get('user_id')
+        selected_roles = request.post_vars.getlist('roles')
+        db(db.auth_membership.user_id == int(user_id)).delete()  # Remove all existing roles
+        for role_id in selected_roles:
+            db.auth_membership.insert(user_id=int(user_id), group_id=int(role_id))
+        session.flash = f"Roles updated successfully for User ID {user_id}."
+        redirect(URL('admin_tools', 'manage_user_parameters'))
+
+    return dict(users=users, roles=roles)
+
+
+@auth.requires_membership('admin')
+def bulk_delete_users():
+    """Delete selected users."""
+    user_ids = request.post_vars.getlist('user_ids')  # Fetch selected user IDs
+    if user_ids:
+        db(db.auth_user.id.belongs(user_ids)).delete()  # Delete users with given IDs
+        session.flash = f"{len(user_ids)} user(s) deleted successfully."
+    else:
+        session.flash = "No users selected for deletion."
+    redirect(URL('admin_tools', 'manage_user_parameters'))
+
+
+@auth.requires_membership('admin')
+def edit_user():
+    """Edit a specific user's details."""
+    user_id = request.args(0, cast=int) or redirect(URL('admin_tools', 'manage_user_parameters'))
+    form = SQLFORM(db.auth_user, user_id, showid=False)
+    if form.process().accepted:
+        session.flash = "User updated successfully."
+        redirect(URL('admin_tools', 'manage_user_parameters'))
+    elif form.errors:
+        response.flash = "There were errors in the form."
+    return dict(form=form)
+
+
+@auth.requires_membership('admin')
+def update_user_role():
+    """Admin function to update user roles."""
+    user_id = request.post_vars.user_id
+    role_id = request.post_vars.role_id
+    if user_id and role_id:
+        if not db((db.auth_membership.user_id == user_id) & (db.auth_membership.group_id == role_id)).select().first():
+            db.auth_membership.insert(user_id=user_id, group_id=role_id)
+        return response.json({'status': 'success'})
+    return response.json({'status': 'error', 'message': 'Invalid user or role'})
+
+
+@auth.requires_membership('admin')
+def remove_user_role():
+    """Admin function to remove a user's role."""
+    user_id = request.post_vars.user_id
+    role_id = request.post_vars.role_id
+    if user_id and role_id:
+        db((db.auth_membership.user_id == user_id) & (db.auth_membership.group_id == role_id)).delete()
+        return response.json({'status': 'success'})
+    return response.json({'status': 'error', 'message': 'Invalid user or role'})
+
+@auth.requires_membership('developers')
+def add_sample_data():
+    """Populate the database with sample data."""
+    import datetime  # For time calculations
+
+    # Look up or insert required equipment categories
+    transformer_cat = db(db.equipment_category.name == 'Transformers').select().first()
+    if not transformer_cat:
+        transformer_cat_id = db.equipment_category.insert(name='Transformers')
+    else:
+        transformer_cat_id = transformer_cat.id
+
+    power_meter_cat = db(db.equipment_category.name == 'Power Meters').select().first()
+    if not power_meter_cat:
+        power_meter_cat_id = db.equipment_category.insert(name='Power Meters')
+    else:
+        power_meter_cat_id = power_meter_cat.id
+
+    # Look up or insert required equipment locations
+    pod1 = db(db.equipment_location.name == 'POD 1').select().first()
+    if not pod1:
+        pod1_id = db.equipment_location.insert(name='POD 1')
+    else:
+        pod1_id = pod1.id
+
+    pod2 = db(db.equipment_location.name == 'POD 2').select().first()
+    if not pod2:
+        pod2_id = db.equipment_location.insert(name='POD 2')
+    else:
+        pod2_id = pod2.id
+
+    if not db(db.equipment).count():
+        # Insert sample equipment and capture their IDs
+        transformer_id = db.equipment.insert(
+            name="Transformer 1",
+            category=transformer_cat_id,
+            equipment_location=pod1_id
+        )
+        power_meter_id = db.equipment.insert(
+            name="Power Meter 2",
+            category=power_meter_cat_id,
+            equipment_location=pod2_id
+        )
+
+        # Insert sample maintenance tasks using the returned equipment IDs
+        maintenance_id_1 = db.maintenance.insert(
+            equipment_id=transformer_id,
+            title="Transformer Oil Check",
+            pm_designator="PM-001",
+            description="Check the quality of oil in Transformer 1",
+            required_status="De-energized"
+        )
+
+        maintenance_id_2 = db.maintenance.insert(
+            equipment_id=power_meter_id,
+            title="Power Meter Calibration",
+            pm_designator="PM-002",
+            description="Calibrate Power Meter 2",
+            required_status="Energized"
+        )
+
+        # Insert sample schedules for the maintenance tasks
+        db.schedule.insert(
+            maintenance_id=maintenance_id_1,
+            start_datetime=request.now,
+            end_datetime=request.now + datetime.timedelta(hours=2)
+        )
+        db.schedule.insert(
+            maintenance_id=maintenance_id_2,
+            start_datetime=request.now + datetime.timedelta(days=1),
+            end_datetime=request.now + datetime.timedelta(days=1, hours=3)
+        )
+
+        session.flash = "Sample data added successfully!"
+    else:
+        session.flash = "Sample data already exists."
+
+    redirect(URL('admin_tools', 'dev_tools'))

@@ -1,0 +1,77 @@
+# File: controllers/settings.py
+# -*- coding: utf-8 -*-
+"""
+Controller for application settings management.
+Includes endpoints for rendering settings, adding and deleting equipment categories,
+and managing site locations.
+"""
+
+import logging
+import uuid
+from gluon.globals import response, request, session
+from gluon.tools import redirect, URL, SQLFORM
+from gluon import current
+T = current.T
+
+logging.basicConfig(level=logging.DEBUG)
+
+@auth.requires_login()
+@auth.requires_membership('admin')
+def manage_settings():
+    """Render the manage settings page with users and roles for the admin panel."""
+    session._formkey = str(uuid.uuid4())  # Generate CSRF token
+    users = db(db.auth_user).select()
+    roles = db(db.auth_group).select()
+    return dict(users=users, roles=roles, formkey=session._formkey)
+
+@auth.requires_membership('admin')
+def add_category():
+    """API to add a new equipment category with CSRF protection."""
+    if request.post_vars.get('_formkey') != session._formkey:
+        return response.json({'status': 'error', 'message': 'CSRF token missing or invalid'})
+    
+    category_name = request.post_vars.get('category_name', '').strip()
+    if not category_name:
+        return response.json({'status': 'error', 'message': 'Category name is required'})
+
+    existing_category = db(db.equipment_category.name == category_name).select().first()
+    if existing_category:
+        return response.json({'status': 'error', 'message': 'Category already exists'})
+
+    try:
+        db.equipment_category.insert(name=category_name)
+        db.commit()
+        logging.debug(f"Added category: {category_name}")
+        return response.json({'status': 'success'})
+    except Exception as e:
+        logging.error(f"Error adding category: {str(e)}")
+        return response.json({'status': 'error', 'message': str(e)})
+
+@auth.requires_membership('admin')
+def delete_category():
+    """API to delete an equipment category with CSRF protection."""
+    if request.post_vars.get('_formkey') != session._formkey:
+        return response.json({'status': 'error', 'message': 'CSRF token missing or invalid'})
+    
+    category_id = request.post_vars.get('category_id')
+    if not category_id:
+        return response.json({'status': 'error', 'message': 'Category ID is required'})
+
+    if db(db.equipment.category == category_id).count():
+        return response.json({'status': 'error', 'message': 'Cannot delete category in use'})
+
+    try:
+        db(db.equipment_category.id == category_id).delete()
+        db.commit()
+        logging.debug(f"Deleted category ID: {category_id}")
+        return response.json({'status': 'success'})
+    except Exception as e:
+        logging.error(f"Error deleting category: {str(e)}")
+        return response.json({'status': 'error', 'message': str(e)})
+
+@auth.requires_membership('admin')
+def manage_site_locations():
+    """Allow administrators to add/remove site locations."""
+    session._formkey = str(uuid.uuid4())  # Ensure CSRF token is generated
+    form = SQLFORM.grid(db.site_location, user_signature=False)
+    return dict(form=form, formkey=session._formkey)
