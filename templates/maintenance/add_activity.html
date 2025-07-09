@@ -1,1 +1,203 @@
-THIS SHOULD BE A LINTER ERROR
+THIS SHOULD BE A LINTER ERROR{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Add Maintenance Activity{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Add Maintenance Activity</h1>
+                <a href="{% url 'maintenance:maintenance_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Maintenance
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8 col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Activity Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.title.id_for_label }}" class="form-label">{{ form.title.label }}</label>
+                                    {{ form.title }}
+                                    {% if form.title.errors %}
+                                        <div class="text-danger">{{ form.title.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.activity_type.id_for_label }}" class="form-label">{{ form.activity_type.label }}</label>
+                                    {{ form.activity_type }}
+                                    {% if form.activity_type.errors %}
+                                        <div class="text-danger">{{ form.activity_type.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.equipment.id_for_label }}" class="form-label">{{ form.equipment.label }}</label>
+                                    {{ form.equipment }}
+                                    {% if form.equipment.errors %}
+                                        <div class="text-danger">{{ form.equipment.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.assigned_to.id_for_label }}" class="form-label">{{ form.assigned_to.label }}</label>
+                                    {{ form.assigned_to }}
+                                    {% if form.assigned_to.errors %}
+                                        <div class="text-danger">{{ form.assigned_to.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="text-danger">{{ form.description.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.scheduled_start.id_for_label }}" class="form-label">{{ form.scheduled_start.label }}</label>
+                                    {{ form.scheduled_start }}
+                                    {% if form.scheduled_start.errors %}
+                                        <div class="text-danger">{{ form.scheduled_start.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.scheduled_end.id_for_label }}" class="form-label">{{ form.scheduled_end.label }}</label>
+                                    {{ form.scheduled_end }}
+                                    {% if form.scheduled_end.errors %}
+                                        <div class="text-danger">{{ form.scheduled_end.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.priority.id_for_label }}" class="form-label">{{ form.priority.label }}</label>
+                                    {{ form.priority }}
+                                    {% if form.priority.errors %}
+                                        <div class="text-danger">{{ form.priority.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.status.id_for_label }}" class="form-label">{{ form.status.label }}</label>
+                                    {{ form.status }}
+                                    {% if form.status.errors %}
+                                        <div class="text-danger">{{ form.status.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="{{ form.tools_required.id_for_label }}" class="form-label">{{ form.tools_required.label }}</label>
+                            {{ form.tools_required }}
+                            {% if form.tools_required.errors %}
+                                <div class="text-danger">{{ form.tools_required.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="{{ form.parts_required.id_for_label }}" class="form-label">{{ form.parts_required.label }}</label>
+                            {{ form.parts_required }}
+                            {% if form.parts_required.errors %}
+                                <div class="text-danger">{{ form.parts_required.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="{{ form.safety_notes.id_for_label }}" class="form-label">{{ form.safety_notes.label }}</label>
+                            {{ form.safety_notes }}
+                            {% if form.safety_notes.errors %}
+                                <div class="text-danger">{{ form.safety_notes.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'maintenance:maintenance_list' %}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Activity
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'maintenance:activity_type_list' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-list"></i> Activity Types
+                        </a>
+                        <a href="{% url 'equipment:equipment_list' %}" class="btn btn-outline-success">
+                            <i class="fas fa-cogs"></i> Equipment List
+                        </a>
+                        <a href="{% url 'maintenance:schedule_list' %}" class="btn btn-outline-info">
+                            <i class="fas fa-calendar-alt"></i> Schedules
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Initialize datetime pickers
+    $('#id_scheduled_start, #id_scheduled_end').datetimepicker({
+        format: 'Y-m-d H:i',
+        step: 15
+    });
+
+    // Auto-calculate end time based on activity type
+    $('#id_activity_type').change(function() {
+        const selectedOption = $(this).find('option:selected');
+        const estimatedHours = selectedOption.data('estimated-hours');
+        
+        if (estimatedHours) {
+            const startTime = $('#id_scheduled_start').val();
+            if (startTime) {
+                const startDate = new Date(startTime);
+                const endDate = new Date(startDate.getTime() + (estimatedHours * 60 * 60 * 1000));
+                $('#id_scheduled_end').val(endDate.toISOString().slice(0, 16));
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
