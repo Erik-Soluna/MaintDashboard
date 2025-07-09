@@ -1,4 +1,4 @@
-THIS SHOULD BE A LINTER ERROR"""
+"""
 Views for core app.
 """
 
@@ -114,6 +114,10 @@ def dashboard(request):
 @login_required
 def profile_view(request):
     """User profile view."""
+    # Ensure user has a profile
+    from core.models import UserProfile
+    profile, created = UserProfile.objects.get_or_create(user=request.user)
+    
     if request.method == 'POST':
         action = request.POST.get('action', 'update_profile')
         
