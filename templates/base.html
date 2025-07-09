@@ -422,7 +422,7 @@
         }
     </style>
 </head>
-<body class="{% if user.is_authenticated and user.userprofile.theme_preference == 'light' %}theme-light{% else %}theme-dark{% endif %}">
+<body class="{% if user.is_authenticated and user_profile and user_profile.theme_preference == 'light' %}theme-light{% else %}theme-dark{% endif %}">
     <!-- Main Header -->
     <div class="main-header d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center">
@@ -438,7 +438,11 @@
                 <label for="site-selector" class="text-white me-2 mb-0">Select Site:</label>
                 <select id="site-selector" class="site-selector form-control form-control-sm" onchange="changeSite(this.value)">
                     <option value="">All - Soluna</option>
-                    <!-- Sites will be populated by the view context -->
+                    {% for site in sites %}
+                    <option value="{{ site.id }}" {% if selected_site_id == site.id|stringformat:"s" %}selected{% endif %}>
+                        {{ site.name }}
+                    </option>
+                    {% endfor %}
                 </select>
             </div>
             

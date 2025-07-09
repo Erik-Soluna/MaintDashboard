@@ -26,6 +26,17 @@ def equipment_list(request):
     """List all equipment with filtering and search."""
     queryset = Equipment.objects.select_related('category', 'location').all()
     
+    # Filter by selected site (from session or URL parameter)
+    selected_site_id = request.GET.get('site_id') or request.session.get('selected_site_id')
+    if selected_site_id:
+        try:
+            selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+            queryset = queryset.filter(
+                Q(location__parent_location=selected_site) | Q(location=selected_site)
+            )
+        except Location.DoesNotExist:
+            pass
+    
     # Search functionality
     search_term = request.GET.get('search', '')
     if search_term:
@@ -75,9 +86,22 @@ def manage_equipment(request):
     """
     Equipment management view (replicates original web2py functionality).
     """
-    equipment_list = Equipment.objects.select_related(
+    equipment_queryset = Equipment.objects.select_related(
         'category', 'location'
     ).all()
+    
+    # Filter by selected site (from session or URL parameter)
+    selected_site_id = request.GET.get('site_id') or request.session.get('selected_site_id')
+    if selected_site_id:
+        try:
+            selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+            equipment_queryset = equipment_queryset.filter(
+                Q(location__parent_location=selected_site) | Q(location=selected_site)
+            )
+        except Location.DoesNotExist:
+            pass
+    
+    equipment_list = equipment_queryset
     
     # Convert to list of dictionaries for JSON compatibility (like original)
     equipment_data = []
