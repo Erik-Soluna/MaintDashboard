@@ -1,0 +1,30 @@
+"""
+URL configuration for equipment app.
+"""
+
+from django.urls import path
+from . import views
+
+app_name = 'equipment'
+
+urlpatterns = [
+    # Equipment list and management
+    path('', views.equipment_list, name='equipment_list'),
+    path('manage/', views.manage_equipment, name='manage_equipment'),
+    path('add/', views.add_equipment, name='add_equipment'),
+    path('<int:equipment_id>/', views.equipment_detail, name='equipment_detail'),
+    path('<int:equipment_id>/edit/', views.edit_equipment, name='edit_equipment'),
+    path('<int:equipment_id>/delete/', views.delete_equipment, name='delete_equipment'),
+    
+    # AJAX endpoints
+    path('api/data/', views.get_equipment_data, name='get_equipment_data'),
+    path('api/search/', views.search_equipment, name='search_equipment'),
+    
+    # Components
+    path('<int:equipment_id>/components/', views.equipment_components, name='equipment_components'),
+    path('<int:equipment_id>/components/add/', views.add_component, name='add_component'),
+    
+    # Documents
+    path('<int:equipment_id>/documents/', views.equipment_documents, name='equipment_documents'),
+    path('<int:equipment_id>/documents/add/', views.add_document, name='add_document'),
+]
