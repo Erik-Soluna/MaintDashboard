@@ -155,9 +155,9 @@ class Equipment(TimeStampedModel):
         last_maintenance = MaintenanceActivity.objects.filter(
             equipment=self,
             status='completed'
-        ).order_by('-end_datetime').first()
+        ).order_by('-actual_end').first()
         
-        return last_maintenance.end_datetime.date() if last_maintenance else None
+        return last_maintenance.actual_end.date() if last_maintenance else None
 
     def get_full_location_path(self):
         """Get the full hierarchical path of the equipment location."""

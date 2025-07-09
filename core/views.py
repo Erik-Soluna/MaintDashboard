@@ -1,4 +1,4 @@
-"""
+THIS SHOULD BE A LINTER ERROR"""
 Views for core app.
 """
 
@@ -10,6 +10,7 @@ from equipment.models import Equipment
 from maintenance.models import MaintenanceActivity
 from events.models import CalendarEvent
 from core.models import Location, EquipmentCategory
+from core.forms import LocationForm, EquipmentCategoryForm
 from django.utils import timezone
 from django.db.models import Q, Count
 from datetime import datetime, timedelta, date
@@ -23,12 +24,16 @@ import json
 def dashboard(request):
     """Enhanced dashboard view with location-based data layout."""
     
+    # Ensure user has a profile
+    from core.models import UserProfile
+    user_profile, created = UserProfile.objects.get_or_create(user=request.user)
+    
     # Get selected site from request, session, or user default
     selected_site_id = request.GET.get('site_id')
     if not selected_site_id:
         selected_site_id = request.session.get('selected_site_id')
-    if not selected_site_id and hasattr(request.user, 'userprofile') and request.user.userprofile.default_site:
-        selected_site_id = str(request.user.userprofile.default_site.id)
+    if not selected_site_id and user_profile.default_site:
+        selected_site_id = str(user_profile.default_site.id)
     
     if selected_site_id:
         request.session['selected_site_id'] = selected_site_id
@@ -59,18 +64,36 @@ def dashboard(request):
     today = timezone.now().date()
     urgent_cutoff = today + timedelta(days=7)  # Items due within 7 days
     
-    urgent_items = MaintenanceActivity.objects.filter(
+    urgent_items_query = MaintenanceActivity.objects.filter(
         Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today),
         status__in=['pending', 'in_progress']
-    ).select_related('equipment', 'equipment__location').order_by('scheduled_end')[:10]
+    ).select_related('equipment', 'equipment__location')
+    
+    # Filter by selected site if one is selected
+    if selected_site:
+        urgent_items_query = urgent_items_query.filter(
+            Q(equipment__location__parent_location=selected_site) | 
+            Q(equipment__location=selected_site)
+        )
+    
+    urgent_items = urgent_items_query.order_by('scheduled_end')[:10]
     
     # Get upcoming items (due within next 30 days)
     upcoming_cutoff = today + timedelta(days=30)
-    upcoming_items = MaintenanceActivity.objects.filter(
+    upcoming_items_query = MaintenanceActivity.objects.filter(
         scheduled_end__gt=urgent_cutoff,
         scheduled_end__lte=upcoming_cutoff,
         status__in=['pending', 'scheduled']
-    ).select_related('equipment', 'equipment__location').order_by('scheduled_end')[:10]
+    ).select_related('equipment', 'equipment__location')
+    
+    # Filter by selected site if one is selected
+    if selected_site:
+        upcoming_items_query = upcoming_items_query.filter(
+            Q(equipment__location__parent_location=selected_site) | 
+            Q(equipment__location=selected_site)
+        )
+    
+    upcoming_items = upcoming_items_query.order_by('scheduled_end')[:10]
     
     # Build location-based data
     location_data = []
@@ -94,6 +117,19 @@ def dashboard(request):
             'equipment_in_repair': equipment_in_repair,
         })
     
+    # Get equipment statistics (filtered by site if selected)
+    equipment_query = Equipment.objects.all()
+    pending_maintenance_query = MaintenanceActivity.objects.filter(status='pending')
+    
+    if selected_site:
+        equipment_query = equipment_query.filter(
+            Q(location__parent_location=selected_site) | Q(location=selected_site)
+        )
+        pending_maintenance_query = pending_maintenance_query.filter(
+            Q(equipment__location__parent_location=selected_site) | 
+            Q(equipment__location=selected_site)
+        )
+    
     context = {
         'sites': sites,
         'selected_site': selected_site,
@@ -101,11 +137,9 @@ def dashboard(request):
         'location_data': location_data,
         'urgent_items': urgent_items,
         'upcoming_items': upcoming_items,
-        'total_equipment': Equipment.objects.count(),
-        'active_equipment': Equipment.objects.filter(is_active=True).count(),
-        'pending_maintenance': MaintenanceActivity.objects.filter(
-            status='pending'
-        ).count(),
+        'total_equipment': equipment_query.count(),
+        'active_equipment': equipment_query.filter(is_active=True).count(),
+        'pending_maintenance': pending_maintenance_query.count(),
     }
     return render(request, 'core/dashboard.html', context)
 
@@ -113,6 +147,10 @@ def dashboard(request):
 @login_required
 def profile_view(request):
     """User profile view."""
+    # Ensure user has a profile
+    from core.models import UserProfile
+    profile, created = UserProfile.objects.get_or_create(user=request.user)
+    
     if request.method == 'POST':
         action = request.POST.get('action', 'update_profile')
         
@@ -211,10 +249,14 @@ def map_view(request):
 @user_passes_test(is_staff_or_superuser)
 def settings_view(request):
     """General settings view with user preferences."""
+    # Ensure user has a profile
+    from core.models import UserProfile
+    user_profile, created = UserProfile.objects.get_or_create(user=request.user)
+    
     if request.method == 'POST':
         # Handle user preferences update
         user = request.user
-        profile = user.userprofile
+        profile = user_profile
         
         # Update user preferences
         profile.default_location_id = request.POST.get('default_location')
@@ -380,3 +422,121 @@ def users_api(request):
             'userprofile__department', 'userprofile__phone_number'
         )
         return JsonResponse(list(users), safe=False)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def add_location(request):
+    """Add new location."""
+    if request.method == 'POST':
+        form = LocationForm(request.POST)
+        if form.is_valid():
+            location = form.save(commit=False)
+            location.created_by = request.user
+            location.updated_by = request.user
+            location.save()
+            
+            messages.success(request, f'Location "{location.name}" added successfully!')
+            return redirect('core:locations_settings')
+    else:
+        form = LocationForm()
+    
+    context = {
+        'form': form,
+        'title': 'Add New Location',
+    }
+    return render(request, 'core/add_location.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def edit_location(request, location_id):
+    """Edit existing location."""
+    location = get_object_or_404(Location, id=location_id)
+    
+    if request.method == 'POST':
+        form = LocationForm(request.POST, instance=location)
+        if form.is_valid():
+            location = form.save(commit=False)
+            location.updated_by = request.user
+            location.save()
+            
+            messages.success(request, f'Location "{location.name}" updated successfully!')
+            return redirect('core:locations_settings')
+    else:
+        form = LocationForm(instance=location)
+    
+    context = {
+        'form': form,
+        'location': location,
+        'title': 'Edit Location',
+    }
+    return render(request, 'core/edit_location.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def add_equipment_category(request):
+    """Add new equipment category."""
+    if request.method == 'POST':
+        form = EquipmentCategoryForm(request.POST)
+        if form.is_valid():
+            category = form.save(commit=False)
+            category.created_by = request.user
+            category.updated_by = request.user
+            category.save()
+            
+            messages.success(request, f'Equipment category "{category.name}" added successfully!')
+            return redirect('core:equipment_categories_settings')
+    else:
+        form = EquipmentCategoryForm()
+    
+    context = {
+        'form': form,
+        'title': 'Add New Equipment Category',
+    }
+    return render(request, 'core/add_equipment_category.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def edit_equipment_category(request, category_id):
+    """Edit existing equipment category."""
+    category = get_object_or_404(EquipmentCategory, id=category_id)
+    
+    if request.method == 'POST':
+        form = EquipmentCategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            category = form.save(commit=False)
+            category.updated_by = request.user
+            category.save()
+            
+            messages.success(request, f'Equipment category "{category.name}" updated successfully!')
+            return redirect('core:equipment_categories_settings')
+    else:
+        form = EquipmentCategoryForm(instance=category)
+    
+    context = {
+        'form': form,
+        'category': category,
+        'title': 'Edit Equipment Category',
+    }
+    return render(request, 'core/edit_equipment_category.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def equipment_categories_settings(request):
+    """Equipment categories management view."""
+    categories = EquipmentCategory.objects.all().order_by('name')
+    
+    # Pagination
+    paginator = Paginator(categories, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'categories': categories,
+    }
+    return render(request, 'core/equipment_categories_settings.html', context)
