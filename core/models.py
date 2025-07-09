@@ -168,9 +168,30 @@ class UserProfile(models.Model):
         blank=True,
         help_text="Default location for new equipment and maintenance activities"
     )
+    default_site = models.ForeignKey(
+        'Location',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users_with_default_site',
+        limit_choices_to={'is_site': True},
+        help_text="Default site for dashboard filtering"
+    )
     notifications_enabled = models.BooleanField(default=True)
     email_notifications = models.BooleanField(default=True)
     sms_notifications = models.BooleanField(default=False)
+    
+    # UI preferences
+    THEME_CHOICES = [
+        ('dark', 'Dark Theme'),
+        ('light', 'Light Theme'),
+    ]
+    theme_preference = models.CharField(
+        max_length=10,
+        choices=THEME_CHOICES,
+        default='dark',
+        help_text="User interface theme preference"
+    )
 
     def __str__(self):
         return f"{self.user.get_full_name()} ({self.get_role_display()})"
