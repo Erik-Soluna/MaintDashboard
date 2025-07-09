@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Maintenance Activities{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Maintenance Activities</h1>
+                <a href="{% url 'maintenance:add_activity' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Activity
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5 class="mb-0">Activity List</h5>
+                        </div>
+                        <div class="col-md-4">
+                            <form method="get" class="d-flex">
+                                <input type="text" name="search" class="form-control me-2" placeholder="Search activities..." value="{{ search_term }}">
+                                <button type="submit" class="btn btn-outline-secondary">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Equipment</th>
+                                    <th>Activity Type</th>
+                                    <th>Scheduled Start</th>
+                                    <th>Status</th>
+                                    <th>Priority</th>
+                                    <th>Assigned To</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in page_obj %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'maintenance:activity_detail' activity.id %}">
+                                            {{ activity.title }}
+                                        </a>
+                                    </td>
+                                    <td>{{ activity.equipment.name }}</td>
+                                    <td>{{ activity.activity_type.name }}</td>
+                                    <td>{{ activity.scheduled_start|date:"Y-m-d H:i" }}</td>
+                                    <td>
+                                        <span class="badge {% if activity.status == 'completed' %}bg-success{% elif activity.status == 'in_progress' %}bg-warning{% elif activity.status == 'overdue' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                            {{ activity.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if activity.priority == 'critical' %}bg-danger{% elif activity.priority == 'high' %}bg-warning{% elif activity.priority == 'medium' %}bg-info{% else %}bg-secondary{% endif %}">
+                                            {{ activity.get_priority_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ activity.assigned_to.get_full_name|default:"Unassigned" }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'maintenance:activity_detail' activity.id %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'maintenance:edit_activity' activity.id %}" class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% if activity.status != 'completed' %}
+                                            <a href="{% url 'maintenance:complete_activity' activity.id %}" class="btn btn-sm btn-outline-success">
+                                                <i class="fas fa-check"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center">No activities found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if page_obj.has_other_pages %}
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Generate Scheduled Activities{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Generate Scheduled Activities</h1>
+                <a href="{% url 'maintenance:schedule_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Schedules
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Activities to Generate</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> 
+                        This will generate maintenance activities for all active schedules based on their frequency and advance notice settings.
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Equipment</th>
+                                    <th>Activity Type</th>
+                                    <th>Frequency</th>
+                                    <th>Next Due</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for schedule in schedules_to_generate %}
+                                <tr>
+                                    <td>{{ schedule.equipment.name }}</td>
+                                    <td>{{ schedule.activity_type.name }}</td>
+                                    <td>{{ schedule.get_frequency_display }}</td>
+                                    <td>{{ schedule.start_date|date:"Y-m-d" }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">Ready to Generate</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center">No activities ready to generate</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if schedules_to_generate %}
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'maintenance:schedule_list' %}" class="btn btn-secondary">Cancel</a>
+                        <form method="post" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-calendar-plus"></i> Generate Activities
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

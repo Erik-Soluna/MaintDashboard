@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ activity.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">{{ activity.title }}</h1>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'maintenance:edit_activity' activity.id %}" class="btn btn-secondary">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    {% if activity.status != 'completed' %}
+                    <a href="{% url 'maintenance:complete_activity' activity.id %}" class="btn btn-success">
+                        <i class="fas fa-check"></i> Complete
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'maintenance:activity_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Activity Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Equipment:</strong> {{ activity.equipment.name }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Activity Type:</strong> {{ activity.activity_type.name }}
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Status:</strong> 
+                            <span class="badge {% if activity.status == 'completed' %}bg-success{% elif activity.status == 'in_progress' %}bg-warning{% elif activity.status == 'overdue' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                {{ activity.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Priority:</strong> 
+                            <span class="badge {% if activity.priority == 'critical' %}bg-danger{% elif activity.priority == 'high' %}bg-warning{% elif activity.priority == 'medium' %}bg-info{% else %}bg-secondary{% endif %}">
+                                {{ activity.get_priority_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Scheduled Start:</strong> {{ activity.scheduled_start|date:"Y-m-d H:i" }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Scheduled End:</strong> {{ activity.scheduled_end|date:"Y-m-d H:i" }}
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Assigned To:</strong> {{ activity.assigned_to.get_full_name|default:"Unassigned" }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Location:</strong> {{ activity.equipment.location.get_full_path }}
+                        </div>
+                    </div>
+                    
+                    {% if activity.description %}
+                    <hr>
+                    <div class="row">
+                        <div class="col-12">
+                            <strong>Description:</strong><br>
+                            {{ activity.description|linebreaks }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if activity.tools_required or activity.parts_required or activity.safety_notes %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Requirements & Safety</h5>
+                </div>
+                <div class="card-body">
+                    {% if activity.tools_required %}
+                    <div class="mb-3">
+                        <strong>Tools Required:</strong><br>
+                        {{ activity.tools_required|linebreaks }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if activity.parts_required %}
+                    <div class="mb-3">
+                        <strong>Parts Required:</strong><br>
+                        {{ activity.parts_required|linebreaks }}
+                    </div>
+                    {% endif %}
+                    
+                    {% if activity.safety_notes %}
+                    <div class="mb-3">
+                        <strong>Safety Notes:</strong><br>
+                        <div class="alert alert-warning">
+                            {{ activity.safety_notes|linebreaks }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if activity.completion_notes %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Completion Notes</h5>
+                </div>
+                <div class="card-body">
+                    {{ activity.completion_notes|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Activity Timeline</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-primary"></div>
+                            <div class="timeline-content">
+                                <strong>Created:</strong><br>
+                                {{ activity.created_at|date:"Y-m-d H:i" }}
+                                {% if activity.created_by %}
+                                <br>by {{ activity.created_by.get_full_name }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if activity.actual_start %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-warning"></div>
+                            <div class="timeline-content">
+                                <strong>Started:</strong><br>
+                                {{ activity.actual_start|date:"Y-m-d H:i" }}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if activity.actual_end %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <strong>Completed:</strong><br>
+                                {{ activity.actual_end|date:"Y-m-d H:i" }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Equipment Info</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <strong>Category:</strong> {{ activity.equipment.category.name }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Manufacturer:</strong> {{ activity.equipment.manufacturer|default:"N/A" }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Model:</strong> {{ activity.equipment.model_number|default:"N/A" }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Serial Number:</strong> {{ activity.equipment.manufacturer_serial }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Asset Tag:</strong> {{ activity.equipment.asset_tag }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -23px;
+    top: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.timeline-content {
+    padding-left: 10px;
+}
+</style>
+{% endblock %}
