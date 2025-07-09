@@ -178,26 +178,13 @@ THIS SHOULD BE A LINTER ERROR{% extends 'base.html' %}
 
 <script>
 $(document).ready(function() {
-    // Initialize datetime pickers
-    $('#id_scheduled_start, #id_scheduled_end').datetimepicker({
-        format: 'Y-m-d H:i',
-        step: 15
-    });
-
-    // Auto-calculate end time based on activity type
-    $('#id_activity_type').change(function() {
-        const selectedOption = $(this).find('option:selected');
-        const estimatedHours = selectedOption.data('estimated-hours');
-        
-        if (estimatedHours) {
-            const startTime = $('#id_scheduled_start').val();
-            if (startTime) {
-                const startDate = new Date(startTime);
-                const endDate = new Date(startDate.getTime() + (estimatedHours * 60 * 60 * 1000));
-                $('#id_scheduled_end').val(endDate.toISOString().slice(0, 16));
-            }
-        }
-    });
+    // Initialize datetime pickers if available
+    if ($.fn.datetimepicker) {
+        $('#id_scheduled_start, #id_scheduled_end').datetimepicker({
+            format: 'Y-m-d H:i',
+            step: 15
+        });
+    }
 });
 </script>
 {% endblock %}
