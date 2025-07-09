@@ -51,7 +51,7 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
-      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,*
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,maintenance.errorlog.app,*
     depends_on:
       db:
         condition: service_healthy
