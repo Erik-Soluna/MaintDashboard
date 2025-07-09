@@ -1,0 +1,37 @@
+# Docker Compose override for development
+# This file is automatically used when running docker-compose up
+# It provides development-specific configurations
+
+version: '3.8'
+
+services:
+  web:
+    # Override command for development with auto-reload
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        python manage.py wait_for_db &&
+        echo 'Running migrations...' &&
+        python manage.py migrate &&
+        echo 'Creating superuser...' &&
+        python manage.py create_superuser &&
+        echo 'Loading initial data...' &&
+        python manage.py load_initial_data &&
+        echo 'Starting development server...' &&
+        python manage.py runserver 0.0.0.0:8000
+      "
+    # Mount source code for live reloading
+    volumes:
+      - .:/app
+      - ./media:/app/media
+      - ./staticfiles:/app/staticfiles
+    environment:
+      - DEBUG=True
+    # Enable debugging ports
+    ports:
+      - "8000:8000"
+
+  # Override nginx to not run in development
+  nginx:
+    profiles:
+      - production

@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'crispy_bootstrap4',
     'django_filters',
     'django_tables2',
+    'django_celery_beat',
     
     # Local apps
     'equipment',
@@ -146,6 +147,15 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# Celery Configuration
+CELERY_BROKER_URL = config('REDIS_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # Security settings for production
 if not DEBUG:

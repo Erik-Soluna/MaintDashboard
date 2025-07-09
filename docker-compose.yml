@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: maintenance_db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-maintenance_dashboard}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: maintenance_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  web:
+    build: .
+    container_name: maintenance_web
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-change-me-in-production}
+      - DEBUG=${DEBUG:-True}
+      - DB_NAME=${DB_NAME:-maintenance_dashboard}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./media:/app/media
+      - ./staticfiles:/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        python manage.py wait_for_db &&
+        echo 'Running migrations...' &&
+        python manage.py migrate &&
+        echo 'Creating superuser...' &&
+        python manage.py create_superuser &&
+        echo 'Loading initial data...' &&
+        python manage.py load_initial_data &&
+        echo 'Starting server...' &&
+        gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 maintenance_dashboard.wsgi:application
+      "
+
+  celery:
+    build: .
+    container_name: maintenance_celery
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-change-me-in-production}
+      - DEBUG=${DEBUG:-True}
+      - DB_NAME=${DB_NAME:-maintenance_dashboard}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./media:/app/media
+    depends_on:
+      - db
+      - redis
+      - web
+    restart: unless-stopped
+    command: celery -A maintenance_dashboard worker -l info
+
+  celery-beat:
+    build: .
+    container_name: maintenance_celery_beat
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-django-insecure-change-me-in-production}
+      - DEBUG=${DEBUG:-True}
+      - DB_NAME=${DB_NAME:-maintenance_dashboard}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./media:/app/media
+    depends_on:
+      - db
+      - redis
+      - web
+    restart: unless-stopped
+    command: celery -A maintenance_dashboard beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+  nginx:
+    image: nginx:alpine
+    container_name: maintenance_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./staticfiles:/app/staticfiles
+      - ./media:/app/media
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - web
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    name: maintenance_network

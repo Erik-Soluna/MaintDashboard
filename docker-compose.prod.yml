@@ -1,0 +1,50 @@
+# Production Docker Compose configuration
+# Use this for production deployments
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+version: '3.8'
+
+services:
+  web:
+    # Production command with gunicorn
+    command: >
+      sh -c "
+        echo 'Waiting for database...' &&
+        python manage.py wait_for_db &&
+        echo 'Running migrations...' &&
+        python manage.py migrate &&
+        echo 'Creating superuser...' &&
+        python manage.py create_superuser &&
+        echo 'Loading initial data...' &&
+        python manage.py load_initial_data &&
+        echo 'Collecting static files...' &&
+        python manage.py collectstatic --noinput &&
+        echo 'Starting production server...' &&
+        gunicorn --bind 0.0.0.0:8000 --workers 4 --timeout 120 --max-requests 1000 --max-requests-jitter 50 maintenance_dashboard.wsgi:application
+      "
+    environment:
+      - DEBUG=False
+    # Remove port exposure (handled by nginx)
+    ports: []
+    restart: always
+
+  nginx:
+    # Enable nginx in production
+    profiles: []
+    restart: always
+
+  db:
+    # Production database settings
+    command: postgres -c 'max_connections=200' -c 'shared_buffers=256MB' -c 'effective_cache_size=1GB'
+    restart: always
+
+  redis:
+    # Production redis settings
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    restart: always
+
+  celery:
+    restart: always
+
+  celery-beat:
+    restart: always
