@@ -16,6 +16,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -26,15 +27,15 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   web:
-    build: .
+    image: maintenance-dashboard:latest  # Use your pre-built image
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              gunicorn --bind 0.0.0.0:8000 --workers 3 maintenance_dashboard.wsgi:application"
     volumes:
-      - .:/app
       - static_volume:/app/staticfiles
       - media_volume:/app/media
     ports:
@@ -48,18 +49,17 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
-      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,*
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
 
   celery:
-    build: .
+    image: maintenance-dashboard:latest  # Use your pre-built image
     command: celery -A maintenance_dashboard worker --loglevel=info
-    volumes:
-      - .:/app
     environment:
       - DEBUG=True
       - SECRET_KEY=django-insecure-docker-development-key-change-in-production
@@ -74,12 +74,11 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
 
   celery-beat:
-    build: .
+    image: maintenance-dashboard:latest  # Use your pre-built image
     command: celery -A maintenance_dashboard beat --loglevel=info
-    volumes:
-      - .:/app
     environment:
       - DEBUG=True
       - SECRET_KEY=django-insecure-docker-development-key-change-in-production
@@ -94,6 +93,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:
