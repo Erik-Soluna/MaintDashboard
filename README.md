@@ -23,7 +23,15 @@ A Django-based web application for managing equipment maintenance, events, and r
 
 Choose one of the following installation methods:
 
-> **💡 Recommendation**: Use Docker installation for the easiest setup experience with all dependencies automatically configured.
+> **💡 Recommendation**: Use **Portainer Stack** for the easiest one-click deployment, or **Docker** for local development.
+
+### Quick Comparison
+
+| Method | Complexity | Best For | Setup Time |
+|--------|------------|----------|------------|
+| **🚀 Portainer Stack** | ⭐ Easy | Production deployment | 5 minutes |
+| **🐳 Docker Compose** | ⭐⭐ Medium | Local development | 10 minutes |
+| **🔧 Manual Installation** | ⭐⭐⭐ Advanced | Custom environments | 30+ minutes |
 
 ## Docker Installation (Recommended)
 
@@ -138,6 +146,161 @@ Run production setup:
 ```bash
 docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 ```
+
+## Portainer Stack Deployment (One-Click Setup)
+
+Deploy the entire application stack through Portainer's web interface with a single click.
+
+### Prerequisites
+
+- Portainer installed and running
+- Docker Swarm mode enabled (or Portainer with Docker Compose support)
+- Access to your GitHub repository
+
+### Deployment Steps
+
+1. **Access Portainer Web Interface**
+   - Navigate to your Portainer dashboard (typically `http://your-server:9000`)
+   - Login with your credentials
+
+2. **Create New Stack**
+   - Go to **Stacks** → **Add Stack**
+   - Enter stack name: `maintenance-dashboard`
+
+3. **Deploy from Repository**
+   - Select **Repository** option
+   - Repository URL: `https://github.com/your-username/maintenance-dashboard`
+   - Reference: `refs/heads/main` (or your default branch)
+   - Compose path: `portainer-stack.yml`
+
+   **OR**
+
+   **Deploy by Copy/Paste**
+   - Select **Web editor** option
+   - Copy the contents of `portainer-stack.yml` into the editor
+
+4. **Configure Environment Variables**
+
+   Click **Advanced mode** and add these environment variables:
+   
+   > 💡 **Tip**: Use the `portainer.env.example` file as a template for all required variables.
+
+   ```bash
+   # Required - Change these values
+   SECRET_KEY=your-very-secure-secret-key-here
+   DB_PASSWORD=your-secure-database-password
+   ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com,localhost
+   
+   # Optional - Customize as needed
+   DEBUG=False
+   DB_NAME=maintenance_dashboard
+   DB_USER=postgres
+   WEB_PORT=8000
+   HTTP_PORT=80
+   HTTPS_PORT=443
+   
+   # For GitHub builds
+   GITHUB_REPO=your-username/maintenance-dashboard
+   DOCKER_IMAGE=maintenance_dashboard:latest
+   
+   # Domain and SSL (if using Traefik)
+   DOMAIN=maintenance.yourdomain.com
+   TRAEFIK_ENABLE=true
+   TLS_ENABLE=true
+   CERT_RESOLVER=letsencrypt
+   
+   # Celery Configuration
+   CELERY_LOG_LEVEL=info
+   GUNICORN_WORKERS=3
+   ```
+
+5. **Deploy Stack**
+   - Click **Deploy the stack**
+   - Portainer will pull images, create volumes, and start all services
+
+6. **Create Superuser**
+   
+   Once deployed, create an admin user:
+   - Go to **Containers** → Find `maintenance-dashboard_web_*`
+   - Click **Console** → **Connect**
+   - Run: `python manage.py createsuperuser`
+
+### Stack Management
+
+**View Logs:**
+- Navigate to **Stacks** → `maintenance-dashboard` → **Containers**
+- Click on any container to view logs
+
+**Update Stack:**
+- Go to **Stacks** → `maintenance-dashboard` → **Editor**
+- Modify environment variables or configuration
+- Click **Update the stack**
+
+**Scale Services:**
+- In the stack view, you can scale individual services
+- Useful for scaling celery workers under high load
+
+**Remove Stack:**
+- **Stacks** → `maintenance-dashboard` → **Delete this stack**
+- ⚠️ This will remove all data unless you backup volumes
+
+### Environment Variables Reference
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `SECRET_KEY` | Django secret key | - | ✅ |
+| `DB_PASSWORD` | PostgreSQL password | postgres | ✅ |
+| `ALLOWED_HOSTS` | Allowed hostnames | localhost,127.0.0.1 | ✅ |
+| `DEBUG` | Debug mode | False | ❌ |
+| `DOMAIN` | Your domain name | maintenance.local | ❌ |
+| `WEB_PORT` | Web application port | 8000 | ❌ |
+| `HTTP_PORT` | HTTP port | 80 | ❌ |
+| `HTTPS_PORT` | HTTPS port | 443 | ❌ |
+| `GITHUB_REPO` | GitHub repository | your-username/maintenance-dashboard | ❌ |
+| `TRAEFIK_ENABLE` | Enable Traefik labels | true | ❌ |
+| `TLS_ENABLE` | Enable TLS/SSL | false | ❌ |
+| `CERT_RESOLVER` | Certificate resolver | letsencrypt | ❌ |
+| `GUNICORN_WORKERS` | Number of Gunicorn workers | 3 | ❌ |
+| `CELERY_LOG_LEVEL` | Celery logging level | info | ❌ |
+
+### Features Included in Stack
+
+✅ **Complete Application Stack**
+- Django web application with Gunicorn
+- PostgreSQL database with persistent storage
+- Redis for caching and sessions
+- Celery worker for background tasks
+- Celery beat for scheduled tasks
+- Nginx reverse proxy with static file serving
+
+✅ **Production Ready**
+- Health checks for all services
+- Automatic restarts on failure
+- Persistent volumes for data
+- Proper networking and security
+
+✅ **Traefik Integration**
+- Automatic SSL certificates with Let's Encrypt
+- Domain-based routing
+- Load balancing support
+
+✅ **Easy Management**
+- One-click deployment and updates
+- Environment variable configuration
+- Container scaling through Portainer UI
+- Centralized logging and monitoring
+
+### Troubleshooting Portainer Deployment
+
+1. **Build Failures**: Ensure your GitHub repository is public or configure Portainer with proper Git credentials
+
+2. **Service Won't Start**: Check environment variables, especially `SECRET_KEY`, `DB_PASSWORD`, and `ALLOWED_HOSTS`
+
+3. **Database Connection Issues**: Verify PostgreSQL container is healthy before web service starts
+
+4. **Domain Access Issues**: Check `ALLOWED_HOSTS` includes your domain and configure DNS properly
+
+5. **SSL Certificate Issues**: Ensure Traefik is running and DNS points to your server
 
 ## Manual Installation (Alternative)
 
@@ -266,7 +429,13 @@ maintenance_dashboard/
 ├── static/                 # Static files (CSS, JS, images)
 ├── templates/              # HTML templates
 ├── manage.py              # Django management script
-└── requirements.txt       # Python dependencies
+├── requirements.txt       # Python dependencies
+├── Dockerfile             # Docker image configuration
+├── docker-compose.yml     # Local development stack
+├── docker-compose.prod.yml # Production overrides
+├── portainer-stack.yml    # Portainer deployment stack
+├── portainer.env.example  # Environment variables template
+└── .dockerignore          # Docker build exclusions
 ```
 
 ## Production Deployment
@@ -329,6 +498,31 @@ python manage.py dbshell
 ```
 
 ## Troubleshooting
+
+### Portainer Stack Issues
+
+1. **Stack deployment fails**: 
+   - Check if all required environment variables are set
+   - Verify GitHub repository is accessible
+   - Ensure Docker has enough resources allocated
+
+2. **Services keep restarting**:
+   - Check container logs in Portainer: **Stacks** → **maintenance-dashboard** → **Containers** → Click container → **Logs**
+   - Verify environment variables, especially `SECRET_KEY` and `DB_PASSWORD`
+
+3. **Can't access the application**:
+   - Check if `ALLOWED_HOSTS` includes your domain/IP
+   - Verify port mapping (default is 8000 or 80)
+   - Ensure firewall allows traffic on configured ports
+
+4. **Database connection errors**:
+   - Wait for PostgreSQL to fully initialize (can take 1-2 minutes)
+   - Check if `DB_PASSWORD` matches between web and db services
+
+5. **SSL/Domain issues**:
+   - Verify DNS points to your server
+   - Check Traefik is running if using automatic SSL
+   - Ensure `DOMAIN` variable is set correctly
 
 ### Docker Issues
 
