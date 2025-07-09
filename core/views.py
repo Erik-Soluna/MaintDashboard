@@ -10,6 +10,7 @@ from equipment.models import Equipment
 from maintenance.models import MaintenanceActivity
 from events.models import CalendarEvent
 from core.models import Location, EquipmentCategory
+from core.forms import LocationForm, EquipmentCategoryForm
 from django.utils import timezone
 from django.db.models import Q, Count
 from datetime import datetime, timedelta, date
@@ -380,3 +381,121 @@ def users_api(request):
             'userprofile__department', 'userprofile__phone_number'
         )
         return JsonResponse(list(users), safe=False)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def add_location(request):
+    """Add new location."""
+    if request.method == 'POST':
+        form = LocationForm(request.POST)
+        if form.is_valid():
+            location = form.save(commit=False)
+            location.created_by = request.user
+            location.updated_by = request.user
+            location.save()
+            
+            messages.success(request, f'Location "{location.name}" added successfully!')
+            return redirect('core:locations_settings')
+    else:
+        form = LocationForm()
+    
+    context = {
+        'form': form,
+        'title': 'Add New Location',
+    }
+    return render(request, 'core/add_location.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def edit_location(request, location_id):
+    """Edit existing location."""
+    location = get_object_or_404(Location, id=location_id)
+    
+    if request.method == 'POST':
+        form = LocationForm(request.POST, instance=location)
+        if form.is_valid():
+            location = form.save(commit=False)
+            location.updated_by = request.user
+            location.save()
+            
+            messages.success(request, f'Location "{location.name}" updated successfully!')
+            return redirect('core:locations_settings')
+    else:
+        form = LocationForm(instance=location)
+    
+    context = {
+        'form': form,
+        'location': location,
+        'title': 'Edit Location',
+    }
+    return render(request, 'core/edit_location.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def add_equipment_category(request):
+    """Add new equipment category."""
+    if request.method == 'POST':
+        form = EquipmentCategoryForm(request.POST)
+        if form.is_valid():
+            category = form.save(commit=False)
+            category.created_by = request.user
+            category.updated_by = request.user
+            category.save()
+            
+            messages.success(request, f'Equipment category "{category.name}" added successfully!')
+            return redirect('core:equipment_categories_settings')
+    else:
+        form = EquipmentCategoryForm()
+    
+    context = {
+        'form': form,
+        'title': 'Add New Equipment Category',
+    }
+    return render(request, 'core/add_equipment_category.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def edit_equipment_category(request, category_id):
+    """Edit existing equipment category."""
+    category = get_object_or_404(EquipmentCategory, id=category_id)
+    
+    if request.method == 'POST':
+        form = EquipmentCategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            category = form.save(commit=False)
+            category.updated_by = request.user
+            category.save()
+            
+            messages.success(request, f'Equipment category "{category.name}" updated successfully!')
+            return redirect('core:equipment_categories_settings')
+    else:
+        form = EquipmentCategoryForm(instance=category)
+    
+    context = {
+        'form': form,
+        'category': category,
+        'title': 'Edit Equipment Category',
+    }
+    return render(request, 'core/edit_equipment_category.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def equipment_categories_settings(request):
+    """Equipment categories management view."""
+    categories = EquipmentCategory.objects.all().order_by('name')
+    
+    # Pagination
+    paginator = Paginator(categories, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'categories': categories,
+    }
+    return render(request, 'core/equipment_categories_settings.html', context)
