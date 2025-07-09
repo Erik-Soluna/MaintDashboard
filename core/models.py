@@ -141,20 +141,58 @@ class Location(TimeStampedModel):
         return current if current.is_site else None
 
 
+class Permission(models.Model):
+    """
+    Permission model for RBAC system.
+    """
+    name = models.CharField(max_length=100, unique=True)
+    codename = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    module = models.CharField(max_length=50, help_text="Module this permission belongs to")
+    is_active = models.BooleanField(default=True)
+    
+    class Meta:
+        verbose_name = "Permission"
+        verbose_name_plural = "Permissions"
+        ordering = ['module', 'name']
+    
+    def __str__(self):
+        return f"{self.module}: {self.name}"
+
+
+class Role(TimeStampedModel):
+    """
+    Role model for RBAC system.
+    """
+    name = models.CharField(max_length=50, unique=True)
+    display_name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    permissions = models.ManyToManyField(Permission, blank=True)
+    is_active = models.BooleanField(default=True)
+    is_system_role = models.BooleanField(default=False, help_text="System roles cannot be deleted")
+    
+    class Meta:
+        verbose_name = "Role"
+        verbose_name_plural = "Roles"
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.display_name
+    
+    def has_permission(self, permission_codename):
+        """Check if this role has a specific permission."""
+        return self.permissions.filter(
+            codename=permission_codename,
+            is_active=True
+        ).exists()
+
+
 class UserProfile(models.Model):
     """
-    Extended user profile to replace the web2py groupID system.
-    Fixed: Use Django's proper user groups instead of custom groupID.
+    Extended user profile with RBAC support.
     """
-    ROLE_CHOICES = [
-        ('admin', 'Administrator'),
-        ('manager', 'Maintenance Manager'),
-        ('technician', 'Maintenance Technician'),
-        ('viewer', 'Read-Only Viewer'),
-    ]
-    
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='viewer')
+    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True, blank=True)
     phone_number = models.CharField(max_length=20, blank=True)
     employee_id = models.CharField(max_length=50, blank=True, unique=True, null=True)
     department = models.CharField(max_length=100, blank=True)
@@ -194,7 +232,72 @@ class UserProfile(models.Model):
     )
 
     def __str__(self):
-        return f"{self.user.get_full_name()} ({self.get_role_display()})"
+        role_name = self.role.display_name if self.role else "No Role"
+        return f"{self.user.get_full_name()} ({role_name})"
+
+    def has_permission(self, permission_codename):
+        """Check if user has a specific permission."""
+        if self.user.is_superuser:
+            return True
+        
+        if not self.role or not self.role.is_active:
+            return False
+        
+        return self.role.has_permission(permission_codename)
+    
+    def get_permissions(self):
+        """Get all permissions for this user."""
+        if self.user.is_superuser:
+            return Permission.objects.filter(is_active=True)
+        
+        if not self.role or not self.role.is_active:
+            return Permission.objects.none()
+        
+        return self.role.permissions.filter(is_active=True)
+    
+    def is_admin(self):
+        """Check if user is an admin."""
+        return self.has_permission('admin.full_access') or self.user.is_superuser
+    
+    def is_manager(self):
+        """Check if user is a manager."""
+        return self.has_permission('maintenance.manage_all') or self.is_admin()
+    
+    def can_create_equipment(self):
+        """Check if user can create equipment."""
+        return self.has_permission('equipment.create') or self.is_admin()
+    
+    def can_edit_equipment(self):
+        """Check if user can edit equipment."""
+        return self.has_permission('equipment.edit') or self.is_admin()
+    
+    def can_delete_equipment(self):
+        """Check if user can delete equipment."""
+        return self.has_permission('equipment.delete') or self.is_admin()
+    
+    def can_view_equipment(self):
+        """Check if user can view equipment."""
+        return self.has_permission('equipment.view') or self.is_admin()
+    
+    def can_manage_maintenance(self):
+        """Check if user can manage maintenance."""
+        return self.has_permission('maintenance.manage') or self.is_admin()
+    
+    def can_complete_maintenance(self):
+        """Check if user can complete maintenance."""
+        return self.has_permission('maintenance.complete') or self.is_admin()
+    
+    def can_assign_maintenance(self):
+        """Check if user can assign maintenance."""
+        return self.has_permission('maintenance.assign') or self.is_admin()
+    
+    def can_manage_users(self):
+        """Check if user can manage users."""
+        return self.has_permission('users.manage') or self.is_admin()
+    
+    def can_manage_settings(self):
+        """Check if user can manage settings."""
+        return self.has_permission('settings.manage') or self.is_admin()
 
     class Meta:
         verbose_name = "User Profile"
