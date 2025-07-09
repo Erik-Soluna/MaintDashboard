@@ -1,0 +1,378 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Edit {{ equipment.name }} - Maintenance Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_list' %}">Equipment</a></li>
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_detail' equipment.id %}">{{ equipment.name }}</a></li>
+<li class="breadcrumb-item active">Edit</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-edit me-2"></i>
+                        Edit Equipment: {{ equipment.name }}
+                    </h1>
+                    <p class="text-muted mb-0">Update equipment information and specifications</p>
+                </div>
+                <div>
+                    <a href="{% url 'equipment:equipment_detail' equipment.id %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Current Equipment Info Summary -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-info" role="alert">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>Current Status:</strong>
+                    {% if equipment.status == 'active' %}
+                        <span class="badge badge-success">{{ equipment.get_status_display }}</span>
+                    {% elif equipment.status == 'maintenance' %}
+                        <span class="badge badge-warning">{{ equipment.get_status_display }}</span>
+                    {% else %}
+                        <span class="badge badge-secondary">{{ equipment.get_status_display }}</span>
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    <strong>Asset Tag:</strong> <code>{{ equipment.asset_tag }}</code>
+                </div>
+                <div class="col-md-3">
+                    <strong>Location:</strong> {{ equipment.location.name|default:"Not set" }}
+                </div>
+                <div class="col-md-3">
+                    <strong>Last Updated:</strong> {{ equipment.updated_at|date:"M d, Y H:i" }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>
+                    Equipment Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <!-- Display form errors if any -->
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger" role="alert">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Use crispy forms to render the form -->
+                    {% crispy form %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Log -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-history me-2"></i>
+                    Change History
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Changed By</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>{{ equipment.updated_at|date:"M d, Y H:i" }}</td>
+                                <td>{{ equipment.updated_by.get_full_name|default:equipment.updated_by.username|default:"System" }}</td>
+                                <td>Last modified</td>
+                            </tr>
+                            <tr>
+                                <td>{{ equipment.created_at|date:"M d, Y H:i" }}</td>
+                                <td>{{ equipment.created_by.get_full_name|default:equipment.created_by.username|default:"System" }}</td>
+                                <td>Equipment created</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="helpModalLabel">Equipment Edit Help</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning" role="alert">
+                    <strong>Important:</strong> Changes to equipment information may affect scheduled maintenance activities and reports.
+                </div>
+                
+                <h6>Field Guidelines:</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl>
+                            <dt>Equipment Name</dt>
+                            <dd>Must remain unique across all equipment</dd>
+                            
+                            <dt>Status Changes</dt>
+                            <dd>Consider impact on maintenance schedules</dd>
+                            
+                            <dt>Location Changes</dt>
+                            <dd>Update physical location accordingly</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl>
+                            <dt>Technical Updates</dt>
+                            <dd>Ensure accuracy for maintenance planning</dd>
+                            
+                            <dt>Document Replacement</dt>
+                            <dd>New files will replace existing ones</dd>
+                            
+                            <dt>Date Modifications</dt>
+                            <dd>May trigger maintenance rescheduling</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-group .asteriskField {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .form-text {
+        font-size: 0.875em;
+        color: #6c757d;
+    }
+    
+    .fieldset {
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background-color: #f8f9fa;
+    }
+    
+    .fieldset legend {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #495057;
+        padding: 0 0.5rem;
+        margin-bottom: 0;
+        width: auto;
+    }
+    
+    .original-value {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    .changed-field {
+        border-left: 4px solid #ffc107 !important;
+        background-color: #fff3cd;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Add help button to form header
+    $('.card-header h5').append(
+        '<button type="button" class="btn btn-sm btn-outline-info ml-2" data-toggle="modal" data-target="#helpModal">' +
+        '<i class="fas fa-question-circle me-1"></i> Help</button>'
+    );
+    
+    // Track form changes
+    let originalValues = {};
+    
+    // Store original values
+    $('input, select, textarea').each(function() {
+        originalValues[$(this).attr('name')] = $(this).val();
+    });
+    
+    // Highlight changed fields
+    $('input, select, textarea').on('input change', function() {
+        const fieldName = $(this).attr('name');
+        const currentValue = $(this).val();
+        const originalValue = originalValues[fieldName];
+        
+        if (currentValue !== originalValue) {
+            $(this).addClass('changed-field');
+        } else {
+            $(this).removeClass('changed-field');
+        }
+    });
+    
+    // Form validation
+    $('form').on('submit', function(e) {
+        let isValid = true;
+        let hasChanges = false;
+        
+        // Check for changes
+        $('input, select, textarea').each(function() {
+            const fieldName = $(this).attr('name');
+            if ($(this).val() !== originalValues[fieldName]) {
+                hasChanges = true;
+            }
+        });
+        
+        if (!hasChanges) {
+            e.preventDefault();
+            showAlert('info', 'No changes detected. Please make some changes before saving.');
+            return;
+        }
+        
+        // Validate required fields
+        $(this).find('input[required], select[required], textarea[required]').each(function() {
+            if (!$(this).val()) {
+                isValid = false;
+                $(this).addClass('is-invalid');
+                
+                if (!$(this).siblings('.invalid-feedback').length) {
+                    $(this).after('<div class="invalid-feedback">This field is required.</div>');
+                }
+            } else {
+                $(this).removeClass('is-invalid');
+                $(this).siblings('.invalid-feedback').remove();
+            }
+        });
+        
+        // Validate asset tag uniqueness warning
+        const assetTagField = $('input[name="asset_tag"]');
+        if (assetTagField.length && assetTagField.val() !== originalValues['asset_tag']) {
+            // Show warning about potential conflicts
+            if (!$('.asset-tag-warning').length) {
+                assetTagField.parent().append(
+                    '<div class="asset-tag-warning alert alert-warning alert-sm mt-2">' +
+                    '<small><i class="fas fa-exclamation-triangle me-1"></i>' +
+                    'Changing the asset tag may affect tracking and references.</small></div>'
+                );
+            }
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            showAlert('danger', 'Please correct the errors below before submitting.');
+            
+            // Scroll to first error
+            const firstError = $('.is-invalid').first();
+            if (firstError.length) {
+                $('html, body').animate({
+                    scrollTop: firstError.offset().top - 100
+                }, 500);
+            }
+        }
+    });
+    
+    // Confirmation for status changes
+    $('select[name="status"]').on('change', function() {
+        const newStatus = $(this).val();
+        const originalStatus = originalValues['status'];
+        
+        if (newStatus !== originalStatus) {
+            if (newStatus === 'maintenance') {
+                showAlert('warning', 'Setting status to "Under Maintenance" may affect equipment availability.');
+            } else if (newStatus === 'retired') {
+                showAlert('warning', 'Setting status to "Retired" will remove this equipment from active schedules.');
+            } else if (newStatus === 'inactive') {
+                showAlert('info', 'Setting status to "Inactive" will pause maintenance schedules.');
+            }
+        }
+    });
+    
+    // File upload preview and replacement warning
+    $('input[type="file"]').on('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const fileName = file.name;
+            const fileSize = (file.size / 1024 / 1024).toFixed(2);
+            
+            // Remove existing preview
+            $(this).siblings('.file-preview').remove();
+            
+            // Add preview with replacement warning
+            $(this).after(
+                '<div class="file-preview mt-2 p-2 bg-warning text-dark rounded">' +
+                '<small><i class="fas fa-exclamation-triangle me-1"></i>' +
+                '<strong>New file:</strong> ' + fileName + ' (' + fileSize + ' MB)<br>' +
+                'This will replace the existing file when saved.</small></div>'
+            );
+        }
+    });
+    
+    // Utility function to show alerts
+    function showAlert(type, message) {
+        // Remove existing alerts
+        $('.alert-temp').remove();
+        
+        // Add new alert
+        $('.card-body').prepend(
+            '<div class="alert alert-' + type + ' alert-dismissible fade show alert-temp" role="alert">' +
+            '<i class="fas fa-info-circle me-2"></i>' + message +
+            '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+            '<span aria-hidden="true">&times;</span></button></div>'
+        );
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(function() {
+            $('.alert-temp').fadeOut();
+        }, 5000);
+    }
+    
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+});
+</script>
+{% endblock %}
