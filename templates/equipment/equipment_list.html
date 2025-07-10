@@ -305,7 +305,7 @@
                             <tr>
                                 <th>Equipment Name</th>
                                 <th>Category</th>
-                                <th>Location</th>
+                                <th>Site / Location</th>
                                 <th>Serial Number</th>
                                 <th>Asset Tag</th>
                                 <th>Status</th>
@@ -330,7 +330,12 @@
                                 </td>
                                 <td>
                                     {% if equipment.location %}
-                                        {{ equipment.location.name }}
+                                        {% if equipment.location.get_site_location %}
+                                            <span class="badge badge-info">{{ equipment.location.get_site_location.name }}</span><br>
+                                            <small>{{ equipment.location.name }}</small>
+                                        {% else %}
+                                            {{ equipment.location.name }}
+                                        {% endif %}
                                     {% else %}
                                         <small class="text-muted">No location</small>
                                     {% endif %}

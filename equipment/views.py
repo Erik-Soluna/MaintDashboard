@@ -29,7 +29,10 @@ def equipment_list(request):
     queryset = Equipment.objects.select_related('category', 'location').all()
     
     # Filter by selected site (from session or URL parameter)
-    selected_site_id = request.GET.get('site_id') or request.session.get('selected_site_id')
+    selected_site_id = request.GET.get('site_id')
+    if selected_site_id is None:
+        selected_site_id = request.session.get('selected_site_id')
+    
     if selected_site_id:
         try:
             selected_site = Location.objects.get(id=selected_site_id, is_site=True)
@@ -93,7 +96,10 @@ def manage_equipment(request):
     ).all()
     
     # Filter by selected site (from session or URL parameter)
-    selected_site_id = request.GET.get('site_id') or request.session.get('selected_site_id')
+    selected_site_id = request.GET.get('site_id')
+    if selected_site_id is None:
+        selected_site_id = request.session.get('selected_site_id')
+    
     if selected_site_id:
         try:
             selected_site = Location.objects.get(id=selected_site_id, is_site=True)

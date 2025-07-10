@@ -21,7 +21,7 @@ class EquipmentComponentInline(admin.TabularInline):
 @admin.register(Equipment)
 class EquipmentAdmin(admin.ModelAdmin):
     list_display = [
-        'name', 'category', 'location', 'status', 
+        'name', 'category', 'get_site', 'location', 'status', 
         'manufacturer_serial', 'asset_tag', 'created_at'
     ]
     list_filter = [
@@ -36,6 +36,13 @@ class EquipmentAdmin(admin.ModelAdmin):
         'created_at', 'updated_at', 'created_by', 'updated_by'
     ]
     inlines = [EquipmentDocumentInline, EquipmentComponentInline]
+    
+    def get_site(self, obj):
+        """Get the site location for this equipment."""
+        site = obj.get_site()
+        return site.name if site else 'No Site'
+    get_site.short_description = 'Site'
+    get_site.admin_order_field = 'location__parent_location__name'
     
     fieldsets = (
         ('Basic Information', {

@@ -32,10 +32,32 @@ class MaintenanceActivityForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        # Extract request from kwargs to access session data
+        self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
         
         # Filter active options
-        self.fields['equipment'].queryset = Equipment.objects.filter(is_active=True)
+        equipment_queryset = Equipment.objects.filter(is_active=True)
+        
+        # Apply site filtering if a site is selected
+        if self.request and hasattr(self.request, 'session'):
+            from core.models import Location
+            from django.db.models import Q
+            
+            selected_site_id = self.request.GET.get('site_id')
+            if selected_site_id is None:
+                selected_site_id = self.request.session.get('selected_site_id')
+            
+            if selected_site_id:
+                try:
+                    selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                    equipment_queryset = equipment_queryset.filter(
+                        Q(location__parent_location=selected_site) | Q(location=selected_site)
+                    )
+                except Location.DoesNotExist:
+                    pass
+        
+        self.fields['equipment'].queryset = equipment_queryset
         self.fields['activity_type'].queryset = MaintenanceActivityType.objects.filter(is_active=True)
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True)
         
@@ -93,10 +115,32 @@ class MaintenanceScheduleForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        # Extract request from kwargs to access session data
+        self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
         
         # Filter active options
-        self.fields['equipment'].queryset = Equipment.objects.filter(is_active=True)
+        equipment_queryset = Equipment.objects.filter(is_active=True)
+        
+        # Apply site filtering if a site is selected
+        if self.request and hasattr(self.request, 'session'):
+            from core.models import Location
+            from django.db.models import Q
+            
+            selected_site_id = self.request.GET.get('site_id')
+            if selected_site_id is None:
+                selected_site_id = self.request.session.get('selected_site_id')
+            
+            if selected_site_id:
+                try:
+                    selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                    equipment_queryset = equipment_queryset.filter(
+                        Q(location__parent_location=selected_site) | Q(location=selected_site)
+                    )
+                except Location.DoesNotExist:
+                    pass
+        
+        self.fields['equipment'].queryset = equipment_queryset
         self.fields['activity_type'].queryset = MaintenanceActivityType.objects.filter(is_active=True)
         
         # Setup crispy forms helper

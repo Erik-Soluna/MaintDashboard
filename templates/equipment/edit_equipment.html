@@ -112,12 +112,24 @@
                         <tbody>
                             <tr>
                                 <td>{{ equipment.updated_at|date:"M d, Y H:i" }}</td>
-                                <td>{{ equipment.updated_by.get_full_name|default:equipment.updated_by.username|default:"System" }}</td>
+                                <td>
+                                    {% if equipment.updated_by %}
+                                        {{ equipment.updated_by.get_full_name|default:equipment.updated_by.username }}
+                                    {% else %}
+                                        System
+                                    {% endif %}
+                                </td>
                                 <td>Last modified</td>
                             </tr>
                             <tr>
                                 <td>{{ equipment.created_at|date:"M d, Y H:i" }}</td>
-                                <td>{{ equipment.created_by.get_full_name|default:equipment.created_by.username|default:"System" }}</td>
+                                <td>
+                                    {% if equipment.created_by %}
+                                        {{ equipment.created_by.get_full_name|default:equipment.created_by.username }}
+                                    {% else %}
+                                        System
+                                    {% endif %}
+                                </td>
                                 <td>Equipment created</td>
                             </tr>
                         </tbody>
