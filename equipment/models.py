@@ -162,6 +162,12 @@ class Equipment(TimeStampedModel):
     def get_full_location_path(self):
         """Get the full hierarchical path of the equipment location."""
         return self.location.get_full_path() if self.location else "No Location"
+    
+    def get_site(self):
+        """Get the site location for this equipment."""
+        if self.location:
+            return self.location.get_site_location()
+        return None
 
 
 class EquipmentDocument(TimeStampedModel):

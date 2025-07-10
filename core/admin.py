@@ -61,7 +61,10 @@ class CustomUserAdmin(BaseUserAdmin):
     def get_role(self, obj):
         """Get user role from profile."""
         try:
-            return obj.userprofile.get_role_display()
+            if obj.userprofile.role:
+                return obj.userprofile.role.display_name
+            else:
+                return 'No Role Assigned'
         except UserProfile.DoesNotExist:
             return 'No Profile'
     get_role.short_description = 'Role'
