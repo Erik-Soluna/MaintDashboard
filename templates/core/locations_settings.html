@@ -1,4 +1,4 @@
-THIS SHOULD BE A LINTER ERROR{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}Locations Management - Maintenance Dashboard{% endblock %}
@@ -366,6 +366,7 @@ THIS SHOULD BE A LINTER ERROR{% extends 'base.html' %}
                 </button>
             </div>
             <form id="addLocationForm">
+                {% csrf_token %}
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="locationName" class="form-label">Location Name *</label>
