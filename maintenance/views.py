@@ -11,9 +11,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
-from django.db.models import Q, Count
+from django.db.models import Q, Count, models
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from .models import (
     MaintenanceActivity, MaintenanceActivityType, 
@@ -459,6 +459,310 @@ def export_activity_types_csv(request):
             activity_type.is_active,
             activity_type.created_at.strftime('%Y-%m-%d %H:%M:%S') if activity_type.created_at else '',
             activity_type.updated_at.strftime('%Y-%m-%d %H:%M:%S') if activity_type.updated_at else '',
+        ])
+    
+    return response
+
+
+@login_required
+def export_maintenance_csv(request):
+    """Export maintenance activities to CSV file."""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="maintenance_activities_export.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header
+    writer.writerow([
+        'Title',
+        'Equipment',
+        'Activity Type',
+        'Status',
+        'Priority',
+        'Scheduled Start',
+        'Scheduled End',
+        'Actual Start',
+        'Actual End',
+        'Assigned To',
+        'Required Status',
+        'Tools Required',
+        'Parts Required',
+        'Safety Notes',
+        'Completion Notes',
+        'Next Due Date',
+        'Description'
+    ])
+    
+    # Get maintenance data
+    activities = MaintenanceActivity.objects.select_related(
+        'equipment', 'activity_type', 'assigned_to'
+    ).all()
+    
+    # Apply filters if provided
+    site_id = request.GET.get('site_id')
+    status = request.GET.get('status')
+    
+    if site_id:
+        activities = activities.filter(
+            models.Q(equipment__location__parent_location_id=site_id) | 
+            models.Q(equipment__location_id=site_id)
+        )
+    
+    if status:
+        activities = activities.filter(status=status)
+    
+    # Write data rows
+    for activity in activities:
+        writer.writerow([
+            activity.title,
+            activity.equipment.name,
+            activity.activity_type.name,
+            activity.status,
+            activity.priority,
+            activity.scheduled_start.isoformat() if activity.scheduled_start else '',
+            activity.scheduled_end.isoformat() if activity.scheduled_end else '',
+            activity.actual_start.isoformat() if activity.actual_start else '',
+            activity.actual_end.isoformat() if activity.actual_end else '',
+            activity.assigned_to.get_full_name() if activity.assigned_to else '',
+            activity.required_status,
+            activity.tools_required,
+            activity.parts_required,
+            activity.safety_notes,
+            activity.completion_notes,
+            activity.next_due_date.isoformat() if activity.next_due_date else '',
+            activity.description
+        ])
+    
+    return response
+
+
+@login_required
+@require_http_methods(["POST"])
+def import_maintenance_csv(request):
+    """Import maintenance activities from CSV file."""
+    if 'csv_file' not in request.FILES:
+        messages.error(request, 'No CSV file provided.')
+        return redirect('maintenance:maintenance_list')
+    
+    csv_file = request.FILES['csv_file']
+    
+    if not csv_file.name.endswith('.csv'):
+        messages.error(request, 'Please upload a CSV file.')
+        return redirect('maintenance:maintenance_list')
+    
+    try:
+        # Read CSV file
+        file_data = csv_file.read().decode('utf-8')
+        csv_data = csv.reader(io.StringIO(file_data))
+        
+        # Skip header row
+        header = next(csv_data)
+        
+        # Import data
+        from .models import MaintenanceActivity, MaintenanceActivityType
+        from equipment.models import Equipment
+        from django.contrib.auth.models import User
+        from datetime import datetime
+        from django.utils import timezone as django_timezone
+        
+        imported_count = 0
+        error_count = 0
+        
+        for row_num, row in enumerate(csv_data, start=2):
+            try:
+                if len(row) < 3:  # Must have at least title, equipment, activity type
+                    continue
+                
+                title = row[0].strip()
+                equipment_name = row[1].strip()
+                activity_type_name = row[2].strip()
+                
+                if not title or not equipment_name or not activity_type_name:
+                    continue
+                
+                # Find equipment
+                try:
+                    equipment = Equipment.objects.get(name=equipment_name)
+                except Equipment.DoesNotExist:
+                    error_count += 1
+                    continue
+                
+                # Find or create activity type
+                activity_type, created = MaintenanceActivityType.objects.get_or_create(
+                    name=activity_type_name,
+                    defaults={
+                        'description': f'Imported activity type: {activity_type_name}',
+                        'estimated_duration_hours': 1,
+                        'frequency_days': 365,
+                        'created_by': request.user
+                    }
+                )
+                
+                # Parse data
+                status = row[3].strip() if len(row) > 3 else 'scheduled'
+                priority = row[4].strip() if len(row) > 4 else 'medium'
+                
+                # Validate status and priority
+                valid_statuses = ['scheduled', 'pending', 'in_progress', 'completed', 'cancelled', 'overdue']
+                valid_priorities = ['low', 'medium', 'high', 'critical']
+                
+                if status not in valid_statuses:
+                    status = 'scheduled'
+                if priority not in valid_priorities:
+                    priority = 'medium'
+                
+                # Parse dates
+                scheduled_start = None
+                scheduled_end = None
+                actual_start = None
+                actual_end = None
+                next_due_date = None
+                
+                try:
+                    if len(row) > 5 and row[5].strip():
+                        scheduled_start = datetime.fromisoformat(row[5].strip())
+                        if scheduled_start.tzinfo is None:
+                            scheduled_start = django_timezone.make_aware(scheduled_start)
+                except ValueError:
+                    pass
+                
+                try:
+                    if len(row) > 6 and row[6].strip():
+                        scheduled_end = datetime.fromisoformat(row[6].strip())
+                        if scheduled_end.tzinfo is None:
+                            scheduled_end = django_timezone.make_aware(scheduled_end)
+                except ValueError:
+                    pass
+                
+                try:
+                    if len(row) > 7 and row[7].strip():
+                        actual_start = datetime.fromisoformat(row[7].strip())
+                        if actual_start.tzinfo is None:
+                            actual_start = django_timezone.make_aware(actual_start)
+                except ValueError:
+                    pass
+                
+                try:
+                    if len(row) > 8 and row[8].strip():
+                        actual_end = datetime.fromisoformat(row[8].strip())
+                        if actual_end.tzinfo is None:
+                            actual_end = django_timezone.make_aware(actual_end)
+                except ValueError:
+                    pass
+                
+                try:
+                    if len(row) > 15 and row[15].strip():
+                        next_due_date = datetime.fromisoformat(row[15].strip()).date()
+                except ValueError:
+                    pass
+                
+                # Find assigned user
+                assigned_to = None
+                if len(row) > 9 and row[9].strip():
+                    assigned_name = row[9].strip()
+                    # Try to find user by full name or username
+                    users = User.objects.filter(
+                        models.Q(first_name__icontains=assigned_name.split()[0]) |
+                        models.Q(username=assigned_name)
+                    )
+                    if users.exists():
+                        assigned_to = users.first()
+                
+                # Default scheduled dates if not provided
+                if not scheduled_start:
+                    scheduled_start = django_timezone.now()
+                if not scheduled_end:
+                    scheduled_end = scheduled_start + django_timezone.timedelta(hours=activity_type.estimated_duration_hours)
+                
+                # Create maintenance activity
+                activity_data = {
+                    'title': title,
+                    'equipment': equipment,
+                    'activity_type': activity_type,
+                    'status': status,
+                    'priority': priority,
+                    'scheduled_start': scheduled_start,
+                    'scheduled_end': scheduled_end,
+                    'actual_start': actual_start,
+                    'actual_end': actual_end,
+                    'assigned_to': assigned_to,
+                    'required_status': row[10].strip() if len(row) > 10 else '',
+                    'tools_required': row[11].strip() if len(row) > 11 else '',
+                    'parts_required': row[12].strip() if len(row) > 12 else '',
+                    'safety_notes': row[13].strip() if len(row) > 13 else '',
+                    'completion_notes': row[14].strip() if len(row) > 14 else '',
+                    'next_due_date': next_due_date,
+                    'description': row[16].strip() if len(row) > 16 else '',
+                    'created_by': request.user
+                }
+                
+                MaintenanceActivity.objects.create(**activity_data)
+                imported_count += 1
+                
+            except Exception as e:
+                error_count += 1
+                print(f"Error importing maintenance activity row {row_num}: {str(e)}")
+                continue
+        
+        if imported_count > 0:
+            messages.success(request, f'Successfully imported {imported_count} maintenance activities.')
+        if error_count > 0:
+            messages.warning(request, f'{error_count} rows had errors and were skipped.')
+            
+    except Exception as e:
+        messages.error(request, f'Error reading CSV file: {str(e)}')
+    
+    return redirect('maintenance:maintenance_list')
+
+
+@login_required
+def export_maintenance_schedules_csv(request):
+    """Export maintenance schedules to CSV file."""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="maintenance_schedules_export.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header
+    writer.writerow([
+        'Equipment',
+        'Activity Type',
+        'Frequency',
+        'Frequency Days',
+        'Start Date',
+        'End Date',
+        'Last Generated',
+        'Auto Generate',
+        'Advance Notice Days',
+        'Is Active'
+    ])
+    
+    # Get schedule data
+    schedules = MaintenanceSchedule.objects.select_related(
+        'equipment', 'activity_type'
+    ).all()
+    
+    # Apply site filter if provided
+    site_id = request.GET.get('site_id')
+    if site_id:
+        schedules = schedules.filter(
+            models.Q(equipment__location__parent_location_id=site_id) | 
+            models.Q(equipment__location_id=site_id)
+        )
+    
+    # Write data rows
+    for schedule in schedules:
+        writer.writerow([
+            schedule.equipment.name,
+            schedule.activity_type.name,
+            schedule.frequency,
+            schedule.frequency_days,
+            schedule.start_date.isoformat() if schedule.start_date else '',
+            schedule.end_date.isoformat() if schedule.end_date else '',
+            schedule.last_generated.isoformat() if schedule.last_generated else '',
+            schedule.auto_generate,
+            schedule.advance_notice_days,
+            schedule.is_active
         ])
     
     return response

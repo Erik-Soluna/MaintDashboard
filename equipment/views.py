@@ -603,34 +603,187 @@ def import_locations_csv(request):
 
 @login_required
 def export_equipment_csv(request):
-    """Export equipment to CSV file."""
+    """Export equipment data to CSV file."""
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="equipment_export.csv"'
     
     writer = csv.writer(response)
+    
+    # Write header
     writer.writerow([
-        'name', 'category', 'manufacturer_serial', 'asset_tag', 'location',
-        'manufacturer', 'model_number', 'power_ratings', 'trip_setpoints',
-        'warranty_details', 'status'
+        'Name',
+        'Category',
+        'Manufacturer Serial',
+        'Asset Tag',
+        'Location',
+        'Status',
+        'Manufacturer',
+        'Model Number',
+        'Power Ratings',
+        'Trip Setpoints',
+        'Warranty Details',
+        'Installed Upgrades',
+        'DGA Due Date',
+        'Next Maintenance Date',
+        'Commissioning Date',
+        'Warranty Expiry Date',
+        'Is Active'
     ])
     
+    # Get equipment data
+    from .models import Equipment
     equipment_list = Equipment.objects.select_related('category', 'location').all()
+    
+    # Apply site filter if provided
+    site_id = request.GET.get('site_id')
+    if site_id:
+        from django.db.models import Q
+        equipment_list = equipment_list.filter(
+            Q(location__parent_location_id=site_id) | Q(location_id=site_id)
+        )
+    
+    # Write data rows
     for equipment in equipment_list:
         writer.writerow([
             equipment.name,
             equipment.category.name if equipment.category else '',
             equipment.manufacturer_serial,
             equipment.asset_tag,
-            equipment.location.name if equipment.location else '',
+            equipment.location.get_full_path() if equipment.location else '',
+            equipment.status,
             equipment.manufacturer,
             equipment.model_number,
             equipment.power_ratings,
             equipment.trip_setpoints,
             equipment.warranty_details,
-            equipment.status
+            equipment.installed_upgrades,
+            equipment.dga_due_date.isoformat() if equipment.dga_due_date else '',
+            equipment.next_maintenance_date.isoformat() if equipment.next_maintenance_date else '',
+            equipment.commissioning_date.isoformat() if equipment.commissioning_date else '',
+            equipment.warranty_expiry_date.isoformat() if equipment.warranty_expiry_date else '',
+            equipment.is_active
         ])
     
     return response
+
+
+@login_required
+@require_http_methods(["POST"])
+def import_equipment_csv(request):
+    """Import equipment data from CSV file."""
+    if 'csv_file' not in request.FILES:
+        messages.error(request, 'No CSV file provided.')
+        return redirect('equipment:equipment_list')
+    
+    csv_file = request.FILES['csv_file']
+    
+    if not csv_file.name.endswith('.csv'):
+        messages.error(request, 'Please upload a CSV file.')
+        return redirect('equipment:equipment_list')
+    
+    try:
+        # Read CSV file
+        file_data = csv_file.read().decode('utf-8')
+        csv_data = csv.reader(io.StringIO(file_data))
+        
+        # Skip header row
+        header = next(csv_data)
+        
+        # Import data
+        from .models import Equipment
+        from core.models import EquipmentCategory, Location
+        from datetime import datetime
+        
+        imported_count = 0
+        error_count = 0
+        
+        for row_num, row in enumerate(csv_data, start=2):
+            try:
+                if len(row) < 3:  # Must have at least name, category, and serial
+                    continue
+                
+                name = row[0].strip()
+                category_name = row[1].strip()
+                manufacturer_serial = row[2].strip()
+                asset_tag = row[3].strip() if len(row) > 3 else ''
+                location_path = row[4].strip() if len(row) > 4 else ''
+                status = row[5].strip() if len(row) > 5 else 'active'
+                
+                if not name or not manufacturer_serial:
+                    continue
+                
+                # Get or create category
+                category = None
+                if category_name:
+                    category, created = EquipmentCategory.objects.get_or_create(
+                        name=category_name,
+                        defaults={'description': f'Imported category: {category_name}'}
+                    )
+                
+                # Find location by path
+                location = None
+                if location_path:
+                    # Try to find location by full path
+                    for loc in Location.objects.all():
+                        if loc.get_full_path() == location_path:
+                            location = loc
+                            break
+                
+                # Check if equipment already exists
+                if Equipment.objects.filter(manufacturer_serial=manufacturer_serial).exists():
+                    error_count += 1
+                    continue
+                
+                # Create equipment
+                equipment_data = {
+                    'name': name,
+                    'category': category,
+                    'manufacturer_serial': manufacturer_serial,
+                    'asset_tag': asset_tag or f'AUTO_{manufacturer_serial}',
+                    'location': location,
+                    'status': status if status in ['active', 'inactive', 'maintenance', 'retired'] else 'active',
+                    'manufacturer': row[6].strip() if len(row) > 6 else '',
+                    'model_number': row[7].strip() if len(row) > 7 else '',
+                    'power_ratings': row[8].strip() if len(row) > 8 else '',
+                    'trip_setpoints': row[9].strip() if len(row) > 9 else '',
+                    'warranty_details': row[10].strip() if len(row) > 10 else '',
+                    'installed_upgrades': row[11].strip() if len(row) > 11 else '',
+                    'is_active': True if len(row) <= 16 else str(row[16]).lower() in ['true', '1', 'yes'],
+                    'created_by': request.user
+                }
+                
+                # Parse dates
+                date_fields = [
+                    ('dga_due_date', 12),
+                    ('next_maintenance_date', 13),
+                    ('commissioning_date', 14),
+                    ('warranty_expiry_date', 15)
+                ]
+                
+                for field_name, index in date_fields:
+                    if len(row) > index and row[index].strip():
+                        try:
+                            equipment_data[field_name] = datetime.fromisoformat(row[index].strip()).date()
+                        except ValueError:
+                            pass  # Skip invalid dates
+                
+                Equipment.objects.create(**equipment_data)
+                imported_count += 1
+                
+            except Exception as e:
+                error_count += 1
+                print(f"Error importing row {row_num}: {str(e)}")
+                continue
+        
+        if imported_count > 0:
+            messages.success(request, f'Successfully imported {imported_count} equipment items.')
+        if error_count > 0:
+            messages.warning(request, f'{error_count} rows had errors and were skipped.')
+            
+    except Exception as e:
+        messages.error(request, f'Error reading CSV file: {str(e)}')
+    
+    return redirect('equipment:equipment_list')
 
 
 @login_required
