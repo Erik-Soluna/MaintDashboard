@@ -18,6 +18,7 @@ urlpatterns = [
     path('settings/', views.settings, name='settings'),
     path('settings/locations/', views.locations_settings, name='locations_settings'),
     path('settings/equipment-items/', views.equipment_items_settings, name='equipment_items_settings'),
+    path('settings/equipment-categories/', views.equipment_categories_settings, name='equipment_categories_settings'),
     path('settings/users/', views.user_management, name='user_management'),
     
     # Location management

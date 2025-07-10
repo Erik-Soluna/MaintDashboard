@@ -33,6 +33,7 @@ urlpatterns = [
     
     # Reports and analytics
     path('reports/', views.maintenance_reports, name='maintenance_reports'),
+    path('overdue/', views.overdue_maintenance, name='overdue_maintenance'),
     
     # AJAX endpoints
     path('api/activities/', views.get_activities_data, name='get_activities_data'),

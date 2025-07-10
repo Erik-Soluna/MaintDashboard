@@ -111,7 +111,7 @@
                 <p class="text-muted">Advanced two-way sync with Google Calendar (requires additional setup)</p>
                 
                 <label class="form-label">Webhook Endpoint:</label>
-                <div class="url-display" id="webhookUrl">{{ request.build_absolute_uri:'/events/webhook/google/' }}</div>
+                <div class="url-display" id="webhookUrl">{{ webhook_url }}</div>
                 <button type="button" class="btn btn-primary copy-button" onclick="copyToClipboard('webhookUrl')">
                     <i class="fas fa-copy me-1"></i> Copy URL
                 </button>
