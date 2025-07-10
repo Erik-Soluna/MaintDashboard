@@ -275,10 +275,10 @@
                     </option>
                 {% endfor %}
             </select>
-            <a href="{% url 'events:add_event' %}" class="add-event-btn">
+            <button type="button" class="add-event-btn" onclick="openCreateEventModal()">
                 <i class="fas fa-plus"></i>
                 Add Event
-            </a>
+            </button>
         </div>
     </div>
 
@@ -359,6 +359,116 @@
     </div>
     {% endif %}
 
+    <!-- Event Modal -->
+    <div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" style="background-color: #1a2238; border: 1px solid #2d3748;">
+                <div class="modal-header" style="border-bottom: 1px solid #2d3748;">
+                    <h5 class="modal-title text-white" id="eventModalLabel">Add Event</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="eventForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="eventTitle" class="form-label text-white">Title *</label>
+                                    <input type="text" class="form-control" id="eventTitle" name="title" required style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="eventType" class="form-label text-white">Event Type</label>
+                                    <select class="form-control" id="eventType" name="event_type" style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
+                                        {% for value, label in event_types %}
+                                            <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="eventEquipment" class="form-label text-white">Equipment *</label>
+                                    <select class="form-control" id="eventEquipment" name="equipment" required style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
+                                        <option value="">Select Equipment</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="eventPriority" class="form-label text-white">Priority</label>
+                                    <select class="form-control" id="eventPriority" name="priority" style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
+                                        {% for value, label in priority_choices %}
+                                            <option value="{{ value }}" {% if value == 'medium' %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="eventDate" class="form-label text-white">Date *</label>
+                                    <input type="date" class="form-control" id="eventDate" name="event_date" required style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="eventStartTime" class="form-label text-white">Start Time</label>
+                                    <input type="time" class="form-control" id="eventStartTime" name="start_time" style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="eventEndTime" class="form-label text-white">End Time</label>
+                                    <input type="time" class="form-control" id="eventEndTime" name="end_time" style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="eventAssignedTo" class="form-label text-white">Assigned To</label>
+                                    <select class="form-control" id="eventAssignedTo" name="assigned_to" style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
+                                        <option value="">Unassigned</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3 d-flex align-items-end">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="eventAllDay" name="all_day">
+                                        <label class="form-check-label text-white" for="eventAllDay">
+                                            All Day Event
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="eventDescription" class="form-label text-white">Description</label>
+                            <textarea class="form-control" id="eventDescription" name="description" rows="3" style="background-color: #2d3748; border: 1px solid #4a5568; color: white;"></textarea>
+                        </div>
+                        
+                        <input type="hidden" id="eventId" name="event_id">
+                    </form>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #2d3748;">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEvent()">Save Event</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Calendar -->
     <div class="calendar-content">
         <div id="calendar"></div>
@@ -405,11 +515,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         },
+        dateClick: function(info) {
+            // Open create event modal when clicking on a day
+            openCreateEventModal(info.dateStr);
+        },
         eventClick: function(info) {
+            // Open edit event modal when clicking on an event
             info.jsEvent.preventDefault();
-            if (info.event.url) {
-                window.location.href = info.event.url;
-            }
+            openEditEventModal(info.event.id);
         },
         eventMouseEnter: function(info) {
             // Create tooltip
@@ -514,6 +627,171 @@ function createFilterTag(label, value, onRemove) {
         <span class="remove" onclick="this.parentElement.remove(); (${onRemove.toString()})()">×</span>
     `;
     return tag;
+}
+
+// Event Modal Functions
+let formData = null;
+
+function loadFormData() {
+    if (formData) {
+        return Promise.resolve(formData);
+    }
+    
+    const siteId = document.getElementById('siteSelector').value;
+    const url = new URL('{% url "events:get_form_data" %}', window.location.origin);
+    if (siteId) {
+        url.searchParams.set('site_id', siteId);
+    }
+    
+    return fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                formData = data;
+                return data;
+            } else {
+                throw new Error(data.error || 'Failed to load form data');
+            }
+        });
+}
+
+function populateFormData(data) {
+    // Populate equipment dropdown
+    const equipmentSelect = document.getElementById('eventEquipment');
+    equipmentSelect.innerHTML = '<option value="">Select Equipment</option>';
+    data.equipment.forEach(equipment => {
+        const option = document.createElement('option');
+        option.value = equipment.id;
+        option.textContent = `${equipment.name} (${equipment.location})`;
+        equipmentSelect.appendChild(option);
+    });
+    
+    // Populate users dropdown
+    const usersSelect = document.getElementById('eventAssignedTo');
+    usersSelect.innerHTML = '<option value="">Unassigned</option>';
+    data.users.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user.id;
+        option.textContent = user.name;
+        usersSelect.appendChild(option);
+    });
+}
+
+function openCreateEventModal(dateStr = null) {
+    // Reset form
+    document.getElementById('eventForm').reset();
+    document.getElementById('eventId').value = '';
+    document.getElementById('eventModalLabel').textContent = 'Add Event';
+    
+    // Set date if provided
+    if (dateStr) {
+        document.getElementById('eventDate').value = dateStr;
+    }
+    
+    // Load form data and show modal
+    loadFormData()
+        .then(data => {
+            populateFormData(data);
+            $('#eventModal').modal('show');
+        })
+        .catch(error => {
+            console.error('Error loading form data:', error);
+            alert('Error loading form data: ' + error.message);
+        });
+}
+
+function openEditEventModal(eventId) {
+    // Load event data
+    fetch(`{% url "events:get_event" event_id=0 %}`.replace('0', eventId))
+        .then(response => response.json())
+        .then(eventData => {
+            // Load form data first
+            return loadFormData().then(formDataResponse => {
+                return { eventData, formDataResponse };
+            });
+        })
+        .then(({ eventData, formDataResponse }) => {
+            // Populate form data dropdowns
+            populateFormData(formDataResponse);
+            
+            // Populate form with event data
+            document.getElementById('eventId').value = eventData.id;
+            document.getElementById('eventTitle').value = eventData.title;
+            document.getElementById('eventDescription').value = eventData.description || '';
+            document.getElementById('eventType').value = eventData.event_type;
+            document.getElementById('eventEquipment').value = eventData.equipment.id;
+            document.getElementById('eventDate').value = eventData.event_date;
+            document.getElementById('eventStartTime').value = eventData.start_time || '';
+            document.getElementById('eventEndTime').value = eventData.end_time || '';
+            document.getElementById('eventAllDay').checked = eventData.all_day;
+            document.getElementById('eventPriority').value = eventData.priority;
+            document.getElementById('eventAssignedTo').value = eventData.assigned_to_id || '';
+            
+            // Update modal title
+            document.getElementById('eventModalLabel').textContent = 'Edit Event';
+            
+            // Show modal
+            $('#eventModal').modal('show');
+        })
+        .catch(error => {
+            console.error('Error loading event data:', error);
+            alert('Error loading event data: ' + error.message);
+        });
+}
+
+function saveEvent() {
+    const form = document.getElementById('eventForm');
+    const formData = new FormData(form);
+    const eventId = document.getElementById('eventId').value;
+    
+    // Add CSRF token
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    
+    // Determine URL based on whether we're creating or editing
+    const url = eventId ? 
+        `{% url "events:update_event_ajax" event_id=0 %}`.replace('0', eventId) :
+        '{% url "events:create_event_ajax" %}';
+    
+    fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            $('#eventModal').modal('hide');
+            
+            // Refresh calendar
+            if (window.calendar) {
+                window.calendar.refetchEvents();
+            }
+            
+            // Show success message
+            alert(data.message);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error saving event:', error);
+        alert('Error saving event: ' + error.message);
+    });
+}
+
+// Clear form data cache when site changes
+function handleSiteChange(siteId) {
+    formData = null; // Clear cached form data
+    const url = new URL(window.location);
+    if (siteId) {
+        url.searchParams.set('site_id', siteId);
+    } else {
+        url.searchParams.delete('site_id');
+    }
+    window.location.href = url.toString();
 }
 </script>
 {% endblock %}

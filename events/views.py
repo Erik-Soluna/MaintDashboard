@@ -54,6 +54,7 @@ def calendar_view(request):
         'selected_site': selected_site,
         'equipment_list': equipment_list,
         'event_types': CalendarEvent.EVENT_TYPES,
+        'priority_choices': CalendarEvent.PRIORITY_CHOICES,
         'selected_event_type': event_type,
         'selected_equipment': equipment_filter,
         'events_count': events_count,  # Add for debugging
@@ -431,6 +432,7 @@ def get_event(request, event_id):
         'all_day': event.all_day,
         'priority': event.priority,
         'assigned_to': event.assigned_to.get_full_name() if event.assigned_to else None,
+        'assigned_to_id': event.assigned_to.id if event.assigned_to else None,
         'is_completed': event.is_completed,
         'created_at': event.created_at.isoformat(),
         'created_by': event.created_by.get_full_name() if event.created_by else ''
@@ -456,3 +458,136 @@ def equipment_events(request, equipment_id):
         'events': events,
     }
     return render(request, 'events/equipment_events.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def create_event_ajax(request):
+    """AJAX endpoint to create a new event from calendar popup."""
+    try:
+        # Get form data
+        title = request.POST.get('title')
+        description = request.POST.get('description', '')
+        event_type = request.POST.get('event_type')
+        equipment_id = request.POST.get('equipment')
+        event_date = request.POST.get('event_date')
+        start_time = request.POST.get('start_time') or None
+        end_time = request.POST.get('end_time') or None
+        all_day = request.POST.get('all_day') == 'on'
+        priority = request.POST.get('priority', 'medium')
+        assigned_to_id = request.POST.get('assigned_to') or None
+        
+        # Validate required fields
+        if not title or not equipment_id or not event_date:
+            return JsonResponse({
+                'success': False,
+                'error': 'Title, equipment, and event date are required.'
+            })
+        
+        # Create the event
+        event = CalendarEvent.objects.create(
+            title=title,
+            description=description,
+            event_type=event_type,
+            equipment_id=equipment_id,
+            event_date=event_date,
+            start_time=start_time,
+            end_time=end_time,
+            all_day=all_day,
+            priority=priority,
+            assigned_to_id=assigned_to_id,
+            created_by=request.user
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Event "{title}" created successfully!',
+            'event_id': event.id
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error creating event: {str(e)}'
+        })
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_event_ajax(request, event_id):
+    """AJAX endpoint to update an existing event from calendar popup."""
+    try:
+        event = get_object_or_404(CalendarEvent, id=event_id)
+        
+        # Update event fields
+        event.title = request.POST.get('title')
+        event.description = request.POST.get('description', '')
+        event.event_type = request.POST.get('event_type')
+        event.equipment_id = request.POST.get('equipment')
+        event.event_date = request.POST.get('event_date')
+        event.start_time = request.POST.get('start_time') or None
+        event.end_time = request.POST.get('end_time') or None
+        event.all_day = request.POST.get('all_day') == 'on'
+        event.priority = request.POST.get('priority', 'medium')
+        event.assigned_to_id = request.POST.get('assigned_to') or None
+        event.updated_by = request.user
+        event.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Event "{event.title}" updated successfully!',
+            'event_id': event.id
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error updating event: {str(e)}'
+        })
+
+
+@login_required
+@require_http_methods(["GET"])
+def get_form_data(request):
+    """AJAX endpoint to get form data for event creation/editing."""
+    try:
+        # Get equipment and users for the form
+        equipment_list = Equipment.objects.filter(is_active=True).order_by('name')
+        from django.contrib.auth.models import User
+        users = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
+        
+        # Get site filter if provided
+        site_id = request.GET.get('site_id')
+        if site_id:
+            equipment_list = equipment_list.filter(
+                Q(location__parent_location_id=site_id) | Q(location_id=site_id)
+            )
+        
+        equipment_data = []
+        for equipment in equipment_list:
+            equipment_data.append({
+                'id': equipment.id,
+                'name': equipment.name,
+                'location': equipment.location.name if equipment.location else ''
+            })
+        
+        users_data = []
+        for user in users:
+            users_data.append({
+                'id': user.id,
+                'name': user.get_full_name() or user.username
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'equipment': equipment_data,
+            'users': users_data,
+            'event_types': CalendarEvent.EVENT_TYPES,
+            'priority_choices': CalendarEvent.PRIORITY_CHOICES,
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error fetching form data: {str(e)}'
+        })

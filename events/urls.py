@@ -24,6 +24,11 @@ urlpatterns = [
     path('api/events/<int:event_id>/', views.get_event, name='get_event'),
     path('api/test-events/', views.test_events_api, name='test_events_api'),
     
+    # New AJAX endpoints for popup functionality
+    path('api/events/create/', views.create_event_ajax, name='create_event_ajax'),
+    path('api/events/<int:event_id>/update/', views.update_event_ajax, name='update_event_ajax'),
+    path('api/form-data/', views.get_form_data, name='get_form_data'),
+    
     # Equipment events
     path('equipment/<int:equipment_id>/events/', views.equipment_events, name='equipment_events'),
 ]
