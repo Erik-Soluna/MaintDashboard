@@ -49,7 +49,10 @@ def equipment_list(request):
             Q(name__icontains=search_term) |
             Q(manufacturer_serial__icontains=search_term) |
             Q(asset_tag__icontains=search_term) |
-            Q(manufacturer__icontains=search_term)
+            Q(manufacturer__icontains=search_term) |
+            Q(category__name__icontains=search_term) |
+            Q(location__name__icontains=search_term) |
+            Q(model_number__icontains=search_term)
         )
     
     # Filter by category
@@ -273,7 +276,11 @@ def get_equipment_data(request):
             queryset = queryset.filter(
                 Q(name__icontains=search_term) |
                 Q(manufacturer_serial__icontains=search_term) |
-                Q(asset_tag__icontains=search_term)
+                Q(asset_tag__icontains=search_term) |
+                Q(manufacturer__icontains=search_term) |
+                Q(category__name__icontains=search_term) |
+                Q(location__name__icontains=search_term) |
+                Q(model_number__icontains=search_term)
             )
         
         # Pagination
@@ -330,7 +337,11 @@ def search_equipment(request):
     queryset = Equipment.objects.filter(
         Q(name__icontains=search_term) |
         Q(manufacturer_serial__icontains=search_term) |
-        Q(asset_tag__icontains=search_term)
+        Q(asset_tag__icontains=search_term) |
+        Q(manufacturer__icontains=search_term) |
+        Q(category__name__icontains=search_term) |
+        Q(location__name__icontains=search_term) |
+        Q(model_number__icontains=search_term)
     ).select_related('category', 'location')
     
     # Convert to list format (like original)
