@@ -10,8 +10,9 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
+from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
-from django.db.models import Q, Count, models
+from django.db.models import Q, Count
 from django.utils import timezone
 from datetime import timedelta, datetime
 
@@ -504,8 +505,8 @@ def export_maintenance_csv(request):
     
     if site_id:
         activities = activities.filter(
-            models.Q(equipment__location__parent_location_id=site_id) | 
-            models.Q(equipment__location_id=site_id)
+            Q(equipment__location__parent_location_id=site_id) | 
+            Q(equipment__location_id=site_id)
         )
     
     if status:
@@ -662,8 +663,8 @@ def import_maintenance_csv(request):
                     assigned_name = row[9].strip()
                     # Try to find user by full name or username
                     users = User.objects.filter(
-                        models.Q(first_name__icontains=assigned_name.split()[0]) |
-                        models.Q(username=assigned_name)
+                        Q(first_name__icontains=assigned_name.split()[0]) |
+                        Q(username=assigned_name)
                     )
                     if users.exists():
                         assigned_to = users.first()
@@ -746,8 +747,8 @@ def export_maintenance_schedules_csv(request):
     site_id = request.GET.get('site_id')
     if site_id:
         schedules = schedules.filter(
-            models.Q(equipment__location__parent_location_id=site_id) | 
-            models.Q(equipment__location_id=site_id)
+            Q(equipment__location__parent_location_id=site_id) | 
+            Q(equipment__location_id=site_id)
         )
     
     # Write data rows
@@ -812,3 +813,73 @@ def overdue_maintenance(request):
     
     context = {'overdue_activities': overdue_activities}
     return render(request, 'maintenance/overdue_maintenance.html', context)
+
+
+@login_required
+def delete_activity(request, activity_id):
+    """Delete maintenance activity."""
+    activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+    
+    if request.method == 'POST':
+        activity_title = activity.title
+        activity.delete()
+        messages.success(request, f'Maintenance activity "{activity_title}" deleted successfully!')
+        return redirect('maintenance:maintenance_list')
+    
+    context = {'activity': activity}
+    return render(request, 'maintenance/delete_activity.html', context)
+
+
+@login_required
+def delete_schedule(request, schedule_id):
+    """Delete maintenance schedule."""
+    schedule = get_object_or_404(MaintenanceSchedule, id=schedule_id)
+    
+    if request.method == 'POST':
+        schedule_name = f"{schedule.equipment.name} - {schedule.activity_type.name}"
+        schedule.delete()
+        messages.success(request, f'Maintenance schedule "{schedule_name}" deleted successfully!')
+        return redirect('maintenance:schedule_list')
+    
+    context = {'schedule': schedule}
+    return render(request, 'maintenance/delete_schedule.html', context)
+
+
+@login_required
+def get_activities_data(request):
+    """AJAX endpoint to get maintenance activities data."""
+    activities = MaintenanceActivity.objects.select_related(
+        'equipment', 'activity_type', 'assigned_to'
+    ).all()
+    
+    # Apply filters
+    status = request.GET.get('status')
+    if status:
+        activities = activities.filter(status=status)
+        
+    equipment_id = request.GET.get('equipment_id')
+    if equipment_id:
+        activities = activities.filter(equipment_id=equipment_id)
+    
+    # Convert to list of dictionaries
+    data = []
+    for activity in activities:
+        data.append({
+            'id': activity.id,
+            'title': activity.title,
+            'equipment': activity.equipment.name,
+            'activity_type': activity.activity_type.name,
+            'status': activity.status,
+            'priority': activity.priority,
+            'scheduled_start': activity.scheduled_start.isoformat() if activity.scheduled_start else None,
+            'scheduled_end': activity.scheduled_end.isoformat() if activity.scheduled_end else None,
+            'assigned_to': activity.assigned_to.get_full_name() if activity.assigned_to else None,
+        })
+    
+    return JsonResponse({'activities': data})
+
+
+@login_required
+def generate_maintenance_activities(request):
+    """Alias for generate_scheduled_activities to match URL pattern."""
+    return generate_scheduled_activities(request)

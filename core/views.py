@@ -678,6 +678,67 @@ def import_sites_csv(request):
 
 
 @login_required
+def profile(request):
+    """Alias for profile_view to match URL pattern."""
+    return profile_view(request)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def settings(request):
+    """Alias for settings_view to match URL pattern."""
+    return settings_view(request)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def delete_location(request, location_id):
+    """Delete location."""
+    location = get_object_or_404(Location, id=location_id)
+    
+    if request.method == 'POST':
+        location_name = location.name
+        
+        # Check if location has any equipment or child locations
+        if location.equipment.exists():
+            messages.error(request, f'Cannot delete location "{location_name}" because it has equipment assigned to it.')
+            return redirect('core:locations_settings')
+        
+        if location.child_locations.exists():
+            messages.error(request, f'Cannot delete location "{location_name}" because it has child locations.')
+            return redirect('core:locations_settings')
+        
+        location.delete()
+        messages.success(request, f'Location "{location_name}" deleted successfully!')
+        return redirect('core:locations_settings')
+    
+    context = {'location': location}
+    return render(request, 'core/delete_location.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def delete_equipment_category(request, category_id):
+    """Delete equipment category."""
+    category = get_object_or_404(EquipmentCategory, id=category_id)
+    
+    if request.method == 'POST':
+        category_name = category.name
+        
+        # Check if category has any equipment
+        if category.equipment.exists():
+            messages.error(request, f'Cannot delete category "{category_name}" because it has equipment assigned to it.')
+            return redirect('core:equipment_categories_settings')
+        
+        category.delete()
+        messages.success(request, f'Equipment category "{category_name}" deleted successfully!')
+        return redirect('core:equipment_categories_settings')
+    
+    context = {'category': category}
+    return render(request, 'core/delete_equipment_category.html', context)
+
+
+@login_required
 def export_locations_csv(request):
     """Export all locations (map data) to CSV file."""
     response = HttpResponse(content_type='text/csv')
