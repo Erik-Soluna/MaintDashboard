@@ -248,7 +248,14 @@ def edit_activity(request, activity_id):
             activity.updated_by = request.user
             activity.save()
             
-            messages.success(request, f'Maintenance activity "{activity.title}" updated successfully!')
+            # Update corresponding calendar event
+            calendar_event = create_calendar_event_for_maintenance(activity)
+            if calendar_event:
+                messages.success(request, f'Maintenance activity "{activity.title}" updated successfully! Calendar event synchronized.')
+            else:
+                messages.success(request, f'Maintenance activity "{activity.title}" updated successfully!')
+                messages.warning(request, 'Could not synchronize calendar event. Please check logs.')
+            
             return redirect('maintenance:activity_detail', activity_id=activity.id)
     else:
         form = MaintenanceActivityForm(instance=activity, request=request)
@@ -275,7 +282,17 @@ def complete_activity(request, activity_id):
         activity.updated_by = request.user
         activity.save()
         
-        messages.success(request, f'Maintenance activity "{activity.title}" marked as completed!')
+        # Update corresponding calendar event to completed status
+        calendar_event = create_calendar_event_for_maintenance(activity)
+        if calendar_event:
+            calendar_event.is_completed = True
+            calendar_event.completion_notes = activity.completion_notes
+            calendar_event.save()
+            messages.success(request, f'Maintenance activity "{activity.title}" marked as completed! Calendar event updated.')
+        else:
+            messages.success(request, f'Maintenance activity "{activity.title}" marked as completed!')
+            messages.warning(request, 'Could not update calendar event. Please check logs.')
+        
         return redirect('maintenance:activity_detail', activity_id=activity.id)
     
     context = {'activity': activity}
@@ -777,7 +794,13 @@ def import_maintenance_csv(request):
                     'created_by': request.user
                 }
                 
-                MaintenanceActivity.objects.create(**activity_data)
+                activity = MaintenanceActivity.objects.create(**activity_data)
+                
+                # Create corresponding calendar event for imported maintenance activity
+                calendar_event = create_calendar_event_for_maintenance(activity)
+                if calendar_event:
+                    logger.info(f"Created calendar event for imported maintenance activity: {activity.title}")
+                
                 imported_count += 1
                 
             except Exception as e:
@@ -902,8 +925,20 @@ def delete_activity(request, activity_id):
     
     if request.method == 'POST':
         activity_title = activity.title
+        
+        # Delete associated calendar event first
+        from events.models import CalendarEvent
+        calendar_events = CalendarEvent.objects.filter(maintenance_activity=activity)
+        calendar_events_count = calendar_events.count()
+        calendar_events.delete()
+        
         activity.delete()
-        messages.success(request, f'Maintenance activity "{activity_title}" deleted successfully!')
+        
+        if calendar_events_count > 0:
+            messages.success(request, f'Maintenance activity "{activity_title}" and {calendar_events_count} associated calendar event(s) deleted successfully!')
+        else:
+            messages.success(request, f'Maintenance activity "{activity_title}" deleted successfully!')
+        
         return redirect('maintenance:maintenance_list')
     
     context = {'activity': activity}

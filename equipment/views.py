@@ -590,6 +590,14 @@ def import_equipment_csv(request):
                         updated_by=request.user
                     )
                     
+                    # Create default maintenance schedules for imported equipment
+                    try:
+                        schedules_created = create_default_maintenance_schedules(equipment, request.user)
+                        if schedules_created:
+                            logger.info(f"Created {len(schedules_created)} maintenance schedules for imported equipment: {equipment.name}")
+                    except Exception as e:
+                        logger.error(f"Error creating maintenance schedules for imported equipment {equipment.name}: {str(e)}")
+                    
                     created_count += 1
                     
                 except Exception as e:
