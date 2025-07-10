@@ -148,9 +148,11 @@ def calendar_settings(request):
     
     # Generate iCal feed URLs
     ical_feed_url = request.build_absolute_uri(reverse('events:ical_feed'))
+    webhook_url = request.build_absolute_uri(reverse('events:google_calendar_webhook'))
     
     context = {
         'ical_feed_url': ical_feed_url,
+        'webhook_url': webhook_url,
         'google_calendar_instructions': True,
     }
     return render(request, 'events/calendar_settings.html', context)
