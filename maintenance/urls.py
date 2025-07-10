@@ -26,6 +26,9 @@ urlpatterns = [
     # Activity types
     path('types/', views.activity_type_list, name='activity_type_list'),
     path('types/add/', views.add_activity_type, name='add_activity_type'),
+    path('types/<int:activity_type_id>/edit/', views.edit_activity_type, name='edit_activity_type'),
+    path('types/import/csv/', views.import_activity_types_csv, name='import_activity_types_csv'),
+    path('types/export/csv/', views.export_activity_types_csv, name='export_activity_types_csv'),
     
     # Reports
     path('reports/', views.maintenance_reports, name='maintenance_reports'),

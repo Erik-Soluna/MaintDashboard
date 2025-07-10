@@ -4,10 +4,12 @@ Fixed associations and improved functionality from original web2py controllers.
 """
 
 import logging
+import csv
+import io
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from django.utils import timezone
@@ -340,6 +342,126 @@ def add_activity_type(request):
     
     context = {'form': form}
     return render(request, 'maintenance/add_activity_type.html', context)
+
+
+@login_required
+def edit_activity_type(request, activity_type_id):
+    """Edit maintenance activity type."""
+    activity_type = get_object_or_404(MaintenanceActivityType, id=activity_type_id)
+    
+    if request.method == 'POST':
+        form = MaintenanceActivityTypeForm(request.POST, instance=activity_type)
+        if form.is_valid():
+            activity_type = form.save(commit=False)
+            activity_type.updated_by = request.user
+            activity_type.save()
+            
+            messages.success(request, f'Activity type "{activity_type.name}" updated successfully!')
+            return redirect('maintenance:activity_type_list')
+    else:
+        form = MaintenanceActivityTypeForm(instance=activity_type)
+    
+    context = {
+        'form': form,
+        'activity_type': activity_type,
+    }
+    
+    return render(request, 'maintenance/edit_activity_type.html', context)
+
+
+@login_required
+def import_activity_types_csv(request):
+    """Import maintenance activity types from CSV."""
+    if request.method == 'POST':
+        if 'csv_file' not in request.FILES:
+            messages.error(request, 'No file uploaded.')
+            return redirect('maintenance:import_activity_types_csv')
+            
+        csv_file = request.FILES['csv_file']
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, 'Please upload a CSV file.')
+            return redirect('maintenance:import_activity_types_csv')
+
+        try:
+            file_data = csv_file.read().decode('utf-8')
+            io_string = io.StringIO(file_data)
+            reader = csv.DictReader(io_string)
+            
+            created_count = 0
+            updated_count = 0
+            
+            for row in reader:
+                name = row.get('name', '').strip()
+                description = row.get('description', '').strip()
+                estimated_duration_hours = row.get('estimated_duration_hours', '1').strip()
+                frequency_days = row.get('frequency_days', '30').strip()
+                is_mandatory = row.get('is_mandatory', 'false').strip().lower() in ['true', '1', 'yes']
+                is_active = row.get('is_active', 'true').strip().lower() in ['true', '1', 'yes']
+                
+                if not name:
+                    continue
+                    
+                activity_type, created = MaintenanceActivityType.objects.get_or_create(
+                    name=name,
+                    defaults={
+                        'description': description,
+                        'estimated_duration_hours': float(estimated_duration_hours) if estimated_duration_hours else 1.0,
+                        'frequency_days': int(frequency_days) if frequency_days else 30,
+                        'is_mandatory': is_mandatory,
+                        'is_active': is_active,
+                        'created_by': request.user,
+                    }
+                )
+                
+                if created:
+                    created_count += 1
+                else:
+                    # Update existing activity type
+                    activity_type.description = description
+                    activity_type.estimated_duration_hours = float(estimated_duration_hours) if estimated_duration_hours else activity_type.estimated_duration_hours
+                    activity_type.frequency_days = int(frequency_days) if frequency_days else activity_type.frequency_days
+                    activity_type.is_mandatory = is_mandatory
+                    activity_type.is_active = is_active
+                    activity_type.updated_by = request.user
+                    activity_type.save()
+                    updated_count += 1
+            
+            messages.success(request, f'Successfully imported {created_count} new and updated {updated_count} existing activity types!')
+            return redirect('maintenance:activity_type_list')
+            
+        except Exception as e:
+            logger.error(f"Error processing CSV file: {str(e)}")
+            messages.error(request, f'Error processing CSV file: {str(e)}')
+            return redirect('maintenance:import_activity_types_csv')
+    
+    return render(request, 'maintenance/import_activity_types_csv.html')
+
+
+@login_required
+def export_activity_types_csv(request):
+    """Export maintenance activity types to CSV file."""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="activity_types_export.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'name', 'description', 'estimated_duration_hours', 'frequency_days', 
+        'is_mandatory', 'is_active', 'created_at', 'updated_at'
+    ])
+    
+    for activity_type in MaintenanceActivityType.objects.all():
+        writer.writerow([
+            activity_type.name,
+            activity_type.description,
+            activity_type.estimated_duration_hours,
+            activity_type.frequency_days,
+            activity_type.is_mandatory,
+            activity_type.is_active,
+            activity_type.created_at.strftime('%Y-%m-%d %H:%M:%S') if activity_type.created_at else '',
+            activity_type.updated_at.strftime('%Y-%m-%d %H:%M:%S') if activity_type.updated_at else '',
+        ])
+    
+    return response
 
 
 @login_required
