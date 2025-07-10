@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     'django_filters',
     'django_tables2',
     'widget_tweaks',
+    'django_celery_beat',
     
     # Local apps
     'equipment',
@@ -177,3 +178,47 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_BROWSER_XSS_FILTER = True
     X_FRAME_OPTIONS = 'DENY'
+
+# Celery Configuration
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://redis:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://redis:6379/0')
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BEAT_SCHEDULE = {
+    'generate-scheduled-maintenance': {
+        'task': 'maintenance.tasks.generate_scheduled_maintenance',
+        'schedule': 3600.0,  # Every hour
+    },
+    'send-maintenance-reminders': {
+        'task': 'maintenance.tasks.send_maintenance_reminders',
+        'schedule': 86400.0,  # Daily at midnight
+    },
+    'check-overdue-maintenance': {
+        'task': 'maintenance.tasks.check_overdue_maintenance',
+        'schedule': 7200.0,  # Every 2 hours
+    },
+    'send-event-reminders': {
+        'task': 'events.tasks.send_event_reminders',
+        'schedule': 86400.0,  # Daily
+    },
+    'generate-maintenance-events': {
+        'task': 'events.tasks.generate_maintenance_events',
+        'schedule': 1800.0,  # Every 30 minutes
+    },
+    'cleanup-old-events': {
+        'task': 'events.tasks.cleanup_old_events',
+        'schedule': 604800.0,  # Weekly
+    },
+}
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# Email Configuration
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='localhost')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@maintenance-dashboard.com')

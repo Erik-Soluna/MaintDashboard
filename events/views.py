@@ -34,8 +34,9 @@ def calendar_view(request):
         except Location.DoesNotExist:
             pass
     
-    # Get events (will be filtered via AJAX)
+    # Get events (will be filtered via AJAX) - test if we have any events
     events = CalendarEvent.objects.select_related('equipment', 'equipment__location').all()
+    events_count = events.count()
     
     # Get equipment for filtering
     equipment_list = Equipment.objects.filter(is_active=True).order_by('name')
@@ -44,6 +45,10 @@ def calendar_view(request):
             Q(location__parent_location=selected_site) | Q(location=selected_site)
         )
     
+    # Add debug info
+    print(f"Calendar view: Found {events_count} events total")
+    print(f"Calendar view: Found {equipment_list.count()} equipment items")
+    
     context = {
         'sites': sites,
         'selected_site': selected_site,
@@ -51,8 +56,38 @@ def calendar_view(request):
         'event_types': CalendarEvent.EVENT_TYPES,
         'selected_event_type': event_type,
         'selected_equipment': equipment_filter,
+        'events_count': events_count,  # Add for debugging
     }
     return render(request, 'events/calendar.html', context)
+
+
+@login_required
+def test_events_api(request):
+    """Test endpoint to check if events API is working."""
+    try:
+        events = CalendarEvent.objects.select_related('equipment', 'equipment__location').all()
+        events_data = []
+        
+        for event in events[:10]:  # Limit to first 10 for testing
+            events_data.append({
+                'id': event.id,
+                'title': event.title,
+                'event_date': str(event.event_date),
+                'equipment': event.equipment.name if event.equipment else 'No equipment',
+                'event_type': event.event_type,
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'count': events.count(),
+            'events': events_data,
+            'user': request.user.username,
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+        })
 
 
 @login_required
@@ -248,6 +283,7 @@ def complete_event(request, event_id):
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 
+@login_required
 @require_http_methods(["GET"])
 def fetch_events(request):
     """API endpoint to fetch events for calendar display."""
@@ -256,15 +292,33 @@ def fetch_events(request):
         end_date = request.GET.get('end')
         equipment_filter = request.GET.get('equipment')
         event_type_filter = request.GET.get('event_type')
+        site_id = request.GET.get('site_id')
         
         # Base queryset
         events = CalendarEvent.objects.select_related('equipment', 'equipment__location')
         
         # Date filtering
         if start_date and end_date:
+            try:
+                # Parse dates from FullCalendar format
+                start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                events = events.filter(
+                    event_date__gte=start_dt.date(),
+                    event_date__lte=end_dt.date()
+                )
+            except ValueError:
+                # Fallback for simple date format
+                events = events.filter(
+                    event_date__gte=start_date,
+                    event_date__lte=end_date
+                )
+        
+        # Site filtering
+        if site_id:
             events = events.filter(
-                event_date__gte=start_date,
-                event_date__lte=end_date
+                Q(equipment__location__parent_location_id=site_id) | 
+                Q(equipment__location_id=site_id)
             )
         
         # Equipment filtering
@@ -279,9 +333,14 @@ def fetch_events(request):
         calendar_events = []
         for event in events:
             try:
+                # Build title with equipment name if available
+                title = event.title
+                if event.equipment:
+                    title = f"{event.title} - {event.equipment.name}"
+                
                 calendar_event = {
                     'id': event.id,
-                    'title': f"{event.title} - {event.equipment.name}",
+                    'title': title,
                     'start': str(event.event_date),
                     'allDay': event.all_day,
                     'backgroundColor': get_event_color(event.event_type, event.priority),
@@ -289,15 +348,16 @@ def fetch_events(request):
                     'textColor': '#ffffff',
                     'url': f"/events/events/{event.id}/",
                     'extendedProps': {
-                        'equipment': event.equipment.name if event.equipment else '',
-                        'location': event.equipment.location.name if event.equipment and event.equipment.location else '',
+                        'equipment': event.equipment.name if event.equipment else 'No equipment',
+                        'location': event.equipment.location.name if event.equipment and event.equipment.location else 'No location',
                         'priority': event.priority,
                         'event_type': event.event_type,
-                        'assigned_to': event.assigned_to.get_full_name() if event.assigned_to else '',
+                        'assigned_to': event.assigned_to.get_full_name() if event.assigned_to else 'Unassigned',
                         'is_completed': event.is_completed,
                     }
                 }
                 
+                # Add time information if not all day
                 if not event.all_day and event.start_time:
                     calendar_event['start'] = f"{event.event_date}T{event.start_time}"
                     if event.end_time:
@@ -312,10 +372,14 @@ def fetch_events(request):
         return JsonResponse(calendar_events, safe=False)
     
     except Exception as e:
-        # Return error response for debugging
+        # Return detailed error for debugging
+        import traceback
+        print(f"Error in fetch_events: {str(e)}")
+        print(traceback.format_exc())
         return JsonResponse({
             'error': str(e),
-            'message': 'There was an error while fetching events'
+            'message': 'There was an error while fetching events',
+            'debug_info': str(traceback.format_exc()) if request.user.is_superuser else None
         }, status=500)
 
 

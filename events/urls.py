@@ -22,6 +22,7 @@ urlpatterns = [
     # AJAX endpoints (replicate original web2py functionality)
     path('api/events/', views.fetch_events, name='fetch_events'),
     path('api/events/<int:event_id>/', views.get_event, name='get_event'),
+    path('api/test-events/', views.test_events_api, name='test_events_api'),
     
     # Equipment events
     path('equipment/<int:equipment_id>/events/', views.equipment_events, name='equipment_events'),
