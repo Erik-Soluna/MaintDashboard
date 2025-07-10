@@ -23,6 +23,84 @@ from .forms import EquipmentForm, EquipmentComponentForm, EquipmentDocumentForm
 logger = logging.getLogger(__name__)
 
 
+def create_default_maintenance_schedules(equipment, user):
+    """Create default maintenance schedules for imported equipment."""
+    from maintenance.models import MaintenanceSchedule, MaintenanceActivityType
+    from datetime import date, timedelta
+    
+    try:
+        # Get or create default activity types based on equipment category
+        category_name = equipment.category.name.lower() if equipment.category else ''
+        
+        # Define default maintenance types based on category
+        default_schedules = []
+        
+        if 'transformer' in category_name:
+            default_schedules = [
+                {'name': 'Annual Inspection', 'frequency': 'annual', 'frequency_days': 365},
+                {'name': 'Oil Sampling', 'frequency': 'semi_annual', 'frequency_days': 180},
+                {'name': 'Visual Inspection', 'frequency': 'quarterly', 'frequency_days': 90},
+            ]
+        elif 'protection' in category_name or 'relay' in category_name:
+            default_schedules = [
+                {'name': 'Annual Testing', 'frequency': 'annual', 'frequency_days': 365},
+                {'name': 'Quarterly Inspection', 'frequency': 'quarterly', 'frequency_days': 90},
+            ]
+        elif 'breaker' in category_name or 'switch' in category_name:
+            default_schedules = [
+                {'name': 'Annual Maintenance', 'frequency': 'annual', 'frequency_days': 365},
+                {'name': 'Semi-Annual Inspection', 'frequency': 'semi_annual', 'frequency_days': 180},
+            ]
+        else:
+            # Generic maintenance for other equipment
+            default_schedules = [
+                {'name': 'Annual Inspection', 'frequency': 'annual', 'frequency_days': 365},
+                {'name': 'Quarterly Check', 'frequency': 'quarterly', 'frequency_days': 90},
+            ]
+        
+        created_schedules = []
+        
+        for schedule_def in default_schedules:
+            # Get or create activity type
+            activity_type, created = MaintenanceActivityType.objects.get_or_create(
+                name=schedule_def['name'],
+                defaults={
+                    'description': f'Default {schedule_def["name"]} for {equipment.category.name if equipment.category else "equipment"}',
+                    'estimated_duration_hours': 2,
+                    'frequency_days': schedule_def['frequency_days'],
+                    'is_mandatory': True,
+                    'created_by': user,
+                }
+            )
+            
+            # Check if schedule already exists for this equipment and activity type
+            existing_schedule = MaintenanceSchedule.objects.filter(
+                equipment=equipment,
+                activity_type=activity_type
+            ).first()
+            
+            if not existing_schedule:
+                # Create maintenance schedule
+                schedule = MaintenanceSchedule.objects.create(
+                    equipment=equipment,
+                    activity_type=activity_type,
+                    frequency=schedule_def['frequency'],
+                    frequency_days=schedule_def['frequency_days'],
+                    start_date=date.today(),
+                    auto_generate=True,
+                    advance_notice_days=30,
+                    created_by=user
+                )
+                created_schedules.append(schedule)
+                logger.info(f"Created maintenance schedule: {schedule_def['name']} for {equipment.name}")
+        
+        return created_schedules
+        
+    except Exception as e:
+        logger.error(f"Error creating maintenance schedules for equipment {equipment.name}: {str(e)}")
+        return []
+
+
 @login_required
 def equipment_list(request):
     """List all equipment with filtering and search."""
@@ -49,7 +127,10 @@ def equipment_list(request):
             Q(name__icontains=search_term) |
             Q(manufacturer_serial__icontains=search_term) |
             Q(asset_tag__icontains=search_term) |
-            Q(manufacturer__icontains=search_term)
+            Q(manufacturer__icontains=search_term) |
+            Q(category__name__icontains=search_term) |
+            Q(location__name__icontains=search_term) |
+            Q(model_number__icontains=search_term)
         )
     
     # Filter by category
@@ -273,7 +354,11 @@ def get_equipment_data(request):
             queryset = queryset.filter(
                 Q(name__icontains=search_term) |
                 Q(manufacturer_serial__icontains=search_term) |
-                Q(asset_tag__icontains=search_term)
+                Q(asset_tag__icontains=search_term) |
+                Q(manufacturer__icontains=search_term) |
+                Q(category__name__icontains=search_term) |
+                Q(location__name__icontains=search_term) |
+                Q(model_number__icontains=search_term)
             )
         
         # Pagination
@@ -330,7 +415,11 @@ def search_equipment(request):
     queryset = Equipment.objects.filter(
         Q(name__icontains=search_term) |
         Q(manufacturer_serial__icontains=search_term) |
-        Q(asset_tag__icontains=search_term)
+        Q(asset_tag__icontains=search_term) |
+        Q(manufacturer__icontains=search_term) |
+        Q(category__name__icontains=search_term) |
+        Q(location__name__icontains=search_term) |
+        Q(model_number__icontains=search_term)
     ).select_related('category', 'location')
     
     # Convert to list format (like original)
@@ -500,6 +589,14 @@ def import_equipment_csv(request):
                         created_by=request.user,
                         updated_by=request.user
                     )
+                    
+                    # Create default maintenance schedules for imported equipment
+                    try:
+                        schedules_created = create_default_maintenance_schedules(equipment, request.user)
+                        if schedules_created:
+                            logger.info(f"Created {len(schedules_created)} maintenance schedules for imported equipment: {equipment.name}")
+                    except Exception as e:
+                        logger.error(f"Error creating maintenance schedules for imported equipment {equipment.name}: {str(e)}")
                     
                     created_count += 1
                     

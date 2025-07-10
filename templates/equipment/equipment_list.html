@@ -239,8 +239,13 @@
     <form method="get" class="equipment-filters">
         <div class="filter-group">
             <label for="search">Search:</label>
-            <input type="text" id="search" name="search" class="search-input"
-                   value="{{ search_term }}" placeholder="Search equipment...">
+            <div>
+                <input type="text" id="search" name="search" class="search-input"
+                       value="{{ search_term }}" placeholder="Search by name, category, location, serial, tag...">
+                <small class="text-muted d-block" style="font-size: 11px; margin-top: 2px;">
+                    Searches: Equipment Name, Category, Location, Serial Number, Asset Tag, Manufacturer, Model
+                </small>
+            </div>
         </div>
         
         <div class="filter-group">

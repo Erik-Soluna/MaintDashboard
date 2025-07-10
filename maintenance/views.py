@@ -25,8 +25,50 @@ from .forms import (
     MaintenanceActivityForm, MaintenanceScheduleForm, 
     MaintenanceActivityTypeForm
 )
+from events.models import CalendarEvent
 
 logger = logging.getLogger(__name__)
+
+
+def create_calendar_event_for_maintenance(activity):
+    """Create or update a calendar event for a maintenance activity."""
+    try:
+        # Check if a calendar event already exists for this maintenance activity
+        existing_event = CalendarEvent.objects.filter(maintenance_activity=activity).first()
+        
+        if existing_event:
+            # Update existing event
+            existing_event.title = f"Maintenance: {activity.title}"
+            existing_event.description = activity.description
+            existing_event.event_date = activity.scheduled_start.date()
+            existing_event.start_time = activity.scheduled_start.time()
+            existing_event.end_time = activity.scheduled_end.time() if activity.scheduled_end else None
+            existing_event.assigned_to = activity.assigned_to
+            existing_event.priority = activity.priority
+            existing_event.updated_by = activity.updated_by or activity.created_by
+            existing_event.save()
+            logger.info(f"Updated calendar event for maintenance activity: {activity.title}")
+            return existing_event
+        else:
+            # Create new event
+            event = CalendarEvent.objects.create(
+                title=f"Maintenance: {activity.title}",
+                description=activity.description,
+                event_type='maintenance',
+                equipment=activity.equipment,
+                maintenance_activity=activity,
+                event_date=activity.scheduled_start.date(),
+                start_time=activity.scheduled_start.time(),
+                end_time=activity.scheduled_end.time() if activity.scheduled_end else None,
+                assigned_to=activity.assigned_to,
+                priority=activity.priority,
+                created_by=activity.created_by
+            )
+            logger.info(f"Created calendar event for maintenance activity: {activity.title}")
+            return event
+    except Exception as e:
+        logger.error(f"Error creating/updating calendar event for activity {activity.id}: {str(e)}")
+        return None
 
 
 @login_required
@@ -167,7 +209,14 @@ def add_activity(request):
             activity.created_by = request.user
             activity.save()
             
-            messages.success(request, f'Maintenance activity "{activity.title}" created successfully!')
+            # Create corresponding calendar event
+            calendar_event = create_calendar_event_for_maintenance(activity)
+            if calendar_event:
+                messages.success(request, f'Maintenance activity "{activity.title}" created successfully and added to calendar!')
+            else:
+                messages.success(request, f'Maintenance activity "{activity.title}" created successfully!')
+                messages.warning(request, 'Could not create calendar event. Please check logs.')
+            
             return redirect('maintenance:activity_detail', activity_id=activity.id)
     else:
         form = MaintenanceActivityForm(request=request)
@@ -199,7 +248,14 @@ def edit_activity(request, activity_id):
             activity.updated_by = request.user
             activity.save()
             
-            messages.success(request, f'Maintenance activity "{activity.title}" updated successfully!')
+            # Update corresponding calendar event
+            calendar_event = create_calendar_event_for_maintenance(activity)
+            if calendar_event:
+                messages.success(request, f'Maintenance activity "{activity.title}" updated successfully! Calendar event synchronized.')
+            else:
+                messages.success(request, f'Maintenance activity "{activity.title}" updated successfully!')
+                messages.warning(request, 'Could not synchronize calendar event. Please check logs.')
+            
             return redirect('maintenance:activity_detail', activity_id=activity.id)
     else:
         form = MaintenanceActivityForm(instance=activity, request=request)
@@ -226,7 +282,17 @@ def complete_activity(request, activity_id):
         activity.updated_by = request.user
         activity.save()
         
-        messages.success(request, f'Maintenance activity "{activity.title}" marked as completed!')
+        # Update corresponding calendar event to completed status
+        calendar_event = create_calendar_event_for_maintenance(activity)
+        if calendar_event:
+            calendar_event.is_completed = True
+            calendar_event.completion_notes = activity.completion_notes
+            calendar_event.save()
+            messages.success(request, f'Maintenance activity "{activity.title}" marked as completed! Calendar event updated.')
+        else:
+            messages.success(request, f'Maintenance activity "{activity.title}" marked as completed!')
+            messages.warning(request, 'Could not update calendar event. Please check logs.')
+        
         return redirect('maintenance:activity_detail', activity_id=activity.id)
     
     context = {'activity': activity}
@@ -728,7 +794,13 @@ def import_maintenance_csv(request):
                     'created_by': request.user
                 }
                 
-                MaintenanceActivity.objects.create(**activity_data)
+                activity = MaintenanceActivity.objects.create(**activity_data)
+                
+                # Create corresponding calendar event for imported maintenance activity
+                calendar_event = create_calendar_event_for_maintenance(activity)
+                if calendar_event:
+                    logger.info(f"Created calendar event for imported maintenance activity: {activity.title}")
+                
                 imported_count += 1
                 
             except Exception as e:
@@ -853,8 +925,20 @@ def delete_activity(request, activity_id):
     
     if request.method == 'POST':
         activity_title = activity.title
+        
+        # Delete associated calendar event first
+        from events.models import CalendarEvent
+        calendar_events = CalendarEvent.objects.filter(maintenance_activity=activity)
+        calendar_events_count = calendar_events.count()
+        calendar_events.delete()
+        
         activity.delete()
-        messages.success(request, f'Maintenance activity "{activity_title}" deleted successfully!')
+        
+        if calendar_events_count > 0:
+            messages.success(request, f'Maintenance activity "{activity_title}" and {calendar_events_count} associated calendar event(s) deleted successfully!')
+        else:
+            messages.success(request, f'Maintenance activity "{activity_title}" deleted successfully!')
+        
         return redirect('maintenance:maintenance_list')
     
     context = {'activity': activity}

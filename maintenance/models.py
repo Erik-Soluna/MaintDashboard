@@ -342,6 +342,30 @@ class MaintenanceSchedule(TimeStampedModel):
                     created_by=self.created_by,
                 )
                 
+                # Create corresponding calendar event for generated activity
+                try:
+                    from events.models import CalendarEvent
+                    calendar_event = CalendarEvent.objects.create(
+                        title=f"Maintenance: {activity.title}",
+                        description=activity.description,
+                        event_type='maintenance',
+                        equipment=activity.equipment,
+                        maintenance_activity=activity,
+                        event_date=activity.scheduled_start.date(),
+                        start_time=activity.scheduled_start.time(),
+                        end_time=activity.scheduled_end.time() if activity.scheduled_end else None,
+                        assigned_to=activity.assigned_to,
+                        priority=activity.priority,
+                        created_by=activity.created_by
+                    )
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.info(f"Created calendar event for scheduled maintenance activity: {activity.title}")
+                except Exception as e:
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Error creating calendar event for scheduled activity {activity.id}: {str(e)}")
+                
                 self.last_generated = next_date
                 self.save()
                 
