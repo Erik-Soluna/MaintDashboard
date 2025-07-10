@@ -1,4 +1,4 @@
-"""
+THIS SHOULD BE A LINTER ERROR"""
 Views for maintenance management.
 Fixed associations and improved functionality from original web2py controllers.
 """
@@ -25,8 +25,50 @@ from .forms import (
     MaintenanceActivityForm, MaintenanceScheduleForm, 
     MaintenanceActivityTypeForm
 )
+from events.models import CalendarEvent
 
 logger = logging.getLogger(__name__)
+
+
+def create_calendar_event_for_maintenance(activity):
+    """Create or update a calendar event for a maintenance activity."""
+    try:
+        # Check if a calendar event already exists for this maintenance activity
+        existing_event = CalendarEvent.objects.filter(maintenance_activity=activity).first()
+        
+        if existing_event:
+            # Update existing event
+            existing_event.title = f"Maintenance: {activity.title}"
+            existing_event.description = activity.description
+            existing_event.event_date = activity.scheduled_start.date()
+            existing_event.start_time = activity.scheduled_start.time()
+            existing_event.end_time = activity.scheduled_end.time() if activity.scheduled_end else None
+            existing_event.assigned_to = activity.assigned_to
+            existing_event.priority = activity.priority
+            existing_event.updated_by = activity.updated_by or activity.created_by
+            existing_event.save()
+            logger.info(f"Updated calendar event for maintenance activity: {activity.title}")
+            return existing_event
+        else:
+            # Create new event
+            event = CalendarEvent.objects.create(
+                title=f"Maintenance: {activity.title}",
+                description=activity.description,
+                event_type='maintenance',
+                equipment=activity.equipment,
+                maintenance_activity=activity,
+                event_date=activity.scheduled_start.date(),
+                start_time=activity.scheduled_start.time(),
+                end_time=activity.scheduled_end.time() if activity.scheduled_end else None,
+                assigned_to=activity.assigned_to,
+                priority=activity.priority,
+                created_by=activity.created_by
+            )
+            logger.info(f"Created calendar event for maintenance activity: {activity.title}")
+            return event
+    except Exception as e:
+        logger.error(f"Error creating/updating calendar event for activity {activity.id}: {str(e)}")
+        return None
 
 
 @login_required
