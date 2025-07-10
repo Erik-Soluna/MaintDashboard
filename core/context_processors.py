@@ -26,18 +26,29 @@ def site_context(request):
         
         # Get selected site from request, session, or user default
         selected_site_id = request.GET.get('site_id')
-        if not selected_site_id:
+        if selected_site_id is not None:
+            # If site_id is explicitly provided (even if empty), use it
+            if selected_site_id == '':
+                # Clear site selection (All Sites)
+                if 'selected_site_id' in request.session:
+                    del request.session['selected_site_id']
+                context['selected_site_id'] = None
+            else:
+                # Set specific site selection
+                request.session['selected_site_id'] = selected_site_id
+                context['selected_site_id'] = selected_site_id
+        else:
+            # No site_id in request, check session or default
             selected_site_id = request.session.get('selected_site_id')
-        if not selected_site_id and user_profile.default_site:
-            selected_site_id = str(user_profile.default_site.id)
-        
-        if selected_site_id:
-            request.session['selected_site_id'] = selected_site_id
+            if not selected_site_id and user_profile.default_site:
+                selected_site_id = str(user_profile.default_site.id)
+                request.session['selected_site_id'] = selected_site_id
             context['selected_site_id'] = selected_site_id
-            
-            # Get the selected site object
+        
+        # Get the selected site object if we have a valid ID
+        if context['selected_site_id']:
             try:
-                selected_site = sites.get(id=selected_site_id)
+                selected_site = sites.get(id=context['selected_site_id'])
                 context['selected_site'] = selected_site
             except (Location.DoesNotExist, ValueError):
                 # Invalid site ID, clear it
