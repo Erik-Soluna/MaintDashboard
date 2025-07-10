@@ -351,6 +351,14 @@
         </div>
     </div>
 
+    <!-- Debug Info (remove in production) -->
+    {% if user.is_superuser %}
+    <div class="alert alert-info">
+        <strong>Debug Info:</strong> Found {{ events_count }} events in database. 
+        <a href="{% url 'events:test_events_api' %}" target="_blank" class="btn btn-sm btn-outline-info ms-2">Test API</a>
+    </div>
+    {% endif %}
+
     <!-- Calendar -->
     <div class="calendar-content">
         <div id="calendar"></div>
@@ -381,8 +389,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     site_id: document.getElementById('siteSelector').value
                 };
             },
-            failure: function() {
-                alert('There was an error while fetching events!');
+            failure: function(errorObj) {
+                console.error('Calendar events fetch failed:', errorObj);
+                const errorMsg = `Failed to load calendar events. Status: ${errorObj.xhr?.status || 'unknown'}. Check console for details.`;
+                alert(errorMsg);
+                
+                // Try to parse error response
+                if (errorObj.xhr && errorObj.xhr.responseText) {
+                    try {
+                        const errorData = JSON.parse(errorObj.xhr.responseText);
+                        console.error('Error details:', errorData);
+                    } catch (e) {
+                        console.error('Raw error response:', errorObj.xhr.responseText);
+                    }
+                }
             }
         },
         eventClick: function(info) {
