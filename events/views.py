@@ -9,6 +9,7 @@ from django.core.paginator import Paginator
 from datetime import datetime, timedelta
 import json
 import uuid
+import logging
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
 
