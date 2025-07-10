@@ -1,4 +1,4 @@
-THIS SHOULD BE A LINTER ERROR"""
+"""
 Views for maintenance management.
 Fixed associations and improved functionality from original web2py controllers.
 """
@@ -209,7 +209,14 @@ def add_activity(request):
             activity.created_by = request.user
             activity.save()
             
-            messages.success(request, f'Maintenance activity "{activity.title}" created successfully!')
+            # Create corresponding calendar event
+            calendar_event = create_calendar_event_for_maintenance(activity)
+            if calendar_event:
+                messages.success(request, f'Maintenance activity "{activity.title}" created successfully and added to calendar!')
+            else:
+                messages.success(request, f'Maintenance activity "{activity.title}" created successfully!')
+                messages.warning(request, 'Could not create calendar event. Please check logs.')
+            
             return redirect('maintenance:activity_detail', activity_id=activity.id)
     else:
         form = MaintenanceActivityForm(request=request)
