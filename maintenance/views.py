@@ -140,8 +140,28 @@ def activity_detail(request, activity_id):
 @login_required
 def add_activity(request):
     """Add new maintenance activity."""
+    # Debug: Check if there are any equipment records
+    from equipment.models import Equipment
+    from core.models import Location
+    
+    total_equipment_count = Equipment.objects.filter(is_active=True).count()
+    logger.info(f"Total active equipment count: {total_equipment_count}")
+    
+    # Check site filtering
+    selected_site_id = request.GET.get('site_id')
+    if selected_site_id is None:
+        selected_site_id = request.session.get('selected_site_id')
+    
+    selected_site = None
+    if selected_site_id:
+        try:
+            selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+            logger.info(f"Selected site: {selected_site.name}")
+        except Location.DoesNotExist:
+            logger.warning(f"Invalid site ID: {selected_site_id}")
+    
     if request.method == 'POST':
-        form = MaintenanceActivityForm(request.POST)
+        form = MaintenanceActivityForm(request.POST, request=request)
         if form.is_valid():
             activity = form.save(commit=False)
             activity.created_by = request.user
@@ -150,9 +170,20 @@ def add_activity(request):
             messages.success(request, f'Maintenance activity "{activity.title}" created successfully!')
             return redirect('maintenance:activity_detail', activity_id=activity.id)
     else:
-        form = MaintenanceActivityForm()
+        form = MaintenanceActivityForm(request=request)
     
-    context = {'form': form}
+    # Debug: Check equipment queryset in form
+    equipment_queryset = form.fields['equipment'].queryset
+    filtered_equipment_count = equipment_queryset.count()
+    logger.info(f"Filtered equipment queryset count: {filtered_equipment_count}")
+    
+    context = {
+        'form': form,
+        'equipment_count': filtered_equipment_count,
+        'total_equipment_count': total_equipment_count,
+        'selected_site': selected_site,
+        'equipment_list': equipment_queryset[:10],  # First 10 filtered equipment for debugging
+    }
     return render(request, 'maintenance/add_activity.html', context)
 
 
@@ -162,7 +193,7 @@ def edit_activity(request, activity_id):
     activity = get_object_or_404(MaintenanceActivity, id=activity_id)
     
     if request.method == 'POST':
-        form = MaintenanceActivityForm(request.POST, instance=activity)
+        form = MaintenanceActivityForm(request.POST, instance=activity, request=request)
         if form.is_valid():
             activity = form.save(commit=False)
             activity.updated_by = request.user
@@ -171,7 +202,7 @@ def edit_activity(request, activity_id):
             messages.success(request, f'Maintenance activity "{activity.title}" updated successfully!')
             return redirect('maintenance:activity_detail', activity_id=activity.id)
     else:
-        form = MaintenanceActivityForm(instance=activity)
+        form = MaintenanceActivityForm(instance=activity, request=request)
     
     context = {
         'form': form,
@@ -217,7 +248,7 @@ def schedule_list(request):
 def add_schedule(request):
     """Add new maintenance schedule."""
     if request.method == 'POST':
-        form = MaintenanceScheduleForm(request.POST)
+        form = MaintenanceScheduleForm(request.POST, request=request)
         if form.is_valid():
             schedule = form.save(commit=False)
             schedule.created_by = request.user
@@ -226,7 +257,7 @@ def add_schedule(request):
             messages.success(request, f'Maintenance schedule created successfully!')
             return redirect('maintenance:schedule_detail', schedule_id=schedule.id)
     else:
-        form = MaintenanceScheduleForm()
+        form = MaintenanceScheduleForm(request=request)
     
     context = {'form': form}
     return render(request, 'maintenance/add_schedule.html', context)
@@ -260,7 +291,7 @@ def edit_schedule(request, schedule_id):
     schedule = get_object_or_404(MaintenanceSchedule, id=schedule_id)
     
     if request.method == 'POST':
-        form = MaintenanceScheduleForm(request.POST, instance=schedule)
+        form = MaintenanceScheduleForm(request.POST, instance=schedule, request=request)
         if form.is_valid():
             schedule = form.save(commit=False)
             schedule.updated_by = request.user
@@ -269,7 +300,7 @@ def edit_schedule(request, schedule_id):
             messages.success(request, 'Maintenance schedule updated successfully!')
             return redirect('maintenance:schedule_detail', schedule_id=schedule.id)
     else:
-        form = MaintenanceScheduleForm(instance=schedule)
+        form = MaintenanceScheduleForm(instance=schedule, request=request)
     
     context = {
         'form': form,

@@ -106,9 +106,28 @@ if selected_site_id is None:
 - ✅ Site selector now allows switching back to "All Sites" properly
 - ✅ Site filtering works as expected
 
+### 5. Maintenance Equipment Loading Issue
+**Problem**: "When adding maintenance activity on /maintenance/add/, equipment does not load."
+**Root Cause**: Site filtering was applied inconsistently - equipment views filtered by site but maintenance forms didn't respect site filtering.
+
+**Fixes**:
+1. **Updated Maintenance Forms** (`maintenance/forms.py`):
+   - Added site filtering logic to respect selected site
+   - Forms now accept `request` parameter to access session data
+   
+2. **Updated Maintenance Views** (`maintenance/views.py`):
+   - Pass request to forms: `MaintenanceActivityForm(request=request)`
+   - Updated add_activity, edit_activity, add_schedule, edit_schedule views
+   
+3. **Enhanced User Experience** (`templates/maintenance/add_activity.html`):
+   - Shows helpful warning when no equipment available for selected site
+   - Provides "Show All Equipment" button to clear site filter
+   - Displays equipment count and filtering status
+
 ## Testing
 All fixes have been implemented and should resolve the reported issues:
 1. Admin user management should work without the get_role_display error
-2. Equipment editing should work without template errors
+2. Equipment editing should work without template errors  
 3. Equipment list should show site information next to location
 4. Site selector should allow switching between specific sites and "All Sites"
+5. Equipment should now load properly in maintenance activity forms
