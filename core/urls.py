@@ -18,6 +18,7 @@ urlpatterns = [
     path('settings/', views.settings, name='settings'),
     path('settings/locations/', views.locations_settings, name='locations_settings'),
     path('settings/equipment-items/', views.equipment_items_settings, name='equipment_items_settings'),
+    path('settings/users/', views.user_management, name='user_management'),
     
     # Location management
     path('locations/add/', views.add_location, name='add_location'),
@@ -28,6 +29,12 @@ urlpatterns = [
     path('categories/add/', views.add_equipment_category, name='add_equipment_category'),
     path('categories/<int:category_id>/edit/', views.edit_equipment_category, name='edit_equipment_category'),
     path('categories/<int:category_id>/delete/', views.delete_equipment_category, name='delete_equipment_category'),
+    
+    # API endpoints
+    path('api/locations/', views.locations_api, name='locations_api'),
+    path('api/locations/<int:location_id>/', views.location_detail_api, name='location_detail_api'),
+    path('api/equipment-items/', views.equipment_items_api, name='equipment_items_api'),
+    path('api/users/', views.users_api, name='users_api'),
     
     # CSV Import/Export
     path('sites/export/csv/', views.export_sites_csv, name='export_sites_csv'),
