@@ -1,89 +1,155 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Dashboard - SOLUNA Maintenance Dashboard{% endblock %}
+{% block title %}Overview - SOLUNA Maintenance Dashboard{% endblock %}
 
 {% block extra_css %}
 <style>
-/* Dashboard-specific styling */
+/* Enhanced Dashboard Styling */
+.dashboard-header {
+    background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    border: 1px solid #4a5568;
+}
+
+.site-health-indicator {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 14px;
+    margin-left: 15px;
+}
+
+.site-health-indicator.excellent { background-color: #48bb78; color: white; }
+.site-health-indicator.good { background-color: #4299e1; color: white; }
+.site-health-indicator.warning { background-color: #ed8936; color: white; }
+.site-health-indicator.critical { background-color: #f56565; color: white; }
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.stat-card {
+    background-color: #1a2238;
+    border-radius: 8px;
+    padding: 15px;
+    border: 1px solid #4a5568;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: #e2e8f0;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #a0aec0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 .dashboard-content {
-    display: flex;
-    min-height: calc(100vh - 200px);
+    display: grid;
+    grid-template-columns: 300px 300px 1fr;
+    gap: 20px;
+    min-height: 70vh;
 }
 
 .urgent-section, .upcoming-section {
     background-color: #2d3748;
-    border-radius: 8px;
-    padding: 15px;
-    width: 250px;
-    height: fit-content;
-    margin-right: 20px;
+    border-radius: 12px;
+    padding: 20px;
     border: 1px solid #4a5568;
-}
-
-.location-columns {
-    flex: 1;
-    display: flex;
-    overflow-x: auto;
-}
-
-.location-column {
-    background-color: #2d3748;
-    border-radius: 8px;
-    padding: 15px;
-    min-width: 280px;
     height: fit-content;
-    margin-right: 20px;
+}
+
+.pod-overview-section {
+    background-color: #2d3748;
+    border-radius: 12px;
+    padding: 20px;
     border: 1px solid #4a5568;
 }
 
 .section-header {
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
-    margin-bottom: 15px;
-    padding-bottom: 8px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
     border-bottom: 1px solid #4a5568;
     color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
-.maintenance-item {
+.section-header i {
+    margin-right: 8px;
+}
+
+.section-count {
+    background-color: #4299e1;
+    color: white;
+    border-radius: 12px;
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+/* Enhanced item styling */
+.maintenance-item, .calendar-item {
     background-color: #1a2238;
-    border-radius: 6px;
+    border-radius: 8px;
     padding: 12px;
-    margin-bottom: 8px;
-    border-left: 3px solid #4299e1;
+    margin-bottom: 10px;
+    border-left: 4px solid #4299e1;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.3s ease;
+    position: relative;
 }
 
-.maintenance-item:hover {
+.maintenance-item:hover, .calendar-item:hover {
     background-color: #374151;
-    transform: translateX(3px);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
 
-.maintenance-item.urgent {
+.maintenance-item.urgent, .calendar-item.urgent {
     border-left-color: #f56565;
+    background-color: rgba(245, 101, 101, 0.1);
 }
 
-.maintenance-item.scheduled {
+.maintenance-item.scheduled, .calendar-item.scheduled {
     border-left-color: #48bb78;
 }
 
-.maintenance-item.in-progress {
+.maintenance-item.in-progress, .calendar-item.in-progress {
     border-left-color: #ed8936;
+}
+
+.calendar-item {
+    border-left-color: #9f7aea;
 }
 
 .item-title {
     font-weight: 600;
     font-size: 14px;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     color: #e2e8f0;
 }
 
 .item-meta {
     font-size: 12px;
     color: #a0aec0;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
 }
 
 .item-equipment {
@@ -91,66 +157,123 @@
     color: #718096;
 }
 
-.priority-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    font-size: 11px;
-    font-weight: bold;
-    margin-left: auto;
-}
-
-.priority-badge.high {
-    background-color: #f56565;
-    color: white;
-}
-
-.priority-badge.medium {
-    background-color: #ed8936;
-    color: white;
-}
-
-.priority-badge.low {
-    background-color: #48bb78;
-    color: white;
-}
-
-.location-header {
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 20px;
-    text-align: center;
+.item-type-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: #4a5568;
     color: #e2e8f0;
 }
 
-.subsection {
-    margin-bottom: 25px;
+/* Pod Status Styling */
+.pod-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 15px;
+    max-height: 70vh;
+    overflow-y: auto;
 }
 
-.subsection-title {
-    font-size: 14px;
+.pod-card {
+    background-color: #1a2238;
+    border-radius: 10px;
+    padding: 16px;
+    border: 2px solid #4a5568;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.pod-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+.pod-card.healthy { border-color: #48bb78; }
+.pod-card.warning { border-color: #ed8936; }
+.pod-card.maintenance { border-color: #f56565; }
+.pod-card.caution { border-color: #ecc94b; }
+
+.pod-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.pod-name {
+    font-size: 16px;
+    font-weight: bold;
+    color: #e2e8f0;
+}
+
+.pod-status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
     font-weight: 600;
-    color: #cbd5e0;
-    margin-bottom: 10px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+}
+
+.pod-status-badge.healthy { background-color: #48bb78; color: white; }
+.pod-status-badge.warning { background-color: #ed8936; color: white; }
+.pod-status-badge.maintenance { background-color: #f56565; color: white; }
+.pod-status-badge.caution { background-color: #ecc94b; color: black; }
+
+.pod-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 12px 0;
+}
+
+.pod-stat {
+    text-align: center;
+    padding: 8px;
+    background-color: #2d3748;
+    border-radius: 6px;
+}
+
+.pod-stat-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #e2e8f0;
+}
+
+.pod-stat-label {
+    font-size: 10px;
+    color: #a0aec0;
+    text-transform: uppercase;
+}
+
+.pod-activities {
+    margin-top: 12px;
+}
+
+.pod-activity {
+    font-size: 11px;
+    color: #a0aec0;
+    margin-bottom: 4px;
+    padding: 4px 8px;
+    background-color: #2d3748;
+    border-radius: 4px;
 }
 
 .empty-state {
     text-align: center;
     color: #718096;
     font-style: italic;
-    padding: 20px;
-    font-size: 13px;
+    padding: 30px 20px;
+    font-size: 14px;
 }
 
-.month-view {
-    font-size: 12px;
-    color: #a0aec0;
-    text-align: center;
+.empty-state i {
+    font-size: 48px;
+    margin-bottom: 15px;
+    color: #4a5568;
+    display: block;
 }
 
 /* Status indicators */
@@ -166,20 +289,39 @@
 .status-dot.scheduled { background-color: #4299e1; }
 .status-dot.in-progress { background-color: #f56565; }
 .status-dot.maintenance { background-color: #9f7aea; }
+.status-dot.calendar { background-color: #9f7aea; }
 
-/* Scrollbar styling for dark theme */
+/* Responsive design */
+@media (max-width: 1200px) {
+    .dashboard-content {
+        grid-template-columns: 280px 280px 1fr;
+    }
+}
+
+@media (max-width: 992px) {
+    .dashboard-content {
+        grid-template-columns: 1fr;
+    }
+    
+    .pod-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    }
+}
+
+/* Scrollbar styling */
 ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
 }
 
 ::-webkit-scrollbar-track {
     background: #2d3748;
+    border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
     background: #4a5568;
-    border-radius: 3px;
+    border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -189,124 +331,193 @@
 {% endblock %}
 
 {% block content %}
+<!-- Site Overview Header -->
+<div class="dashboard-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h3 mb-2 text-white">
+                <i class="fas fa-tachometer-alt me-3"></i>
+                {% if selected_site %}{{ selected_site.name }} Overview{% else %}System Overview{% endif %}
+            </h1>
+            <p class="text-muted mb-0">
+                Real-time status and maintenance tracking
+                <span class="site-health-indicator {{ site_health }}">
+                    <i class="fas fa-circle me-1"></i>{{ site_health|title }}
+                </span>
+            </p>
+        </div>
+        <div class="text-right">
+            <div class="text-white">{{ total_pods }} Pod{{ total_pods|pluralize }}</div>
+            <div class="text-muted small">{{ site_stats.total_equipment }} Equipment Items</div>
+        </div>
+    </div>
+    
+    <!-- Site Statistics -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ site_stats.active_equipment }}</div>
+            <div class="stat-label">Active Equipment</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ site_stats.pending_maintenance }}</div>
+            <div class="stat-label">Pending Maintenance</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ site_stats.overdue_maintenance }}</div>
+            <div class="stat-label">Overdue Items</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ site_stats.events_this_week }}</div>
+            <div class="stat-label">Events This Week</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ site_stats.completed_this_month }}</div>
+            <div class="stat-label">Completed This Month</div>
+        </div>
+    </div>
+</div>
+
 <!-- Dashboard Content -->
 <div class="dashboard-content">
     <!-- Urgent Items Section -->
     <div class="urgent-section">
         <div class="section-header">
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            Urgent Items
+            <span><i class="fas fa-exclamation-triangle"></i>Urgent Items</span>
+            <span class="section-count">{{ urgent_maintenance|length|add:urgent_calendar|length }}</span>
         </div>
-        {% if urgent_items %}
-            {% for item in urgent_items %}
-            <div class="maintenance-item urgent" onclick="viewMaintenanceItem({{ item.id }})">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <div class="item-title">{{ item.title|truncatechars:30 }}</div>
-                        <div class="item-meta">
-                            <span class="status-dot pending"></span>
-                            {{ item.scheduled_end|date:"m/d" }} 
-                            {{ item.scheduled_end|date:"H:i" }} - {{ item.scheduled_end|date:"H:i" }}
-                        </div>
-                        <div class="item-equipment">{{ item.equipment.name }}</div>
-                    </div>
-                    <div class="priority-badge high">E</div>
-                </div>
+        
+        <!-- Urgent Maintenance -->
+        {% for item in urgent_maintenance %}
+        <div class="maintenance-item urgent" onclick="viewMaintenanceItem({{ item.id }})">
+            <div class="item-title">{{ item.title|truncatechars:35 }}</div>
+            <div class="item-meta">
+                <span class="status-dot {{ item.status }}"></span>
+                {{ item.scheduled_end|date:"M d, H:i" }}
             </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state">
-                No urgent items
+            <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
+            <div class="item-type-badge">MAINT</div>
+        </div>
+        {% endfor %}
+        
+        <!-- Urgent Calendar Events -->
+        {% for event in urgent_calendar %}
+        <div class="calendar-item urgent" onclick="viewCalendarEvent({{ event.id }})">
+            <div class="item-title">{{ event.title|truncatechars:35 }}</div>
+            <div class="item-meta">
+                <span class="status-dot calendar"></span>
+                {{ event.event_date|date:"M d" }}{% if event.start_time %}, {{ event.start_time }}{% endif %}
             </div>
+            <div class="item-equipment">{{ event.equipment.name|truncatechars:25 }}</div>
+            <div class="item-type-badge">CAL</div>
+        </div>
+        {% endfor %}
+        
+        {% if not urgent_maintenance and not urgent_calendar %}
+        <div class="empty-state">
+            <i class="fas fa-check-circle"></i>
+            No urgent items
+        </div>
         {% endif %}
     </div>
 
     <!-- Upcoming Items Section -->
     <div class="upcoming-section">
         <div class="section-header">
-            <i class="fas fa-clock me-2"></i>
-            Upcoming Items
-            <div class="month-view">{{ upcoming_items|length }} Month</div>
+            <span><i class="fas fa-calendar-alt"></i>Upcoming Items</span>
+            <span class="section-count">{{ upcoming_maintenance|length|add:upcoming_calendar|length }}</span>
         </div>
-        {% if upcoming_items %}
-            {% for item in upcoming_items %}
-            <div class="maintenance-item scheduled" onclick="viewMaintenanceItem({{ item.id }})">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div class="flex-grow-1">
-                        <div class="item-title">{{ item.title|truncatechars:30 }}</div>
-                        <div class="item-meta">
-                            <span class="status-dot scheduled"></span>
-                            {{ item.scheduled_end|date:"m/d" }} 
-                            {{ item.scheduled_end|date:"H:i" }} - {{ item.scheduled_end|date:"H:i" }}
-                        </div>
-                        <div class="item-equipment">{{ item.equipment.name }}</div>
-                    </div>
-                    <div class="priority-badge medium">E</div>
-                </div>
+        
+        <!-- Upcoming Maintenance -->
+        {% for item in upcoming_maintenance %}
+        <div class="maintenance-item scheduled" onclick="viewMaintenanceItem({{ item.id }})">
+            <div class="item-title">{{ item.title|truncatechars:35 }}</div>
+            <div class="item-meta">
+                <span class="status-dot {{ item.status }}"></span>
+                {{ item.scheduled_end|date:"M d, H:i" }}
             </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state">
-                No upcoming items
-            </div>
-        {% endif %}
-    </div>
-
-    <!-- Location Columns -->
-    <div class="location-columns">
-        {% for data in location_data %}
-        <div class="location-column">
-            <div class="location-header">{{ data.location.name }}</div>
-            
-            <!-- Scheduled Downtimes -->
-            <div class="subsection">
-                <div class="subsection-title">Scheduled Downtimes</div>
-                {% if data.downtimes %}
-                    {% for downtime in data.downtimes %}
-                    <div class="maintenance-item scheduled" onclick="viewMaintenanceItem({{ downtime.id }})">
-                        <div class="item-meta">
-                            <span class="status-dot scheduled"></span>
-                            {{ downtime.scheduled_start|date:"m/d/Y H:i" }} - {{ downtime.scheduled_end|date:"H:i" }}
-                        </div>
-                        <div class="item-equipment">{{ downtime.equipment.name }}</div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        No scheduled downtimes
-                    </div>
-                {% endif %}
-            </div>
-
-            <!-- Equipment in Repair -->
-            <div class="subsection">
-                <div class="subsection-title">Equipment in Repair</div>
-                {% if data.equipment_in_repair %}
-                    {% for equipment in data.equipment_in_repair %}
-                    <div class="maintenance-item in-progress" onclick="viewEquipment({{ equipment.id }})">
-                        <div class="item-title">{{ equipment.name }}</div>
-                        <div class="item-meta">
-                            <span class="status-dot maintenance"></span>
-                            {{ equipment.status|title }}
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        No equipment in repair
-                    </div>
-                {% endif %}
-            </div>
+            <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
+            <div class="item-type-badge">MAINT</div>
         </div>
         {% endfor %}
         
-        {% if not location_data %}
-        <div class="location-column">
-            <div class="empty-state">
-                <i class="fas fa-map-marker-alt fa-2x mb-3"></i><br>
-                No locations configured.<br>
-                <a href="{% url 'admin:core_location_add' %}" class="text-primary">Add locations</a> to see data here.
+        <!-- Upcoming Calendar Events -->
+        {% for event in upcoming_calendar %}
+        <div class="calendar-item scheduled" onclick="viewCalendarEvent({{ event.id }})">
+            <div class="item-title">{{ event.title|truncatechars:35 }}</div>
+            <div class="item-meta">
+                <span class="status-dot calendar"></span>
+                {{ event.event_date|date:"M d" }}{% if event.start_time %}, {{ event.start_time }}{% endif %}
             </div>
+            <div class="item-equipment">{{ event.equipment.name|truncatechars:25 }}</div>
+            <div class="item-type-badge">CAL</div>
+        </div>
+        {% endfor %}
+        
+        {% if not upcoming_maintenance and not upcoming_calendar %}
+        <div class="empty-state">
+            <i class="fas fa-calendar-check"></i>
+            No upcoming items
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Pod Status Overview -->
+    <div class="pod-overview-section">
+        <div class="section-header">
+            <span><i class="fas fa-building"></i>Pod Status</span>
+            <span class="section-count">{{ total_pods }}</span>
+        </div>
+        
+        {% if pod_status_data %}
+        <div class="pod-grid">
+            {% for pod in pod_status_data %}
+            <div class="pod-card {{ pod.pod_status }}" onclick="viewPodDetail('{{ pod.location.name }}')">
+                <div class="pod-header">
+                    <div class="pod-name">{{ pod.location.name }}</div>
+                    <div class="pod-status-badge {{ pod.pod_status }}">{{ pod.pod_status }}</div>
+                </div>
+                
+                <div class="pod-stats">
+                    <div class="pod-stat">
+                        <div class="pod-stat-value">{{ pod.active_equipment }}</div>
+                        <div class="pod-stat-label">Active</div>
+                    </div>
+                    <div class="pod-stat">
+                        <div class="pod-stat-value">{{ pod.total_equipment }}</div>
+                        <div class="pod-stat-label">Total</div>
+                    </div>
+                    <div class="pod-stat">
+                        <div class="pod-stat-value">{{ pod.equipment_in_maintenance }}</div>
+                        <div class="pod-stat-label">In Maint</div>
+                    </div>
+                    <div class="pod-stat">
+                        <div class="pod-stat-value">{{ pod.upcoming_maintenance_count }}</div>
+                        <div class="pod-stat-label">Upcoming</div>
+                    </div>
+                </div>
+                
+                {% if pod.recent_activities or pod.next_events %}
+                <div class="pod-activities">
+                    {% for activity in pod.recent_activities %}
+                    <div class="pod-activity">✓ {{ activity.title|truncatechars:25 }} ({{ activity.actual_end|date:"M d" }})</div>
+                    {% endfor %}
+                    {% for event in pod.next_events %}
+                    <div class="pod-activity">→ {{ event.title|truncatechars:25 }} ({{ event.event_date|date:"M d" }})</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-building"></i>
+            No pods configured for this site.<br>
+            {% if selected_site %}
+            <small>Add locations under {{ selected_site.name }} to see pod status.</small>
+            {% else %}
+            <small>Select a site to view pod information.</small>
+            {% endif %}
         </div>
         {% endif %}
     </div>
@@ -330,9 +541,24 @@ function viewMaintenanceItem(itemId) {
     window.location.href = '/maintenance/activity/' + itemId + '/';
 }
 
+function viewCalendarEvent(eventId) {
+    // Navigate to calendar event detail
+    window.location.href = '/events/events/' + eventId + '/';
+}
+
 function viewEquipment(equipmentId) {
     // Navigate to equipment detail
     window.location.href = '/equipment/' + equipmentId + '/';
+}
+
+function viewPodDetail(podName) {
+    // Navigate to equipment list filtered by pod/location
+    const url = new URL('/equipment/', window.location.origin);
+    {% if selected_site %}
+    url.searchParams.set('site_id', '{{ selected_site.id }}');
+    {% endif %}
+    url.searchParams.set('search', podName);
+    window.location.href = url.toString();
 }
 
 function showComingSoon(feature) {
@@ -348,10 +574,32 @@ setTimeout(function() {
 function updateClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString();
-    document.title = 'Dashboard - ' + timeString + ' - SOLUNA';
+    document.title = 'Overview - ' + timeString + ' - SOLUNA';
 }
 
 setInterval(updateClock, 1000);
 updateClock();
+
+// Add click handlers for enhanced interactivity
+document.addEventListener('DOMContentLoaded', function() {
+    // Add tooltips to pod status badges
+    const podCards = document.querySelectorAll('.pod-card');
+    podCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.borderWidth = '3px';
+        });
+        card.addEventListener('mouseleave', function() {
+            this.style.borderWidth = '2px';
+        });
+    });
+    
+    // Add keyboard navigation support
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'r' && e.ctrlKey) {
+            e.preventDefault();
+            location.reload();
+        }
+    });
+});
 </script>
 {% endblock %}
