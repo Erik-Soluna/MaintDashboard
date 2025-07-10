@@ -308,15 +308,19 @@
             float: left;
             max-height: 400px;
             overflow-y: auto;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         
         .dropdown-item {
             color: var(--text-primary);
             padding: 8px 16px;
             transition: background-color 0.2s ease;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         
         .dropdown-item:hover {
@@ -348,6 +352,19 @@
             left: auto;
         }
         
+        /* Fix for dropdown positioning and overflow */
+        .navbar-nav .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 1050;
+            float: none;
+            min-width: 160px;
+            max-width: 300px;
+            overflow: visible;
+            word-wrap: break-word;
+        }
+        
         /* Form control dropdowns */
         .form-control select {
             background-color: var(--bg-secondary);
@@ -356,6 +373,9 @@
             padding: 8px 12px;
             border-radius: 6px;
             width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .form-control select:focus {
@@ -375,12 +395,18 @@
             -webkit-appearance: none;
             -moz-appearance: none;
             appearance: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         select.form-control option {
             background-color: var(--bg-secondary);
             color: var(--text-primary);
             padding: 8px 12px;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
         }
         
         /* Site selector dropdown fixes */
@@ -391,6 +417,10 @@
             border-radius: 6px;
             padding: 8px 12px;
             z-index: 1040;
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         
         .site-selector:focus {
@@ -407,11 +437,18 @@
             padding: 0 20px;
             position: relative;
             z-index: 1030;
+            overflow: visible;
         }
         
         .nav-tabs-custom .dropdown-menu {
             top: 100%;
             margin-top: 0;
+            position: absolute;
+            z-index: 1050;
+            min-width: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
         
         /* Header positioning */
@@ -421,6 +458,158 @@
             padding: 15px 20px;
             position: relative;
             z-index: 1040;
+            overflow: visible;
+        }
+        
+        /* Fix for table overflow issues */
+        .table-responsive {
+            overflow-x: auto;
+            overflow-y: visible;
+            max-width: 100%;
+        }
+        
+        .table {
+            width: 100%;
+            max-width: 100%;
+            margin-bottom: 0;
+            table-layout: fixed;
+        }
+        
+        .table td,
+        .table th {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 12px 8px;
+            vertical-align: middle;
+        }
+        
+        .table td:last-child,
+        .table th:last-child {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+        }
+        
+        /* Fix for long text in table cells */
+        .table .text-wrap {
+            white-space: normal !important;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Card content overflow fixes */
+        .card {
+            overflow: visible;
+        }
+        
+        .card-body {
+            overflow: visible;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Modal fixes */
+        .modal-content {
+            overflow: visible;
+        }
+        
+        .modal-body {
+            overflow-y: auto;
+            max-height: 70vh;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Form control fixes */
+        .form-control {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-sizing: border-box;
+            max-width: 100%;
+        }
+        
+        /* Button group fixes */
+        .btn-group {
+            overflow: visible;
+            white-space: nowrap;
+        }
+        
+        .btn-group .btn {
+            float: none;
+            display: inline-block;
+        }
+        
+        /* Navbar fixes */
+        .navbar-nav {
+            overflow: visible;
+        }
+        
+        .navbar-nav .nav-item {
+            position: relative;
+        }
+        
+        .navbar-nav .dropdown {
+            position: static;
+        }
+        
+        /* Container fixes */
+        .container-fluid {
+            overflow-x: hidden;
+            overflow-y: visible;
+        }
+        
+        /* Text truncation utilities */
+        .text-truncate {
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+        }
+        
+        .text-wrap {
+            white-space: normal !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+        }
+        
+        /* Flex container fixes */
+        .d-flex {
+            overflow: visible;
+        }
+        
+        /* Badge overflow fixes */
+        .badge {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        
+        .badge.text-wrap {
+            white-space: normal !important;
+            max-width: none;
+        }
+        
+        /* Breadcrumb fixes */
+        .breadcrumb {
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            overflow: visible;
+            flex-wrap: wrap;
+        }
+        
+        .breadcrumb-item {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        
+        .breadcrumb-item:last-child {
+            max-width: none;
+            overflow: visible;
+            text-overflow: unset;
         }
         
         /* Alerts */

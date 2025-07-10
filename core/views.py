@@ -18,6 +18,13 @@ from django.http import JsonResponse, HttpResponseRedirect
 from django.core.paginator import Paginator
 from django.urls import reverse
 import json
+import csv
+import io
+from django.http import HttpResponse
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
 
 
 @login_required
@@ -540,3 +547,341 @@ def equipment_categories_settings(request):
         'categories': categories,
     }
     return render(request, 'core/equipment_categories_settings.html', context)
+
+
+@login_required
+def export_sites_csv(request):
+    """Export sites data to CSV file."""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="sites_export.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header
+    writer.writerow([
+        'Name',
+        'Latitude',
+        'Longitude',
+        'Address',
+        'Is Active',
+        'Created At'
+    ])
+    
+    # Get sites data (locations marked as sites)
+    from .models import Location
+    sites = Location.objects.filter(is_site=True).order_by('name')
+    
+    # Write data rows
+    for site in sites:
+        writer.writerow([
+            site.name,
+            site.latitude or '',
+            site.longitude or '',
+            site.address,
+            site.is_active,
+            site.created_at.isoformat() if site.created_at else ''
+        ])
+    
+    return response
+
+
+@login_required
+@require_http_methods(["POST"])
+def import_sites_csv(request):
+    """Import sites data from CSV file."""
+    if 'csv_file' not in request.FILES:
+        messages.error(request, 'No CSV file provided.')
+        return redirect('core:locations_settings')
+    
+    csv_file = request.FILES['csv_file']
+    
+    if not csv_file.name.endswith('.csv'):
+        messages.error(request, 'Please upload a CSV file.')
+        return redirect('core:locations_settings')
+    
+    try:
+        # Read CSV file
+        file_data = csv_file.read().decode('utf-8')
+        csv_data = csv.reader(io.StringIO(file_data))
+        
+        # Skip header row
+        header = next(csv_data)
+        
+        # Import data
+        from .models import Location
+        
+        imported_count = 0
+        error_count = 0
+        
+        for row_num, row in enumerate(csv_data, start=2):
+            try:
+                if len(row) < 1:  # Must have at least name
+                    continue
+                
+                name = row[0].strip()
+                if not name:
+                    continue
+                
+                # Check if site already exists
+                if Location.objects.filter(name=name, is_site=True).exists():
+                    error_count += 1
+                    continue
+                
+                # Parse data
+                latitude = None
+                longitude = None
+                
+                try:
+                    if len(row) > 1 and row[1].strip():
+                        latitude = float(row[1].strip())
+                except (ValueError, IndexError):
+                    pass
+                
+                try:
+                    if len(row) > 2 and row[2].strip():
+                        longitude = float(row[2].strip())
+                except (ValueError, IndexError):
+                    pass
+                
+                address = row[3].strip() if len(row) > 3 else ''
+                is_active = True
+                if len(row) > 4:
+                    is_active = str(row[4]).lower() in ['true', '1', 'yes', 'active']
+                
+                # Create site
+                Location.objects.create(
+                    name=name,
+                    is_site=True,
+                    latitude=latitude,
+                    longitude=longitude,
+                    address=address,
+                    is_active=is_active,
+                    created_by=request.user
+                )
+                
+                imported_count += 1
+                
+            except Exception as e:
+                error_count += 1
+                print(f"Error importing site row {row_num}: {str(e)}")
+                continue
+        
+        if imported_count > 0:
+            messages.success(request, f'Successfully imported {imported_count} sites.')
+        if error_count > 0:
+            messages.warning(request, f'{error_count} rows had errors and were skipped.')
+            
+    except Exception as e:
+        messages.error(request, f'Error reading CSV file: {str(e)}')
+    
+    return redirect('core:locations_settings')
+
+
+@login_required
+def export_locations_csv(request):
+    """Export all locations (map data) to CSV file."""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="locations_export.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header
+    writer.writerow([
+        'Name',
+        'Parent Location',
+        'Is Site',
+        'Latitude',
+        'Longitude',
+        'Address',
+        'Is Active',
+        'Full Path',
+        'Created At'
+    ])
+    
+    # Get all locations
+    from .models import Location
+    locations = Location.objects.select_related('parent_location').order_by('name')
+    
+    # Apply site filter if provided
+    site_id = request.GET.get('site_id')
+    if site_id:
+        from django.db.models import Q
+        locations = locations.filter(
+            Q(parent_location_id=site_id) | Q(id=site_id)
+        )
+    
+    # Write data rows
+    for location in locations:
+        writer.writerow([
+            location.name,
+            location.parent_location.name if location.parent_location else '',
+            location.is_site,
+            location.latitude or '',
+            location.longitude or '',
+            location.address,
+            location.is_active,
+            location.get_full_path(),
+            location.created_at.isoformat() if location.created_at else ''
+        ])
+    
+    return response
+
+
+@login_required
+@require_http_methods(["POST"])
+def import_locations_csv(request):
+    """Import locations (map data) from CSV file."""
+    if 'csv_file' not in request.FILES:
+        messages.error(request, 'No CSV file provided.')
+        return redirect('core:locations_settings')
+    
+    csv_file = request.FILES['csv_file']
+    
+    if not csv_file.name.endswith('.csv'):
+        messages.error(request, 'Please upload a CSV file.')
+        return redirect('core:locations_settings')
+    
+    try:
+        # Read CSV file
+        file_data = csv_file.read().decode('utf-8')
+        csv_data = csv.reader(io.StringIO(file_data))
+        
+        # Skip header row
+        header = next(csv_data)
+        
+        # Import data
+        from .models import Location
+        
+        imported_count = 0
+        error_count = 0
+        
+        # First pass: create all locations without parent relationships
+        locations_to_create = []
+        for row_num, row in enumerate(csv_data, start=2):
+            try:
+                if len(row) < 1:  # Must have at least name
+                    continue
+                
+                name = row[0].strip()
+                if not name:
+                    continue
+                
+                parent_name = row[1].strip() if len(row) > 1 else ''
+                is_site = str(row[2]).lower() in ['true', '1', 'yes'] if len(row) > 2 else False
+                
+                # Parse coordinates
+                latitude = None
+                longitude = None
+                
+                try:
+                    if len(row) > 3 and row[3].strip():
+                        latitude = float(row[3].strip())
+                except (ValueError, IndexError):
+                    pass
+                
+                try:
+                    if len(row) > 4 and row[4].strip():
+                        longitude = float(row[4].strip())
+                except (ValueError, IndexError):
+                    pass
+                
+                address = row[5].strip() if len(row) > 5 else ''
+                is_active = True
+                if len(row) > 6:
+                    is_active = str(row[6]).lower() in ['true', '1', 'yes', 'active']
+                
+                locations_to_create.append({
+                    'name': name,
+                    'parent_name': parent_name,
+                    'is_site': is_site,
+                    'latitude': latitude,
+                    'longitude': longitude,
+                    'address': address,
+                    'is_active': is_active,
+                    'row_num': row_num
+                })
+                
+            except Exception as e:
+                error_count += 1
+                print(f"Error parsing location row {row_num}: {str(e)}")
+                continue
+        
+        # Second pass: create locations, handling parent relationships
+        created_locations = {}
+        
+        # First create all sites (no parents)
+        for location_data in locations_to_create:
+            if location_data['is_site']:
+                try:
+                    # Check if location already exists
+                    if Location.objects.filter(name=location_data['name']).exists():
+                        error_count += 1
+                        continue
+                    
+                    location = Location.objects.create(
+                        name=location_data['name'],
+                        is_site=True,
+                        latitude=location_data['latitude'],
+                        longitude=location_data['longitude'],
+                        address=location_data['address'],
+                        is_active=location_data['is_active'],
+                        created_by=request.user
+                    )
+                    
+                    created_locations[location_data['name']] = location
+                    imported_count += 1
+                    
+                except Exception as e:
+                    error_count += 1
+                    print(f"Error creating site {location_data['name']}: {str(e)}")
+                    continue
+        
+        # Then create non-site locations with parent relationships
+        for location_data in locations_to_create:
+            if not location_data['is_site']:
+                try:
+                    # Check if location already exists
+                    if Location.objects.filter(name=location_data['name']).exists():
+                        error_count += 1
+                        continue
+                    
+                    parent_location = None
+                    if location_data['parent_name']:
+                        # Look for parent in created locations first
+                        parent_location = created_locations.get(location_data['parent_name'])
+                        if not parent_location:
+                            # Look for existing parent
+                            try:
+                                parent_location = Location.objects.get(name=location_data['parent_name'])
+                            except Location.DoesNotExist:
+                                error_count += 1
+                                continue
+                    
+                    location = Location.objects.create(
+                        name=location_data['name'],
+                        parent_location=parent_location,
+                        is_site=False,
+                        latitude=location_data['latitude'],
+                        longitude=location_data['longitude'],
+                        address=location_data['address'],
+                        is_active=location_data['is_active'],
+                        created_by=request.user
+                    )
+                    
+                    created_locations[location_data['name']] = location
+                    imported_count += 1
+                    
+                except Exception as e:
+                    error_count += 1
+                    print(f"Error creating location {location_data['name']}: {str(e)}")
+                    continue
+        
+        if imported_count > 0:
+            messages.success(request, f'Successfully imported {imported_count} locations.')
+        if error_count > 0:
+            messages.warning(request, f'{error_count} rows had errors and were skipped.')
+            
+    except Exception as e:
+        messages.error(request, f'Error reading CSV file: {str(e)}')
+    
+    return redirect('core:locations_settings')

@@ -12,6 +12,11 @@ urlpatterns = [
     path('', views.calendar_view, name='calendar_view'),
     path('calendar/', views.calendar_view, name='calendar_view'),
     
+    # Calendar integration
+    path('ical/', views.generate_ical_feed, name='ical_feed'),
+    path('webhook/google/', views.google_calendar_webhook, name='google_calendar_webhook'),
+    path('settings/', views.calendar_settings, name='calendar_settings'),
+    
     # Event management
     path('events/', views.event_list, name='event_list'),
     path('events/add/', views.add_event, name='add_event'),

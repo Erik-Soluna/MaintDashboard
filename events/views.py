@@ -8,10 +8,153 @@ from django.db.models import Q
 from django.core.paginator import Paginator
 from datetime import datetime, timedelta
 import json
+import uuid
+from django.views.decorators.csrf import csrf_exempt
+from django.urls import reverse
 
 from .models import CalendarEvent, EventComment, EventAttachment
 from equipment.models import Equipment
 from core.models import Location
+
+
+def generate_ical_feed(request):
+    """Generate iCal feed for calendar events."""
+    from django.http import HttpResponse
+    
+    # Get filter parameters
+    site_id = request.GET.get('site_id')
+    equipment_id = request.GET.get('equipment_id')
+    
+    # Base queryset
+    events = CalendarEvent.objects.select_related('equipment', 'equipment__location').all()
+    
+    # Apply filters
+    if site_id:
+        events = events.filter(
+            Q(equipment__location__parent_location_id=site_id) | 
+            Q(equipment__location_id=site_id)
+        )
+    
+    if equipment_id:
+        events = events.filter(equipment_id=equipment_id)
+    
+    # Generate iCal content
+    ical_content = "BEGIN:VCALENDAR\r\n"
+    ical_content += "VERSION:2.0\r\n"
+    ical_content += "PRODID:-//SOLUNA Maintenance Dashboard//EN\r\n"
+    ical_content += "CALSCALE:GREGORIAN\r\n"
+    ical_content += "METHOD:PUBLISH\r\n"
+    ical_content += f"X-WR-CALNAME:SOLUNA Maintenance Events\r\n"
+    ical_content += f"X-WR-CALDESC:Maintenance and equipment events from SOLUNA Dashboard\r\n"
+    ical_content += f"X-WR-TIMEZONE:UTC\r\n"
+    
+    for event in events:
+        ical_content += "BEGIN:VEVENT\r\n"
+        ical_content += f"UID:{event.id}@soluna-maintenance.com\r\n"
+        ical_content += f"DTSTAMP:{timezone.now().strftime('%Y%m%dT%H%M%SZ')}\r\n"
+        
+        # Format date/time
+        if event.all_day:
+            ical_content += f"DTSTART;VALUE=DATE:{event.event_date.strftime('%Y%m%d')}\r\n"
+        else:
+            start_dt = datetime.combine(event.event_date, event.start_time or datetime.min.time())
+            ical_content += f"DTSTART:{start_dt.strftime('%Y%m%dT%H%M%S')}\r\n"
+            
+            if event.end_time:
+                end_dt = datetime.combine(event.event_date, event.end_time)
+                ical_content += f"DTEND:{end_dt.strftime('%Y%m%dT%H%M%S')}\r\n"
+        
+        ical_content += f"SUMMARY:{event.title}\r\n"
+        
+        # Description with equipment info
+        description = f"Equipment: {event.equipment.name}\\n"
+        description += f"Location: {event.equipment.location.get_full_path() if event.equipment.location else 'Unknown'}\\n"
+        description += f"Type: {event.get_event_type_display()}\\n"
+        description += f"Priority: {event.get_priority_display()}\\n"
+        if event.assigned_to:
+            description += f"Assigned to: {event.assigned_to.get_full_name()}\\n"
+        if event.description:
+            description += f"\\nDescription: {event.description}"
+        
+        ical_content += f"DESCRIPTION:{description}\r\n"
+        ical_content += f"LOCATION:{event.equipment.location.get_full_path() if event.equipment.location else ''}\r\n"
+        
+        # Categories based on event type
+        ical_content += f"CATEGORIES:MAINTENANCE,{event.event_type.upper()}\r\n"
+        
+        # Priority mapping (iCal uses 1-9 scale, 1=high, 9=low)
+        priority_map = {'critical': '1', 'high': '3', 'medium': '5', 'low': '7'}
+        ical_content += f"PRIORITY:{priority_map.get(event.priority, '5')}\r\n"
+        
+        # Status
+        status_map = {'pending': 'TENTATIVE', 'in_progress': 'CONFIRMED', 'completed': 'CONFIRMED'}
+        ical_content += f"STATUS:CONFIRMED\r\n"
+        
+        # Created/Modified timestamps
+        ical_content += f"CREATED:{event.created_at.strftime('%Y%m%dT%H%M%SZ')}\r\n"
+        ical_content += f"LAST-MODIFIED:{event.updated_at.strftime('%Y%m%dT%H%M%SZ')}\r\n"
+        
+        ical_content += "END:VEVENT\r\n"
+    
+    ical_content += "END:VCALENDAR\r\n"
+    
+    response = HttpResponse(ical_content, content_type='text/calendar; charset=utf-8')
+    response['Content-Disposition'] = 'attachment; filename="soluna_maintenance_events.ics"'
+    return response
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def google_calendar_webhook(request):
+    """Handle Google Calendar webhook notifications."""
+    try:
+        # Verify webhook (basic implementation - you may want to add proper verification)
+        channel_id = request.headers.get('X-Goog-Channel-ID')
+        resource_id = request.headers.get('X-Goog-Resource-ID')
+        resource_state = request.headers.get('X-Goog-Resource-State')
+        
+        # Log the webhook for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Google Calendar webhook received: {resource_state} for channel {channel_id}")
+        
+        # Handle different resource states
+        if resource_state == 'sync':
+            # Initial sync message - acknowledge
+            return HttpResponse('OK', status=200)
+        elif resource_state in ['exists', 'not_exists']:
+            # Event created/updated/deleted
+            # Here you would implement logic to sync changes back to your system
+            # This is a placeholder for more complex sync logic
+            pass
+        
+        return HttpResponse('OK', status=200)
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Google Calendar webhook error: {str(e)}")
+        return HttpResponse('Error', status=500)
+
+
+@login_required
+def calendar_settings(request):
+    """Calendar integration settings page."""
+    if request.method == 'POST':
+        # Handle settings updates
+        # This would store user preferences for calendar integration
+        messages.success(request, 'Calendar settings updated successfully!')
+        return redirect('events:calendar_settings')
+    
+    # Generate iCal feed URLs
+    ical_feed_url = request.build_absolute_uri(reverse('events:ical_feed'))
+    
+    context = {
+        'ical_feed_url': ical_feed_url,
+        'google_calendar_instructions': True,
+    }
+    return render(request, 'events/calendar_settings.html', context)
+
 
 def index(request):
     return HttpResponse("Events index view")

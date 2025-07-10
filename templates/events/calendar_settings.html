@@ -1,0 +1,287 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Calendar Integration Settings - SOLUNA Maintenance Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'events:calendar_view' %}">Calendar</a></li>
+<li class="breadcrumb-item active">Integration Settings</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.integration-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.integration-card h5 {
+    color: var(--text-primary);
+    margin-bottom: 15px;
+}
+
+.url-display {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 14px;
+    word-break: break-all;
+    color: var(--text-primary);
+}
+
+.copy-button {
+    margin-top: 10px;
+}
+
+.instructions {
+    background-color: var(--bg-tertiary);
+    border-left: 4px solid #4299e1;
+    padding: 15px;
+    margin-top: 15px;
+    border-radius: 0 4px 4px 0;
+}
+
+.instructions ol {
+    margin-bottom: 0;
+}
+
+.instructions li {
+    margin-bottom: 8px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="text-white">Calendar Integration Settings</h2>
+                <a href="{% url 'events:calendar_view' %}" class="btn btn-outline-light">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Calendar
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- iCal Feed Integration -->
+        <div class="col-md-6">
+            <div class="integration-card">
+                <h5><i class="fas fa-calendar-alt me-2"></i>iCal Feed Integration</h5>
+                <p class="text-muted">Subscribe to this iCal feed in any calendar application (Apple Calendar, Outlook, Thunderbird, etc.)</p>
+                
+                <label class="form-label">iCal Feed URL:</label>
+                <div class="url-display" id="icalUrl">{{ ical_feed_url }}</div>
+                <button type="button" class="btn btn-primary copy-button" onclick="copyToClipboard('icalUrl')">
+                    <i class="fas fa-copy me-1"></i> Copy URL
+                </button>
+                
+                <div class="instructions">
+                    <h6>How to subscribe:</h6>
+                    <ol>
+                        <li><strong>Apple Calendar:</strong> File → New Calendar Subscription → Paste URL</li>
+                        <li><strong>Google Calendar:</strong> Other calendars → Add by URL → Paste URL</li>
+                        <li><strong>Outlook:</strong> File → Account Settings → Internet Calendars → New → Paste URL</li>
+                        <li><strong>Thunderbird:</strong> File → New → Calendar → On the Network → iCalendar (ICS) → Paste URL</li>
+                    </ol>
+                </div>
+                
+                <div class="mt-3">
+                    <h6>Filter Options:</h6>
+                    <p class="text-muted">You can filter the feed by adding parameters to the URL:</p>
+                    <ul class="text-muted">
+                        <li><code>?site_id=123</code> - Filter by specific site</li>
+                        <li><code>?equipment_id=456</code> - Filter by specific equipment</li>
+                        <li>Example: <code>{{ ical_feed_url }}?site_id=1&equipment_id=5</code></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Google Calendar Integration -->
+        <div class="col-md-6">
+            <div class="integration-card">
+                <h5><i class="fab fa-google me-2"></i>Google Calendar Integration</h5>
+                <p class="text-muted">Advanced two-way sync with Google Calendar (requires additional setup)</p>
+                
+                <label class="form-label">Webhook Endpoint:</label>
+                <div class="url-display" id="webhookUrl">{{ request.build_absolute_uri:'/events/webhook/google/' }}</div>
+                <button type="button" class="btn btn-primary copy-button" onclick="copyToClipboard('webhookUrl')">
+                    <i class="fas fa-copy me-1"></i> Copy URL
+                </button>
+                
+                <div class="instructions">
+                    <h6>Setup Instructions:</h6>
+                    <ol>
+                        <li>First, subscribe to the iCal feed in Google Calendar (see left panel)</li>
+                        <li>For two-way sync, you'll need to set up Google Calendar API credentials</li>
+                        <li>Configure push notifications using the webhook URL above</li>
+                        <li>Contact your system administrator for Google API setup</li>
+                    </ol>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-1"></i>
+                    <strong>Note:</strong> Two-way sync requires Google Calendar API credentials and additional configuration. 
+                    The iCal feed provides read-only access to your maintenance events.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Additional Integration Options -->
+    <div class="row">
+        <div class="col-12">
+            <div class="integration-card">
+                <h5><i class="fas fa-sync-alt me-2"></i>Sync Settings</h5>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="includeCompleted" name="include_completed" checked>
+                                <label class="form-check-label" for="includeCompleted">
+                                    Include completed events in feed
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="includeCancelled" name="include_cancelled">
+                                <label class="form-check-label" for="includeCancelled">
+                                    Include cancelled events in feed
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label for="syncFrequency" class="form-label">Sync Frequency (future feature)</label>
+                            <select class="form-control" id="syncFrequency" name="sync_frequency" disabled>
+                                <option value="real-time">Real-time</option>
+                                <option value="hourly">Hourly</option>
+                                <option value="daily">Daily</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="timeZone" class="form-label">Time Zone</label>
+                            <select class="form-control" id="timeZone" name="time_zone">
+                                <option value="UTC">UTC</option>
+                                <option value="America/New_York">Eastern Time</option>
+                                <option value="America/Chicago">Central Time</option>
+                                <option value="America/Denver">Mountain Time</option>
+                                <option value="America/Los_Angeles">Pacific Time</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Testing -->
+    <div class="row">
+        <div class="col-12">
+            <div class="integration-card">
+                <h5><i class="fas fa-flask me-2"></i>Test Integration</h5>
+                <p class="text-muted">Test your calendar integration to ensure it's working correctly.</p>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-primary" onclick="testIcalFeed()">
+                            <i class="fas fa-download me-1"></i> Download Test iCal File
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-info" onclick="validateFeed()">
+                            <i class="fas fa-check-circle me-1"></i> Validate Feed Format
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="testResults" class="mt-3" style="display: none;">
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-1"></i>
+                        Feed validation successful! Your iCal feed is properly formatted.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    const text = element.textContent;
+    
+    navigator.clipboard.writeText(text).then(function() {
+        // Show success feedback
+        const button = element.nextElementSibling;
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check me-1"></i> Copied!';
+        button.classList.remove('btn-primary');
+        button.classList.add('btn-success');
+        
+        setTimeout(function() {
+            button.innerHTML = originalText;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-primary');
+        }, 2000);
+    }).catch(function(err) {
+        alert('Failed to copy to clipboard. Please copy manually.');
+    });
+}
+
+function testIcalFeed() {
+    window.open('{% url "events:ical_feed" %}', '_blank');
+}
+
+function validateFeed() {
+    fetch('{% url "events:ical_feed" %}')
+        .then(response => response.text())
+        .then(data => {
+            const testResults = document.getElementById('testResults');
+            if (data.includes('BEGIN:VCALENDAR') && data.includes('END:VCALENDAR')) {
+                testResults.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-1"></i>
+                        Feed validation successful! Your iCal feed is properly formatted.
+                    </div>
+                `;
+            } else {
+                testResults.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-1"></i>
+                        Feed validation failed. Please check your calendar configuration.
+                    </div>
+                `;
+            }
+            testResults.style.display = 'block';
+        })
+        .catch(error => {
+            const testResults = document.getElementById('testResults');
+            testResults.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Error validating feed: ${error.message}
+                </div>
+            `;
+            testResults.style.display = 'block';
+        });
+}
+</script>
+{% endblock %}

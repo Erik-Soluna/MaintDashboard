@@ -208,9 +208,31 @@
             </h3>
             <p class="text-muted mb-0">Manage and monitor all equipment</p>
         </div>
-        <a href="{% url 'equipment:add_equipment' %}" class="btn btn-primary">
-            <i class="fas fa-plus me-1"></i> Add Equipment
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{% url 'equipment:add_equipment' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i> Add Equipment
+            </a>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
+                    <i class="fas fa-download me-1"></i> Import/Export
+                </button>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="{% url 'equipment:export_equipment_csv' %}{% if selected_site %}?site_id={{ selected_site }}{% endif %}">
+                        <i class="fas fa-download me-1"></i> Export CSV
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item" onclick="document.getElementById('csvImportFile').click()">
+                        <i class="fas fa-upload me-1"></i> Import CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Hidden file input for CSV import -->
+        <form id="csvImportForm" method="post" action="{% url 'equipment:import_equipment_csv' %}" enctype="multipart/form-data" style="display: none;">
+            {% csrf_token %}
+            <input type="file" id="csvImportFile" name="csv_file" accept=".csv" onchange="confirmCsvImport()">
+        </form>
     </div>
     
     <!-- Filters -->
@@ -489,5 +511,18 @@ $(document).ready(function() {
         $(this).closest('form').submit();
     });
 });
+
+// CSV Import confirmation
+function confirmCsvImport() {
+    const fileInput = document.getElementById('csvImportFile');
+    if (fileInput.files.length > 0) {
+        const fileName = fileInput.files[0].name;
+        if (confirm(`Are you sure you want to import equipment data from "${fileName}"? This will create new equipment records.`)) {
+            document.getElementById('csvImportForm').submit();
+        } else {
+            fileInput.value = ''; // Clear the file input
+        }
+    }
+}
 </script>
 {% endblock %}
