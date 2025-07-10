@@ -37,6 +37,7 @@ RUN mkdir -p /app/staticfiles /app/media
 # Copy and make executable the database initialization scripts
 RUN chmod +x /app/init_database.sh
 RUN chmod +x /app/auto_init_database.py
+RUN chmod +x /app/ensure-database.sh
 
 # Collect static files (but allow override via environment variable)
 RUN python manage.py collectstatic --noinput || echo "Static files collection failed, will retry at runtime"
