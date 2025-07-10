@@ -38,6 +38,7 @@ urlpatterns = [
     # AJAX endpoints
     path('api/activities/', views.get_activities_data, name='get_activities_data'),
     path('api/generate-activities/', views.generate_maintenance_activities, name='generate_activities'),
+    path('generate-scheduled-activities/', views.generate_scheduled_activities, name='generate_scheduled_activities'),
     
     # CSV Import/Export
     path('activities/export/csv/', views.export_maintenance_csv, name='export_maintenance_csv'),

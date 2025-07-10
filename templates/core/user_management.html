@@ -19,6 +19,10 @@
             <p class="text-muted mb-0">Manage user accounts and permissions</p>
         </div>
         <div>
+            <a href="{% url 'core:roles_permissions_management' %}" class="btn btn-outline-info me-2">
+                <i class="fas fa-user-shield me-1"></i>
+                Manage Roles
+            </a>
             <a href="{% url 'admin:auth_user_add' %}" class="btn btn-primary">
                 <i class="fas fa-user-plus me-1"></i>
                 Add User
@@ -33,7 +37,7 @@
         <div class="card">
             <div class="card-body text-center">
                 <i class="fas fa-users fa-2x text-primary mb-2"></i>
-                <h5 class="card-title">{{ page_obj.paginator.count }}</h5>
+                <h5 class="card-title">{{ total_users }}</h5>
                 <p class="card-text">Total Users</p>
             </div>
         </div>
@@ -42,7 +46,7 @@
         <div class="card">
             <div class="card-body text-center">
                 <i class="fas fa-user-check fa-2x text-success mb-2"></i>
-                <h5 class="card-title">{{ users|length }}</h5>
+                <h5 class="card-title">{{ active_users }}</h5>
                 <p class="card-text">Active Users</p>
             </div>
         </div>
@@ -51,7 +55,7 @@
         <div class="card">
             <div class="card-body text-center">
                 <i class="fas fa-user-shield fa-2x text-warning mb-2"></i>
-                <h5 class="card-title">{{ users|length }}</h5>
+                <h5 class="card-title">{{ staff_users }}</h5>
                 <p class="card-text">Staff Users</p>
             </div>
         </div>
@@ -60,7 +64,7 @@
         <div class="card">
             <div class="card-body text-center">
                 <i class="fas fa-crown fa-2x text-danger mb-2"></i>
-                <h5 class="card-title">{{ users|length }}</h5>
+                <h5 class="card-title">{{ superusers }}</h5>
                 <p class="card-text">Superusers</p>
             </div>
         </div>
@@ -111,11 +115,21 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if user.userprofile.role %}
-                                <span class="badge badge-secondary">{{ user.userprofile.get_role_display }}</span>
-                            {% else %}
-                                <small class="text-muted">No role</small>
-                            {% endif %}
+                            <div class="role-assignment">
+                                <form method="post" class="d-inline role-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="assign_role">
+                                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                                    <select name="role_id" class="form-control form-control-sm role-select" onchange="this.form.submit()">
+                                        <option value="">No Role</option>
+                                        {% for role in roles %}
+                                        <option value="{{ role.id }}" {% if user.userprofile.role.id == role.id %}selected{% endif %}>
+                                            {{ role.display_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </form>
+                            </div>
                         </td>
                         <td>
                             <div class="d-flex flex-column">
@@ -248,6 +262,30 @@
 .badge {
     font-size: 11px;
     padding: 4px 8px;
+}
+
+.role-assignment {
+    min-width: 150px;
+}
+
+.role-select {
+    width: 140px;
+    font-size: 12px;
+    padding: 4px 8px;
+    background-color: #1a2238;
+    color: #e2e8f0;
+    border: 1px solid #4a5568;
+}
+
+.role-select:focus {
+    background-color: #1a2238;
+    border-color: #4299e1;
+    color: #e2e8f0;
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+}
+
+.role-form {
+    margin: 0;
 }
 </style>
 {% endblock %}

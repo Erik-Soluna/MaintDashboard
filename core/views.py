@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from equipment.models import Equipment
 from maintenance.models import MaintenanceActivity
 from events.models import CalendarEvent
-from core.models import Location, EquipmentCategory
+from core.models import Location, EquipmentCategory, Role, Permission, UserProfile
 from core.forms import LocationForm, EquipmentCategoryForm
 from django.utils import timezone
 from django.db.models import Q, Count
@@ -322,7 +322,7 @@ def equipment_items_settings(request):
 @login_required
 @user_passes_test(is_staff_or_superuser)
 def user_management(request):
-    """User management view."""
+    """Enhanced user management view with role assignment."""
     if request.method == 'POST':
         action = request.POST.get('action')
         user_id = request.POST.get('user_id')
@@ -341,9 +341,33 @@ def user_management(request):
             status = 'granted' if user.is_staff else 'revoked'
             messages.success(request, f'Staff privileges {status} for {user.username}.')
         
+        elif action == 'assign_role' and user_id:
+            user = get_object_or_404(User, id=user_id)
+            role_id = request.POST.get('role_id')
+            
+            # Get or create user profile
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            
+            if role_id:
+                role = get_object_or_404(Role, id=role_id)
+                profile.role = role
+                profile.save()
+                messages.success(request, f'Role "{role.display_name}" assigned to {user.username}.')
+            else:
+                profile.role = None
+                profile.save()
+                messages.success(request, f'Role removed from {user.username}.')
+        
         return redirect('core:user_management')
     
-    users = User.objects.all().select_related('userprofile').order_by('username')
+    users = User.objects.all().select_related('userprofile', 'userprofile__role').order_by('username')
+    roles = Role.objects.filter(is_active=True).order_by('display_name')
+    
+    # Get user statistics
+    total_users = users.count()
+    active_users = users.filter(is_active=True).count()
+    staff_users = users.filter(is_staff=True).count()
+    superusers = users.filter(is_superuser=True).count()
     
     # Pagination
     paginator = Paginator(users, 20)
@@ -353,6 +377,11 @@ def user_management(request):
     context = {
         'page_obj': page_obj,
         'users': users,
+        'roles': roles,
+        'total_users': total_users,
+        'active_users': active_users,
+        'staff_users': staff_users,
+        'superusers': superusers,
     }
     return render(request, 'core/user_management.html', context)
 
@@ -429,6 +458,116 @@ def users_api(request):
             'userprofile__department', 'userprofile__phone_number'
         )
         return JsonResponse(list(users), safe=False)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def roles_permissions_management(request):
+    """Role and permission management view."""
+    roles = Role.objects.all().prefetch_related('permissions').order_by('display_name')
+    permissions = Permission.objects.filter(is_active=True).order_by('module', 'name')
+    
+    # Group permissions by module
+    permissions_by_module = {}
+    for permission in permissions:
+        if permission.module not in permissions_by_module:
+            permissions_by_module[permission.module] = []
+        permissions_by_module[permission.module].append(permission)
+    
+    context = {
+        'roles': roles,
+        'permissions': permissions,
+        'permissions_by_module': permissions_by_module,
+    }
+    return render(request, 'core/roles_permissions_management.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def role_detail_api(request, role_id):
+    """API endpoint for role management."""
+    role = get_object_or_404(Role, id=role_id)
+    
+    if request.method == 'GET':
+        # Return role details with permissions
+        permissions = list(role.permissions.values('id', 'name', 'codename', 'module'))
+        return JsonResponse({
+            'id': role.id,
+            'name': role.name,
+            'display_name': role.display_name,
+            'description': role.description,
+            'is_active': role.is_active,
+            'is_system_role': role.is_system_role,
+            'permissions': permissions
+        })
+    
+    elif request.method == 'PUT':
+        # Update role
+        data = json.loads(request.body)
+        
+        role.name = data.get('name', role.name)
+        role.display_name = data.get('display_name', role.display_name)
+        role.description = data.get('description', role.description)
+        role.is_active = data.get('is_active', role.is_active)
+        role.save()
+        
+        # Update permissions
+        if 'permission_ids' in data:
+            permission_ids = data['permission_ids']
+            role.permissions.set(permission_ids)
+        
+        return JsonResponse({'message': 'Role updated successfully'})
+    
+    elif request.method == 'DELETE':
+        # Delete role (only if not system role)
+        if role.is_system_role:
+            return JsonResponse({'error': 'Cannot delete system role'}, status=400)
+        
+        # Check if any users have this role
+        users_with_role = UserProfile.objects.filter(role=role).count()
+        if users_with_role > 0:
+            return JsonResponse({
+                'error': f'Cannot delete role. {users_with_role} users are assigned to this role.'
+            }, status=400)
+        
+        role.delete()
+        return JsonResponse({'message': 'Role deleted successfully'})
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def roles_api(request):
+    """API endpoint for role management."""
+    if request.method == 'GET':
+        roles = Role.objects.all().values(
+            'id', 'name', 'display_name', 'description', 'is_active', 'is_system_role'
+        )
+        return JsonResponse(list(roles), safe=False)
+    
+    elif request.method == 'POST':
+        # Create new role
+        data = json.loads(request.body)
+        
+        role = Role.objects.create(
+            name=data.get('name'),
+            display_name=data.get('display_name'),
+            description=data.get('description', ''),
+            is_active=data.get('is_active', True),
+            created_by=request.user,
+            updated_by=request.user
+        )
+        
+        # Assign permissions
+        if 'permission_ids' in data:
+            permission_ids = data['permission_ids']
+            role.permissions.set(permission_ids)
+        
+        return JsonResponse({
+            'id': role.id,
+            'name': role.name,
+            'display_name': role.display_name,
+            'message': 'Role created successfully'
+        })
 
 
 @login_required
