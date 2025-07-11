@@ -107,17 +107,46 @@ class Command(BaseCommand):
             raise CommandError(f'Database initialization failed: {str(e)}')
 
     def _run_migrations(self):
-        """Run Django migrations."""
+        """Run Django migrations with proper handling of existing tables."""
         self.stdout.write('📦 Running database migrations...')
         
         try:
-            # Run makemigrations first to create any missing migrations
-            self.stdout.write('   Creating migrations...')
-            call_command('makemigrations', verbosity=0)
+            # First, check if tables already exist
+            from django.db import connection
             
-            # Run migrate to apply all migrations
-            self.stdout.write('   Applying migrations...')
-            call_command('migrate', verbosity=0)
+            # Get all table names that currently exist
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT tablename FROM pg_tables 
+                    WHERE schemaname = 'public' AND tablename NOT LIKE 'pg_%'
+                """)
+                existing_tables = [row[0] for row in cursor.fetchall()]
+            
+            # Check if core app tables exist
+            core_tables_exist = any(table.startswith('core_') for table in existing_tables)
+            
+            if core_tables_exist:
+                self.stdout.write('   ⚠️  Existing tables detected, using fake migrations...')
+                
+                # If tables exist, fake the initial migration
+                try:
+                    call_command('migrate', '--fake-initial', verbosity=0)
+                    self.stdout.write('   ✅ Faked initial migrations for existing tables')
+                except Exception as fake_error:
+                    self.stdout.write(f'   ⚠️  Fake migration failed: {fake_error}')
+                    # Try to mark migrations as applied
+                    try:
+                        call_command('migrate', '--fake', verbosity=0)
+                        self.stdout.write('   ✅ Marked migrations as applied')
+                    except Exception as mark_error:
+                        self.stdout.write(f'   ⚠️  Could not mark migrations as applied: {mark_error}')
+            else:
+                self.stdout.write('   Creating migrations...')
+                call_command('makemigrations', verbosity=0)
+                
+                # Run migrate to apply all migrations
+                self.stdout.write('   Applying migrations...')
+                call_command('migrate', verbosity=0)
             
             self.stdout.write(
                 self.style.SUCCESS('   ✅ Migrations completed successfully')

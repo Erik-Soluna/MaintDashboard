@@ -85,6 +85,14 @@ services:
         condition: service_healthy
     networks:
       - maintenance_network
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.maintenance-web.rule=Host(`maintenance.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.maintenance-web.entrypoints=websecure"
+      - "traefik.http.routers.maintenance-web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.maintenance-web.loadbalancer.server.port=8000"
+      - "traefik.docker.network=proxy"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health/", "||", "exit", "1"]
       interval: 30s
@@ -284,6 +292,8 @@ networks:
       driver: default
       config:
         - subnet: 172.20.0.0/16
+  proxy:
+    external: true
 
 volumes:
   postgres_data:
