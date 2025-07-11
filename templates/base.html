@@ -306,7 +306,7 @@
             left: 0;
             display: none;
             float: left;
-            max-height: 400px;
+            max-height: 90vh;
             overflow-y: auto;
             word-wrap: break-word;
             overflow-wrap: break-word;
@@ -398,6 +398,8 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            height: auto;
+            min-height: 38px;
         }
         
         select.form-control option {
@@ -421,6 +423,8 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            height: auto;
+            min-height: 38px;
         }
         
         .site-selector:focus {
@@ -446,7 +450,7 @@
             position: absolute;
             z-index: 1050;
             min-width: 200px;
-            max-height: 400px;
+            max-height: 90vh;
             overflow-y: auto;
             overflow-x: hidden;
         }
@@ -659,7 +663,7 @@
             <div class="d-flex align-items-center">
                 <label for="site-selector" class="text-white me-2 mb-0">Select Site:</label>
                 <select id="site-selector" class="site-selector form-control form-control-sm" onchange="changeSite(this.value)">
-                    <option value="">All - Soluna</option>
+                    <option value="" {% if not selected_site_id %}selected{% endif %}>All - Soluna</option>
                     {% for site in sites %}
                     <option value="{{ site.id }}" {% if selected_site_id == site.id|stringformat:"s" %}selected{% endif %}>
                         {{ site.name }}
