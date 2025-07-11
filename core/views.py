@@ -490,23 +490,75 @@ def locations_api(request):
     """API endpoint for locations management."""
     if request.method == 'GET':
         locations = Location.objects.all().values(
-            'id', 'name', 'description', 'is_site', 'is_active', 'parent_location__name'
+            'id', 'name', 'address', 'is_site', 'is_active', 'parent_location__name'
         )
         return JsonResponse(list(locations), safe=False)
     
     elif request.method == 'POST':
-        data = json.loads(request.body)
-        location = Location.objects.create(
-            name=data.get('name'),
-            description=data.get('description', ''),
-            is_site=data.get('is_site', False),
-            parent_location_id=data.get('parent_location_id')
-        )
-        return JsonResponse({
-            'id': location.id,
-            'name': location.name,
-            'message': 'Location created successfully'
-        })
+        try:
+            data = json.loads(request.body)
+            
+            # Validate required fields
+            name = data.get('name', '').strip()
+            if not name:
+                return JsonResponse({
+                    'error': 'Location name is required'
+                }, status=400)
+            
+            is_site = data.get('is_site', False)
+            parent_location_id = data.get('parent_location_id')
+            
+            # Validate site/location rules
+            if is_site and parent_location_id:
+                return JsonResponse({
+                    'error': 'Site locations cannot have a parent location'
+                }, status=400)
+            
+            if not is_site and not parent_location_id:
+                return JsonResponse({
+                    'error': 'Equipment locations must have a parent site'
+                }, status=400)
+            
+            # Check for duplicate names at the same level
+            if is_site:
+                if Location.objects.filter(name=name, is_site=True).exists():
+                    return JsonResponse({
+                        'error': f'A site with the name "{name}" already exists'
+                    }, status=400)
+            else:
+                if Location.objects.filter(
+                    name=name, 
+                    parent_location_id=parent_location_id,
+                    is_site=False
+                ).exists():
+                    return JsonResponse({
+                        'error': f'A location with the name "{name}" already exists at this site'
+                    }, status=400)
+            
+            # Create location
+            location = Location.objects.create(
+                name=name,
+                address=data.get('address', ''),
+                is_site=is_site,
+                parent_location_id=parent_location_id,
+                created_by=request.user,
+                updated_by=request.user
+            )
+            
+            return JsonResponse({
+                'id': location.id,
+                'name': location.name,
+                'message': f'{"Site" if is_site else "Location"} created successfully'
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'error': 'Invalid JSON data'
+            }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                'error': f'Error creating location: {str(e)}'
+            }, status=500)
 
 
 @login_required
@@ -516,32 +568,82 @@ def location_detail_api(request, location_id):
     location = get_object_or_404(Location, id=location_id)
     
     if request.method == 'PUT':
-        data = json.loads(request.body)
-        location.name = data.get('name', location.name)
-        location.description = data.get('description', location.description)
-        location.is_site = data.get('is_site', location.is_site)
-        location.is_active = data.get('is_active', location.is_active)
-        if data.get('parent_location_id'):
-            location.parent_location_id = data.get('parent_location_id')
-        location.save()
-        return JsonResponse({'message': 'Location updated successfully'})
+        try:
+            data = json.loads(request.body)
+            
+            # Validate required fields
+            name = data.get('name', '').strip()
+            if not name:
+                return JsonResponse({
+                    'error': 'Location name is required'
+                }, status=400)
+            
+            # Check for duplicate names at the same level (excluding current location)
+            if location.is_site:
+                if Location.objects.filter(name=name, is_site=True).exclude(id=location.id).exists():
+                    return JsonResponse({
+                        'error': f'A site with the name "{name}" already exists'
+                    }, status=400)
+            else:
+                parent_location_id = data.get('parent_location_id', location.parent_location_id)
+                if Location.objects.filter(
+                    name=name, 
+                    parent_location_id=parent_location_id,
+                    is_site=False
+                ).exclude(id=location.id).exists():
+                    return JsonResponse({
+                        'error': f'A location with the name "{name}" already exists at this site'
+                    }, status=400)
+            
+            # Update location
+            location.name = name
+            location.address = data.get('address', location.address)
+            location.is_active = data.get('is_active', location.is_active)
+            
+            # Only update parent if provided and location is not a site
+            if not location.is_site and 'parent_location_id' in data:
+                location.parent_location_id = data.get('parent_location_id')
+            
+            location.updated_by = request.user
+            location.save()
+            
+            return JsonResponse({
+                'message': f'{"Site" if location.is_site else "Location"} updated successfully'
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'error': 'Invalid JSON data'
+            }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                'error': f'Error updating location: {str(e)}'
+            }, status=500)
     
     elif request.method == 'DELETE':
-        location_name = location.name
-        
-        # Check if location has any equipment or child locations
-        if location.equipment.exists():
+        try:
+            location_name = location.name
+            
+            # Check if location has any equipment or child locations
+            if hasattr(location, 'equipment') and location.equipment.exists():
+                return JsonResponse({
+                    'error': f'Cannot delete location "{location_name}" because it has equipment assigned to it.'
+                }, status=400)
+            
+            if location.child_locations.exists():
+                return JsonResponse({
+                    'error': f'Cannot delete location "{location_name}" because it has child locations.'
+                }, status=400)
+            
+            location.delete()
             return JsonResponse({
-                'error': f'Cannot delete location "{location_name}" because it has equipment assigned to it.'
-            }, status=400)
-        
-        if location.child_locations.exists():
+                'message': f'{"Site" if location.is_site else "Location"} "{location_name}" deleted successfully!'
+            })
+            
+        except Exception as e:
             return JsonResponse({
-                'error': f'Cannot delete location "{location_name}" because it has child locations.'
-            }, status=400)
-        
-        location.delete()
-        return JsonResponse({'message': f'Location "{location_name}" deleted successfully!'})
+                'error': f'Error deleting location: {str(e)}'
+            }, status=500)
 
 
 @login_required
@@ -611,21 +713,52 @@ def role_detail_api(request, role_id):
         })
     
     elif request.method == 'PUT':
-        # Update role
-        data = json.loads(request.body)
-        
-        role.name = data.get('name', role.name)
-        role.display_name = data.get('display_name', role.display_name)
-        role.description = data.get('description', role.description)
-        role.is_active = data.get('is_active', role.is_active)
-        role.save()
-        
-        # Update permissions
-        if 'permission_ids' in data:
-            permission_ids = data['permission_ids']
-            role.permissions.set(permission_ids)
-        
-        return JsonResponse({'message': 'Role updated successfully'})
+        try:
+            data = json.loads(request.body)
+            
+            # Validate required fields
+            name = data.get('name', role.name).strip()
+            display_name = data.get('display_name', role.display_name).strip()
+            
+            if not name:
+                return JsonResponse({
+                    'error': 'Role name is required'
+                }, status=400)
+            
+            if not display_name:
+                return JsonResponse({
+                    'error': 'Display name is required'
+                }, status=400)
+            
+            # Check for duplicate role names (excluding current role)
+            if Role.objects.filter(name=name).exclude(id=role.id).exists():
+                return JsonResponse({
+                    'error': f'A role with the name "{name}" already exists'
+                }, status=400)
+            
+            # Update role
+            role.name = name
+            role.display_name = display_name
+            role.description = data.get('description', role.description)
+            role.is_active = data.get('is_active', role.is_active)
+            role.updated_by = request.user
+            role.save()
+            
+            # Update permissions
+            if 'permission_ids' in data:
+                permission_ids = data['permission_ids']
+                role.permissions.set(permission_ids)
+            
+            return JsonResponse({'message': 'Role updated successfully'})
+            
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'error': 'Invalid JSON data'
+            }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                'error': f'Error updating role: {str(e)}'
+            }, status=500)
     
     elif request.method == 'DELETE':
         # Delete role (only if not system role)
@@ -654,29 +787,59 @@ def roles_api(request):
         return JsonResponse(list(roles), safe=False)
     
     elif request.method == 'POST':
-        # Create new role
-        data = json.loads(request.body)
-        
-        role = Role.objects.create(
-            name=data.get('name'),
-            display_name=data.get('display_name'),
-            description=data.get('description', ''),
-            is_active=data.get('is_active', True),
-            created_by=request.user,
-            updated_by=request.user
-        )
-        
-        # Assign permissions
-        if 'permission_ids' in data:
-            permission_ids = data['permission_ids']
-            role.permissions.set(permission_ids)
-        
-        return JsonResponse({
-            'id': role.id,
-            'name': role.name,
-            'display_name': role.display_name,
-            'message': 'Role created successfully'
-        })
+        try:
+            data = json.loads(request.body)
+            
+            # Validate required fields
+            name = data.get('name', '').strip()
+            display_name = data.get('display_name', '').strip()
+            
+            if not name:
+                return JsonResponse({
+                    'error': 'Role name is required'
+                }, status=400)
+            
+            if not display_name:
+                return JsonResponse({
+                    'error': 'Display name is required'
+                }, status=400)
+            
+            # Check for duplicate role names
+            if Role.objects.filter(name=name).exists():
+                return JsonResponse({
+                    'error': f'A role with the name "{name}" already exists'
+                }, status=400)
+            
+            # Create role
+            role = Role.objects.create(
+                name=name,
+                display_name=display_name,
+                description=data.get('description', ''),
+                is_active=data.get('is_active', True),
+                created_by=request.user,
+                updated_by=request.user
+            )
+            
+            # Assign permissions
+            if 'permission_ids' in data:
+                permission_ids = data['permission_ids']
+                role.permissions.set(permission_ids)
+            
+            return JsonResponse({
+                'id': role.id,
+                'name': role.name,
+                'display_name': role.display_name,
+                'message': 'Role created successfully'
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'error': 'Invalid JSON data'
+            }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                'error': f'Error creating role: {str(e)}'
+            }, status=500)
 
 
 @login_required

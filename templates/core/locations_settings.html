@@ -473,8 +473,22 @@ $(document).ready(function() {
     // Add Site Form
     $('#addSiteForm').on('submit', function(e) {
         e.preventDefault();
+        
+        const $submitBtn = $(this).find('button[type="submit"]');
+        const originalText = $submitBtn.html();
+        const siteName = $('#siteName').val().trim();
+        
+        // Client-side validation
+        if (!siteName) {
+            alert('Site name is required');
+            return;
+        }
+        
+        // Show loading state
+        $submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Creating...');
+        
         const formData = {
-            name: $('#siteName').val(),
+            name: siteName,
             address: $('#siteAddress').val(),
             is_site: true
         };
@@ -489,10 +503,27 @@ $(document).ready(function() {
             data: JSON.stringify(formData),
             success: function(response) {
                 $('#addSiteModal').modal('hide');
+                // Show success message
+                if (response.message) {
+                    $('<div class="alert alert-success alert-dismissible fade show" role="alert">' +
+                      response.message +
+                      '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                      '</div>').prependTo('.locations-header').delay(3000).fadeOut();
+                }
                 location.reload();
             },
             error: function(xhr) {
-                alert('Error creating site: ' + xhr.responseJSON.message);
+                let errorMessage = 'Error creating site';
+                if (xhr.responseJSON) {
+                    errorMessage += ': ' + (xhr.responseJSON.error || xhr.responseJSON.message || 'Unknown error');
+                } else if (xhr.responseText) {
+                    errorMessage += ': ' + xhr.responseText;
+                }
+                alert(errorMessage);
+            },
+            complete: function() {
+                // Reset button state
+                $submitBtn.prop('disabled', false).html(originalText);
             }
         });
     });
@@ -500,9 +531,29 @@ $(document).ready(function() {
     // Add Location Form
     $('#addLocationForm').on('submit', function(e) {
         e.preventDefault();
+        
+        const $submitBtn = $(this).find('button[type="submit"]');
+        const originalText = $submitBtn.html();
+        const locationName = $('#locationName').val().trim();
+        const parentSiteId = $('#parentSite').val();
+        
+        // Client-side validation
+        if (!locationName) {
+            alert('Location name is required');
+            return;
+        }
+        
+        if (!parentSiteId) {
+            alert('Parent site is required');
+            return;
+        }
+        
+        // Show loading state
+        $submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Creating...');
+        
         const formData = {
-            name: $('#locationName').val(),
-            parent_location_id: $('#parentSite').val(),
+            name: locationName,
+            parent_location_id: parentSiteId,
             is_site: false
         };
         
@@ -516,10 +567,27 @@ $(document).ready(function() {
             data: JSON.stringify(formData),
             success: function(response) {
                 $('#addLocationModal').modal('hide');
+                // Show success message
+                if (response.message) {
+                    $('<div class="alert alert-success alert-dismissible fade show" role="alert">' +
+                      response.message +
+                      '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                      '</div>').prependTo('.locations-header').delay(3000).fadeOut();
+                }
                 location.reload();
             },
             error: function(xhr) {
-                alert('Error creating location: ' + xhr.responseJSON.message);
+                let errorMessage = 'Error creating location';
+                if (xhr.responseJSON) {
+                    errorMessage += ': ' + (xhr.responseJSON.error || xhr.responseJSON.message || 'Unknown error');
+                } else if (xhr.responseText) {
+                    errorMessage += ': ' + xhr.responseText;
+                }
+                alert(errorMessage);
+            },
+            complete: function() {
+                // Reset button state
+                $submitBtn.prop('disabled', false).html(originalText);
             }
         });
     });
@@ -552,9 +620,23 @@ $(document).ready(function() {
     // Update Location Form
     $('#editLocationForm').on('submit', function(e) {
         e.preventDefault();
+        
+        const $submitBtn = $(this).find('button[type="submit"]');
+        const originalText = $submitBtn.html();
         const id = $('#editLocationId').val();
+        const locationName = $('#editLocationName').val().trim();
+        
+        // Client-side validation
+        if (!locationName) {
+            alert('Location name is required');
+            return;
+        }
+        
+        // Show loading state
+        $submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Updating...');
+        
         const formData = {
-            name: $('#editLocationName').val(),
+            name: locationName,
             address: $('#editLocationAddress').val(),
             parent_location_id: $('#editParentSite').val()
         };
@@ -569,10 +651,27 @@ $(document).ready(function() {
             data: JSON.stringify(formData),
             success: function(response) {
                 $('#editLocationModal').modal('hide');
+                // Show success message
+                if (response.message) {
+                    $('<div class="alert alert-success alert-dismissible fade show" role="alert">' +
+                      response.message +
+                      '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                      '</div>').prependTo('.locations-header').delay(3000).fadeOut();
+                }
                 location.reload();
             },
             error: function(xhr) {
-                alert('Error updating location: ' + xhr.responseJSON.message);
+                let errorMessage = 'Error updating location';
+                if (xhr.responseJSON) {
+                    errorMessage += ': ' + (xhr.responseJSON.error || xhr.responseJSON.message || 'Unknown error');
+                } else if (xhr.responseText) {
+                    errorMessage += ': ' + xhr.responseText;
+                }
+                alert(errorMessage);
+            },
+            complete: function() {
+                // Reset button state
+                $submitBtn.prop('disabled', false).html(originalText);
             }
         });
     });
@@ -589,7 +688,12 @@ $(document).ready(function() {
     
     // Confirm Delete
     $('#confirmDeleteLocation').on('click', function() {
+        const $deleteBtn = $(this);
+        const originalText = $deleteBtn.html();
         const id = $('#deleteLocationId').val();
+        
+        // Show loading state
+        $deleteBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Deleting...');
         
         $.ajax({
             url: '/core/api/locations/' + id + '/',
@@ -599,13 +703,27 @@ $(document).ready(function() {
             },
             success: function(response) {
                 $('#deleteLocationModal').modal('hide');
+                // Show success message
+                if (response.message) {
+                    $('<div class="alert alert-success alert-dismissible fade show" role="alert">' +
+                      response.message +
+                      '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                      '</div>').prependTo('.locations-header').delay(3000).fadeOut();
+                }
                 location.reload();
             },
             error: function(xhr) {
-                const errorMessage = xhr.responseJSON && xhr.responseJSON.error ? 
-                    xhr.responseJSON.error : 
-                    (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Unknown error occurred');
-                alert('Error deleting location: ' + errorMessage);
+                let errorMessage = 'Error deleting location';
+                if (xhr.responseJSON) {
+                    errorMessage += ': ' + (xhr.responseJSON.error || xhr.responseJSON.message || 'Unknown error');
+                } else if (xhr.responseText) {
+                    errorMessage += ': ' + xhr.responseText;
+                }
+                alert(errorMessage);
+            },
+            complete: function() {
+                // Reset button state
+                $deleteBtn.prop('disabled', false).html(originalText);
             }
         });
     });
