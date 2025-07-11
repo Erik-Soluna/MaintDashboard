@@ -5,7 +5,7 @@ Forms for core app - managing locations and equipment categories.
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Row, Column, Submit
-from .models import Location, EquipmentCategory
+from .models import Location, EquipmentCategory, Customer
 
 
 class LocationForm(forms.ModelForm):
@@ -14,7 +14,7 @@ class LocationForm(forms.ModelForm):
     class Meta:
         model = Location
         fields = [
-            'name', 'parent_location', 'is_site', 'address', 
+            'name', 'parent_location', 'customer', 'is_site', 'address', 
             'latitude', 'longitude', 'is_active'
         ]
         widgets = {
@@ -31,6 +31,11 @@ class LocationForm(forms.ModelForm):
             is_active=True
         ).order_by('name')
         
+        # Filter active customers for customer selection
+        self.fields['customer'].queryset = Customer.objects.filter(
+            is_active=True
+        ).order_by('name')
+        
         # Setup crispy forms helper
         self.helper = FormHelper()
         self.helper.layout = Layout(
@@ -41,8 +46,9 @@ class LocationForm(forms.ModelForm):
                     Column('parent_location', css_class='form-group col-md-6 mb-0'),
                 ),
                 Row(
-                    Column('is_site', css_class='form-group col-md-6 mb-0'),
-                    Column('is_active', css_class='form-group col-md-6 mb-0'),
+                    Column('customer', css_class='form-group col-md-6 mb-0'),
+                    Column('is_site', css_class='form-group col-md-3 mb-0'),
+                    Column('is_active', css_class='form-group col-md-3 mb-0'),
                 ),
             ),
             Fieldset(
@@ -106,3 +112,61 @@ class EquipmentCategoryForm(forms.ModelForm):
             if not name:
                 raise forms.ValidationError("Category name cannot be empty.")
         return name
+
+
+class CustomerForm(forms.ModelForm):
+    """Form for creating and editing customers."""
+    
+    class Meta:
+        model = Customer
+        fields = ['name', 'code', 'contact_email', 'contact_phone', 'description', 'is_active']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Setup crispy forms helper
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                'Customer Information',
+                Row(
+                    Column('name', css_class='form-group col-md-8 mb-0'),
+                    Column('code', css_class='form-group col-md-4 mb-0'),
+                ),
+                Row(
+                    Column('contact_email', css_class='form-group col-md-6 mb-0'),
+                    Column('contact_phone', css_class='form-group col-md-6 mb-0'),
+                ),
+                'description',
+                'is_active',
+            ),
+            Submit('submit', 'Save Customer', css_class='btn btn-primary')
+        )
+
+    def clean_name(self):
+        """Validate customer name."""
+        name = self.cleaned_data.get('name')
+        if name:
+            name = name.strip()
+            if not name:
+                raise forms.ValidationError("Customer name cannot be empty.")
+        return name
+    
+    def clean_code(self):
+        """Validate customer code and auto-generate if needed."""
+        code = self.cleaned_data.get('code')
+        name = self.cleaned_data.get('name')
+        
+        if not code and name:
+            # Auto-generate code from name
+            code = name.upper().replace(' ', '_')[:20]
+        
+        if code:
+            code = code.strip().upper()
+            if not code:
+                raise forms.ValidationError("Customer code cannot be empty.")
+        
+        return code

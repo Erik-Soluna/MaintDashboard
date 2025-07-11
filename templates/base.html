@@ -744,6 +744,7 @@
                 <div class="dropdown-menu">
                     <a class="dropdown-item" href="{% url 'core:settings' %}">General Settings</a>
                     <a class="dropdown-item" href="{% url 'core:locations_settings' %}">Locations</a>
+                    <a class="dropdown-item" href="{% url 'core:customers_settings' %}">Customers</a>
                     <a class="dropdown-item" href="{% url 'core:equipment_items_settings' %}">Equipment Items</a>
                 </div>
             </li>
@@ -810,10 +811,8 @@
             if (siteId && siteId !== '') {
                 url.searchParams.set('site_id', siteId);
             } else {
-                // Force clear by setting to empty string first, then redirect
-                url.searchParams.set('site_id', '');
-                window.location.href = url.toString();
-                return;
+                // Properly remove the site_id parameter when selecting "All"
+                url.searchParams.delete('site_id');
             }
             window.location.href = url.toString();
         }

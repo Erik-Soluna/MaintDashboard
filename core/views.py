@@ -9,8 +9,8 @@ from django.contrib.auth.models import User
 from equipment.models import Equipment
 from maintenance.models import MaintenanceActivity
 from events.models import CalendarEvent
-from core.models import Location, EquipmentCategory, Role, Permission, UserProfile
-from core.forms import LocationForm, EquipmentCategoryForm
+from core.models import Location, EquipmentCategory, Role, Permission, UserProfile, Customer
+from core.forms import LocationForm, EquipmentCategoryForm, CustomerForm
 from django.utils import timezone
 from django.db.models import Q, Count
 from datetime import datetime, timedelta, date
@@ -118,62 +118,159 @@ def dashboard(request):
         is_completed=False
     ).select_related('equipment', 'equipment__location').order_by('event_date')[:10]
     
-    # === POD STATUS DATA ===
-    pod_status_data = []
-    for location in locations:
-        # Equipment counts by status
-        location_equipment = equipment_query.filter(location=location)
+    # === OVERVIEW DATA (Site Status or Pod Status based on selection) ===
+    if selected_site:
+        # Show POD STATUS for selected site
+        overview_data = []
+        for location in locations:
+            # Equipment counts by status
+            location_equipment = equipment_query.filter(location=location)
+            
+            # Maintenance statistics for this pod
+            pod_maintenance = maintenance_query.filter(equipment__location=location)
+            
+            # Calendar events for this pod
+            pod_calendar = calendar_query.filter(equipment__location=location)
+            
+            # Current status
+            equipment_in_maintenance = location_equipment.filter(status='maintenance').count()
+            active_equipment = location_equipment.filter(status='active').count()
+            total_equipment = location_equipment.count()
+            
+            # Upcoming maintenance in next 7 days
+            upcoming_maintenance_count = pod_maintenance.filter(
+                scheduled_start__date__lte=urgent_cutoff,
+                scheduled_start__date__gte=today,
+                status__in=['scheduled', 'pending']
+            ).count()
+            
+            # Recent activities (last 30 days)
+            recent_activities = pod_maintenance.filter(
+                actual_end__gte=today - timedelta(days=30),
+                status='completed'
+            ).order_by('-actual_end')[:3]
+            
+            # Next scheduled events
+            next_events = pod_calendar.filter(
+                event_date__gte=today,
+                is_completed=False
+            ).order_by('event_date')[:3]
+            
+            # Calculate pod health status
+            if equipment_in_maintenance > 0:
+                status = 'maintenance'
+            elif upcoming_maintenance_count > 2:
+                status = 'warning'
+            elif active_equipment == total_equipment:
+                status = 'healthy'
+            else:
+                status = 'caution'
+            
+            overview_data.append({
+                'location': location,
+                'status': status,
+                'total_equipment': total_equipment,
+                'active_equipment': active_equipment,
+                'equipment_in_maintenance': equipment_in_maintenance,
+                'upcoming_maintenance_count': upcoming_maintenance_count,
+                'recent_activities': recent_activities,
+                'next_events': next_events,
+                'customer': location.get_effective_customer(),
+                'customer_display': location.get_customer_display(),
+            })
+        overview_type = 'pods'
         
-        # Maintenance statistics for this pod
-        pod_maintenance = maintenance_query.filter(equipment__location=location)
+    else:
+        # Show SITE STATUS for all sites
+        overview_data = []
+        all_sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
         
-        # Calendar events for this pod
-        pod_calendar = calendar_query.filter(equipment__location=location)
-        
-        # Current status
-        equipment_in_maintenance = location_equipment.filter(status='maintenance').count()
-        active_equipment = location_equipment.filter(status='active').count()
-        total_equipment = location_equipment.count()
-        
-        # Upcoming maintenance in next 7 days
-        upcoming_maintenance_count = pod_maintenance.filter(
-            scheduled_start__date__lte=urgent_cutoff,
-            scheduled_start__date__gte=today,
-            status__in=['scheduled', 'pending']
-        ).count()
-        
-        # Recent activities (last 30 days)
-        recent_activities = pod_maintenance.filter(
-            actual_end__gte=today - timedelta(days=30),
-            status='completed'
-        ).order_by('-actual_end')[:3]
-        
-        # Next scheduled events
-        next_events = pod_calendar.filter(
-            event_date__gte=today,
-            is_completed=False
-        ).order_by('event_date')[:3]
-        
-        # Calculate pod health status
-        if equipment_in_maintenance > 0:
-            pod_status = 'maintenance'
-        elif upcoming_maintenance_count > 2:
-            pod_status = 'warning'
-        elif active_equipment == total_equipment:
-            pod_status = 'healthy'
-        else:
-            pod_status = 'caution'
-        
-        pod_status_data.append({
-            'location': location,
-            'pod_status': pod_status,
-            'total_equipment': total_equipment,
-            'active_equipment': active_equipment,
-            'equipment_in_maintenance': equipment_in_maintenance,
-            'upcoming_maintenance_count': upcoming_maintenance_count,
-            'recent_activities': recent_activities,
-            'next_events': next_events,
-        })
+        for site in all_sites:
+            # Get equipment and maintenance for this entire site
+            site_equipment_filter = Q(location__parent_location=site) | Q(location=site)
+            site_equipment = Equipment.objects.filter(site_equipment_filter)
+            
+            site_maintenance_filter = Q(equipment__location__parent_location=site) | Q(equipment__location=site)
+            site_maintenance = MaintenanceActivity.objects.filter(site_maintenance_filter)
+            
+            site_calendar_filter = Q(equipment__location__parent_location=site) | Q(equipment__location=site)
+            site_calendar = CalendarEvent.objects.filter(site_calendar_filter)
+            
+            # Equipment counts by status
+            equipment_in_maintenance = site_equipment.filter(status='maintenance').count()
+            active_equipment = site_equipment.filter(status='active').count()
+            inactive_equipment = site_equipment.filter(status='inactive').count()
+            total_equipment = site_equipment.count()
+            
+            # Maintenance statistics for this site
+            pending_maintenance = site_maintenance.filter(status='pending').count()
+            in_progress_maintenance = site_maintenance.filter(status='in_progress').count()
+            overdue_maintenance = site_maintenance.filter(
+                scheduled_end__lt=timezone.now(),
+                status__in=['pending', 'scheduled']
+            ).count()
+            
+            # Upcoming maintenance in next 7 days
+            upcoming_maintenance_count = site_maintenance.filter(
+                scheduled_start__date__lte=urgent_cutoff,
+                scheduled_start__date__gte=today,
+                status__in=['scheduled', 'pending']
+            ).count()
+            
+            # Recent activities (last 30 days)
+            recent_activities = site_maintenance.filter(
+                actual_end__gte=today - timedelta(days=30),
+                status='completed'
+            ).order_by('-actual_end')[:3]
+            
+            # Calendar events
+            pending_events = site_calendar.filter(
+                is_completed=False,
+                event_date__gte=today
+            ).count()
+            
+            # Next scheduled events
+            next_events = site_calendar.filter(
+                event_date__gte=today,
+                is_completed=False
+            ).order_by('event_date')[:3]
+            
+            # Calculate site health status
+            equipment_health_ratio = active_equipment / max(total_equipment, 1)
+            maintenance_load = pending_maintenance + overdue_maintenance
+            
+            if overdue_maintenance > 0:
+                status = 'critical'
+            elif equipment_in_maintenance > total_equipment * 0.3 or maintenance_load > 10:
+                status = 'warning'
+            elif inactive_equipment > total_equipment * 0.2:
+                status = 'caution'
+            elif equipment_health_ratio > 0.9 and maintenance_load < 3:
+                status = 'healthy'
+            else:
+                status = 'good'
+            
+            # Count pods (child locations) for this site
+            pod_count = Location.objects.filter(parent_location=site, is_active=True).count()
+            
+            overview_data.append({
+                'site': site,
+                'status': status,
+                'total_equipment': total_equipment,
+                'active_equipment': active_equipment,
+                'equipment_in_maintenance': equipment_in_maintenance,
+                'inactive_equipment': inactive_equipment,
+                'pending_maintenance': pending_maintenance,
+                'in_progress_maintenance': in_progress_maintenance,
+                'overdue_maintenance': overdue_maintenance,
+                'upcoming_maintenance_count': upcoming_maintenance_count,
+                'pending_events': pending_events,
+                'pod_count': pod_count,
+                'recent_activities': recent_activities,
+                'next_events': next_events,
+                'equipment_health_ratio': round(equipment_health_ratio * 100, 1),
+            })
+        overview_type = 'sites'
     
     # === OVERALL SITE STATISTICS ===
     site_stats = {
@@ -233,11 +330,14 @@ def dashboard(request):
         'upcoming_maintenance': upcoming_maintenance,
         'upcoming_calendar': upcoming_calendar,
         
-        # Pod status data (naturally sorted)
-        'pod_status_data': pod_status_data,
-        'total_pods': len(pod_status_data),
+        # Overview data (either pods or sites based on selection)
+        'overview_data': overview_data,
+        'overview_type': overview_type,
+        'total_overview_items': len(overview_data),
         
         # Legacy data for backwards compatibility
+        'pod_status_data': overview_data if overview_type == 'pods' else [],
+        'total_pods': len(overview_data) if overview_type == 'pods' else 0,
         'locations': locations,
         'urgent_items': urgent_maintenance,
         'upcoming_items': upcoming_maintenance,
@@ -1357,3 +1457,103 @@ def import_locations_csv(request):
         messages.error(request, f'Error reading CSV file: {str(e)}')
     
     return redirect('core:locations_settings')
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def customers_settings(request):
+    """Customer management view."""
+    customers = Customer.objects.all().order_by('name')
+    
+    # Pagination
+    paginator = Paginator(customers, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'customers': customers,
+    }
+    return render(request, 'core/customers_settings.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def add_customer(request):
+    """Add new customer."""
+    if request.method == 'POST':
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+            customer = form.save(commit=False)
+            customer.created_by = request.user
+            customer.save()
+            messages.success(request, f'Customer "{customer.name}" has been created successfully.')
+            return redirect('core:customers_settings')
+    else:
+        form = CustomerForm()
+    
+    context = {
+        'form': form,
+        'title': 'Add Customer',
+        'action': 'Add'
+    }
+    return render(request, 'core/customer_form.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def edit_customer(request, customer_id):
+    """Edit existing customer."""
+    customer = get_object_or_404(Customer, id=customer_id)
+    
+    if request.method == 'POST':
+        form = CustomerForm(request.POST, instance=customer)
+        if form.is_valid():
+            customer = form.save(commit=False)
+            customer.updated_by = request.user
+            customer.save()
+            messages.success(request, f'Customer "{customer.name}" has been updated successfully.')
+            return redirect('core:customers_settings')
+    else:
+        form = CustomerForm(instance=customer)
+    
+    context = {
+        'form': form,
+        'customer': customer,
+        'title': f'Edit Customer: {customer.name}',
+        'action': 'Edit'
+    }
+    return render(request, 'core/customer_form.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def delete_customer(request, customer_id):
+    """Delete customer."""
+    customer = get_object_or_404(Customer, id=customer_id)
+    
+    if request.method == 'POST':
+        # Check if customer has associated locations
+        location_count = customer.locations.count()
+        if location_count > 0:
+            messages.error(
+                request, 
+                f'Cannot delete customer "{customer.name}" because it has {location_count} associated location(s). '
+                'Please reassign or remove the locations first.'
+            )
+        else:
+            customer_name = customer.name
+            customer.delete()
+            messages.success(request, f'Customer "{customer_name}" has been deleted successfully.')
+        
+        return redirect('core:customers_settings')
+    
+    # Get associated locations for confirmation
+    associated_locations = customer.locations.all()
+    
+    context = {
+        'customer': customer,
+        'associated_locations': associated_locations,
+        'location_count': associated_locations.count()
+    }
+    return render(request, 'core/delete_customer.html', context)
