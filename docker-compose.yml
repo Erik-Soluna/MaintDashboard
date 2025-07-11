@@ -11,6 +11,8 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
+    networks:
+      - maintenance_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -21,6 +23,8 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    networks:
+      - maintenance_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -54,6 +58,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - maintenance_network
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.maintenance-web.rule=Host(`maintenance.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.maintenance-web.entrypoints=websecure"
+      - "traefik.http.routers.maintenance-web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.maintenance-web.loadbalancer.server.port=8000"
+      - "traefik.docker.network=proxy"
 
   celery:
     build: .
@@ -74,6 +88,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - maintenance_network
 
   celery-beat:
     build: .
@@ -94,6 +110,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - maintenance_network
+
+networks:
+  maintenance_network:
+    driver: bridge
+  proxy:
+    external: true
 
 volumes:
   postgres_data:
