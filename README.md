@@ -1,427 +1,120 @@
 # Maintenance Dashboard
 
-A Django-based web application for managing equipment maintenance, events, and related operations.
+A Django-based web application for managing equipment maintenance, events, and related operations with integrated Docker stack management.
 
-## Features
+## ✨ Key Features
 
-- **Equipment Management**: Track and manage various equipment items
-- **Maintenance Scheduling**: Plan and track maintenance activities
-- **Event Logging**: Record and monitor maintenance events
-- **User Authentication**: Secure login and user management
-- **Responsive UI**: Bootstrap-based interface with crispy forms
-- **Filtering & Tables**: Advanced filtering and tabular data views
-- **Media Management**: File and image upload capabilities
-- **Container Management**: Integrated Portainer for Docker stack management and monitoring
+- **Equipment Management** - Track and manage equipment items
+- **Maintenance Scheduling** - Plan and track maintenance activities  
+- **Event Logging** - Record and monitor maintenance events
+- **Calendar Integration** - iCal and Google Calendar sync
+- **CSV Import/Export** - Bulk data operations
+- **Container Management** - Integrated Portainer for Docker management
+- **User Authentication** - Secure role-based access control
 
-## Prerequisites
+## 🚀 Quick Start
 
-- Python 3.8 or higher
-- PostgreSQL 12 or higher
-- Redis (for background tasks with Celery)
-- Git
+### Docker Installation (Recommended)
 
-## Installation Options
-
-Choose one of the following installation methods:
-
-> **💡 Recommendation**: Use Docker installation for the easiest setup experience with all dependencies automatically configured.
-
-## Docker Installation (Recommended)
-
-Docker provides an easy way to run the entire application stack without manual setup of PostgreSQL, Redis, or Python dependencies.
-
-### Prerequisites
-
-- Docker and Docker Compose installed on your system
-- Git
-
-### Quick Start with Docker
-
-1. **Clone the Repository**
 ```bash
+# Clone the repository
 git clone <repository-url>
 cd maintenance-dashboard
-```
 
-2. **Build and Start Services**
-```bash
-docker-compose up --build
-```
+# Start all services
+docker-compose up -d
 
-This command will:
-- Build the Django application image
-- Start PostgreSQL database
-- Start Redis server
-- Run database migrations
-- Start the Django application
-- Start Celery worker and scheduler
-
-3. **Access the Application**
-
-The application will be available at `http://localhost:8000`
-
-4. **Create a Superuser**
-
-In a new terminal, run:
-```bash
+# Create admin user
 docker-compose exec web python manage.py createsuperuser
 ```
 
-### Docker Commands
+**Access the application**: `http://localhost:8000`  
+**Container management**: `http://localhost:9000` (Portainer)
 
-**Start services in background:**
-```bash
-docker-compose up -d
-```
-
-**View logs:**
-```bash
-docker-compose logs -f
-```
-
-**Stop services:**
-```bash
-docker-compose down
-```
-
-**Stop services and remove volumes (WARNING: This will delete all data):**
-```bash
-docker-compose down -v
-```
-
-**Rebuild services:**
-```bash
-docker-compose up --build
-```
-
-**Run Django management commands:**
-```bash
-docker-compose exec web python manage.py <command>
-```
-
-**Access Django shell:**
-```bash
-docker-compose exec web python manage.py shell
-```
-
-**Access database shell:**
-```bash
-docker-compose exec db psql -U postgres -d maintenance_dashboard
-```
-
-### Container Management with Portainer
-
-The stack includes Portainer for easy container management through a web interface:
-
-**Access Portainer:**
-- Development: `http://localhost:9000`
-- Production: `https://localhost:9443`
-
-**First-time setup:**
-1. Navigate to the Portainer URL
-2. Create an admin user (strong password required)
-3. Connect to the local Docker environment
-4. Start managing your containers through the web interface
-
-**Key features:**
-- Visual container management and monitoring
-- Real-time logs and resource usage
-- Stack management through web UI
-- Easy service scaling and configuration updates
-
-For detailed Portainer documentation, see [docs/PORTAINER.md](docs/PORTAINER.md).
-
-### Production Docker Setup
-
-For production deployment, create a `docker-compose.prod.yml` file:
-
-```yaml
-version: '3.8'
-
-services:
-  web:
-    build: .
-    environment:
-      - DEBUG=False
-      - SECRET_KEY=your-production-secret-key
-      - ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
-      - DB_PASSWORD=your-secure-password
-    restart: unless-stopped
-
-  db:
-    environment:
-      POSTGRES_PASSWORD: your-secure-password
-    restart: unless-stopped
-
-  redis:
-    restart: unless-stopped
-```
-
-Run production setup:
-```bash
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-```
-
-## Manual Installation (Alternative)
-
-If you prefer to install without Docker, follow these steps:
-
-### 1. Clone the Repository
+### Manual Installation
 
 ```bash
-git clone <repository-url>
-cd maintenance-dashboard
-```
-
-### 2. Create a Virtual Environment
-
-```bash
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-### 3. Install Dependencies
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-### 4. Set Up Environment Variables
-
-Create a `.env` file in the project root with the following variables:
-
-```bash
-# Django Settings
-SECRET_KEY=your-secret-key-here
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-
-# Database Configuration
-DB_NAME=maintenance_dashboard
-DB_USER=postgres
-DB_PASSWORD=your-database-password
-DB_HOST=localhost
-DB_PORT=5432
-
-# Redis Configuration (for Celery)
-REDIS_URL=redis://localhost:6379/0
-```
-
-### 5. Set Up PostgreSQL Database
-
-Create a PostgreSQL database:
-
-```sql
-CREATE DATABASE maintenance_dashboard;
-CREATE USER maintenance_user WITH PASSWORD 'your-password';
-GRANT ALL PRIVILEGES ON DATABASE maintenance_dashboard TO maintenance_user;
-```
-
-### 6. Run Database Migrations
-
-```bash
-python manage.py makemigrations
+# Set up database (PostgreSQL required)
 python manage.py migrate
-```
-
-### 7. Create a Superuser
-
-```bash
 python manage.py createsuperuser
-```
 
-### 8. Collect Static Files
-
-```bash
-python manage.py collectstatic
-```
-
-## Usage
-
-### Development Server
-
-Start the Django development server:
-
-```bash
+# Run development server
 python manage.py runserver
 ```
 
-The application will be available at `http://localhost:8000`
+## 📚 Documentation
 
-### Background Tasks (Optional)
+**Complete documentation is available in the [docs/](docs/) directory.**
 
-If you need to run background tasks with Celery:
+### Quick Links
+- **📖 [Full Documentation Index](docs/README.md)** - Complete guide to all documentation
+- **⚡ [Quick Start Guide](docs/quickstart.md)** - Detailed setup instructions
+- **🐳 [Docker Deployment](docs/deployment/docker.md)** - Docker setup and configuration
+- **🗄️ [Database Setup](docs/database/setup.md)** - Database configuration
+- **✨ [Features Guide](docs/features/overview.md)** - Complete feature documentation
+- **🔧 [Development Setup](docs/development/setup.md)** - Development environment
+- **🆘 [Troubleshooting](docs/troubleshooting/common-issues.md)** - Common issues and fixes
 
-1. Start Redis server:
-```bash
-redis-server
+## 🛠️ Technology Stack
+
+- **Backend**: Django 4.x, PostgreSQL, Redis
+- **Frontend**: Bootstrap, JavaScript, crispy-forms
+- **Containerization**: Docker, Docker Compose
+- **Management**: Portainer for container orchestration
+
+## 📋 Prerequisites
+
+- **Docker & Docker Compose** (recommended) OR
+- **Python 3.8+**, **PostgreSQL 12+**, **Redis** (manual installation)
+
+## 🔧 Configuration
+
+Create a `.env` file for environment variables:
+
+```env
+# Database
+DB_NAME=maintenance_dashboard
+DB_USER=postgres
+DB_PASSWORD=your_password
+DB_HOST=localhost
+DB_PORT=5432
+
+# Django
+SECRET_KEY=your-secret-key
+DEBUG=True
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
 ```
 
-2. Start Celery worker:
-```bash
-celery -A maintenance_dashboard worker --loglevel=info
-```
-
-### Admin Interface
-
-Access the Django admin interface at `http://localhost:8000/admin/` using the superuser credentials you created.
-
-### Main Features Access
-
-- **Dashboard**: `http://localhost:8000/` - Main dashboard view
-- **Equipment**: Manage equipment items and their details
-- **Maintenance**: Schedule and track maintenance activities
-- **Events**: Log and monitor maintenance events
-- **Reports**: View maintenance reports and analytics
-- **Container Management**: `http://localhost:9000/` - Portainer web interface for Docker management
-
-## Project Structure
-
-```
-maintenance_dashboard/
-├── maintenance_dashboard/    # Main Django project settings
-├── equipment/               # Equipment management app
-├── maintenance/            # Maintenance scheduling app
-├── events/                 # Event logging app
-├── core/                   # Core functionality app
-├── controllers/            # Controller logic
-├── models/                 # Data models
-├── views/                  # View logic
-├── static/                 # Static files (CSS, JS, images)
-├── templates/              # HTML templates
-├── manage.py              # Django management script
-└── requirements.txt       # Python dependencies
-```
-
-## Production Deployment
-
-### Environment Setup
-
-1. Set `DEBUG=False` in your `.env` file
-2. Configure proper `ALLOWED_HOSTS`
-3. Set up a production database
-4. Configure a web server (nginx) and WSGI server (gunicorn)
-
-### Using Gunicorn
-
-```bash
-gunicorn maintenance_dashboard.wsgi:application --bind 0.0.0.0:8000
-```
-
-### Static Files
-
-The project is configured to use WhiteNoise for serving static files in production.
-
-## Configuration
-
-### Database
-
-The project uses PostgreSQL by default. You can modify database settings in the `.env` file or directly in `maintenance_dashboard/settings.py`.
-
-### Authentication
-
-- Login URL: `/auth/login/`
-- Logout redirect: `/auth/login/`
-- Home redirect after login: `/`
-
-### Media Files
-
-Uploaded files are stored in the `media/` directory. Make sure this directory has proper write permissions.
-
-## Development
-
-### Running Tests
-
-```bash
-python manage.py test
-```
-
-### Django Shell
-
-Access the Django shell for debugging:
-
-```bash
-python manage.py shell
-```
-
-### Database Shell
-
-Access the database shell:
-
-```bash
-python manage.py dbshell
-```
-
-## Troubleshooting
-
-### Docker Issues
-
-1. **Port already in use**: If port 8000, 5432, or 6379 is already in use:
-   ```bash
-   docker-compose down
-   # Kill processes using the ports or change ports in docker-compose.yml
-   ```
-
-2. **Permission denied errors**: 
-   ```bash
-   sudo chown -R $USER:$USER .
-   docker-compose down -v
-   docker-compose up --build
-   ```
-
-3. **Database connection issues**:
-   ```bash
-   docker-compose down -v  # This will remove all data
-   docker-compose up --build
-   ```
-
-4. **View Docker logs**:
-   ```bash
-   docker-compose logs web
-   docker-compose logs db
-   docker-compose logs redis
-   ```
-
-5. **Reset everything**:
-   ```bash
-   docker-compose down -v
-   docker system prune -a --volumes
-   docker-compose up --build
-   ```
-
-6. **Portainer access issues**:
-   ```bash
-   # Check if Portainer is running
-   docker-compose ps portainer
-   
-   # View Portainer logs
-   docker-compose logs portainer
-   
-   # Restart Portainer only
-   docker-compose restart portainer
-   ```
-
-### Common Issues (Manual Installation)
-
-1. **Database Connection Error**: Ensure PostgreSQL is running and credentials are correct
-2. **Static Files Not Loading**: Run `python manage.py collectstatic`
-3. **Migration Issues**: Try `python manage.py makemigrations` followed by `python manage.py migrate`
-4. **Permission Errors**: Ensure proper file permissions on media and static directories
-5. **Virtual Environment Issues**: Make sure virtual environment is activated
-
-### Logs
-
-- **Docker**: Use `docker-compose logs -f` to view real-time logs
-- **Manual Installation**: Application logs are stored in `debug.log` in the project root directory
-
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## Support
+See [Development Guide](docs/development/contributing.md) for detailed contribution guidelines.
 
-For support and questions, please refer to the project documentation or create an issue in the repository.
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🆘 Support
+
+- **Documentation**: [docs/README.md](docs/README.md)
+- **Issues**: [GitHub Issues](link-to-issues)
+- **Discussions**: [GitHub Discussions](link-to-discussions)
+
+---
+
+**Need help?** Start with the [Quick Start Guide](docs/quickstart.md) or check [Common Issues](docs/troubleshooting/common-issues.md).
