@@ -810,10 +810,8 @@
             if (siteId && siteId !== '') {
                 url.searchParams.set('site_id', siteId);
             } else {
-                // Force clear by setting to empty string first, then redirect
-                url.searchParams.set('site_id', '');
-                window.location.href = url.toString();
-                return;
+                // Properly remove the site_id parameter when selecting "All"
+                url.searchParams.delete('site_id');
             }
             window.location.href = url.toString();
         }

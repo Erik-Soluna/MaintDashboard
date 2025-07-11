@@ -140,15 +140,31 @@ def initialize_default_permissions():
     # Define default permissions
     default_permissions = [
         # Admin permissions
-        ('admin.full_access', 'Full System Access', 'Complete access to all system functions', 'admin'),
+        ('admin.full_access', 'Full System Access', 'Complete access to all system functions', 'administration'),
         
-        # Equipment permissions
+        # Administration permissions (Settings, Users, System Config)
+        ('administration.read', 'Administration Read', 'View system settings, users, and configuration', 'administration'),
+        ('administration.write', 'Administration Write', 'Manage system settings, users, and configuration', 'administration'),
+        
+        # Events permissions  
+        ('events.read', 'Events Read', 'View calendar events and schedules', 'events'),
+        ('events.write', 'Events Write', 'Create, edit, and manage calendar events', 'events'),
+        
+        # Site Map permissions
+        ('site_map.read', 'Site Map Read', 'View site map, locations, and equipment positions', 'site_map'),
+        ('site_map.write', 'Site Map Write', 'Edit locations and equipment positions on site map', 'site_map'),
+        
+        # Maintenance/Calendar permissions
+        ('maintenance_calendar.read', 'Maintenance/Calendar Read', 'View maintenance activities and calendar', 'maintenance_calendar'),
+        ('maintenance_calendar.write', 'Maintenance/Calendar Write', 'Create and manage maintenance activities and calendar items', 'maintenance_calendar'),
+        
+        # Legacy Equipment permissions (for backward compatibility)
         ('equipment.view', 'View Equipment', 'View equipment details and lists', 'equipment'),
         ('equipment.create', 'Create Equipment', 'Create new equipment records', 'equipment'),
         ('equipment.edit', 'Edit Equipment', 'Edit existing equipment records', 'equipment'),
         ('equipment.delete', 'Delete Equipment', 'Delete equipment records', 'equipment'),
         
-        # Maintenance permissions
+        # Legacy Maintenance permissions (for backward compatibility)
         ('maintenance.view', 'View Maintenance', 'View maintenance activities and schedules', 'maintenance'),
         ('maintenance.create', 'Create Maintenance', 'Create maintenance activities', 'maintenance'),
         ('maintenance.edit', 'Edit Maintenance', 'Edit maintenance activities', 'maintenance'),
@@ -158,21 +174,21 @@ def initialize_default_permissions():
         ('maintenance.manage', 'Manage Maintenance', 'Manage own maintenance activities', 'maintenance'),
         ('maintenance.manage_all', 'Manage All Maintenance', 'Manage all maintenance activities', 'maintenance'),
         
-        # User permissions
+        # Legacy User permissions (for backward compatibility)
         ('users.view', 'View Users', 'View user profiles and information', 'users'),
         ('users.manage', 'Manage Users', 'Create, edit, and manage user accounts', 'users'),
         
-        # Settings permissions
+        # Legacy Settings permissions (for backward compatibility)
         ('settings.view', 'View Settings', 'View system settings', 'settings'),
         ('settings.manage', 'Manage Settings', 'Manage system settings and configuration', 'settings'),
         
-        # Calendar permissions
+        # Legacy Calendar permissions (for backward compatibility)
         ('calendar.view', 'View Calendar', 'View calendar events', 'calendar'),
         ('calendar.create', 'Create Calendar Events', 'Create calendar events', 'calendar'),
         ('calendar.edit', 'Edit Calendar Events', 'Edit calendar events', 'calendar'),
         ('calendar.delete', 'Delete Calendar Events', 'Delete calendar events', 'calendar'),
         
-        # Reports permissions
+        # Legacy Reports permissions (for backward compatibility)
         ('reports.view', 'View Reports', 'View system reports', 'reports'),
         ('reports.generate', 'Generate Reports', 'Generate system reports', 'reports'),
     ]
@@ -203,9 +219,14 @@ def initialize_default_permissions():
         {
             'name': 'manager',
             'display_name': 'Maintenance Manager',
-            'description': 'Manage all maintenance activities and equipment',
+            'description': 'Full read/write access to all sections except administration',
             'is_system_role': True,
             'permissions': [
+                'events.read', 'events.write',
+                'site_map.read', 'site_map.write',
+                'maintenance_calendar.read', 'maintenance_calendar.write',
+                'administration.read',
+                # Legacy permissions for backward compatibility
                 'equipment.view', 'equipment.create', 'equipment.edit',
                 'maintenance.view', 'maintenance.create', 'maintenance.edit', 
                 'maintenance.assign', 'maintenance.complete', 'maintenance.manage_all',
@@ -217,9 +238,13 @@ def initialize_default_permissions():
         {
             'name': 'technician',
             'display_name': 'Maintenance Technician',
-            'description': 'Perform maintenance activities and update equipment',
+            'description': 'Read/write access to maintenance and events, read-only for other sections',
             'is_system_role': True,
             'permissions': [
+                'events.read', 'events.write',
+                'site_map.read',
+                'maintenance_calendar.read', 'maintenance_calendar.write',
+                # Legacy permissions for backward compatibility
                 'equipment.view', 'equipment.edit',
                 'maintenance.view', 'maintenance.edit', 'maintenance.complete', 'maintenance.manage',
                 'calendar.view', 'calendar.create', 'calendar.edit',
@@ -229,13 +254,30 @@ def initialize_default_permissions():
         {
             'name': 'viewer',
             'display_name': 'Read-Only Viewer',
-            'description': 'View-only access to equipment and maintenance information',
+            'description': 'Read-only access to all sections',
             'is_system_role': True,
             'permissions': [
+                'events.read',
+                'site_map.read', 
+                'maintenance_calendar.read',
+                # Legacy permissions for backward compatibility
                 'equipment.view',
                 'maintenance.view',
                 'calendar.view',
                 'reports.view'
+            ]
+        },
+        {
+            'name': 'admin_user',
+            'display_name': 'System Administrator',
+            'description': 'Full read/write access to all sections including administration',
+            'is_system_role': True,
+            'permissions': [
+                'events.read', 'events.write',
+                'site_map.read', 'site_map.write',
+                'maintenance_calendar.read', 'maintenance_calendar.write',
+                'administration.read', 'administration.write',
+                'admin.full_access'
             ]
         }
     ]
