@@ -807,10 +807,13 @@
         // Site selector change handler
         function changeSite(siteId) {
             const url = new URL(window.location);
-            if (siteId) {
+            if (siteId && siteId !== '') {
                 url.searchParams.set('site_id', siteId);
             } else {
-                url.searchParams.delete('site_id');
+                // Force clear by setting to empty string first, then redirect
+                url.searchParams.set('site_id', '');
+                window.location.href = url.toString();
+                return;
             }
             window.location.href = url.toString();
         }
