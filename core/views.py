@@ -490,23 +490,75 @@ def locations_api(request):
     """API endpoint for locations management."""
     if request.method == 'GET':
         locations = Location.objects.all().values(
-            'id', 'name', 'description', 'is_site', 'is_active', 'parent_location__name'
+            'id', 'name', 'address', 'is_site', 'is_active', 'parent_location__name'
         )
         return JsonResponse(list(locations), safe=False)
     
     elif request.method == 'POST':
-        data = json.loads(request.body)
-        location = Location.objects.create(
-            name=data.get('name'),
-            description=data.get('description', ''),
-            is_site=data.get('is_site', False),
-            parent_location_id=data.get('parent_location_id')
-        )
-        return JsonResponse({
-            'id': location.id,
-            'name': location.name,
-            'message': 'Location created successfully'
-        })
+        try:
+            data = json.loads(request.body)
+            
+            # Validate required fields
+            name = data.get('name', '').strip()
+            if not name:
+                return JsonResponse({
+                    'error': 'Location name is required'
+                }, status=400)
+            
+            is_site = data.get('is_site', False)
+            parent_location_id = data.get('parent_location_id')
+            
+            # Validate site/location rules
+            if is_site and parent_location_id:
+                return JsonResponse({
+                    'error': 'Site locations cannot have a parent location'
+                }, status=400)
+            
+            if not is_site and not parent_location_id:
+                return JsonResponse({
+                    'error': 'Equipment locations must have a parent site'
+                }, status=400)
+            
+            # Check for duplicate names at the same level
+            if is_site:
+                if Location.objects.filter(name=name, is_site=True).exists():
+                    return JsonResponse({
+                        'error': f'A site with the name "{name}" already exists'
+                    }, status=400)
+            else:
+                if Location.objects.filter(
+                    name=name, 
+                    parent_location_id=parent_location_id,
+                    is_site=False
+                ).exists():
+                    return JsonResponse({
+                        'error': f'A location with the name "{name}" already exists at this site'
+                    }, status=400)
+            
+            # Create location
+            location = Location.objects.create(
+                name=name,
+                address=data.get('address', ''),
+                is_site=is_site,
+                parent_location_id=parent_location_id,
+                created_by=request.user,
+                updated_by=request.user
+            )
+            
+            return JsonResponse({
+                'id': location.id,
+                'name': location.name,
+                'message': f'{"Site" if is_site else "Location"} created successfully'
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'error': 'Invalid JSON data'
+            }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                'error': f'Error creating location: {str(e)}'
+            }, status=500)
 
 
 @login_required
