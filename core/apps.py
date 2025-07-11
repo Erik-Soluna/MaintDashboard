@@ -14,18 +14,15 @@ class CoreConfig(AppConfig):
         
         # Initialize permissions on startup (only after migrations)
         try:
-            # Check if the database is ready by checking if our tables exist
-            with connection.cursor() as cursor:
-                cursor.execute("""
-                    SELECT name FROM sqlite_master 
-                    WHERE type='table' AND name='core_permission'
-                    UNION ALL
-                    SELECT tablename FROM pg_tables 
-                    WHERE tablename='core_permission'
-                """)
-                if cursor.fetchone():
-                    # Database tables exist, safe to initialize permissions
-                    self._initialize_permissions()
+            # Check if the database is ready by checking if our models are available
+            from django.db import models
+            from core.models import Permission
+            
+            # Try to access the Permission model to see if tables exist
+            Permission.objects.exists()
+            
+            # Database tables exist, safe to initialize permissions
+            self._initialize_permissions()
         except (OperationalError, Exception):
             # Database not ready or other error, skip initialization
             pass

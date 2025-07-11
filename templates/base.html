@@ -811,8 +811,8 @@
             if (siteId && siteId !== '') {
                 url.searchParams.set('site_id', siteId);
             } else {
-                // Properly remove the site_id parameter when selecting "All"
-                url.searchParams.delete('site_id');
+                // Explicitly set empty string to trigger clearing logic in context processor
+                url.searchParams.set('site_id', '');
             }
             window.location.href = url.toString();
         }
