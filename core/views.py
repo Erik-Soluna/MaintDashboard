@@ -1,4 +1,4 @@
-"""
+THIS SHOULD BE A LINTER ERROR"""
 Views for core app.
 """
 
@@ -118,61 +118,94 @@ def dashboard(request):
         is_completed=False
     ).select_related('equipment', 'equipment__location').order_by('event_date')[:10]
     
-    # === POD STATUS DATA ===
-    pod_status_data = []
-    for location in locations:
+    # === SITE STATUS DATA ===
+    site_status_data = []
+    all_sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
+    
+    for site in all_sites:
+        # Get equipment and maintenance for this entire site
+        site_equipment_filter = Q(location__parent_location=site) | Q(location=site)
+        site_equipment = Equipment.objects.filter(site_equipment_filter)
+        
+        site_maintenance_filter = Q(equipment__location__parent_location=site) | Q(equipment__location=site)
+        site_maintenance = MaintenanceActivity.objects.filter(site_maintenance_filter)
+        
+        site_calendar_filter = Q(equipment__location__parent_location=site) | Q(equipment__location=site)
+        site_calendar = CalendarEvent.objects.filter(site_calendar_filter)
+        
         # Equipment counts by status
-        location_equipment = equipment_query.filter(location=location)
+        equipment_in_maintenance = site_equipment.filter(status='maintenance').count()
+        active_equipment = site_equipment.filter(status='active').count()
+        inactive_equipment = site_equipment.filter(status='inactive').count()
+        total_equipment = site_equipment.count()
         
-        # Maintenance statistics for this pod
-        pod_maintenance = maintenance_query.filter(equipment__location=location)
-        
-        # Calendar events for this pod
-        pod_calendar = calendar_query.filter(equipment__location=location)
-        
-        # Current status
-        equipment_in_maintenance = location_equipment.filter(status='maintenance').count()
-        active_equipment = location_equipment.filter(status='active').count()
-        total_equipment = location_equipment.count()
+        # Maintenance statistics for this site
+        pending_maintenance = site_maintenance.filter(status='pending').count()
+        in_progress_maintenance = site_maintenance.filter(status='in_progress').count()
+        overdue_maintenance = site_maintenance.filter(
+            scheduled_end__lt=timezone.now(),
+            status__in=['pending', 'scheduled']
+        ).count()
         
         # Upcoming maintenance in next 7 days
-        upcoming_maintenance_count = pod_maintenance.filter(
+        upcoming_maintenance_count = site_maintenance.filter(
             scheduled_start__date__lte=urgent_cutoff,
             scheduled_start__date__gte=today,
             status__in=['scheduled', 'pending']
         ).count()
         
         # Recent activities (last 30 days)
-        recent_activities = pod_maintenance.filter(
+        recent_activities = site_maintenance.filter(
             actual_end__gte=today - timedelta(days=30),
             status='completed'
         ).order_by('-actual_end')[:3]
         
+        # Calendar events
+        pending_events = site_calendar.filter(
+            is_completed=False,
+            event_date__gte=today
+        ).count()
+        
         # Next scheduled events
-        next_events = pod_calendar.filter(
+        next_events = site_calendar.filter(
             event_date__gte=today,
             is_completed=False
         ).order_by('event_date')[:3]
         
-        # Calculate pod health status
-        if equipment_in_maintenance > 0:
-            pod_status = 'maintenance'
-        elif upcoming_maintenance_count > 2:
-            pod_status = 'warning'
-        elif active_equipment == total_equipment:
-            pod_status = 'healthy'
-        else:
-            pod_status = 'caution'
+        # Calculate site health status
+        equipment_health_ratio = active_equipment / max(total_equipment, 1)
+        maintenance_load = pending_maintenance + overdue_maintenance
         
-        pod_status_data.append({
-            'location': location,
-            'pod_status': pod_status,
+        if overdue_maintenance > 0:
+            site_status = 'critical'
+        elif equipment_in_maintenance > total_equipment * 0.3 or maintenance_load > 10:
+            site_status = 'warning'
+        elif inactive_equipment > total_equipment * 0.2:
+            site_status = 'caution'
+        elif equipment_health_ratio > 0.9 and maintenance_load < 3:
+            site_status = 'healthy'
+        else:
+            site_status = 'good'
+        
+        # Count pods (child locations) for this site
+        pod_count = Location.objects.filter(parent_location=site, is_active=True).count()
+        
+        site_status_data.append({
+            'site': site,
+            'site_status': site_status,
             'total_equipment': total_equipment,
             'active_equipment': active_equipment,
             'equipment_in_maintenance': equipment_in_maintenance,
+            'inactive_equipment': inactive_equipment,
+            'pending_maintenance': pending_maintenance,
+            'in_progress_maintenance': in_progress_maintenance,
+            'overdue_maintenance': overdue_maintenance,
             'upcoming_maintenance_count': upcoming_maintenance_count,
+            'pending_events': pending_events,
+            'pod_count': pod_count,
             'recent_activities': recent_activities,
             'next_events': next_events,
+            'equipment_health_ratio': round(equipment_health_ratio * 100, 1),
         })
     
     # === OVERALL SITE STATISTICS ===
