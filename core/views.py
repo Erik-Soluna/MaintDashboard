@@ -9,8 +9,8 @@ from django.contrib.auth.models import User
 from equipment.models import Equipment
 from maintenance.models import MaintenanceActivity
 from events.models import CalendarEvent
-from core.models import Location, EquipmentCategory, Role, Permission, UserProfile
-from core.forms import LocationForm, EquipmentCategoryForm
+from core.models import Location, EquipmentCategory, Role, Permission, UserProfile, Customer
+from core.forms import LocationForm, EquipmentCategoryForm, CustomerForm
 from django.utils import timezone
 from django.db.models import Q, Count
 from datetime import datetime, timedelta, date
@@ -175,6 +175,8 @@ def dashboard(request):
                 'upcoming_maintenance_count': upcoming_maintenance_count,
                 'recent_activities': recent_activities,
                 'next_events': next_events,
+                'customer': location.get_effective_customer(),
+                'customer_display': location.get_customer_display(),
             })
         overview_type = 'pods'
         
@@ -1455,3 +1457,103 @@ def import_locations_csv(request):
         messages.error(request, f'Error reading CSV file: {str(e)}')
     
     return redirect('core:locations_settings')
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def customers_settings(request):
+    """Customer management view."""
+    customers = Customer.objects.all().order_by('name')
+    
+    # Pagination
+    paginator = Paginator(customers, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'customers': customers,
+    }
+    return render(request, 'core/customers_settings.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def add_customer(request):
+    """Add new customer."""
+    if request.method == 'POST':
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+            customer = form.save(commit=False)
+            customer.created_by = request.user
+            customer.save()
+            messages.success(request, f'Customer "{customer.name}" has been created successfully.')
+            return redirect('core:customers_settings')
+    else:
+        form = CustomerForm()
+    
+    context = {
+        'form': form,
+        'title': 'Add Customer',
+        'action': 'Add'
+    }
+    return render(request, 'core/customer_form.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def edit_customer(request, customer_id):
+    """Edit existing customer."""
+    customer = get_object_or_404(Customer, id=customer_id)
+    
+    if request.method == 'POST':
+        form = CustomerForm(request.POST, instance=customer)
+        if form.is_valid():
+            customer = form.save(commit=False)
+            customer.updated_by = request.user
+            customer.save()
+            messages.success(request, f'Customer "{customer.name}" has been updated successfully.')
+            return redirect('core:customers_settings')
+    else:
+        form = CustomerForm(instance=customer)
+    
+    context = {
+        'form': form,
+        'customer': customer,
+        'title': f'Edit Customer: {customer.name}',
+        'action': 'Edit'
+    }
+    return render(request, 'core/customer_form.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def delete_customer(request, customer_id):
+    """Delete customer."""
+    customer = get_object_or_404(Customer, id=customer_id)
+    
+    if request.method == 'POST':
+        # Check if customer has associated locations
+        location_count = customer.locations.count()
+        if location_count > 0:
+            messages.error(
+                request, 
+                f'Cannot delete customer "{customer.name}" because it has {location_count} associated location(s). '
+                'Please reassign or remove the locations first.'
+            )
+        else:
+            customer_name = customer.name
+            customer.delete()
+            messages.success(request, f'Customer "{customer_name}" has been deleted successfully.')
+        
+        return redirect('core:customers_settings')
+    
+    # Get associated locations for confirmation
+    associated_locations = customer.locations.all()
+    
+    context = {
+        'customer': customer,
+        'associated_locations': associated_locations,
+        'location_count': associated_locations.count()
+    }
+    return render(request, 'core/delete_customer.html', context)

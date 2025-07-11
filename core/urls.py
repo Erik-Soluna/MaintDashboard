@@ -19,6 +19,7 @@ urlpatterns = [
     path('settings/locations/', views.locations_settings, name='locations_settings'),
     path('settings/equipment-items/', views.equipment_items_settings, name='equipment_items_settings'),
     path('settings/equipment-categories/', views.equipment_categories_settings, name='equipment_categories_settings'),
+    path('settings/customers/', views.customers_settings, name='customers_settings'),
     path('settings/users/', views.user_management, name='user_management'),
     path('settings/roles-permissions/', views.roles_permissions_management, name='roles_permissions_management'),
     
@@ -31,6 +32,11 @@ urlpatterns = [
     path('categories/add/', views.add_equipment_category, name='add_equipment_category'),
     path('categories/<int:category_id>/edit/', views.edit_equipment_category, name='edit_equipment_category'),
     path('categories/<int:category_id>/delete/', views.delete_equipment_category, name='delete_equipment_category'),
+    
+    # Customer management
+    path('customers/add/', views.add_customer, name='add_customer'),
+    path('customers/<int:customer_id>/edit/', views.edit_customer, name='edit_customer'),
+    path('customers/<int:customer_id>/delete/', views.delete_customer, name='delete_customer'),
     
     # API endpoints
     path('api/locations/', views.locations_api, name='locations_api'),

@@ -252,6 +252,19 @@
     text-transform: uppercase;
 }
 
+.pod-customer {
+    margin-bottom: 8px;
+    padding: 4px 8px;
+    background-color: #2d3748;
+    border-radius: 4px;
+    border-left: 3px solid #4299e1;
+}
+
+.pod-customer small {
+    font-size: 10px;
+    font-weight: 600;
+}
+
 .pod-activities {
     margin-top: 12px;
 }
@@ -530,6 +543,14 @@
                         <div class="pod-name">{{ item.location.name }}</div>
                         <div class="pod-status-badge {{ item.status }}">{{ item.status }}</div>
                     </div>
+                    
+                    {% if item.customer %}
+                    <div class="pod-customer">
+                        <small class="text-muted">
+                            <i class="fas fa-user"></i> {{ item.customer.name }}
+                        </small>
+                    </div>
+                    {% endif %}
                     
                     <div class="pod-stats">
                         <div class="pod-stat">

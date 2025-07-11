@@ -31,6 +31,57 @@ class TimeStampedModel(models.Model):
         abstract = True
 
 
+class Customer(TimeStampedModel):
+    """
+    Customer model for tracking which customers are associated with locations.
+    This helps identify who is affected by maintenance activities.
+    """
+    name = models.CharField(
+        max_length=200,
+        unique=True,
+        help_text="Customer/client name"
+    )
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        blank=True,
+        help_text="Customer code or abbreviation"
+    )
+    contact_email = models.EmailField(
+        blank=True,
+        help_text="Primary contact email for notifications"
+    )
+    contact_phone = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Primary contact phone number"
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Additional customer information"
+    )
+    is_active = models.BooleanField(default=True)
+    
+    class Meta:
+        verbose_name = "Customer"
+        verbose_name_plural = "Customers"
+        ordering = ['name']
+    
+    def __str__(self):
+        return self.name
+    
+    def clean(self):
+        """Custom validation for customer."""
+        if self.name:
+            self.name = self.name.strip()
+        if not self.name:
+            raise ValidationError("Customer name cannot be empty.")
+        
+        # Auto-generate code if not provided
+        if not self.code:
+            self.code = self.name.upper().replace(' ', '_')[:20]
+
+
 class EquipmentCategory(TimeStampedModel):
     """
     Equipment categories for organizing equipment.
@@ -74,6 +125,14 @@ class Location(TimeStampedModel):
         related_name='child_locations',
         help_text="Parent location for hierarchical organization"
     )
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='locations',
+        help_text="Customer associated with this location"
+    )
     is_site = models.BooleanField(
         default=False,
         help_text="Whether this is a site-level location"
@@ -96,9 +155,14 @@ class Location(TimeStampedModel):
         ]
 
     def __str__(self):
+        location_str = self.name
         if self.parent_location:
-            return f"{self.parent_location.name} > {self.name}"
-        return self.name
+            location_str = f"{self.parent_location.name} > {self.name}"
+        
+        if self.customer:
+            location_str += f" ({self.customer.name})"
+        
+        return location_str
 
     def clean(self):
         """Custom validation for location hierarchy."""
@@ -139,6 +203,31 @@ class Location(TimeStampedModel):
         while current.parent_location:
             current = current.parent_location
         return current if current.is_site else None
+    
+    def get_effective_customer(self):
+        """Get the customer for this location, inherited from parent if not set directly."""
+        if self.customer:
+            return self.customer
+        
+        # Look up the hierarchy for a customer
+        current = self.parent_location
+        while current:
+            if current.customer:
+                return current.customer
+            current = current.parent_location
+        
+        return None
+    
+    def get_customer_display(self):
+        """Get a display string showing customer assignment."""
+        customer = self.get_effective_customer()
+        if not customer:
+            return "No customer assigned"
+        
+        if self.customer == customer:
+            return f"Direct: {customer.name}"
+        else:
+            return f"Inherited: {customer.name}"
 
 
 class Permission(models.Model):
