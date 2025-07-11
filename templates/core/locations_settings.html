@@ -18,39 +18,81 @@
     border-radius: 8px;
 }
 
-.locations-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+.locations-hierarchy {
+    display: flex;
+    flex-direction: column;
     gap: 20px;
     margin-bottom: 20px;
 }
 
-.locations-section {
+.site-container {
     background-color: #2d3748;
     border: 1px solid #4a5568;
     border-radius: 8px;
     overflow: hidden;
 }
 
-.section-header {
+.site-header {
     background-color: #1a2238;
     padding: 15px 20px;
     border-bottom: 1px solid #4a5568;
     display: flex;
-    justify-content: between;
+    justify-content: space-between;
     align-items: center;
 }
 
-.section-header h5 {
+.site-info h4 {
     color: #e2e8f0;
     margin: 0;
     font-weight: 600;
 }
 
-.section-body {
+.site-details {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.customer-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background-color: #4a5568;
+    border-radius: 12px;
+    font-size: 0.8em;
+    color: #e2e8f0;
+}
+
+.site-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.site-locations {
     padding: 0;
-    max-height: 400px;
-    overflow-y: auto;
+    max-height: none;
+}
+
+.empty-locations {
+    padding: 20px;
+    text-align: center;
+    color: #a0aec0;
+    border-top: 1px solid #4a5568;
+}
+
+.hierarchy-indicator {
+    color: #4a5568;
+    margin-right: 5px;
+}
+
+.hierarchy-branch {
+    color: #4a5568;
+    margin-right: 5px;
+}
+
+.path-info {
+    font-size: 0.8em;
+    color: #a0aec0;
 }
 
 .location-item {
@@ -189,8 +231,51 @@
 
 /* Responsive design */
 @media (max-width: 768px) {
-    .locations-grid {
-        grid-template-columns: 1fr;
+    .site-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .location-actions {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .location-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .location-item .location-actions {
+        margin-top: 10px;
+        width: 100%;
+    }
+    
+    .site-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .site-actions {
+        margin-top: 10px;
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .locations-header {
+        padding: 15px;
+    }
+    
+    .locations-header .d-flex {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .locations-header .d-flex > div:last-child {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
     }
 }
 </style>
@@ -204,7 +289,7 @@
                 <i class="fas fa-map-marker-alt me-2"></i>
                 Locations Management
             </h2>
-            <p class="text-muted mb-0">Manage sites and equipment locations</p>
+            <p class="text-muted mb-0">Manage sites and equipment locations with customer assignments</p>
         </div>
         <div>
             <button class="btn btn-primary me-2" data-toggle="modal" data-target="#addSiteModal">
@@ -219,106 +304,90 @@
     </div>
 </div>
 
-<div class="locations-grid">
-    <!-- Sites Column -->
-    <div class="locations-section">
-        <div class="section-header">
-            <h5>
-                <i class="fas fa-building me-2"></i>
-                Sites
-            </h5>
-            <span class="badge badge-primary">{{ sites.count }}</span>
-        </div>
-        <div class="section-body">
-            {% for site in sites %}
-            <div class="location-item">
-                <div class="location-info">
-                    <div class="location-name">{{ site.name }}</div>
-                    <div class="location-details">
-                        {% if site.address %}{{ site.address|truncatechars:50 }}{% else %}No address specified{% endif %}
-                    </div>
-                </div>
-                <div class="location-actions">
-                    <button class="btn btn-sm btn-outline-primary edit-location-btn" 
-                            data-id="{{ site.id }}" 
-                            data-name="{{ site.name }}"
-                            data-address="{{ site.address }}"
-                            data-is-site="true"
-                            data-toggle="tooltip" title="Edit Site">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger delete-location-btn" 
-                            data-id="{{ site.id }}" 
-                            data-name="{{ site.name }}"
-                            data-toggle="tooltip" title="Delete Site">
-                        <i class="fas fa-trash"></i>
-                    </button>
+<div class="locations-hierarchy">
+    {% for site in sites %}
+    <div class="site-container">
+        <div class="site-header">
+            <div class="site-info">
+                <h4>
+                    <i class="fas fa-building me-2"></i>
+                    {{ site.name }}
+                </h4>
+                <div class="site-details">
+                    {% if site.address %}
+                        <span class="text-muted">{{ site.address|truncatechars:60 }}</span>
+                    {% endif %}
+                    <span class="customer-badge">
+                        {% if site.customer %}
+                            <i class="fas fa-user me-1"></i>{{ site.customer.name }}
+                        {% else %}
+                            <i class="fas fa-user-slash me-1"></i>No customer assigned
+                        {% endif %}
+                    </span>
                 </div>
             </div>
-            {% empty %}
-            <div class="empty-state">
-                <i class="fas fa-building"></i>
-                <p>No sites created yet</p>
-                <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#addSiteModal">
-                    Add First Site
+            <div class="site-actions">
+                <button class="btn btn-sm btn-outline-success assign-customer-btn" 
+                        data-id="{{ site.id }}" 
+                        data-name="{{ site.name }}"
+                        data-customer="{{ site.customer.id|default:'' }}"
+                        data-toggle="tooltip" title="Assign Customer">
+                    <i class="fas fa-user-tag"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-primary edit-location-btn" 
+                        data-id="{{ site.id }}" 
+                        data-name="{{ site.name }}"
+                        data-address="{{ site.address }}"
+                        data-customer="{{ site.customer.id|default:'' }}"
+                        data-is-site="true"
+                        data-toggle="tooltip" title="Edit Site">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-info" 
+                        data-toggle="modal" 
+                        data-target="#addLocationModal"
+                        data-parent-id="{{ site.id }}"
+                        data-parent-name="{{ site.name }}"
+                        data-toggle="tooltip" title="Add Location to Site">
+                    <i class="fas fa-plus"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger delete-location-btn" 
+                        data-id="{{ site.id }}" 
+                        data-name="{{ site.name }}"
+                        data-toggle="tooltip" title="Delete Site">
+                    <i class="fas fa-trash"></i>
                 </button>
             </div>
+        </div>
+        
+        <div class="site-locations">
+            {% for location in site.child_locations.all %}
+                {% include 'core/location_tree_item.html' with location=location depth=1 %}
+            {% empty %}
+                <div class="empty-locations">
+                    <i class="fas fa-map-pin text-muted"></i>
+                    <span class="text-muted">No locations in this site</span>
+                    <button class="btn btn-sm btn-primary ms-2" 
+                            data-toggle="modal" 
+                            data-target="#addLocationModal"
+                            data-parent-id="{{ site.id }}"
+                            data-parent-name="{{ site.name }}">
+                        Add First Location
+                    </button>
+                </div>
             {% endfor %}
         </div>
     </div>
-
-    <!-- Equipment Locations Column -->
-    <div class="locations-section">
-        <div class="section-header">
-            <h5>
-                <i class="fas fa-map-pin me-2"></i>
-                Equipment Locations
-            </h5>
-            <span class="badge badge-primary">{{ locations.count }}</span>
-        </div>
-        <div class="section-body">
-            {% for location in locations %}
-                {% if not location.is_site %}
-                <div class="location-item">
-                    <div class="location-info">
-                        <div class="location-name">{{ location.name }}</div>
-                        <div class="location-details">
-                            {% if location.parent_location %}
-                                Site: {{ location.parent_location.name }}
-                            {% else %}
-                                No parent site
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="location-actions">
-                        <button class="btn btn-sm btn-outline-primary edit-location-btn" 
-                                data-id="{{ location.id }}" 
-                                data-name="{{ location.name }}"
-                                data-parent="{{ location.parent_location.id|default:'' }}"
-                                data-is-site="false"
-                                data-toggle="tooltip" title="Edit Location">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger delete-location-btn" 
-                                data-id="{{ location.id }}" 
-                                data-name="{{ location.name }}"
-                                data-toggle="tooltip" title="Delete Location">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-                {% endif %}
-            {% empty %}
-            <div class="empty-state">
-                <i class="fas fa-map-pin"></i>
-                <p>No equipment locations created yet</p>
-                <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#addLocationModal">
-                    Add First Location
-                </button>
-            </div>
-            {% endfor %}
-        </div>
+    {% empty %}
+    <div class="empty-state">
+        <i class="fas fa-building fa-3x mb-3 text-muted"></i>
+        <h4>No Sites Created Yet</h4>
+        <p class="text-muted">Start by creating your first site to organize locations</p>
+        <button class="btn btn-primary" data-toggle="modal" data-target="#addSiteModal">
+            <i class="fas fa-plus me-1"></i>Create First Site
+        </button>
     </div>
+    {% endfor %}
 </div>
 
 <!-- Add Site Modal -->
@@ -341,6 +410,15 @@
                     <div class="form-group">
                         <label for="siteAddress" class="form-label">Address</label>
                         <textarea id="siteAddress" name="address" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="siteCustomer" class="form-label">Customer</label>
+                        <select id="siteCustomer" name="customer_id" class="form-control">
+                            <option value="">Select customer (optional)</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -373,11 +451,23 @@
                         <input type="text" id="locationName" name="name" class="form-control" required>
                     </div>
                     <div class="form-group">
-                        <label for="parentSite" class="form-label">Parent Site *</label>
+                        <label for="parentSite" class="form-label">Parent Location *</label>
                         <select id="parentSite" name="parent_location_id" class="form-control" required>
-                            <option value="">Select a site</option>
+                            <option value="">Select a parent location</option>
                             {% for site in sites %}
                             <option value="{{ site.id }}">{{ site.name }}</option>
+                            {% for location in site.child_locations.all %}
+                                {% include 'core/location_options.html' with location=location prefix="  " %}
+                            {% endfor %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="locationCustomer" class="form-label">Customer</label>
+                        <select id="locationCustomer" name="customer_id" class="form-control">
+                            <option value="">Select customer (optional)</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -416,11 +506,23 @@
                         <textarea id="editLocationAddress" name="address" class="form-control" rows="3"></textarea>
                     </div>
                     <div class="form-group" id="editParentGroup">
-                        <label for="editParentSite" class="form-label">Parent Site *</label>
+                        <label for="editParentSite" class="form-label">Parent Location *</label>
                         <select id="editParentSite" name="parent_location_id" class="form-control">
-                            <option value="">Select a site</option>
+                            <option value="">Select a parent location</option>
                             {% for site in sites %}
                             <option value="{{ site.id }}">{{ site.name }}</option>
+                            {% for location in site.child_locations.all %}
+                                {% include 'core/location_options.html' with location=location prefix="  " %}
+                            {% endfor %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editLocationCustomer" class="form-label">Customer</label>
+                        <select id="editLocationCustomer" name="customer_id" class="form-control">
+                            <option value="">Select customer (optional)</option>
+                            {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -433,6 +535,43 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Customer Modal -->
+<div class="modal fade" id="assignCustomerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Assign Customer</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="assignLocationId">
+                <div class="form-group">
+                    <label for="assignCustomerSelect" class="form-label">Select Customer</label>
+                    <select id="assignCustomerSelect" name="customer_id" class="form-control">
+                        <option value="">No customer assignment</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}">{{ customer.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Assigning a customer to a location will affect all equipment and maintenance activities at this location.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmAssignCustomer">
+                    <i class="fas fa-user-tag me-1"></i>
+                    Assign Customer
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -490,6 +629,7 @@ $(document).ready(function() {
         const formData = {
             name: siteName,
             address: $('#siteAddress').val(),
+            customer_id: $('#siteCustomer').val(),
             is_site: true
         };
         
@@ -554,6 +694,7 @@ $(document).ready(function() {
         const formData = {
             name: locationName,
             parent_location_id: parentSiteId,
+            customer_id: $('#locationCustomer').val(),
             is_site: false
         };
         
@@ -593,17 +734,19 @@ $(document).ready(function() {
     });
     
     // Edit Location
-    $('.edit-location-btn').on('click', function() {
+    $(document).on('click', '.edit-location-btn', function() {
         const id = $(this).data('id');
         const name = $(this).data('name');
         const address = $(this).data('address') || '';
         const parentId = $(this).data('parent') || '';
+        const customerId = $(this).data('customer') || '';
         const isSite = $(this).data('is-site');
         
         $('#editLocationId').val(id);
         $('#editLocationName').val(name);
         $('#editLocationAddress').val(address);
         $('#editParentSite').val(parentId);
+        $('#editLocationCustomer').val(customerId);
         
         // Show/hide fields based on location type
         if (isSite) {
@@ -638,7 +781,8 @@ $(document).ready(function() {
         const formData = {
             name: locationName,
             address: $('#editLocationAddress').val(),
-            parent_location_id: $('#editParentSite').val()
+            parent_location_id: $('#editParentSite').val(),
+            customer_id: $('#editLocationCustomer').val()
         };
         
         $.ajax({
@@ -676,8 +820,68 @@ $(document).ready(function() {
         });
     });
     
+    // Assign Customer
+    $(document).on('click', '.assign-customer-btn', function() {
+        const id = $(this).data('id');
+        const name = $(this).data('name');
+        const customerId = $(this).data('customer') || '';
+        
+        $('#assignLocationId').val(id);
+        $('#assignCustomerSelect').val(customerId);
+        $('#assignCustomerModal').modal('show');
+    });
+    
+    // Confirm Customer Assignment
+    $('#confirmAssignCustomer').on('click', function() {
+        const $assignBtn = $(this);
+        const originalText = $assignBtn.html();
+        const locationId = $('#assignLocationId').val();
+        const customerId = $('#assignCustomerSelect').val();
+        
+        // Show loading state
+        $assignBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Assigning...');
+        
+        const formData = {
+            customer_id: customerId
+        };
+        
+        $.ajax({
+            url: '/core/api/locations/' + locationId + '/',
+            method: 'PUT',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                'Content-Type': 'application/json'
+            },
+            data: JSON.stringify(formData),
+            success: function(response) {
+                $('#assignCustomerModal').modal('hide');
+                // Show success message
+                if (response.message) {
+                    $('<div class="alert alert-success alert-dismissible fade show" role="alert">' +
+                      response.message +
+                      '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                      '</div>').prependTo('.locations-header').delay(3000).fadeOut();
+                }
+                location.reload();
+            },
+            error: function(xhr) {
+                let errorMessage = 'Error assigning customer';
+                if (xhr.responseJSON) {
+                    errorMessage += ': ' + (xhr.responseJSON.error || xhr.responseJSON.message || 'Unknown error');
+                } else if (xhr.responseText) {
+                    errorMessage += ': ' + xhr.responseText;
+                }
+                alert(errorMessage);
+            },
+            complete: function() {
+                // Reset button state
+                $assignBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+    
     // Delete Location
-    $('.delete-location-btn').on('click', function() {
+    $(document).on('click', '.delete-location-btn', function() {
         const id = $(this).data('id');
         const name = $(this).data('name');
         
@@ -728,9 +932,25 @@ $(document).ready(function() {
         });
     });
     
+    // Handle Add Location button with parent selection
+    $(document).on('click', '[data-target="#addLocationModal"]', function() {
+        const parentId = $(this).data('parent-id');
+        const parentName = $(this).data('parent-name');
+        
+        if (parentId) {
+            $('#parentSite').val(parentId);
+            $('#addLocationModal .modal-title').text('Add Location to ' + parentName);
+        } else {
+            $('#parentSite').val('');
+            $('#addLocationModal .modal-title').text('Add New Equipment Location');
+        }
+    });
+    
     // Reset forms when modals are hidden
     $('.modal').on('hidden.bs.modal', function() {
         $(this).find('form')[0].reset();
+        // Reset modal title
+        $('#addLocationModal .modal-title').text('Add New Equipment Location');
     });
 });
 </script>

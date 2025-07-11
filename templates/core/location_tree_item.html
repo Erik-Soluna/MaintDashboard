@@ -1,0 +1,65 @@
+<div class="location-item" style="margin-left: {{ depth|mul:20 }}px;">
+    <div class="location-info">
+        <div class="location-name">
+            {% for i in depth|rjust:5 %}
+                {% if forloop.counter <= depth %}
+                    <span class="hierarchy-indicator">│</span>
+                {% endif %}
+            {% endfor %}
+            {% if depth > 0 %}
+                <span class="hierarchy-branch">├─</span>
+            {% endif %}
+            <i class="fas fa-map-pin me-1"></i>
+            {{ location.name }}
+        </div>
+        <div class="location-details">
+            <span class="path-info">{{ location.get_full_path }}</span>
+            <span class="customer-badge">
+                {% if location.customer %}
+                    <i class="fas fa-user me-1"></i>{{ location.customer.name }}
+                {% elif location.get_effective_customer %}
+                    <i class="fas fa-user-clock me-1"></i>{{ location.get_effective_customer.name }} (inherited)
+                {% else %}
+                    <i class="fas fa-user-slash me-1"></i>No customer assigned
+                {% endif %}
+            </span>
+        </div>
+    </div>
+    <div class="location-actions">
+        <button class="btn btn-sm btn-outline-success assign-customer-btn" 
+                data-id="{{ location.id }}" 
+                data-name="{{ location.name }}"
+                data-customer="{{ location.customer.id|default:'' }}"
+                data-toggle="tooltip" title="Assign Customer">
+            <i class="fas fa-user-tag"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-primary edit-location-btn" 
+                data-id="{{ location.id }}" 
+                data-name="{{ location.name }}"
+                data-parent="{{ location.parent_location.id|default:'' }}"
+                data-customer="{{ location.customer.id|default:'' }}"
+                data-is-site="false"
+                data-toggle="tooltip" title="Edit Location">
+            <i class="fas fa-edit"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-info" 
+                data-toggle="modal" 
+                data-target="#addLocationModal"
+                data-parent-id="{{ location.id }}"
+                data-parent-name="{{ location.name }}"
+                data-toggle="tooltip" title="Add Sublocation">
+            <i class="fas fa-plus"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-danger delete-location-btn" 
+                data-id="{{ location.id }}" 
+                data-name="{{ location.name }}"
+                data-toggle="tooltip" title="Delete Location">
+            <i class="fas fa-trash"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Recursively render child locations -->
+{% for child in location.child_locations.all %}
+    {% include 'core/location_tree_item.html' with location=child depth=depth|add:1 %}
+{% endfor %}

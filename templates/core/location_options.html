@@ -1,0 +1,4 @@
+<option value="{{ location.id }}">{{ prefix }}{{ location.name }}</option>
+{% for child in location.child_locations.all %}
+    {% include 'core/location_options.html' with location=child prefix=prefix|add:"  " %}
+{% endfor %}
