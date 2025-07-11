@@ -65,14 +65,14 @@ services:
         condition: service_healthy
     networks:
       - maintenance_network
-      - proxy
+      - proxy-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.maintenance-web.rule=Host(`maintenance.${DOMAIN:-localhost}`)"
       - "traefik.http.routers.maintenance-web.entrypoints=websecure"
       - "traefik.http.routers.maintenance-web.tls.certresolver=letsencrypt"
       - "traefik.http.services.maintenance-web.loadbalancer.server.port=8000"
-      - "traefik.docker.network=proxy"
+      - "traefik.docker.network=proxy-network"
     restart: unless-stopped
 
   celery:
@@ -124,7 +124,7 @@ services:
 networks:
   maintenance_network:
     driver: bridge
-  proxy:
+  proxy-network:
     external: true
 
 volumes:

@@ -7,14 +7,14 @@ This guide explains how to configure the maintenance dashboard to join an extern
 All Docker Compose files have been updated to support joining an external proxy network. The configuration includes:
 
 - **Internal network**: `maintenance_network` - for communication between services
-- **External network**: `proxy` - for reverse proxy access
+- **External network**: `proxy-network` - for reverse proxy access
 - **Traefik labels** - for automatic service discovery and routing
 
 ## Prerequisites
 
 1. **Create the proxy network** (if it doesn't exist):
    ```bash
-   docker network create proxy
+   docker network create proxy-network
    ```
 
 2. **Configure your environment** (copy `.env.example` to `.env`):
@@ -43,7 +43,7 @@ services:
       - --api.dashboard=true
       - --api.insecure=true
       - --providers.docker=true
-      - --providers.docker.network=proxy
+      - --providers.docker.network=proxy-network
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
@@ -57,10 +57,10 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./letsencrypt:/letsencrypt
     networks:
-      - proxy
+      - proxy-network
 
 networks:
-  proxy:
+  proxy-network:
     external: true
 ```
 
@@ -99,7 +99,7 @@ Each file includes:
 networks:
   maintenance_network:
     driver: bridge
-  proxy:
+  proxy-network:
     external: true  # Joins existing proxy network
 ```
 
@@ -114,7 +114,7 @@ labels:
   - "traefik.http.routers.maintenance-web.entrypoints=websecure"
   - "traefik.http.routers.maintenance-web.tls.certresolver=letsencrypt"
   - "traefik.http.services.maintenance-web.loadbalancer.server.port=8000"
-  - "traefik.docker.network=proxy"
+  - "traefik.docker.network=proxy-network"
 ```
 
 ## Environment Variables
@@ -126,7 +126,7 @@ Set these in your `.env` file:
 DOMAIN=maintenance.yourdomain.com
 
 # Proxy network name (if different)
-PROXY_NETWORK=proxy
+PROXY_NETWORK=proxy-network
 
 # Traefik configuration
 TRAEFIK_ENABLE=true
@@ -142,7 +142,7 @@ TRAEFIK_SERVICE_PORT=8000
 
 1. **Network not found**:
    ```bash
-   docker network create proxy
+   docker network create proxy-network
    ```
 
 2. **Domain not resolving**:
@@ -160,7 +160,7 @@ TRAEFIK_SERVICE_PORT=8000
 ```bash
 # Check network status
 docker network ls
-docker network inspect proxy
+docker network inspect proxy-network
 
 # Check container logs
 docker-compose logs traefik
