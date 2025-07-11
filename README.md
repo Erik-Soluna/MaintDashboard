@@ -31,6 +31,8 @@ docker-compose exec web python manage.py createsuperuser
 **Access the application**: `http://localhost:8000`  
 **Container management**: `http://localhost:9000` (Portainer)
 
+> **🌐 Using with Nginx Proxy Manager?** See the [Nginx Proxy Manager Setup Guide](docs/NGINX_PROXY_MANAGER_SETUP.md) for SSL proxy configuration with custom domains.
+
 ### Manual Installation
 
 ```bash
@@ -57,6 +59,7 @@ python manage.py runserver
 - **📖 [Full Documentation Index](docs/README.md)** - Complete guide to all documentation
 - **⚡ [Quick Start Guide](docs/quickstart.md)** - Detailed setup instructions
 - **🐳 [Docker Deployment](docs/deployment/docker.md)** - Docker setup and configuration
+- **🌐 [Nginx Proxy Manager Setup](docs/NGINX_PROXY_MANAGER_SETUP.md)** - SSL proxy configuration with Portainer
 - **🗄️ [Database Setup](docs/database/setup.md)** - Database configuration
 - **✨ [Features Guide](docs/features/overview.md)** - Complete feature documentation
 - **🔧 [Development Setup](docs/development/setup.md)** - Development environment
