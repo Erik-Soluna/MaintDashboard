@@ -195,6 +195,8 @@
 .pod-card.warning { border-color: #ed8936; }
 .pod-card.maintenance { border-color: #f56565; }
 .pod-card.caution { border-color: #ecc94b; }
+.pod-card.critical { border-color: #e53e3e; }
+.pod-card.good { border-color: #38b2ac; }
 
 .pod-header {
     display: flex;
@@ -221,6 +223,8 @@
 .pod-status-badge.warning { background-color: #ed8936; color: white; }
 .pod-status-badge.maintenance { background-color: #f56565; color: white; }
 .pod-status-badge.caution { background-color: #ecc94b; color: black; }
+.pod-status-badge.critical { background-color: #e53e3e; color: white; }
+.pod-status-badge.good { background-color: #38b2ac; color: white; }
 
 .pod-stats {
     display: grid;
@@ -347,7 +351,11 @@
             </p>
         </div>
         <div class="text-right">
-            <div class="text-white">{{ total_pods }} Pod{{ total_pods|pluralize }}</div>
+            {% if overview_type == 'sites' %}
+            <div class="text-white">{{ total_overview_items }} Site{{ total_overview_items|pluralize }}</div>
+            {% else %}
+            <div class="text-white">{{ total_overview_items }} Pod{{ total_overview_items|pluralize }}</div>
+            {% endif %}
             <div class="text-muted small">{{ site_stats.total_equipment }} Equipment Items</div>
         </div>
     </div>
@@ -461,62 +469,115 @@
         {% endif %}
     </div>
 
-    <!-- Pod Status Overview -->
+    <!-- Overview Section (Pod Status or Site Status) -->
     <div class="pod-overview-section">
         <div class="section-header">
+            {% if overview_type == 'sites' %}
+            <span><i class="fas fa-map-marker-alt"></i>Site Status</span>
+            {% else %}
             <span><i class="fas fa-building"></i>Pod Status</span>
-            <span class="section-count">{{ total_pods }}</span>
+            {% endif %}
+            <span class="section-count">{{ total_overview_items }}</span>
         </div>
         
-        {% if pod_status_data %}
+        {% if overview_data %}
         <div class="pod-grid">
-            {% for pod in pod_status_data %}
-            <div class="pod-card {{ pod.pod_status }}" onclick="viewPodDetail('{{ pod.location.name }}')">
-                <div class="pod-header">
-                    <div class="pod-name">{{ pod.location.name }}</div>
-                    <div class="pod-status-badge {{ pod.pod_status }}">{{ pod.pod_status }}</div>
+            {% if overview_type == 'sites' %}
+                <!-- Site Status Cards -->
+                {% for item in overview_data %}
+                <div class="pod-card {{ item.status }}" onclick="viewSiteDetail('{{ item.site.id }}')">
+                    <div class="pod-header">
+                        <div class="pod-name">{{ item.site.name }}</div>
+                        <div class="pod-status-badge {{ item.status }}">{{ item.status }}</div>
+                    </div>
+                    
+                    <div class="pod-stats">
+                        <div class="pod-stat">
+                            <div class="pod-stat-value">{{ item.active_equipment }}</div>
+                            <div class="pod-stat-label">Active</div>
+                        </div>
+                        <div class="pod-stat">
+                            <div class="pod-stat-value">{{ item.total_equipment }}</div>
+                            <div class="pod-stat-label">Total</div>
+                        </div>
+                        <div class="pod-stat">
+                            <div class="pod-stat-value">{{ item.pod_count }}</div>
+                            <div class="pod-stat-label">Pods</div>
+                        </div>
+                        <div class="pod-stat">
+                            <div class="pod-stat-value">{{ item.overdue_maintenance }}</div>
+                            <div class="pod-stat-label">Overdue</div>
+                        </div>
+                    </div>
+                    
+                    {% if item.recent_activities or item.next_events %}
+                    <div class="pod-activities">
+                        {% for activity in item.recent_activities %}
+                        <div class="pod-activity">✓ {{ activity.title|truncatechars:25 }} ({{ activity.actual_end|date:"M d" }})</div>
+                        {% endfor %}
+                        {% for event in item.next_events %}
+                        <div class="pod-activity">→ {{ event.title|truncatechars:25 }} ({{ event.event_date|date:"M d" }})</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
-                
-                <div class="pod-stats">
-                    <div class="pod-stat">
-                        <div class="pod-stat-value">{{ pod.active_equipment }}</div>
-                        <div class="pod-stat-label">Active</div>
+                {% endfor %}
+            {% else %}
+                <!-- Pod Status Cards -->
+                {% for item in overview_data %}
+                <div class="pod-card {{ item.status }}" onclick="viewPodDetail('{{ item.location.name }}')">
+                    <div class="pod-header">
+                        <div class="pod-name">{{ item.location.name }}</div>
+                        <div class="pod-status-badge {{ item.status }}">{{ item.status }}</div>
                     </div>
-                    <div class="pod-stat">
-                        <div class="pod-stat-value">{{ pod.total_equipment }}</div>
-                        <div class="pod-stat-label">Total</div>
+                    
+                    <div class="pod-stats">
+                        <div class="pod-stat">
+                            <div class="pod-stat-value">{{ item.active_equipment }}</div>
+                            <div class="pod-stat-label">Active</div>
+                        </div>
+                        <div class="pod-stat">
+                            <div class="pod-stat-value">{{ item.total_equipment }}</div>
+                            <div class="pod-stat-label">Total</div>
+                        </div>
+                        <div class="pod-stat">
+                            <div class="pod-stat-value">{{ item.equipment_in_maintenance }}</div>
+                            <div class="pod-stat-label">In Maint</div>
+                        </div>
+                        <div class="pod-stat">
+                            <div class="pod-stat-value">{{ item.upcoming_maintenance_count }}</div>
+                            <div class="pod-stat-label">Upcoming</div>
+                        </div>
                     </div>
-                    <div class="pod-stat">
-                        <div class="pod-stat-value">{{ pod.equipment_in_maintenance }}</div>
-                        <div class="pod-stat-label">In Maint</div>
+                    
+                    {% if item.recent_activities or item.next_events %}
+                    <div class="pod-activities">
+                        {% for activity in item.recent_activities %}
+                        <div class="pod-activity">✓ {{ activity.title|truncatechars:25 }} ({{ activity.actual_end|date:"M d" }})</div>
+                        {% endfor %}
+                        {% for event in item.next_events %}
+                        <div class="pod-activity">→ {{ event.title|truncatechars:25 }} ({{ event.event_date|date:"M d" }})</div>
+                        {% endfor %}
                     </div>
-                    <div class="pod-stat">
-                        <div class="pod-stat-value">{{ pod.upcoming_maintenance_count }}</div>
-                        <div class="pod-stat-label">Upcoming</div>
-                    </div>
+                    {% endif %}
                 </div>
-                
-                {% if pod.recent_activities or pod.next_events %}
-                <div class="pod-activities">
-                    {% for activity in pod.recent_activities %}
-                    <div class="pod-activity">✓ {{ activity.title|truncatechars:25 }} ({{ activity.actual_end|date:"M d" }})</div>
-                    {% endfor %}
-                    {% for event in pod.next_events %}
-                    <div class="pod-activity">→ {{ event.title|truncatechars:25 }} ({{ event.event_date|date:"M d" }})</div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            </div>
-            {% endfor %}
+                {% endfor %}
+            {% endif %}
         </div>
         {% else %}
         <div class="empty-state">
+            {% if overview_type == 'sites' %}
+            <i class="fas fa-map-marker-alt"></i>
+            No sites configured.<br>
+            <small>Add sites to see site status information.</small>
+            {% else %}
             <i class="fas fa-building"></i>
             No pods configured for this site.<br>
             {% if selected_site %}
             <small>Add locations under {{ selected_site.name }} to see pod status.</small>
             {% else %}
             <small>Select a site to view pod information.</small>
+            {% endif %}
             {% endif %}
         </div>
         {% endif %}
@@ -558,6 +619,13 @@ function viewPodDetail(podName) {
     url.searchParams.set('site_id', '{{ selected_site.id }}');
     {% endif %}
     url.searchParams.set('search', podName);
+    window.location.href = url.toString();
+}
+
+function viewSiteDetail(siteId) {
+    // Navigate to dashboard with selected site
+    const url = new URL(window.location.href);
+    url.searchParams.set('site_id', siteId);
     window.location.href = url.toString();
 }
 
