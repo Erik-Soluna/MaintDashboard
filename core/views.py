@@ -439,12 +439,14 @@ def is_staff_or_superuser(user):
 @login_required
 def map_view(request):
     """Map view showing all locations and equipment."""
-    locations = Location.objects.filter(is_active=True).select_related('parent_location')
+    locations = Location.objects.filter(is_active=True).select_related('parent_location', 'customer')
     equipment = Equipment.objects.filter(is_active=True).select_related('location')
+    customers = Customer.objects.filter(is_active=True).order_by('name')
     
     context = {
         'locations': locations,
         'equipment': equipment,
+        'customers': customers,
     }
     return render(request, 'core/map.html', context)
 
@@ -485,11 +487,13 @@ def settings_view(request):
 def locations_settings(request):
     """Locations management view."""
     locations = Location.objects.all().order_by('name')
-    sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
+    sites = Location.objects.filter(is_site=True, is_active=True).prefetch_related('child_locations__child_locations').order_by('name')
+    customers = Customer.objects.filter(is_active=True).order_by('name')
     
     context = {
         'locations': locations,
         'sites': sites,
+        'customers': customers,
     }
     return render(request, 'core/locations_settings.html', context)
 
@@ -641,6 +645,7 @@ def locations_api(request):
                 address=data.get('address', ''),
                 is_site=is_site,
                 parent_location_id=parent_location_id,
+                customer_id=data.get('customer_id') or None,
                 created_by=request.user,
                 updated_by=request.user
             )
@@ -699,6 +704,10 @@ def location_detail_api(request, location_id):
             location.name = name
             location.address = data.get('address', location.address)
             location.is_active = data.get('is_active', location.is_active)
+            
+            # Update customer assignment
+            if 'customer_id' in data:
+                location.customer_id = data.get('customer_id') or None
             
             # Only update parent if provided and location is not a site
             if not location.is_site and 'parent_location_id' in data:

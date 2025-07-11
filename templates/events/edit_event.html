@@ -1,0 +1,419 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Event - SOLUNA Maintenance Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.add-event-container {
+    background-color: #1a2238;
+    min-height: 100vh;
+    color: white;
+    padding: 20px;
+}
+
+.event-form-card {
+    background-color: #2d3748;
+    border-radius: 8px;
+    padding: 30px;
+    max-width: 800px;
+    margin: 0 auto;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.form-header {
+    background-color: #0f1419;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    color: #a0aec0;
+    font-weight: 500;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.form-control {
+    background-color: #1a2238;
+    border: 1px solid #4a5568;
+    color: white;
+    border-radius: 6px;
+    padding: 12px 15px;
+    width: 100%;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    background-color: #1a2238;
+    border-color: #4299e1;
+    color: white;
+    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
+}
+
+.form-control::placeholder {
+    color: #718096;
+}
+
+.form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #4299e1;
+}
+
+.priority-options {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.priority-option {
+    flex: 1;
+    min-width: 120px;
+}
+
+.priority-option input[type="radio"] {
+    display: none;
+}
+
+.priority-option label {
+    display: block;
+    padding: 10px 15px;
+    border: 2px solid #4a5568;
+    border-radius: 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #1a2238;
+}
+
+.priority-option input[type="radio"]:checked + label {
+    border-color: #4299e1;
+    background-color: #4299e1;
+    color: white;
+}
+
+.priority-option.low label { border-color: #38a169; }
+.priority-option.low input[type="radio"]:checked + label { 
+    border-color: #38a169; 
+    background-color: #38a169; 
+}
+
+.priority-option.medium label { border-color: #ffc107; }
+.priority-option.medium input[type="radio"]:checked + label { 
+    border-color: #ffc107; 
+    background-color: #ffc107; 
+    color: #000;
+}
+
+.priority-option.high label { border-color: #fd7e14; }
+.priority-option.high input[type="radio"]:checked + label { 
+    border-color: #fd7e14; 
+    background-color: #fd7e14; 
+}
+
+.priority-option.critical label { border-color: #dc3545; }
+.priority-option.critical input[type="radio"]:checked + label { 
+    border-color: #dc3545; 
+    background-color: #dc3545; 
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    border: none;
+    color: white;
+    padding: 12px 30px;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+    border: none;
+    color: white;
+    padding: 12px 30px;
+    border-radius: 6px;
+    font-weight: 500;
+    text-decoration: none;
+    display: inline-block;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+    color: white;
+    text-decoration: none;
+}
+
+.form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #4a5568;
+}
+
+.required {
+    color: #f56565;
+}
+
+.help-text {
+    font-size: 0.875rem;
+    color: #718096;
+    margin-top: 5px;
+}
+
+.equipment-info {
+    background-color: #0f1419;
+    padding: 15px;
+    border-radius: 6px;
+    margin-top: 10px;
+    display: none;
+}
+
+.equipment-info.show {
+    display: block;
+}
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'events:calendar_view' %}">Calendar</a></li>
+<li class="breadcrumb-item"><a href="{% url 'events:event_detail' event.id %}">{{ event.title }}</a></li>
+<li class="breadcrumb-item active">Edit Event</li>
+{% endblock %}
+
+{% block content %}
+<div class="add-event-container">
+    <div class="event-form-card">
+        <div class="form-header">
+            <h2><i class="fas fa-edit me-2"></i>Edit Event</h2>
+            <p class="mb-0 text-light">Update event details and information</p>
+        </div>
+
+        <form method="post" id="eventForm">
+            {% csrf_token %}
+            
+            <!-- Basic Information -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="title">Event Title <span class="required">*</span></label>
+                    <input type="text" 
+                           class="form-control" 
+                           id="title" 
+                           name="title" 
+                           value="{{ event.title }}"
+                           placeholder="Enter event title"
+                           required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="event_type">Event Type <span class="required">*</span></label>
+                    <select class="form-control" id="event_type" name="event_type" required>
+                        <option value="">Select event type</option>
+                        {% for value, label in event_types %}
+                            <option value="{{ value }}" {% if event.event_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Equipment Selection -->
+            <div class="form-group">
+                <label for="equipment">Equipment <span class="required">*</span></label>
+                <select class="form-control" id="equipment" name="equipment" required onchange="showEquipmentInfo(this.value)">
+                    <option value="">Select equipment</option>
+                    {% for equipment in equipment_list %}
+                        <option value="{{ equipment.id }}" 
+                                {% if event.equipment_id == equipment.id %}selected{% endif %}
+                                data-location="{{ equipment.location.name|default:'No location' }}"
+                                data-category="{{ equipment.category.name|default:'No category' }}"
+                                data-status="{{ equipment.get_status_display }}">
+                            {{ equipment.name }} ({{ equipment.asset_tag }})
+                        </option>
+                    {% endfor %}
+                </select>
+                <div id="equipmentInfo" class="equipment-info {% if event.equipment %}show{% endif %}">
+                    <strong>Equipment Details:</strong><br>
+                    <span id="equipmentLocation">{% if event.equipment %}Location: {{ event.equipment.location.name|default:'No location' }}{% endif %}</span><br>
+                    <span id="equipmentCategory">{% if event.equipment %}Category: {{ event.equipment.category.name|default:'No category' }}{% endif %}</span><br>
+                    <span id="equipmentStatus">{% if event.equipment %}Status: {{ event.equipment.get_status_display }}{% endif %}</span>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea class="form-control" 
+                          id="description" 
+                          name="description" 
+                          rows="4" 
+                          placeholder="Describe the event details, procedures, or notes">{{ event.description }}</textarea>
+            </div>
+
+            <!-- Date and Time -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="event_date">Event Date <span class="required">*</span></label>
+                    <input type="date" 
+                           class="form-control" 
+                           id="event_date" 
+                           name="event_date" 
+                           value="{{ event.event_date|date:'Y-m-d' }}"
+                           required>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="all_day" name="all_day" {% if event.all_day %}checked{% endif %} onchange="toggleTimeFields()">
+                            <span>All Day Event</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-row" id="timeFields" {% if event.all_day %}style="display: none;"{% endif %}>
+                <div class="form-group">
+                    <label for="start_time">Start Time</label>
+                    <input type="time" 
+                           class="form-control" 
+                           id="start_time" 
+                           name="start_time"
+                           value="{{ event.start_time|time:'H:i' }}">
+                </div>
+                
+                <div class="form-group">
+                    <label for="end_time">End Time</label>
+                    <input type="time" 
+                           class="form-control" 
+                           id="end_time" 
+                           name="end_time"
+                           value="{{ event.end_time|time:'H:i' }}">
+                </div>
+            </div>
+
+            <!-- Priority -->
+            <div class="form-group">
+                <label>Priority <span class="required">*</span></label>
+                <div class="priority-options">
+                    {% for value, label in priority_choices %}
+                        <div class="priority-option {{ value }}">
+                            <input type="radio" 
+                                   id="priority_{{ value }}" 
+                                   name="priority" 
+                                   value="{{ value }}"
+                                   {% if event.priority == value %}checked{% endif %}>
+                            <label for="priority_{{ value }}">{{ label }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Assignment -->
+            <div class="form-group">
+                <label for="assigned_to">Assign To</label>
+                <select class="form-control" id="assigned_to" name="assigned_to">
+                    <option value="">Select user (optional)</option>
+                    {% for user in users %}
+                        <option value="{{ user.id }}" {% if event.assigned_to_id == user.id %}selected{% endif %}>
+                            {{ user.get_full_name|default:user.username }}
+                            {% if user.userprofile.department %} - {{ user.userprofile.department }}{% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="help-text">Assign this event to a specific user for responsibility</div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Update Event
+                </button>
+                <a href="{% url 'events:event_detail' event.id %}" class="btn btn-secondary">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleTimeFields() {
+    const allDay = document.getElementById('all_day').checked;
+    const timeFields = document.getElementById('timeFields');
+    const startTime = document.getElementById('start_time');
+    const endTime = document.getElementById('end_time');
+    
+    if (allDay) {
+        timeFields.style.display = 'none';
+        startTime.value = '';
+        endTime.value = '';
+        startTime.removeAttribute('required');
+        endTime.removeAttribute('required');
+    } else {
+        timeFields.style.display = 'flex';
+    }
+}
+
+function showEquipmentInfo(equipmentId) {
+    const select = document.getElementById('equipment');
+    const info = document.getElementById('equipmentInfo');
+    const option = select.options[select.selectedIndex];
+    
+    if (equipmentId && option) {
+        document.getElementById('equipmentLocation').textContent = 'Location: ' + option.dataset.location;
+        document.getElementById('equipmentCategory').textContent = 'Category: ' + option.dataset.category;
+        document.getElementById('equipmentStatus').textContent = 'Status: ' + option.dataset.status;
+        info.classList.add('show');
+    } else {
+        info.classList.remove('show');
+    }
+}
+
+// Form validation
+document.getElementById('eventForm').addEventListener('submit', function(e) {
+    const startTime = document.getElementById('start_time').value;
+    const endTime = document.getElementById('end_time').value;
+    const allDay = document.getElementById('all_day').checked;
+    
+    if (!allDay && startTime && endTime) {
+        if (startTime >= endTime) {
+            e.preventDefault();
+            alert('End time must be after start time.');
+            return false;
+        }
+    }
+});
+</script>
+{% endblock %}

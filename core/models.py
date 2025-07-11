@@ -151,6 +151,11 @@ class Location(TimeStampedModel):
             models.CheckConstraint(
                 check=~(models.Q(is_site=True) & ~models.Q(parent_location=None)),
                 name='site_locations_no_parent'
+            ),
+            # Ensure non-site locations have parent locations
+            models.CheckConstraint(
+                check=~(models.Q(is_site=False) & models.Q(parent_location=None)),
+                name='non_site_locations_have_parent'
             )
         ]
 
@@ -176,17 +181,21 @@ class Location(TimeStampedModel):
         if self.is_site and self.parent_location:
             raise ValidationError("Site locations cannot have a parent location.")
             
-        # Equipment locations must have a parent location
+        # Non-site locations must have a parent location
         if not self.is_site and not self.parent_location:
-            raise ValidationError("Equipment locations must have a parent location.")
+            raise ValidationError("Non-site locations must have a parent location.")
             
         # Prevent circular references
         if self.parent_location and self.pk:
             current = self.parent_location
+            depth = 0
             while current:
                 if current.pk == self.pk:
                     raise ValidationError("Location cannot be its own ancestor.")
+                if depth > 10:  # Prevent infinite loops and very deep nesting
+                    raise ValidationError("Location hierarchy is too deep (maximum 10 levels).")
                 current = current.parent_location
+                depth += 1
 
     def get_full_path(self):
         """Get the full hierarchical path of the location."""
