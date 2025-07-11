@@ -527,9 +527,21 @@ def location_detail_api(request, location_id):
         return JsonResponse({'message': 'Location updated successfully'})
     
     elif request.method == 'DELETE':
-        location.is_active = False
-        location.save()
-        return JsonResponse({'message': 'Location deactivated successfully'})
+        location_name = location.name
+        
+        # Check if location has any equipment or child locations
+        if location.equipment.exists():
+            return JsonResponse({
+                'error': f'Cannot delete location "{location_name}" because it has equipment assigned to it.'
+            }, status=400)
+        
+        if location.child_locations.exists():
+            return JsonResponse({
+                'error': f'Cannot delete location "{location_name}" because it has child locations.'
+            }, status=400)
+        
+        location.delete()
+        return JsonResponse({'message': f'Location "{location_name}" deleted successfully!'})
 
 
 @login_required

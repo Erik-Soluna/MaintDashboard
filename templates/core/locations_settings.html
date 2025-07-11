@@ -602,7 +602,10 @@ $(document).ready(function() {
                 location.reload();
             },
             error: function(xhr) {
-                alert('Error deleting location: ' + xhr.responseJSON.message);
+                const errorMessage = xhr.responseJSON && xhr.responseJSON.error ? 
+                    xhr.responseJSON.error : 
+                    (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Unknown error occurred');
+                alert('Error deleting location: ' + errorMessage);
             }
         });
     });
