@@ -100,8 +100,8 @@ def dashboard(request):
             parent_location=selected_site,
             is_active=True
         ).select_related('parent_location', 'customer').prefetch_related(
-            Prefetch('equipment_set', queryset=Equipment.objects.select_related('category')),
-            Prefetch('equipment_set__maintenanceactivity_set', 
+            Prefetch('equipment', queryset=Equipment.objects.select_related('category')),
+            Prefetch('equipment__maintenance_activities', 
                     queryset=MaintenanceActivity.objects.select_related('assigned_to'))
         )
         locations = list(locations_queryset)

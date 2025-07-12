@@ -31,7 +31,7 @@ def create_maintenance_activity_for_event(event):
         from datetime import datetime, time
         
         # Check if a maintenance activity already exists for this event
-        existing_activity = MaintenanceActivity.objects.filter(calendar_events=event).first()
+        existing_activity = event.maintenance_activity
         
         if existing_activity:
             # Update existing activity
