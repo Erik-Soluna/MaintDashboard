@@ -4,7 +4,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0001_initial'),
+        ('core', '0004_add_force_password_change'),
         ('equipment', '0001_initial'),
         ('maintenance', '0001_initial'),
         ('events', '0001_initial'),
