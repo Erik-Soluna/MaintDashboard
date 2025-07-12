@@ -86,7 +86,6 @@ DATABASES = {
         'CONN_MAX_AGE': 300,  # 5 minutes - Django connection pooling setting
         'OPTIONS': {
             # PostgreSQL-specific connection options can go here
-            # Note: MAX_CONNS is not a valid PostgreSQL connection option
         },
     }
 }
