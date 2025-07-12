@@ -21,6 +21,10 @@ class ForcePasswordChangeMiddleware(MiddlewareMixin):
     If conditions are met, redirects to password change page.
     """
     
+    def __init__(self, get_response):
+        self.get_response = get_response
+        super().__init__(get_response)
+    
     # URLs that should be exempt from forced password change
     EXEMPT_URLS = [
         'admin:logout',
@@ -114,6 +118,10 @@ class LoginTrackingMiddleware(MiddlewareMixin):
     Middleware to track user login and update last_login field properly.
     This ensures the ForcePasswordChangeMiddleware works correctly.
     """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+        super().__init__(get_response)
     
     def process_response(self, request, response):
         """Update last_login when user successfully logs in."""
