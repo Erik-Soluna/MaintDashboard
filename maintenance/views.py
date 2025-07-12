@@ -181,59 +181,102 @@ def activity_detail(request, activity_id):
 
 @login_required
 def add_activity(request):
-    """Add new maintenance activity."""
-    # Debug: Check if there are any equipment records
+    """Add new maintenance activity with improved database connection handling."""
+    from django.db import connection
     from equipment.models import Equipment
     from core.models import Location
     
-    total_equipment_count = Equipment.objects.filter(is_active=True).count()
-    logger.info(f"Total active equipment count: {total_equipment_count}")
-    
-    # Check site filtering
-    selected_site_id = request.GET.get('site_id')
-    if selected_site_id is None:
-        selected_site_id = request.session.get('selected_site_id')
-    
-    selected_site = None
-    if selected_site_id:
+    try:
+        # Ensure database connection is healthy
+        connection.ensure_connection()
+        
+        # Debug: Check if there are any equipment records
+        total_equipment_count = Equipment.objects.filter(is_active=True).count()
+        logger.info(f"Total active equipment count: {total_equipment_count}")
+        
+        # Check site filtering
+        selected_site_id = request.GET.get('site_id')
+        if selected_site_id is None:
+            selected_site_id = request.session.get('selected_site_id')
+        
+        selected_site = None
+        if selected_site_id:
+            try:
+                selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                logger.info(f"Selected site: {selected_site.name}")
+            except Location.DoesNotExist:
+                logger.warning(f"Invalid site ID: {selected_site_id}")
+        
+        if request.method == 'POST':
+            form = MaintenanceActivityForm(request.POST, request=request)
+            if form.is_valid():
+                activity = form.save(commit=False)
+                activity.created_by = request.user
+                activity.save()
+                
+                # Create corresponding calendar event
+                calendar_event = create_calendar_event_for_maintenance(activity)
+                if calendar_event:
+                    messages.success(request, f'Maintenance activity "{activity.title}" created successfully and added to calendar!')
+                else:
+                    messages.success(request, f'Maintenance activity "{activity.title}" created successfully!')
+                    messages.warning(request, 'Could not create calendar event. Please check logs.')
+                
+                return redirect('maintenance:activity_detail', activity_id=activity.id)
+        else:
+            form = MaintenanceActivityForm(request=request)
+        
+        # Debug: Check equipment queryset in form with better error handling
         try:
-            selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-            logger.info(f"Selected site: {selected_site.name}")
-        except Location.DoesNotExist:
-            logger.warning(f"Invalid site ID: {selected_site_id}")
-    
-    if request.method == 'POST':
-        form = MaintenanceActivityForm(request.POST, request=request)
-        if form.is_valid():
-            activity = form.save(commit=False)
-            activity.created_by = request.user
-            activity.save()
+            equipment_queryset = form.fields['equipment'].queryset
+            filtered_equipment_count = equipment_queryset.count()
+            logger.info(f"Filtered equipment queryset count: {filtered_equipment_count}")
             
-            # Create corresponding calendar event
-            calendar_event = create_calendar_event_for_maintenance(activity)
-            if calendar_event:
-                messages.success(request, f'Maintenance activity "{activity.title}" created successfully and added to calendar!')
+            # Get first 10 equipment safely
+            equipment_list = list(equipment_queryset[:10])
+        except Exception as e:
+            logger.error(f"Error getting equipment queryset: {str(e)}")
+            filtered_equipment_count = 0
+            equipment_list = []
+        
+        context = {
+            'form': form,
+            'equipment_count': filtered_equipment_count,
+            'total_equipment_count': total_equipment_count,
+            'selected_site': selected_site,
+            'equipment_list': equipment_list,
+        }
+        return render(request, 'maintenance/add_activity.html', context)
+        
+    except Exception as e:
+        logger.error(f"Database connection error in add_activity: {str(e)}")
+        
+        # Try to reconnect
+        try:
+            connection.close()
+            connection.connect()
+            logger.info("Database reconnected successfully")
+            
+            # Retry with simple form
+            if request.method == 'POST':
+                messages.error(request, 'Database connection issue. Please try again.')
+                return redirect('maintenance:add_activity')
             else:
-                messages.success(request, f'Maintenance activity "{activity.title}" created successfully!')
-                messages.warning(request, 'Could not create calendar event. Please check logs.')
-            
-            return redirect('maintenance:activity_detail', activity_id=activity.id)
-    else:
-        form = MaintenanceActivityForm(request=request)
-    
-    # Debug: Check equipment queryset in form
-    equipment_queryset = form.fields['equipment'].queryset
-    filtered_equipment_count = equipment_queryset.count()
-    logger.info(f"Filtered equipment queryset count: {filtered_equipment_count}")
-    
-    context = {
-        'form': form,
-        'equipment_count': filtered_equipment_count,
-        'total_equipment_count': total_equipment_count,
-        'selected_site': selected_site,
-        'equipment_list': equipment_queryset[:10],  # First 10 filtered equipment for debugging
-    }
-    return render(request, 'maintenance/add_activity.html', context)
+                form = MaintenanceActivityForm(request=request)
+                context = {
+                    'form': form,
+                    'equipment_count': 0,
+                    'total_equipment_count': 0,
+                    'selected_site': None,
+                    'equipment_list': [],
+                    'connection_error': True,
+                }
+                return render(request, 'maintenance/add_activity.html', context)
+                
+        except Exception as reconnect_error:
+            logger.error(f"Failed to reconnect to database: {str(reconnect_error)}")
+            messages.error(request, 'Database connection issue. Please contact support.')
+            return redirect('maintenance:maintenance_list')
 
 
 @login_required
