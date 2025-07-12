@@ -44,6 +44,16 @@ class ForcePasswordChangeMiddleware(MiddlewareMixin):
         '/favicon.ico',
     ]
 
+    def __init__(self, get_response):
+        """Store the response callable and initialise the parent mixin.
+
+        Django always instantiates middleware with a single positional
+        argument – the `get_response` callable.  When we rely on
+        `MiddlewareMixin` we must ensure it receives this argument so
+        that Django’s middleware chain continues to operate correctly.
+        """
+        super().__init__(get_response)
+
     def process_request(self, request):
         """Process each request to check for forced password change requirement."""
         
@@ -114,6 +124,10 @@ class LoginTrackingMiddleware(MiddlewareMixin):
     Middleware to track user login and update last_login field properly.
     This ensures the ForcePasswordChangeMiddleware works correctly.
     """
+
+    def __init__(self, get_response):
+        """Ensure `MiddlewareMixin` is initialised with the response callable."""
+        super().__init__(get_response)
     
     def process_response(self, request, response):
         """Update last_login when user successfully logs in."""
