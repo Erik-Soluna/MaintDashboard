@@ -328,6 +328,12 @@ class UserProfile(models.Model):
         default='dark',
         help_text="User interface theme preference"
     )
+    
+    # Password management
+    force_password_change = models.BooleanField(
+        default=False,
+        help_text="Force user to change password on next login"
+    )
 
     def __str__(self):
         role_name = self.role.display_name if self.role else "No Role"
@@ -396,6 +402,12 @@ class UserProfile(models.Model):
     def can_manage_settings(self):
         """Check if user can manage settings."""
         return self.has_permission('settings.manage') or self.is_admin()
+    
+    def clear_force_password_change(self):
+        """Clear the force password change flag."""
+        if self.force_password_change:
+            self.force_password_change = False
+            self.save(update_fields=['force_password_change'])
 
     class Meta:
         verbose_name = "User Profile"

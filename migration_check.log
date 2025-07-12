@@ -1,0 +1,40 @@
+[0;32m✓ Django project detected[0m
+
+[0;34mChecking for duplicate migration numbers...[0m
+
+[1;33mChecking core migrations:[0m
+[0;32m  ✓ 0001_initial[0m
+[0;32m  ✓ 0002_userprofile_default_location_and_more[0m
+[0;32m  ✓ 0003_permission_role_alter_userprofile_role[0m
+[0;32m  ✓ 0004_add_force_password_change[0m
+[0;32m  ✓ 0005_add_performance_indexes[0m
+
+[1;33mChecking equipment migrations:[0m
+[0;32m  ✓ 0001_initial[0m
+
+[1;33mChecking events migrations:[0m
+[0;32m  ✓ 0001_initial[0m
+
+[1;33mChecking maintenance migrations:[0m
+[0;32m  ✓ 0001_initial[0m
+
+[0;34mChecking for missing __init__.py files...[0m
+[0;32m  ✓ core/migrations/__init__.py[0m
+[0;32m  ✓ equipment/migrations/__init__.py[0m
+[0;32m  ✓ events/migrations/__init__.py[0m
+[0;32m  ✓ maintenance/migrations/__init__.py[0m
+
+[0;34mChecking migration file syntax...[0m
+[0;32m  ✓ core/0001_initial.py syntax OK[0m
+[0;32m  ✓ core/0002_userprofile_default_location_and_more.py syntax OK[0m
+[0;32m  ✓ core/0003_permission_role_alter_userprofile_role.py syntax OK[0m
+[0;32m  ✓ core/0004_add_force_password_change.py syntax OK[0m
+[0;32m  ✓ core/0005_add_performance_indexes.py syntax OK[0m
+[0;32m  ✓ equipment/0001_initial.py syntax OK[0m
+[0;32m  ✓ events/0001_initial.py syntax OK[0m
+[0;32m  ✓ maintenance/0001_initial.py syntax OK[0m
+
+[0;34mChecking for common migration issues...[0m
+
+[0;34mAttempting Django migration check...[0m
+[1;33m⚠ Could not run Django commands (environment not set up)[0m

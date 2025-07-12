@@ -51,8 +51,23 @@ class ForcePasswordChangeMiddleware(MiddlewareMixin):
         if not request.user.is_authenticated:
             return None
             
-        # Skip if user has logged in before (last_login is not None)
-        if request.user.last_login is not None:
+        # Check if user has a profile and if password change is forced
+        force_password_change = False
+        
+        try:
+            # Check if user profile exists and force_password_change is True
+            if hasattr(request.user, 'userprofile') and request.user.userprofile:
+                force_password_change = getattr(request.user.userprofile, 'force_password_change', False)
+        except:
+            # If UserProfile doesn't exist, check last_login (fallback behavior)
+            force_password_change = request.user.last_login is None
+            
+        # Also check for first-time login (when last_login is None)
+        if request.user.last_login is None:
+            force_password_change = True
+            
+        # Skip if password change is not required
+        if not force_password_change:
             return None
             
         # Check if current URL should be exempt
@@ -64,10 +79,16 @@ class ForcePasswordChangeMiddleware(MiddlewareMixin):
             return None
             
         # User needs to change password - redirect to password change page
-        messages.warning(
-            request,
-            'This is your first login. You must change your password before continuing.'
-        )
+        if request.user.last_login is None:
+            messages.warning(
+                request,
+                'This is your first login. You must change your password before continuing.'
+            )
+        else:
+            messages.warning(
+                request,
+                'You are required to change your password before continuing.'
+            )
         
         # Try to use Django admin password change first, fallback to custom if needed
         try:
