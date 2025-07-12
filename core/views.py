@@ -36,6 +36,9 @@ def natural_sort_key(text):
 @login_required
 def dashboard(request):
     """Enhanced dashboard view with comprehensive maintenance, calendar, and pod status data."""
+    from django.core.cache import cache
+    from django.db.models import Count, Q, Prefetch
+    import hashlib
     
     # Ensure user has a profile
     from core.models import UserProfile
@@ -51,6 +54,15 @@ def dashboard(request):
     if selected_site_id:
         request.session['selected_site_id'] = selected_site_id
     
+    # Create cache key for this dashboard view
+    cache_key = f"dashboard_data_{selected_site_id or 'all'}_{request.user.id}"
+    cache_timeout = 300  # 5 minutes
+    
+    # Try to get cached data
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        return render(request, 'core/dashboard.html', cached_data)
+    
     # Get all sites for the site selector
     sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
     selected_site = None
@@ -65,96 +77,143 @@ def dashboard(request):
     urgent_cutoff = today + timedelta(days=7)
     upcoming_cutoff = today + timedelta(days=30)
     
-    # Base equipment and maintenance queries
-    equipment_query = Equipment.objects.all()
-    maintenance_query = MaintenanceActivity.objects.all()
-    calendar_query = CalendarEvent.objects.all()
+    # ===== OPTIMIZED BULK QUERIES =====
     
-    # Apply site filtering if selected
+    # Build optimized base queries with proper joins
     if selected_site:
+        # Site-specific queries with optimized joins
         site_filter = Q(location__parent_location=selected_site) | Q(location=selected_site)
-        equipment_query = equipment_query.filter(site_filter)
-        maintenance_query = maintenance_query.filter(Q(equipment__location__parent_location=selected_site) | Q(equipment__location=selected_site))
-        calendar_query = calendar_query.filter(Q(equipment__location__parent_location=selected_site) | Q(equipment__location=selected_site))
-    
-    # Get locations (pods) with natural sorting
-    if selected_site:
-        locations = Location.objects.filter(
+        equipment_query = Equipment.objects.filter(site_filter).select_related('location', 'category')
+        
+        maintenance_site_filter = Q(equipment__location__parent_location=selected_site) | Q(equipment__location=selected_site)
+        maintenance_query = MaintenanceActivity.objects.filter(maintenance_site_filter).select_related(
+            'equipment', 'equipment__location', 'equipment__category', 'assigned_to'
+        )
+        
+        calendar_site_filter = Q(equipment__location__parent_location=selected_site) | Q(equipment__location=selected_site)
+        calendar_query = CalendarEvent.objects.filter(calendar_site_filter).select_related(
+            'equipment', 'equipment__location', 'assigned_to'
+        )
+        
+        # Get locations (pods) with natural sorting and prefetch related data
+        locations_queryset = Location.objects.filter(
             parent_location=selected_site,
             is_active=True
-        ).select_related('parent_location')
-        # Apply natural sorting to pod names
-        locations = sorted(locations, key=lambda loc: natural_sort_key(loc.name))
+        ).select_related('parent_location', 'customer').prefetch_related(
+            Prefetch('equipment_set', queryset=Equipment.objects.select_related('category')),
+            Prefetch('equipment_set__maintenanceactivity_set', 
+                    queryset=MaintenanceActivity.objects.select_related('assigned_to'))
+        )
+        locations = list(locations_queryset)
+        locations.sort(key=lambda loc: natural_sort_key(loc.name))
+        
     else:
+        # Global queries
+        equipment_query = Equipment.objects.select_related('location', 'category')
+        maintenance_query = MaintenanceActivity.objects.select_related(
+            'equipment', 'equipment__location', 'equipment__category', 'assigned_to'
+        )
+        calendar_query = CalendarEvent.objects.select_related(
+            'equipment', 'equipment__location', 'assigned_to'
+        )
+        
         # Show top-level locations if no site selected
-        locations = Location.objects.filter(
+        locations_queryset = Location.objects.filter(
             is_site=False,
             is_active=True
-        ).select_related('parent_location')[:8]  # Limit for layout
-        locations = sorted(locations, key=lambda loc: natural_sort_key(loc.name))
+        ).select_related('parent_location', 'customer')[:8]
+        locations = list(locations_queryset)
+        locations.sort(key=lambda loc: natural_sort_key(loc.name))
     
-    # === URGENT ITEMS ===
-    urgent_maintenance = maintenance_query.filter(
+    # ===== BULK STATISTICS CALCULATION =====
+    
+    # Calculate urgent items with single queries
+    urgent_maintenance = list(maintenance_query.filter(
         Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today),
         status__in=['pending', 'in_progress', 'overdue']
-    ).select_related('equipment', 'equipment__location').order_by('scheduled_end')[:15]
+    ).order_by('scheduled_end')[:15])
     
-    urgent_calendar = calendar_query.filter(
+    urgent_calendar = list(calendar_query.filter(
         event_date__lte=urgent_cutoff,
         event_date__gte=today,
         is_completed=False
-    ).select_related('equipment', 'equipment__location').order_by('event_date')[:10]
+    ).order_by('event_date')[:10])
     
-    # === UPCOMING ITEMS ===
-    upcoming_maintenance = maintenance_query.filter(
+    # Calculate upcoming items with single queries
+    upcoming_maintenance = list(maintenance_query.filter(
         scheduled_end__gt=urgent_cutoff,
         scheduled_end__lte=upcoming_cutoff,
         status__in=['pending', 'scheduled']
-    ).select_related('equipment', 'equipment__location').order_by('scheduled_end')[:15]
+    ).order_by('scheduled_end')[:15])
     
-    upcoming_calendar = calendar_query.filter(
+    upcoming_calendar = list(calendar_query.filter(
         event_date__gt=urgent_cutoff,
         event_date__lte=upcoming_cutoff,
         is_completed=False
-    ).select_related('equipment', 'equipment__location').order_by('event_date')[:10]
+    ).order_by('event_date')[:10])
     
-    # === OVERVIEW DATA (Site Status or Pod Status based on selection) ===
+    # ===== OPTIMIZED OVERVIEW DATA CALCULATION =====
+    
     if selected_site:
-        # Show POD STATUS for selected site
+        # POD STATUS - Use prefetched data to avoid N+1 queries
         overview_data = []
+        
+        # Get all equipment and maintenance data in bulk
+        pod_equipment = {loc.id: [] for loc in locations}
+        pod_maintenance = {loc.id: [] for loc in locations}
+        pod_calendar = {loc.id: [] for loc in locations}
+        
+        # Organize equipment by location
+        for equipment in equipment_query:
+            if equipment.location.id in pod_equipment:
+                pod_equipment[equipment.location.id].append(equipment)
+        
+        # Organize maintenance by location
+        for maintenance in maintenance_query:
+            if maintenance.equipment.location.id in pod_maintenance:
+                pod_maintenance[maintenance.equipment.location.id].append(maintenance)
+        
+        # Organize calendar by location
+        for calendar_event in calendar_query:
+            if calendar_event.equipment.location.id in pod_calendar:
+                pod_calendar[calendar_event.equipment.location.id].append(calendar_event)
+        
+        # Process each location with bulk data
         for location in locations:
-            # Equipment counts by status
-            location_equipment = equipment_query.filter(location=location)
+            location_equipment = pod_equipment.get(location.id, [])
+            location_maintenance = pod_maintenance.get(location.id, [])
+            location_calendar = pod_calendar.get(location.id, [])
             
-            # Maintenance statistics for this pod
-            pod_maintenance = maintenance_query.filter(equipment__location=location)
+            # Calculate counts from in-memory data
+            equipment_in_maintenance = sum(1 for eq in location_equipment if eq.status == 'maintenance')
+            active_equipment = sum(1 for eq in location_equipment if eq.status == 'active')
+            total_equipment = len(location_equipment)
             
-            # Calendar events for this pod
-            pod_calendar = calendar_query.filter(equipment__location=location)
+            # Calculate maintenance counts
+            upcoming_maintenance_count = sum(
+                1 for ma in location_maintenance
+                if (ma.scheduled_start and 
+                    today <= ma.scheduled_start.date() <= urgent_cutoff and
+                    ma.status in ['scheduled', 'pending'])
+            )
             
-            # Current status
-            equipment_in_maintenance = location_equipment.filter(status='maintenance').count()
-            active_equipment = location_equipment.filter(status='active').count()
-            total_equipment = location_equipment.count()
+            # Get recent activities
+            recent_activities = [
+                ma for ma in location_maintenance
+                if (ma.actual_end and 
+                    ma.actual_end.date() >= today - timedelta(days=30) and
+                    ma.status == 'completed')
+            ]
+            recent_activities.sort(key=lambda x: x.actual_end, reverse=True)
+            recent_activities = recent_activities[:3]
             
-            # Upcoming maintenance in next 7 days
-            upcoming_maintenance_count = pod_maintenance.filter(
-                scheduled_start__date__lte=urgent_cutoff,
-                scheduled_start__date__gte=today,
-                status__in=['scheduled', 'pending']
-            ).count()
-            
-            # Recent activities (last 30 days)
-            recent_activities = pod_maintenance.filter(
-                actual_end__gte=today - timedelta(days=30),
-                status='completed'
-            ).order_by('-actual_end')[:3]
-            
-            # Next scheduled events
-            next_events = pod_calendar.filter(
-                event_date__gte=today,
-                is_completed=False
-            ).order_by('event_date')[:3]
+            # Get next events
+            next_events = [
+                ce for ce in location_calendar
+                if (ce.event_date >= today and not ce.is_completed)
+            ]
+            next_events.sort(key=lambda x: x.event_date)
+            next_events = next_events[:3]
             
             # Calculate pod health status
             if equipment_in_maintenance > 0:
@@ -181,59 +240,72 @@ def dashboard(request):
         overview_type = 'pods'
         
     else:
-        # Show SITE STATUS for all sites
+        # SITE STATUS - Use aggregate queries for better performance
         overview_data = []
         all_sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
         
+        # Get aggregated data for all sites in bulk
+        site_equipment_data = {}
+        site_maintenance_data = {}
+        site_calendar_data = {}
+        
         for site in all_sites:
-            # Get equipment and maintenance for this entire site
             site_equipment_filter = Q(location__parent_location=site) | Q(location=site)
-            site_equipment = Equipment.objects.filter(site_equipment_filter)
+            site_equipment_counts = Equipment.objects.filter(site_equipment_filter).values('status').annotate(count=Count('id'))
             
+            # Convert to dict for easy lookup
+            equipment_counts = {item['status']: item['count'] for item in site_equipment_counts}
+            
+            # Maintenance aggregation
             site_maintenance_filter = Q(equipment__location__parent_location=site) | Q(equipment__location=site)
-            site_maintenance = MaintenanceActivity.objects.filter(site_maintenance_filter)
+            maintenance_counts = MaintenanceActivity.objects.filter(site_maintenance_filter).values('status').annotate(count=Count('id'))
+            maintenance_counts_dict = {item['status']: item['count'] for item in maintenance_counts}
             
+            # Calendar aggregation
             site_calendar_filter = Q(equipment__location__parent_location=site) | Q(equipment__location=site)
-            site_calendar = CalendarEvent.objects.filter(site_calendar_filter)
+            calendar_counts = CalendarEvent.objects.filter(site_calendar_filter).aggregate(
+                total=Count('id'),
+                pending=Count('id', filter=Q(is_completed=False, event_date__gte=today)),
+                completed=Count('id', filter=Q(is_completed=True))
+            )
             
-            # Equipment counts by status
-            equipment_in_maintenance = site_equipment.filter(status='maintenance').count()
-            active_equipment = site_equipment.filter(status='active').count()
-            inactive_equipment = site_equipment.filter(status='inactive').count()
-            total_equipment = site_equipment.count()
+            # Calculate derived values
+            total_equipment = sum(equipment_counts.values())
+            active_equipment = equipment_counts.get('active', 0)
+            equipment_in_maintenance = equipment_counts.get('maintenance', 0)
+            inactive_equipment = equipment_counts.get('inactive', 0)
             
-            # Maintenance statistics for this site
-            pending_maintenance = site_maintenance.filter(status='pending').count()
-            in_progress_maintenance = site_maintenance.filter(status='in_progress').count()
-            overdue_maintenance = site_maintenance.filter(
+            pending_maintenance = maintenance_counts_dict.get('pending', 0)
+            in_progress_maintenance = maintenance_counts_dict.get('in_progress', 0)
+            
+            # Get overdue maintenance count
+            overdue_maintenance = MaintenanceActivity.objects.filter(
+                site_maintenance_filter,
                 scheduled_end__lt=timezone.now(),
                 status__in=['pending', 'scheduled']
             ).count()
             
-            # Upcoming maintenance in next 7 days
-            upcoming_maintenance_count = site_maintenance.filter(
+            # Get upcoming maintenance count
+            upcoming_maintenance_count = MaintenanceActivity.objects.filter(
+                site_maintenance_filter,
                 scheduled_start__date__lte=urgent_cutoff,
                 scheduled_start__date__gte=today,
                 status__in=['scheduled', 'pending']
             ).count()
             
-            # Recent activities (last 30 days)
-            recent_activities = site_maintenance.filter(
+            # Get recent activities
+            recent_activities = list(MaintenanceActivity.objects.filter(
+                site_maintenance_filter,
                 actual_end__gte=today - timedelta(days=30),
                 status='completed'
-            ).order_by('-actual_end')[:3]
+            ).select_related('equipment', 'assigned_to').order_by('-actual_end')[:3])
             
-            # Calendar events
-            pending_events = site_calendar.filter(
-                is_completed=False,
-                event_date__gte=today
-            ).count()
-            
-            # Next scheduled events
-            next_events = site_calendar.filter(
+            # Get next events
+            next_events = list(CalendarEvent.objects.filter(
+                site_calendar_filter,
                 event_date__gte=today,
                 is_completed=False
-            ).order_by('event_date')[:3]
+            ).select_related('equipment', 'assigned_to').order_by('event_date')[:3])
             
             # Calculate site health status
             equipment_health_ratio = active_equipment / max(total_equipment, 1)
@@ -250,7 +322,7 @@ def dashboard(request):
             else:
                 status = 'good'
             
-            # Count pods (child locations) for this site
+            # Get pod count
             pod_count = Location.objects.filter(parent_location=site, is_active=True).count()
             
             overview_data.append({
@@ -264,7 +336,7 @@ def dashboard(request):
                 'in_progress_maintenance': in_progress_maintenance,
                 'overdue_maintenance': overdue_maintenance,
                 'upcoming_maintenance_count': upcoming_maintenance_count,
-                'pending_events': pending_events,
+                'pending_events': calendar_counts['pending'],
                 'pod_count': pod_count,
                 'recent_activities': recent_activities,
                 'next_events': next_events,
@@ -272,37 +344,55 @@ def dashboard(request):
             })
         overview_type = 'sites'
     
-    # === OVERALL SITE STATISTICS ===
-    site_stats = {
-        'total_equipment': equipment_query.count(),
-        'active_equipment': equipment_query.filter(status='active').count(),
-        'equipment_in_maintenance': equipment_query.filter(status='maintenance').count(),
-        'inactive_equipment': equipment_query.filter(status='inactive').count(),
-        
-        # Maintenance statistics
-        'total_maintenance_activities': maintenance_query.count(),
-        'pending_maintenance': maintenance_query.filter(status='pending').count(),
-        'in_progress_maintenance': maintenance_query.filter(status='in_progress').count(),
-        'overdue_maintenance': maintenance_query.filter(
-            scheduled_end__lt=timezone.now(),
-            status__in=['pending', 'scheduled']
-        ).count(),
-        'completed_this_month': maintenance_query.filter(
-            status='completed',
-            actual_end__gte=today.replace(day=1)
-        ).count(),
-        
-        # Calendar statistics
-        'total_calendar_events': calendar_query.count(),
-        'events_this_week': calendar_query.filter(
+    # ===== OPTIMIZED OVERALL SITE STATISTICS =====
+    
+    # Use aggregate queries for statistics
+    equipment_stats = equipment_query.values('status').annotate(count=Count('id'))
+    equipment_counts = {item['status']: item['count'] for item in equipment_stats}
+    
+    maintenance_stats = maintenance_query.values('status').annotate(count=Count('id'))
+    maintenance_counts = {item['status']: item['count'] for item in maintenance_stats}
+    
+    calendar_stats = calendar_query.aggregate(
+        total=Count('id'),
+        events_this_week=Count('id', filter=Q(
             event_date__gte=today,
             event_date__lt=today + timedelta(days=7)
-        ).count(),
-        'completed_events': calendar_query.filter(is_completed=True).count(),
-        'pending_events': calendar_query.filter(
-            is_completed=False,
-            event_date__gte=today
-        ).count(),
+        )),
+        completed=Count('id', filter=Q(is_completed=True)),
+        pending=Count('id', filter=Q(is_completed=False, event_date__gte=today))
+    )
+    
+    # Calculate overdue maintenance
+    overdue_count = maintenance_query.filter(
+        scheduled_end__lt=timezone.now(),
+        status__in=['pending', 'scheduled']
+    ).count()
+    
+    # Calculate completed this month
+    completed_this_month = maintenance_query.filter(
+        status='completed',
+        actual_end__gte=today.replace(day=1)
+    ).count()
+    
+    site_stats = {
+        'total_equipment': sum(equipment_counts.values()),
+        'active_equipment': equipment_counts.get('active', 0),
+        'equipment_in_maintenance': equipment_counts.get('maintenance', 0),
+        'inactive_equipment': equipment_counts.get('inactive', 0),
+        
+        # Maintenance statistics
+        'total_maintenance_activities': sum(maintenance_counts.values()),
+        'pending_maintenance': maintenance_counts.get('pending', 0),
+        'in_progress_maintenance': maintenance_counts.get('in_progress', 0),
+        'overdue_maintenance': overdue_count,
+        'completed_this_month': completed_this_month,
+        
+        # Calendar statistics
+        'total_calendar_events': calendar_stats['total'],
+        'events_this_week': calendar_stats['events_this_week'],
+        'completed_events': calendar_stats['completed'],
+        'pending_events': calendar_stats['pending'],
     }
     
     # Calculate overall site health
@@ -318,6 +408,7 @@ def dashboard(request):
     else:
         site_health = 'good'
     
+    # Build final context
     context = {
         'sites': sites,
         'selected_site': selected_site,
@@ -345,6 +436,10 @@ def dashboard(request):
         'active_equipment': site_stats['active_equipment'],
         'pending_maintenance': site_stats['pending_maintenance'],
     }
+    
+    # Cache the result
+    cache.set(cache_key, context, cache_timeout)
+    
     return render(request, 'core/dashboard.html', context)
 
 

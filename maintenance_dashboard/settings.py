@@ -83,6 +83,10 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD', default='postgres'),
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
+        'OPTIONS': {
+            'MAX_CONNS': 20,
+            'CONN_MAX_AGE': 300,  # 5 minutes
+        },
     }
 }
 
@@ -189,7 +193,7 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULE = {
     'generate-scheduled-maintenance': {
         'task': 'maintenance.tasks.generate_scheduled_maintenance',
-        'schedule': 3600.0,  # Every hour
+        'schedule': 7200.0,  # Every 2 hours (reduced from 1 hour)
     },
     'send-maintenance-reminders': {
         'task': 'maintenance.tasks.send_maintenance_reminders',
@@ -197,7 +201,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     'check-overdue-maintenance': {
         'task': 'maintenance.tasks.check_overdue_maintenance',
-        'schedule': 7200.0,  # Every 2 hours
+        'schedule': 14400.0,  # Every 4 hours (reduced from 2 hours)
     },
     'send-event-reminders': {
         'task': 'events.tasks.send_event_reminders',
@@ -205,7 +209,7 @@ CELERY_BEAT_SCHEDULE = {
     },
     'generate-maintenance-events': {
         'task': 'events.tasks.generate_maintenance_events',
-        'schedule': 1800.0,  # Every 30 minutes
+        'schedule': 7200.0,  # Every 2 hours (reduced from 30 minutes)
     },
     'cleanup-old-events': {
         'task': 'events.tasks.cleanup_old_events',
@@ -213,6 +217,24 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# Caching Configuration
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': config('REDIS_URL', default='redis://redis:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        },
+        'KEY_PREFIX': 'maintenance_dashboard',
+        'TIMEOUT': 300,  # 5 minutes default timeout
+    }
+}
+
+# Session Configuration - Use Redis for sessions
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'
+SESSION_COOKIE_AGE = 86400  # 24 hours
 
 # Email Configuration
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
