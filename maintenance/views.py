@@ -74,89 +74,187 @@ def create_calendar_event_for_maintenance(activity):
 @login_required
 def maintenance_list(request):
     """Main maintenance dashboard."""
-    # Get upcoming maintenance
-    upcoming_activities = MaintenanceActivity.objects.filter(
-        scheduled_start__gte=timezone.now(),
-        status__in=['scheduled', 'pending']
-    ).select_related('equipment', 'activity_type').order_by('scheduled_start')[:10]
-    
-    # Get overdue maintenance
-    overdue_activities = MaintenanceActivity.objects.filter(
-        scheduled_end__lt=timezone.now(),
-        status__in=['scheduled', 'pending']
-    ).select_related('equipment', 'activity_type').order_by('scheduled_start')[:10]
-    
-    # Get in progress
-    in_progress = MaintenanceActivity.objects.filter(
-        status='in_progress'
-    ).select_related('equipment', 'activity_type')
-    
-    # Statistics
-    stats = {
-        'total_activities': MaintenanceActivity.objects.count(),
-        'pending_count': MaintenanceActivity.objects.filter(status='pending').count(),
-        'overdue_count': overdue_activities.count(),
-        'completed_this_month': MaintenanceActivity.objects.filter(
-            status='completed',
-            actual_end__gte=timezone.now().replace(day=1)
-        ).count(),
-    }
-    
-    context = {
-        'upcoming_activities': upcoming_activities,
-        'overdue_activities': overdue_activities,
-        'in_progress': in_progress,
-        'stats': stats,
-    }
-    
-    return render(request, 'maintenance/maintenance_list.html', context)
+    try:
+        # Get upcoming maintenance
+        upcoming_activities = MaintenanceActivity.objects.filter(
+            scheduled_start__gte=timezone.now(),
+            status__in=['scheduled', 'pending']
+        ).select_related('equipment', 'activity_type').order_by('scheduled_start')[:10]
+        
+        # Get overdue maintenance
+        overdue_activities = MaintenanceActivity.objects.filter(
+            scheduled_end__lt=timezone.now(),
+            status__in=['scheduled', 'pending']
+        ).select_related('equipment', 'activity_type').order_by('scheduled_start')[:10]
+        
+        # Get in progress
+        in_progress = MaintenanceActivity.objects.filter(
+            status='in_progress'
+        ).select_related('equipment', 'activity_type')
+        
+        # Statistics
+        stats = {
+            'total_activities': MaintenanceActivity.objects.count(),
+            'pending_count': MaintenanceActivity.objects.filter(status='pending').count(),
+            'overdue_count': overdue_activities.count(),
+            'completed_this_month': MaintenanceActivity.objects.filter(
+                status='completed',
+                actual_end__gte=timezone.now().replace(day=1)
+            ).count(),
+        }
+        
+        context = {
+            'upcoming_activities': upcoming_activities,
+            'overdue_activities': overdue_activities,
+            'in_progress': in_progress,
+            'stats': stats,
+        }
+        
+        return render(request, 'maintenance/maintenance_list.html', context)
+        
+    except Exception as e:
+        logger.error(f"Database error in maintenance_list: {str(e)}")
+        
+        # Try alternative query without select_related
+        try:
+            upcoming_activities = MaintenanceActivity.objects.filter(
+                scheduled_start__gte=timezone.now(),
+                status__in=['scheduled', 'pending']
+            ).order_by('scheduled_start')[:10]
+            
+            overdue_activities = MaintenanceActivity.objects.filter(
+                scheduled_end__lt=timezone.now(),
+                status__in=['scheduled', 'pending']
+            ).order_by('scheduled_start')[:10]
+            
+            in_progress = MaintenanceActivity.objects.filter(
+                status='in_progress'
+            )
+            
+            stats = {
+                'total_activities': MaintenanceActivity.objects.count(),
+                'pending_count': MaintenanceActivity.objects.filter(status='pending').count(),
+                'overdue_count': overdue_activities.count(),
+                'completed_this_month': MaintenanceActivity.objects.filter(
+                    status='completed',
+                    actual_end__gte=timezone.now().replace(day=1)
+                ).count(),
+            }
+            
+            context = {
+                'upcoming_activities': upcoming_activities,
+                'overdue_activities': overdue_activities,
+                'in_progress': in_progress,
+                'stats': stats,
+                'database_error': True,
+                'error_message': 'Database schema issue detected. Some functionality may be limited.'
+            }
+            
+            return render(request, 'maintenance/maintenance_list.html', context)
+            
+        except Exception as fallback_error:
+            logger.error(f"Fallback query also failed: {str(fallback_error)}")
+            messages.error(request, 'Database connection issue. Please contact support.')
+            return redirect('/')
 
 
 @login_required
 def activity_list(request):
     """List all maintenance activities with filtering."""
-    queryset = MaintenanceActivity.objects.select_related(
-        'equipment', 'activity_type', 'assigned_to'
-    ).all()
-    
-    # Filtering
-    status = request.GET.get('status')
-    if status:
-        queryset = queryset.filter(status=status)
+    try:
+        queryset = MaintenanceActivity.objects.select_related(
+            'equipment', 'activity_type', 'assigned_to'
+        ).all()
         
-    equipment_id = request.GET.get('equipment')
-    if equipment_id:
-        queryset = queryset.filter(equipment_id=equipment_id)
+        # Filtering
+        status = request.GET.get('status')
+        if status:
+            queryset = queryset.filter(status=status)
+            
+        equipment_id = request.GET.get('equipment')
+        if equipment_id:
+            queryset = queryset.filter(equipment_id=equipment_id)
+            
+        activity_type_id = request.GET.get('activity_type')
+        if activity_type_id:
+            queryset = queryset.filter(activity_type_id=activity_type_id)
         
-    activity_type_id = request.GET.get('activity_type')
-    if activity_type_id:
-        queryset = queryset.filter(activity_type_id=activity_type_id)
-    
-    search_term = request.GET.get('search', '')
-    if search_term:
-        queryset = queryset.filter(
-            Q(title__icontains=search_term) |
-            Q(equipment__name__icontains=search_term) |
-            Q(activity_type__name__icontains=search_term)
-        )
-    
-    # Pagination
-    paginator = Paginator(queryset, 25)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    context = {
-        'page_obj': page_obj,
-        'search_term': search_term,
-        'statuses': MaintenanceActivity.STATUS_CHOICES,
-        'equipment_list': Equipment.objects.filter(is_active=True),
-        'activity_types': MaintenanceActivityType.objects.filter(is_active=True),
-        'selected_status': status,
-        'selected_equipment': equipment_id,
-        'selected_activity_type': activity_type_id,
-    }
-    
-    return render(request, 'maintenance/activity_list.html', context)
+        search_term = request.GET.get('search', '')
+        if search_term:
+            queryset = queryset.filter(
+                Q(title__icontains=search_term) |
+                Q(equipment__name__icontains=search_term) |
+                Q(activity_type__name__icontains=search_term)
+            )
+        
+        # Pagination
+        paginator = Paginator(queryset, 25)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        
+        context = {
+            'page_obj': page_obj,
+            'search_term': search_term,
+            'statuses': MaintenanceActivity.STATUS_CHOICES,
+            'equipment_list': Equipment.objects.filter(is_active=True),
+            'activity_types': MaintenanceActivityType.objects.filter(is_active=True),
+            'selected_status': status,
+            'selected_equipment': equipment_id,
+            'selected_activity_type': activity_type_id,
+        }
+        
+        return render(request, 'maintenance/activity_list.html', context)
+        
+    except Exception as e:
+        logger.error(f"Database error in activity_list: {str(e)}")
+        
+        # Try alternative query without select_related
+        try:
+            queryset = MaintenanceActivity.objects.all()
+            
+            # Apply basic filtering
+            status = request.GET.get('status')
+            if status:
+                queryset = queryset.filter(status=status)
+                
+            equipment_id = request.GET.get('equipment')
+            if equipment_id:
+                queryset = queryset.filter(equipment_id=equipment_id)
+                
+            activity_type_id = request.GET.get('activity_type')
+            if activity_type_id:
+                queryset = queryset.filter(activity_type_id=activity_type_id)
+            
+            search_term = request.GET.get('search', '')
+            if search_term:
+                queryset = queryset.filter(
+                    Q(title__icontains=search_term)
+                )
+            
+            # Pagination
+            paginator = Paginator(queryset, 25)
+            page_number = request.GET.get('page')
+            page_obj = paginator.get_page(page_number)
+            
+            context = {
+                'page_obj': page_obj,
+                'search_term': search_term,
+                'statuses': MaintenanceActivity.STATUS_CHOICES,
+                'equipment_list': [],
+                'activity_types': [],
+                'selected_status': status,
+                'selected_equipment': equipment_id,
+                'selected_activity_type': activity_type_id,
+                'database_error': True,
+                'error_message': 'Database schema issue detected. Some functionality may be limited.'
+            }
+            
+            return render(request, 'maintenance/activity_list.html', context)
+            
+        except Exception as fallback_error:
+            logger.error(f"Fallback query also failed: {str(fallback_error)}")
+            messages.error(request, 'Database connection issue. Please contact support.')
+            return redirect('maintenance:maintenance_list')
 
 
 @login_required
@@ -345,12 +443,31 @@ def complete_activity(request, activity_id):
 @login_required
 def schedule_list(request):
     """List maintenance schedules."""
-    schedules = MaintenanceSchedule.objects.select_related(
-        'equipment', 'activity_type'
-    ).filter(is_active=True)
-    
-    context = {'schedules': schedules}
-    return render(request, 'maintenance/schedule_list.html', context)
+    try:
+        schedules = MaintenanceSchedule.objects.select_related(
+            'equipment', 'activity_type'
+        ).filter(is_active=True)
+        
+        context = {'schedules': schedules}
+        return render(request, 'maintenance/schedule_list.html', context)
+        
+    except Exception as e:
+        logger.error(f"Database error in schedule_list: {str(e)}")
+        
+        # Try alternative query without select_related
+        try:
+            schedules = MaintenanceSchedule.objects.filter(is_active=True)
+            context = {
+                'schedules': schedules,
+                'database_error': True,
+                'error_message': 'Database schema issue detected. Some functionality may be limited.'
+            }
+            return render(request, 'maintenance/schedule_list.html', context)
+            
+        except Exception as fallback_error:
+            logger.error(f"Fallback query also failed: {str(fallback_error)}")
+            messages.error(request, 'Database connection issue. Please contact support.')
+            return redirect('maintenance:maintenance_list')
 
 
 @login_required
@@ -460,10 +577,30 @@ def generate_scheduled_activities(request):
 @login_required
 def activity_type_list(request):
     """List maintenance activity types."""
-    activity_types = MaintenanceActivityType.objects.filter(is_active=True)
-    
-    context = {'activity_types': activity_types}
-    return render(request, 'maintenance/activity_type_list.html', context)
+    try:
+        activity_types = MaintenanceActivityType.objects.filter(is_active=True)
+        
+        context = {'activity_types': activity_types}
+        return render(request, 'maintenance/activity_type_list.html', context)
+        
+    except Exception as e:
+        logger.error(f"Database error in activity_type_list: {str(e)}")
+        
+        # Try alternative query
+        try:
+            activity_types = MaintenanceActivityType.objects.all()
+            
+            context = {
+                'activity_types': activity_types,
+                'database_error': True,
+                'error_message': 'Database schema issue detected. Some functionality may be limited.'
+            }
+            return render(request, 'maintenance/activity_type_list.html', context)
+            
+        except Exception as fallback_error:
+            logger.error(f"Fallback query also failed: {str(fallback_error)}")
+            messages.error(request, 'Database connection issue. Please contact support.')
+            return redirect('maintenance:maintenance_list')
 
 
 @login_required
