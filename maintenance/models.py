@@ -8,16 +8,96 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
-from core.models import TimeStampedModel
+from core.models import TimeStampedModel, EquipmentCategory
 from equipment.models import Equipment
+
+
+class ActivityTypeCategory(TimeStampedModel):
+    """
+    Categories for organizing maintenance activity types.
+    Similar to equipment categories but for maintenance activities.
+    """
+    name = models.CharField(max_length=100, unique=True, help_text="Category name (e.g., Preventive, Corrective, Inspection)")
+    description = models.TextField(blank=True, help_text="Description of this activity category")
+    color = models.CharField(max_length=7, default='#007bff', help_text="Color for visual identification (hex code)")
+    icon = models.CharField(max_length=50, default='fas fa-wrench', help_text="FontAwesome icon class")
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0, help_text="Order for display")
+
+    class Meta:
+        verbose_name = "Activity Type Category"
+        verbose_name_plural = "Activity Type Categories"
+        ordering = ['sort_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+class ActivityTypeTemplate(TimeStampedModel):
+    """
+    Templates for activity types tied to specific equipment categories.
+    This allows for automatic suggestions based on equipment type.
+    """
+    name = models.CharField(max_length=100, help_text="Template name")
+    equipment_category = models.ForeignKey(
+        EquipmentCategory,
+        on_delete=models.CASCADE,
+        related_name='activity_templates',
+        help_text="Equipment category this template applies to"
+    )
+    category = models.ForeignKey(
+        ActivityTypeCategory,
+        on_delete=models.CASCADE,
+        related_name='templates',
+        help_text="Activity type category"
+    )
+    description = models.TextField(help_text="Template description")
+    estimated_duration_hours = models.PositiveIntegerField(default=1, help_text="Estimated duration in hours")
+    frequency_days = models.PositiveIntegerField(help_text="Frequency in days")
+    is_mandatory = models.BooleanField(default=True, help_text="Is this activity mandatory?")
+    
+    # Default settings
+    default_tools_required = models.TextField(blank=True, help_text="Default tools required")
+    default_parts_required = models.TextField(blank=True, help_text="Default parts required")
+    default_safety_notes = models.TextField(blank=True, help_text="Default safety considerations")
+    
+    # Checklist template
+    checklist_template = models.TextField(blank=True, help_text="Default checklist items (one per line)")
+    
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0, help_text="Order for display")
+
+    class Meta:
+        verbose_name = "Activity Type Template"
+        verbose_name_plural = "Activity Type Templates"
+        ordering = ['equipment_category', 'sort_order', 'name']
+        unique_together = ['equipment_category', 'name']
+
+    def __str__(self):
+        return f"{self.equipment_category.name} - {self.name}"
 
 
 class MaintenanceActivityType(TimeStampedModel):
     """
     Types of maintenance activities (replaces hardcoded activities from original).
     Fixed: Made maintenance activity types configurable instead of hardcoded.
+    Enhanced: Added category and template relationships.
     """
     name = models.CharField(max_length=100, unique=True, help_text="Activity type name (e.g., T-A-1, T-A-2)")
+    category = models.ForeignKey(
+        ActivityTypeCategory,
+        on_delete=models.CASCADE,
+        related_name='activity_types',
+        help_text="Activity type category"
+    )
+    template = models.ForeignKey(
+        ActivityTypeTemplate,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activity_types',
+        help_text="Template used to create this activity type"
+    )
     description = models.TextField(help_text="Description of the maintenance activity")
     estimated_duration_hours = models.PositiveIntegerField(
         default=1,
@@ -28,14 +108,31 @@ class MaintenanceActivityType(TimeStampedModel):
     )
     is_mandatory = models.BooleanField(default=True)
     is_active = models.BooleanField(default=True)
+    
+    # Enhanced fields
+    tools_required = models.TextField(blank=True, help_text="Tools required for this activity")
+    parts_required = models.TextField(blank=True, help_text="Parts required for this activity")
+    safety_notes = models.TextField(blank=True, help_text="Safety considerations")
+    
+    # Equipment type associations
+    applicable_equipment_categories = models.ManyToManyField(
+        EquipmentCategory,
+        blank=True,
+        related_name='applicable_activity_types',
+        help_text="Equipment categories this activity type applies to"
+    )
 
     class Meta:
         verbose_name = "Maintenance Activity Type"
         verbose_name_plural = "Maintenance Activity Types"
-        ordering = ['name']
+        ordering = ['category', 'name']
 
     def __str__(self):
         return f"{self.name} - {self.description}"
+    
+    def get_applicable_equipment_categories_display(self):
+        """Get a comma-separated list of applicable equipment categories."""
+        return ", ".join([cat.name for cat in self.applicable_equipment_categories.all()])
 
 
 class MaintenanceActivity(TimeStampedModel):

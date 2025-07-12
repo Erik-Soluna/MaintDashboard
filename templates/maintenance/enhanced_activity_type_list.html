@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+
+{% block title %}Activity Types{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Activity Types</h1>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'maintenance:enhanced_add_activity_type' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Activity Type
+                    </a>
+                    <a href="{% url 'maintenance:activity_type_categories' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-tags"></i> Manage Categories
+                    </a>
+                    <a href="{% url 'maintenance:activity_type_templates' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-file-alt"></i> Manage Templates
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Search Bar -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="category" class="form-label">Category</label>
+                            <select name="category" id="category" class="form-select">
+                                <option value="">All Categories</option>
+                                {% for category in categories %}
+                                    <option value="{{ category.id }}" {% if category.id|stringformat:"s" == selected_category %}selected{% endif %}>
+                                        {{ category.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="search" class="form-label">Search</label>
+                            <input type="text" name="search" id="search" class="form-control" 
+                                   value="{{ search_query }}" placeholder="Search activity types...">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="fas fa-search"></i> Filter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Types Grid -->
+    <div class="row">
+        {% for activity_type in activity_types %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <i class="{{ activity_type.category.icon }} me-2" style="color: {{ activity_type.category.color }}"></i>
+                        <h6 class="mb-0">{{ activity_type.name }}</h6>
+                    </div>
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'maintenance:enhanced_edit_activity_type' activity_type.id %}" 
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <span class="badge" style="background-color: {{ activity_type.category.color }}">
+                            {{ activity_type.category.name }}
+                        </span>
+                        {% if activity_type.is_mandatory %}
+                            <span class="badge bg-danger ms-1">Required</span>
+                        {% endif %}
+                        {% if activity_type.template %}
+                            <span class="badge bg-info ms-1">Template-based</span>
+                        {% endif %}
+                    </div>
+                    
+                    <p class="card-text">{{ activity_type.description|truncatewords:15 }}</p>
+                    
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="border-end">
+                                <h6 class="mb-0 text-primary">{{ activity_type.estimated_duration_hours }}</h6>
+                                <small class="text-muted">Hours</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border-end">
+                                <h6 class="mb-0 text-success">{{ activity_type.frequency_days }}</h6>
+                                <small class="text-muted">Days</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <h6 class="mb-0 text-info">{{ activity_type.applicable_equipment_categories.count }}</h6>
+                            <small class="text-muted">Categories</small>
+                        </div>
+                    </div>
+                    
+                    {% if activity_type.applicable_equipment_categories.exists %}
+                        <div class="mb-2">
+                            <small class="text-muted">Equipment Categories:</small>
+                            <div class="mt-1">
+                                {% for eq_cat in activity_type.applicable_equipment_categories.all %}
+                                    <span class="badge bg-secondary me-1">{{ eq_cat.name }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">
+                                {% if activity_type.tools_required %}
+                                    <i class="fas fa-tools"></i> Tools Required
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="col-6 text-end">
+                            <small class="text-muted">
+                                {% if activity_type.safety_notes %}
+                                    <i class="fas fa-exclamation-triangle text-warning"></i> Safety Notes
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-list-ul fa-3x text-muted mb-3"></i>
+                    <h5>No Activity Types Found</h5>
+                    <p class="text-muted">
+                        {% if search_query or selected_category %}
+                            No activity types match your current filters.
+                        {% else %}
+                            Get started by creating your first activity type.
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'maintenance:enhanced_add_activity_type' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Activity Type
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Quick Statistics</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="border-end">
+                                <h4 class="mb-0 text-primary">{{ activity_types.count }}</h4>
+                                <small class="text-muted">Total Activity Types</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border-end">
+                                <h4 class="mb-0 text-success">{{ categories.count }}</h4>
+                                <small class="text-muted">Categories</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border-end">
+                                <h4 class="mb-0 text-info">{{ activity_types|length }}</h4>
+                                <small class="text-muted">Active Types</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="mb-0 text-warning">
+                                {% for activity_type in activity_types %}{% if activity_type.is_mandatory %}{{ forloop.counter }}{% endif %}{% endfor %}
+                            </h4>
+                            <small class="text-muted">Required Types</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-submit form on category change
+    const categorySelect = document.getElementById('category');
+    if (categorySelect) {
+        categorySelect.addEventListener('change', function() {
+            this.form.submit();
+        });
+    }
+});
+</script>
+{% endblock %}
