@@ -267,10 +267,11 @@ For production, consider using connection pooling:
 DATABASES = {
     'default': {
         # ... other settings
-        'CONN_MAX_AGE': 600,  # Connection reuse in seconds
+        'CONN_MAX_AGE': 600,  # Connection reuse - Django setting
         'OPTIONS': {
-            # Connection pooling should be handled by external tools
-            # like pgbouncer or connection pooling middleware
+            # PostgreSQL-specific connection options
+            # Note: MAX_CONNS and MIN_CONNS are not valid PostgreSQL options
+            # Use a connection pooler like PgBouncer for advanced pooling
         }
     }
 }
