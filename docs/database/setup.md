@@ -267,10 +267,10 @@ For production, consider using connection pooling:
 DATABASES = {
     'default': {
         # ... other settings
-        'CONN_MAX_AGE': 600,  # Connection reuse
+        'CONN_MAX_AGE': 600,  # Connection reuse in seconds
         'OPTIONS': {
-            'MAX_CONNS': 20,
-            'MIN_CONNS': 5,
+            # Connection pooling should be handled by external tools
+            # like pgbouncer or connection pooling middleware
         }
     }
 }
