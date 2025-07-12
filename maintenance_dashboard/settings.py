@@ -43,6 +43,8 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'core.middleware.DatabaseConnectionMiddleware',
+    'core.middleware.SystemMonitoringMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -244,3 +246,11 @@ EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@maintenance-dashboard.com')
+
+# System Monitoring Configuration
+MONITORING_ENABLED = config('MONITORING_ENABLED', default=True, cast=bool)
+MONITORING_SLOW_REQUEST_THRESHOLD = config('MONITORING_SLOW_REQUEST_THRESHOLD', default=5.0, cast=float)
+MONITORING_VERY_SLOW_REQUEST_THRESHOLD = config('MONITORING_VERY_SLOW_REQUEST_THRESHOLD', default=10.0, cast=float)
+MONITORING_CPU_THRESHOLD = config('MONITORING_CPU_THRESHOLD', default=80.0, cast=float)
+MONITORING_MEMORY_THRESHOLD = config('MONITORING_MEMORY_THRESHOLD', default=80.0, cast=float)
+MONITORING_DISK_THRESHOLD = config('MONITORING_DISK_THRESHOLD', default=90.0, cast=float)
