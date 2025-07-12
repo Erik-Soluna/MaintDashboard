@@ -4,14 +4,20 @@ Middleware for handling database connection issues and monitoring.
 
 import logging
 import time
-import psutil
 import traceback
-from django.db import connection
+from django.db import connection, OperationalError
 from django.http import JsonResponse
 from django.core.cache import cache
 from django.utils.deprecation import MiddlewareMixin
 from django.conf import settings
 from django.utils import timezone
+
+# Try to import psutil, but handle gracefully if not available
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +37,7 @@ class DatabaseConnectionMiddleware(MiddlewareMixin):
             if connection.connection is None:
                 connection.connect()
                 
-        except Exception as e:
+        except (OperationalError, Exception) as e:
             logger.error(f"Database connection error: {str(e)}")
             # Close and reconnect
             connection.close()
@@ -39,10 +45,14 @@ class DatabaseConnectionMiddleware(MiddlewareMixin):
                 connection.connect()
             except Exception as reconnect_error:
                 logger.error(f"Failed to reconnect to database: {str(reconnect_error)}")
-                return JsonResponse({
-                    'error': 'Database connection issue',
-                    'message': 'Please try again in a moment'
-                }, status=503)
+                # Only return JSON error for API requests
+                if request.path.startswith('/api/') or request.headers.get('Accept', '').startswith('application/json'):
+                    return JsonResponse({
+                        'error': 'Database connection issue',
+                        'message': 'Please try again in a moment'
+                    }, status=503)
+        
+        return None
     
     def process_response(self, request, response):
         """Clean up database connections after response."""
@@ -60,15 +70,16 @@ class SystemMonitoringMiddleware(MiddlewareMixin):
     Middleware to monitor system resources and endpoint performance.
     """
     
-    def __init__(self, get_response):
+    def __init__(self, get_response=None):
         self.get_response = get_response
-        self.monitoring_enabled = getattr(settings, 'MONITORING_ENABLED', True)
-        super().__init__(get_response)
+        self.monitoring_enabled = getattr(settings, 'MONITORING_ENABLED', True) and PSUTIL_AVAILABLE
+        # Don't call super() with get_response for MiddlewareMixin
+        super().__init__()
     
     def process_request(self, request):
         """Record request start time and system metrics."""
         if not self.monitoring_enabled:
-            return
+            return None
         
         request.start_time = time.time()
         
@@ -78,6 +89,8 @@ class SystemMonitoringMiddleware(MiddlewareMixin):
             request.system_metrics_start = system_metrics
         except Exception as e:
             logger.error(f"Error collecting system metrics: {str(e)}")
+        
+        return None
     
     def process_response(self, request, response):
         """Record response time and system metrics."""
@@ -102,6 +115,9 @@ class SystemMonitoringMiddleware(MiddlewareMixin):
     
     def _get_system_metrics(self):
         """Get current system metrics."""
+        if not PSUTIL_AVAILABLE:
+            return {}
+            
         try:
             return {
                 'cpu_percent': psutil.cpu_percent(interval=0.1),
@@ -141,7 +157,8 @@ class SystemMonitoringMiddleware(MiddlewareMixin):
             cache.set(cache_key, metrics, 3600)
             
             # Log slow requests
-            if response_time > 5.0:  # 5 seconds threshold
+            slow_threshold = getattr(settings, 'MONITORING_SLOW_REQUEST_THRESHOLD', 5.0)
+            if response_time > slow_threshold:
                 logger.warning(f"Slow request detected: {endpoint_key} took {response_time:.2f}s")
                 
         except Exception as e:
@@ -149,43 +166,39 @@ class SystemMonitoringMiddleware(MiddlewareMixin):
     
     def _check_performance_thresholds(self, request, response_time):
         """Check if performance thresholds are exceeded."""
+        if not PSUTIL_AVAILABLE:
+            return
+            
         try:
             # Check system resource thresholds
             if hasattr(request, 'system_metrics_start'):
                 current_metrics = self._get_system_metrics()
                 
+                # Get thresholds from settings
+                cpu_threshold = getattr(settings, 'MONITORING_CPU_THRESHOLD', 80.0)
+                memory_threshold = getattr(settings, 'MONITORING_MEMORY_THRESHOLD', 80.0)
+                disk_threshold = getattr(settings, 'MONITORING_DISK_THRESHOLD', 90.0)
+                
                 # High CPU usage
-                if current_metrics.get('cpu_percent', 0) > 80:
+                if current_metrics.get('cpu_percent', 0) > cpu_threshold:
                     logger.warning(f"High CPU usage detected: {current_metrics['cpu_percent']:.1f}%")
                 
                 # High memory usage
-                if current_metrics.get('memory_percent', 0) > 80:
+                if current_metrics.get('memory_percent', 0) > memory_threshold:
                     logger.warning(f"High memory usage detected: {current_metrics['memory_percent']:.1f}%")
                 
                 # High disk usage
-                if current_metrics.get('disk_usage', 0) > 90:
+                if current_metrics.get('disk_usage', 0) > disk_threshold:
                     logger.warning(f"High disk usage detected: {current_metrics['disk_usage']:.1f}%")
             
             # Check response time thresholds
-            if response_time > 10.0:  # 10 seconds threshold
+            very_slow_threshold = getattr(settings, 'MONITORING_VERY_SLOW_REQUEST_THRESHOLD', 10.0)
+            if response_time > very_slow_threshold:
                 logger.error(f"Very slow request: {request.path} took {response_time:.2f}s")
                 
         except Exception as e:
             logger.error(f"Error checking performance thresholds: {str(e)}")
 
 
-class ForcePasswordChangeMiddleware(MiddlewareMixin):
-    """
-    Middleware to force password change for users with default passwords.
-    """
-    
-    def process_request(self, request):
-        """Check if user needs to change password."""
-        if request.user.is_authenticated:
-            # Check if user has default password or needs to change it
-            if hasattr(request.user, 'userprofile') and request.user.userprofile.force_password_change:
-                if request.path not in ['/auth/change-password/', '/auth/logout/']:
-                    from django.shortcuts import redirect
-                    return redirect('change_password')
-        
-        return None
+# ForcePasswordChangeMiddleware removed due to import conflicts
+# This functionality can be implemented in views or decorators if needed
