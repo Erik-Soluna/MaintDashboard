@@ -95,7 +95,7 @@ class MaintenanceActivityType(TimeStampedModel):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='activity_types',
+        related_name='created_activity_types',
         help_text="Template used to create this activity type"
     )
     description = models.TextField(help_text="Description of the maintenance activity")
