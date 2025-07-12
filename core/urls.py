@@ -14,6 +14,13 @@ urlpatterns = [
     path('profile/', views.profile, name='profile'),
     path('map/', views.map_view, name='map_view'),
     
+    # Monitoring and health checks
+    path('monitoring/', views.monitoring_dashboard, name='monitoring_dashboard'),
+    path('health-check/', views.health_check_api, name='health_check_api'),
+    path('health-check/run/', views.run_health_check, name='run_health_check'),
+    path('api/endpoint-metrics/', views.endpoint_metrics_api, name='endpoint_metrics_api'),
+    path('api/toggle-monitoring/', views.toggle_monitoring, name='toggle_monitoring'),
+    
     # Settings
     path('settings/', views.settings, name='settings'),
     path('settings/locations/', views.locations_settings, name='locations_settings'),

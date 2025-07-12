@@ -12,6 +12,10 @@
 **Location**: `/maintenance/schedules/`
 **Cause**: Django ORM was looking for a ManyToMany relationship table that doesn't exist in the database schema.
 
+### 3. Git Merge Conflict - Core Views File
+**Error**: Git conflict in `core/views.py`
+**Cause**: During implementation of monitoring features, the original core views were accidentally overwritten, causing URL routing conflicts and missing essential functionality.
+
 ## Solutions Implemented
 
 ### 1. Database Connection Middleware
@@ -70,6 +74,13 @@ Created monitoring dashboard and API endpoints:
 - `/api/endpoint-metrics/` - Endpoint performance metrics
 - `/api/toggle-monitoring/` - Toggle monitoring on/off
 
+### 6. Git Conflict Resolution
+Resolved the `core/views.py` conflict by:
+- Restoring original core functionality (dashboard, profile, settings, location management, etc.)
+- Integrating monitoring views alongside existing functionality
+- Maintaining backward compatibility with all URL patterns
+- Adding proper URL routing for new monitoring endpoints
+
 ## Configuration Changes
 
 ### 1. Settings Updates
@@ -112,6 +123,12 @@ Updated middleware order in `settings.py` to include:
 - Views continue to work with reduced functionality when database issues occur
 - Users are informed of limitations rather than receiving error pages
 - System remains accessible for critical operations
+
+### 5. Complete Functionality Restoration
+- All original core functionality has been preserved (dashboard, profile, settings, etc.)
+- Monitoring features integrated seamlessly alongside existing views
+- No loss of functionality during implementation
+- Backward compatibility maintained for all existing URLs
 
 ## Usage
 
