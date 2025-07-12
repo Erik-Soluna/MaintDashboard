@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+
+{% block title %}Activity Type Categories{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Activity Type Categories</h1>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'maintenance:add_activity_type_category' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Category
+                    </a>
+                    <a href="{% url 'maintenance:enhanced_activity_type_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list"></i> View Activity Types
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Category Management</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Categories help organize your activity types. Each category can have its own color and icon for visual identification.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        {% for category in categories %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <i class="{{ category.icon }} me-2" style="color: {{ category.color }}"></i>
+                        <h6 class="mb-0">{{ category.name }}</h6>
+                    </div>
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'maintenance:edit_activity_type_category' category.id %}" 
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <span class="badge" style="background-color: {{ category.color }}">
+                            {{ category.activity_count }} Activity Type{{ category.activity_count|pluralize }}
+                        </span>
+                    </div>
+                    
+                    {% if category.description %}
+                        <p class="card-text">{{ category.description|truncatewords:20 }}</p>
+                    {% else %}
+                        <p class="card-text text-muted">No description provided</p>
+                    {% endif %}
+                    
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-sort-numeric-down"></i> Sort Order: {{ category.sort_order }}
+                        </small>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">
+                            {% if category.is_active %}
+                                <i class="fas fa-check-circle text-success"></i> Active
+                            {% else %}
+                                <i class="fas fa-times-circle text-danger"></i> Inactive
+                            {% endif %}
+                        </small>
+                        <div class="btn-group" role="group">
+                            <a href="{% url 'maintenance:enhanced_activity_type_list' %}?category={{ category.id }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> View Types
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                    <h5>No Categories Found</h5>
+                    <p class="text-muted">Get started by creating your first activity type category.</p>
+                    <a href="{% url 'maintenance:add_activity_type_category' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Category
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Default Categories Suggestion -->
+    {% if not categories %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Suggested Default Categories</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Here are some common activity type categories to get you started:</p>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="card border-primary">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-wrench fa-2x text-primary mb-2"></i>
+                                    <h6>Preventive</h6>
+                                    <small class="text-muted">Regular maintenance activities</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-tools fa-2x text-warning mb-2"></i>
+                                    <h6>Corrective</h6>
+                                    <small class="text-muted">Repair and fix activities</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-search fa-2x text-info mb-2"></i>
+                                    <h6>Inspection</h6>
+                                    <small class="text-muted">Visual and testing checks</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-success">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-broom fa-2x text-success mb-2"></i>
+                                    <h6>Cleaning</h6>
+                                    <small class="text-muted">Cleaning and housekeeping</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'maintenance:add_activity_type_category' %}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Create Your First Category
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Usage Tips -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Category Management Tips</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-lightbulb text-warning"></i> Best Practices</h6>
+                            <ul class="list-unstyled">
+                                <li>• Keep category names short and descriptive</li>
+                                <li>• Use consistent naming conventions</li>
+                                <li>• Choose distinct colors for easy identification</li>
+                                <li>• Set appropriate sort orders</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-palette text-info"></i> Color & Icons</h6>
+                            <ul class="list-unstyled">
+                                <li>• Use colors that match your organization's theme</li>
+                                <li>• Choose FontAwesome icons that represent the category</li>
+                                <li>• Maintain visual consistency across categories</li>
+                                <li>• Consider accessibility when choosing colors</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6><i class="fas fa-sort text-success"></i> Organization</h6>
+                            <ul class="list-unstyled">
+                                <li>• Use sort order to control display sequence</li>
+                                <li>• Group related categories together</li>
+                                <li>• Regularly review and update categories</li>
+                                <li>• Archive unused categories instead of deleting</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

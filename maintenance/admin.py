@@ -3,7 +3,84 @@ Admin interface for maintenance models.
 """
 
 from django.contrib import admin
-from .models import MaintenanceActivityType, MaintenanceActivity, MaintenanceChecklist, MaintenanceSchedule
+from .models import (
+    MaintenanceActivityType, MaintenanceActivity, MaintenanceChecklist, 
+    MaintenanceSchedule, ActivityTypeCategory, ActivityTypeTemplate
+)
+
+
+@admin.register(ActivityTypeCategory)
+class ActivityTypeCategoryAdmin(admin.ModelAdmin):
+    list_display = [
+        'name', 'description', 'color', 'icon', 'sort_order', 'is_active', 'created_at'
+    ]
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name', 'description']
+    readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+    ordering = ['sort_order', 'name']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'description', 'sort_order', 'is_active')
+        }),
+        ('Visual Settings', {
+            'fields': ('color', 'icon')
+        }),
+        ('Audit Information', {
+            'fields': ('created_at', 'updated_at', 'created_by', 'updated_by'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(ActivityTypeTemplate)
+class ActivityTypeTemplateAdmin(admin.ModelAdmin):
+    list_display = [
+        'name', 'equipment_category', 'category', 'estimated_duration_hours',
+        'frequency_days', 'is_mandatory', 'is_active', 'created_at'
+    ]
+    list_filter = [
+        'equipment_category', 'category', 'is_mandatory', 'is_active', 'created_at'
+    ]
+    search_fields = ['name', 'description', 'equipment_category__name']
+    readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+    ordering = ['equipment_category', 'sort_order', 'name']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'equipment_category', 'category', 'description', 'sort_order')
+        }),
+        ('Timing & Requirements', {
+            'fields': ('estimated_duration_hours', 'frequency_days', 'is_mandatory')
+        }),
+        ('Default Settings', {
+            'fields': ('default_tools_required', 'default_parts_required', 'default_safety_notes'),
+            'classes': ('collapse',)
+        }),
+        ('Checklist Template', {
+            'fields': ('checklist_template',),
+            'classes': ('collapse',)
+        }),
+        ('Settings', {
+            'fields': ('is_active',)
+        }),
+        ('Audit Information', {
+            'fields': ('created_at', 'updated_at', 'created_by', 'updated_by'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
 
 
 class MaintenanceChecklistInline(admin.TabularInline):
@@ -15,12 +92,36 @@ class MaintenanceChecklistInline(admin.TabularInline):
 @admin.register(MaintenanceActivityType)
 class MaintenanceActivityTypeAdmin(admin.ModelAdmin):
     list_display = [
-        'name', 'description', 'frequency_days', 'estimated_duration_hours',
+        'name', 'category', 'template', 'frequency_days', 'estimated_duration_hours',
         'is_mandatory', 'is_active', 'created_at'
     ]
-    list_filter = ['is_mandatory', 'is_active', 'created_at']
+    list_filter = ['category', 'template', 'is_mandatory', 'is_active', 'created_at']
     search_fields = ['name', 'description']
     readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+    filter_horizontal = ['applicable_equipment_categories']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'category', 'template', 'description')
+        }),
+        ('Timing & Requirements', {
+            'fields': ('estimated_duration_hours', 'frequency_days', 'is_mandatory')
+        }),
+        ('Requirements', {
+            'fields': ('tools_required', 'parts_required', 'safety_notes'),
+            'classes': ('collapse',)
+        }),
+        ('Equipment Categories', {
+            'fields': ('applicable_equipment_categories',)
+        }),
+        ('Settings', {
+            'fields': ('is_active',)
+        }),
+        ('Audit Information', {
+            'fields': ('created_at', 'updated_at', 'created_by', 'updated_by'),
+            'classes': ('collapse',)
+        }),
+    )
     
     def save_model(self, request, obj, form, change):
         if not change:
