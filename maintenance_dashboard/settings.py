@@ -83,9 +83,10 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD', default='postgres'),
         'HOST': config('DB_HOST', default='localhost'),
         'PORT': config('DB_PORT', default='5432'),
+        'CONN_MAX_AGE': 300,  # 5 minutes - Django connection pooling setting
         'OPTIONS': {
-            'MAX_CONNS': 20,
-            'CONN_MAX_AGE': 300,  # 5 minutes
+            # PostgreSQL-specific connection options can go here
+            # Note: MAX_CONNS is not a valid PostgreSQL connection option
         },
     }
 }
