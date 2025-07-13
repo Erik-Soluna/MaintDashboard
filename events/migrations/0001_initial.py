@@ -11,7 +11,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('equipment', '0001_initial'),
-        ('maintenance', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -39,7 +38,7 @@ class Migration(migrations.Migration):
                 ('assigned_to', models.ForeignKey(blank=True, help_text='User assigned to this event', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='assigned_events', to=settings.AUTH_USER_MODEL)),
                 ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='%(class)s_created', to=settings.AUTH_USER_MODEL)),
                 ('equipment', models.ForeignKey(help_text='Equipment this event relates to', on_delete=django.db.models.deletion.CASCADE, related_name='calendar_events', to='equipment.equipment')),
-                ('maintenance_activity', models.ForeignKey(blank=True, help_text='Associated maintenance activity (if any)', null=True, on_delete=django.db.models.deletion.CASCADE, related_name='calendar_events', to='maintenance.maintenanceactivity')),
+
                 ('updated_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='%(class)s_updated', to=settings.AUTH_USER_MODEL)),
             ],
             options={

@@ -7,7 +7,6 @@ class Migration(migrations.Migration):
     dependencies = [
         ('core', '0001_initial'),
         ('equipment', '0001_initial'),
-        ('maintenance', '0001_initial'),
         ('events', '0001_initial'),
     ]
 

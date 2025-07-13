@@ -221,3 +221,86 @@ Not Found: /health/
 Not Found: /health/
 Not Found: /health/
 Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Total active equipment count: 22
+Filtered equipment queryset count: 22
+Database connection error in add_activity: cursor "_django_curs_140291218553728_sync_1" does not exist
+
+Database reconnected successfully
+Failed to reconnect to database: cursor "_django_curs_140291218553728_sync_2" does not exist
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.category_id does not exist
+LINE 1: ...d", "maintenance_maintenanceactivitytype"."name", "maintenan...
+                                                             ^
+
+Not Found: /health/
+Database error in schedule_list: relation "maintenance_activitytypecategory" does not exist
+LINE 1: ...tenance_maintenanceactivitytype"."id") INNER JOIN "maintenan...
+                                                             ^
+
+Fallback query also failed: relation "maintenance_activitytypecategory" does not exist
+LINE 1: ...tenance_maintenanceactivitytype"."id") INNER JOIN "maintenan...
+                                                             ^
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.category_id does not exist
+LINE 1: ...d", "maintenance_maintenanceactivitytype"."name", "maintenan...
+                                                             ^
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.category_id does not exist
+LINE 1: ...d", "maintenance_maintenanceactivitytype"."name", "maintenan...
+                                                             ^
+
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.category_id does not exist
+LINE 1: ...d", "maintenance_maintenanceactivitytype"."name", "maintenan...
+                                                             ^
+
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.category_id does not exist
+LINE 1: ...d", "maintenance_maintenanceactivitytype"."name", "maintenan...
+                                                             ^
+
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.category_id does not exist
+LINE 1: ...d", "maintenance_maintenanceactivitytype"."name", "maintenan...
+                                                             ^
+
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/

@@ -470,3 +470,98 @@ class MaintenanceSchedule(TimeStampedModel):
                 
                 return activity
         return None
+
+
+class MaintenanceTimelineEntry(TimeStampedModel):
+    """
+    Timeline entries for maintenance activities.
+    Tracks the history and progress of maintenance activities.
+    """
+    
+    ENTRY_TYPES = [
+        ('created', 'Activity Created'),
+        ('assigned', 'Activity Assigned'),
+        ('started', 'Activity Started'),
+        ('paused', 'Activity Paused'),
+        ('resumed', 'Activity Resumed'),
+        ('completed', 'Activity Completed'),
+        ('cancelled', 'Activity Cancelled'),
+        ('note', 'Note Added'),
+        ('issue', 'Issue Reported'),
+        ('resolution', 'Issue Resolved'),
+    ]
+    
+    activity = models.ForeignKey(
+        MaintenanceActivity,
+        on_delete=models.CASCADE,
+        related_name='timeline_entries'
+    )
+    entry_type = models.CharField(max_length=20, choices=ENTRY_TYPES)
+    title = models.CharField(max_length=200, help_text="Timeline entry title")
+    description = models.TextField(help_text="Detailed description of the timeline entry")
+    
+    # Optional fields for specific entry types
+    issue_severity = models.CharField(
+        max_length=20,
+        choices=[
+            ('low', 'Low'),
+            ('medium', 'Medium'),
+            ('high', 'High'),
+            ('critical', 'Critical'),
+        ],
+        blank=True,
+        help_text="Severity level for issue entries"
+    )
+    resolution_time = models.DurationField(
+        null=True,
+        blank=True,
+        help_text="Time taken to resolve issue"
+    )
+    
+    # User who created the entry
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='maintenance_timeline_entries'
+    )
+
+    class Meta:
+        verbose_name = "Maintenance Timeline Entry"
+        verbose_name_plural = "Maintenance Timeline Entries"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.activity.title} - {self.entry_type} ({self.created_at})"
+
+    def get_icon_class(self):
+        """Get FontAwesome icon class based on entry type."""
+        icon_map = {
+            'created': 'fas fa-plus-circle',
+            'assigned': 'fas fa-user-plus',
+            'started': 'fas fa-play-circle',
+            'paused': 'fas fa-pause-circle',
+            'resumed': 'fas fa-play-circle',
+            'completed': 'fas fa-check-circle',
+            'cancelled': 'fas fa-times-circle',
+            'note': 'fas fa-sticky-note',
+            'issue': 'fas fa-exclamation-triangle',
+            'resolution': 'fas fa-check-square',
+        }
+        return icon_map.get(self.entry_type, 'fas fa-circle')
+
+    def get_color_class(self):
+        """Get Bootstrap color class based on entry type."""
+        color_map = {
+            'created': 'text-primary',
+            'assigned': 'text-info',
+            'started': 'text-success',
+            'paused': 'text-warning',
+            'resumed': 'text-success',
+            'completed': 'text-success',
+            'cancelled': 'text-danger',
+            'note': 'text-secondary',
+            'issue': 'text-danger',
+            'resolution': 'text-success',
+        }
+        return color_map.get(self.entry_type, 'text-secondary')
