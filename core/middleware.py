@@ -69,12 +69,9 @@ class SystemMonitoringMiddleware(MiddlewareMixin):
     """
     Middleware to monitor system resources and endpoint performance.
     """
-    
-    def __init__(self, get_response=None):
-        self.get_response = get_response
+    def __init__(self, get_response):
+        super().__init__(get_response)
         self.monitoring_enabled = getattr(settings, 'MONITORING_ENABLED', True) and PSUTIL_AVAILABLE
-        # Don't call super() with get_response for MiddlewareMixin
-        super().__init__()
     
     def process_request(self, request):
         """Record request start time and system metrics."""

@@ -162,8 +162,12 @@
                         </li>
                         {% endfor %}
                     </ul>
-                    <h6>Recent Health Failures</h6>
-                    <ul class="list-group">
+                    <h6>Recent Health Failures
+                        <button id="clear-health-logs" class="btn btn-sm btn-outline-danger ms-2" type="button">
+                            <i class="fas fa-trash-alt me-1"></i>Clear Logs
+                        </button>
+                    </h6>
+                    <ul class="list-group" id="health-failure-log-list">
                         {% for log in health.last_failure_log %}
                         <li class="list-group-item small">
                             <b>{{ log.timestamp }}</b> | <b>{{ log.component }}</b>: {{ log.message }}
@@ -345,6 +349,20 @@ $(document).ready(function() {
     
     // Trigger initial state
     $('#notifications_enabled').trigger('change');
+
+    $('#clear-health-logs').on('click', function() {
+        if (!confirm('Clear all recent health failure logs?')) return;
+        $.post('{% url "core:clear_health_logs" %}', function(data) {
+            if (data.success) {
+                // Reload the page or just the log list
+                location.reload();
+            } else {
+                alert('Failed to clear logs.');
+            }
+        }).fail(function(xhr) {
+            alert('Failed to clear logs: ' + (xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : 'Unknown error'));
+        });
+    });
 });
 </script>
 {% endblock %}

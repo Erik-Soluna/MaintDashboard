@@ -1,1 +1,72 @@
 Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+C:\Users\erikw\OneDrive\Documents\Projects\Work\Github\New folder\MaintDashboard\core\middleware.py changed, reloading.
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Not Found: /favicon.ico
+Not Found: /health/
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.category_id does not exist
+LINE 1: ...d", "maintenance_maintenanceactivitytype"."name", "maintenan...
+                                                             ^
+
+Database error in schedule_list: relation "maintenance_activitytypecategory" does not exist
+LINE 1: ...tenance_maintenanceactivitytype"."id") INNER JOIN "maintenan...
+                                                             ^
+
+Fallback query also failed: relation "maintenance_activitytypecategory" does not exist
+LINE 1: ...tenance_maintenanceactivitytype"."id") INNER JOIN "maintenan...
+                                                             ^
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.category_id does not exist
+LINE 1: ...d", "maintenance_maintenanceactivitytype"."name", "maintenan...
+                                                             ^
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.category_id does not exist
+LINE 1: ...d", "maintenance_maintenanceactivitytype"."name", "maintenan...
+                                                             ^
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.category_id does not exist
+LINE 1: ...d", "maintenance_maintenanceactivitytype"."name", "maintenan...
+                                                             ^
+
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/

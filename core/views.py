@@ -19,7 +19,7 @@ from django.http import JsonResponse, HttpResponseRedirect, HttpResponse
 from django.core.paginator import Paginator
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.core.management import call_command
 from django.core.cache import cache
 from django.db import connection
@@ -1980,6 +1980,15 @@ def health_check(request):
         'checks': checks,
         'last_failure_log': get_recent_health_failures(10)
     })
+
+
+@require_POST
+def clear_health_logs(request):
+    """Clear the recent health failure log (from cache or file)."""
+    if not request.user.is_staff:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    cache.delete('health_failure_log')
+    return JsonResponse({'success': True})
 
 
 def api_explorer(request):
