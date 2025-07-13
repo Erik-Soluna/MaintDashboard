@@ -5,6 +5,7 @@ URL configuration for core app.
 from django.urls import path
 from . import views
 from .views import health_check
+from .views import api_explorer
 
 app_name = 'core'
 
@@ -63,4 +64,5 @@ urlpatterns = [
 
 urlpatterns += [
     path('health/', health_check, name='health_check'),
+    path('api-explorer/', api_explorer, name='api_explorer'),
 ]

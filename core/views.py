@@ -1913,3 +1913,8 @@ def check_cache_health():
 
 def health_check(request):
     return JsonResponse({'status': 'ok'})
+
+
+def api_explorer(request):
+    """API Explorer: Tree view of all models and API documentation."""
+    return render(request, 'core/api_explorer.html')
