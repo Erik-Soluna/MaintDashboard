@@ -88,7 +88,9 @@ class MaintenanceActivityType(TimeStampedModel):
         ActivityTypeCategory,
         on_delete=models.CASCADE,
         related_name='activity_types',
-        help_text="Activity type category"
+        help_text="Activity type category",
+        null=False,
+        blank=False,
     )
     template = models.ForeignKey(
         ActivityTypeTemplate,

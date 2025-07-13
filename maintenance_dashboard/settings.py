@@ -15,7 +15,13 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-producti
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,maintenance.errorlog.app', cast=lambda v: [s.strip() for s in v.split(',')])
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*')
+if not isinstance(ALLOWED_HOSTS, list):
+    if isinstance(ALLOWED_HOSTS, bool):
+        ALLOWED_HOSTS = ['*']
+    else:
+        ALLOWED_HOSTS = str(ALLOWED_HOSTS)
+        ALLOWED_HOSTS = [s.strip() for s in ALLOWED_HOSTS.split(',')]
 
 # Application definition
 INSTALLED_APPS = [
