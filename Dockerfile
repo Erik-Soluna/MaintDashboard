@@ -24,12 +24,11 @@ RUN apt-get update \
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy entrypoint script and make it executable
-COPY docker-entrypoint.sh /app/
-RUN chmod +x /app/docker-entrypoint.sh
-
 # Copy project
 COPY . /app/
+
+# Copy entrypoint script and make it executable
+RUN chmod +x /app/docker-entrypoint.sh
 
 # Create directories for static and media files
 RUN mkdir -p /app/staticfiles /app/media

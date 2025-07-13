@@ -33,10 +33,7 @@ services:
 
   web:
     build: .
-    command: >
-      sh -c "python manage.py init_database --admin-username admin --admin-email admin@maintenance.local --admin-password temppass123 &&
-             python manage.py collectstatic --noinput &&
-             gunicorn --bind 0.0.0.0:8000 --workers 3 maintenance_dashboard.wsgi:application"
+    command: web
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
@@ -52,7 +49,10 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
-      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,maintenance.errorlog.app
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,maintenance.errorlog.app,10.0.0.28
+      - ADMIN_USERNAME=admin
+      - ADMIN_EMAIL=admin@maintenance.local
+      - ADMIN_PASSWORD=temppass123
     depends_on:
       db:
         condition: service_healthy
