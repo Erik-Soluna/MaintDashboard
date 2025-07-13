@@ -1909,3 +1909,7 @@ def check_cache_health():
             'error': str(e),
             'timestamp': timezone.now().isoformat()
         }
+
+
+def health_check(request):
+    return JsonResponse({'status': 'ok'})

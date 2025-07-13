@@ -4,6 +4,7 @@ URL configuration for core app.
 
 from django.urls import path
 from . import views
+from .views import health_check
 
 app_name = 'core'
 
@@ -58,4 +59,8 @@ urlpatterns = [
     path('sites/import/csv/', views.import_sites_csv, name='import_sites_csv'),
     path('locations/export/csv/', views.export_locations_csv, name='export_locations_csv'),
     path('locations/import/csv/', views.import_locations_csv, name='import_locations_csv'),
+]
+
+urlpatterns += [
+    path('health/', health_check, name='health_check'),
 ]
