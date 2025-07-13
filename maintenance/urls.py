@@ -69,4 +69,5 @@ urlpatterns = [
     path('api/activities/', views.get_activities_data, name='get_activities_data'),
     path('api/generate-activities/', views.generate_maintenance_activities, name='generate_activities'),
     path('generate-scheduled-activities/', views.generate_scheduled_activities, name='generate_scheduled_activities'),
+    path('api/fetch-activities/', views.fetch_activities, name='fetch_activities'),
 ]

@@ -264,7 +264,6 @@
             </a>
             <span class="text-light">Maintenance Dashboard</span>
         </div>
-        
         <div class="header-controls">
             <span class="text-light">Select Site:</span>
             <select class="site-selector" id="siteSelector" onchange="handleSiteChange(this.value)">
@@ -283,6 +282,13 @@
                 <i class="fas fa-cog"></i> Calendar Settings
             </a>
         </div>
+    </div>
+
+    <!-- Calendar View Toggle -->
+    <div class="calendar-toggle" style="background:#0f1419; border-bottom:1px solid #2d3748; padding:10px 20px; display:flex; gap:20px; align-items:center;">
+        <button id="toggle-events" class="btn btn-sm {% if calendar_view == 'events' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar' %}?view=events'">Events</button>
+        <button id="toggle-maintenance" class="btn btn-sm {% if calendar_view == 'maintenance' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar' %}?view=maintenance'">Maintenance</button>
+        <span class="text-light ms-3">Switch between Events and Maintenance calendar views</span>
     </div>
 
     <!-- Filters -->
@@ -483,7 +489,14 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var calendarEl = document.getElementById('calendar');
-    
+    var calendarView = '{{ calendar_view }}';
+    var eventsUrl = '';
+    if (calendarView === 'maintenance') {
+        eventsUrl = '{% url "maintenance:fetch_activities" %}';
+    } else {
+        eventsUrl = '{% url "events:fetch_events" %}';
+    }
+
     var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         height: 'auto',
@@ -493,21 +506,25 @@ document.addEventListener('DOMContentLoaded', function() {
             right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
         events: {
-            url: '{% url "events:fetch_events" %}',
+            url: eventsUrl,
             method: 'GET',
             extraParams: function() {
-                return {
+                var params = {
                     equipment: document.getElementById('equipmentFilter').value,
-                    event_type: document.getElementById('eventTypeFilter').value,
                     site_id: document.getElementById('siteSelector').value
                 };
+                if (calendarView === 'events') {
+                    params.event_type = document.getElementById('eventTypeFilter').value;
+                } else if (calendarView === 'maintenance') {
+                    // Optionally add status filter for maintenance
+                    // params.status = ...
+                }
+                return params;
             },
             failure: function(errorObj) {
                 console.error('Calendar events fetch failed:', errorObj);
-                const errorMsg = `Failed to load calendar events. Status: ${errorObj.xhr?.status || 'unknown'}. Check console for details.`;
+                const errorMsg = `Failed to load calendar data. Status: ${errorObj.xhr?.status || 'unknown'}. Check console for details.`;
                 alert(errorMsg);
-                
-                // Try to parse error response
                 if (errorObj.xhr && errorObj.xhr.responseText) {
                     try {
                         const errorData = JSON.parse(errorObj.xhr.responseText);
@@ -519,23 +536,28 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         },
         dateClick: function(info) {
-            // Open create event modal when clicking on a day
-            openCreateEventModal(info.dateStr);
+            if (calendarView === 'events') {
+                openCreateEventModal(info.dateStr);
+            } else if (calendarView === 'maintenance') {
+                // TODO: open maintenance modal for new activity
+            }
         },
         eventClick: function(info) {
-            // Open edit event modal when clicking on an event
             info.jsEvent.preventDefault();
-            openEditEventModal(info.event.id);
+            if (calendarView === 'events') {
+                openEditEventModal(info.event.id);
+            } else if (calendarView === 'maintenance') {
+                // TODO: open maintenance activity modal
+            }
         },
         eventMouseEnter: function(info) {
-            // Create tooltip
             var tooltip = document.createElement('div');
             tooltip.className = 'fc-tooltip';
             tooltip.innerHTML = `
                 <strong>${info.event.title}</strong><br>
-                Equipment: ${info.event.extendedProps.equipment}<br>
-                Location: ${info.event.extendedProps.location}<br>
-                Priority: ${info.event.extendedProps.priority}<br>
+                Equipment: ${info.event.extendedProps.equipment || ''}<br>
+                Location: ${info.event.extendedProps.location || ''}<br>
+                Priority: ${info.event.extendedProps.priority || ''}<br>
                 ${info.event.extendedProps.assigned_to ? 'Assigned to: ' + info.event.extendedProps.assigned_to : ''}
             `;
             tooltip.style.position = 'absolute';
@@ -546,14 +568,11 @@ document.addEventListener('DOMContentLoaded', function() {
             tooltip.style.zIndex = '9999';
             tooltip.style.fontSize = '12px';
             tooltip.style.maxWidth = '200px';
-            
             document.body.appendChild(tooltip);
-            
             info.el.addEventListener('mousemove', function(e) {
                 tooltip.style.left = e.pageX + 10 + 'px';
                 tooltip.style.top = e.pageY + 10 + 'px';
             });
-            
             info.el.addEventListener('mouseleave', function() {
                 if (tooltip.parentNode) {
                     tooltip.parentNode.removeChild(tooltip);
@@ -561,17 +580,14 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         },
         eventDidMount: function(info) {
-            // Add completion indicator
             if (info.event.extendedProps.is_completed) {
                 info.el.style.opacity = '0.6';
                 info.el.style.textDecoration = 'line-through';
             }
         }
     });
-    
     calendar.render();
-    window.calendar = calendar; // Make it globally accessible
-    
+    window.calendar = calendar;
     updateActiveFilters();
 });
 

@@ -249,12 +249,13 @@ def index(request):
 
 @login_required
 def calendar_view(request):
-    """Display calendar view of events with filtering capabilities."""
+    """Display calendar view of events or maintenance with filtering capabilities."""
     # Get filter parameters
     selected_site_id = request.GET.get('site_id', request.session.get('selected_site_id'))
     event_type = request.GET.get('event_type', '')
     equipment_filter = request.GET.get('equipment', '')
-    
+    calendar_view = request.GET.get('view', 'events')
+
     # Get all sites for the site selector
     sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
     selected_site = None
@@ -264,22 +265,15 @@ def calendar_view(request):
             request.session['selected_site_id'] = selected_site_id
         except Location.DoesNotExist:
             pass
-    
-    # Get events (will be filtered via AJAX) - test if we have any events
-    events = CalendarEvent.objects.select_related('equipment', 'equipment__location').all()
-    events_count = events.count()
-    
+
     # Get equipment for filtering
     equipment_list = Equipment.objects.filter(is_active=True).order_by('name')
     if selected_site:
         equipment_list = equipment_list.filter(
             Q(location__parent_location=selected_site) | Q(location=selected_site)
         )
-    
-    # Add debug info
-    print(f"Calendar view: Found {events_count} events total")
-    print(f"Calendar view: Found {equipment_list.count()} equipment items")
-    
+
+    # Default context
     context = {
         'sites': sites,
         'selected_site': selected_site,
@@ -288,8 +282,29 @@ def calendar_view(request):
         'priority_choices': CalendarEvent.PRIORITY_CHOICES,
         'selected_event_type': event_type,
         'selected_equipment': equipment_filter,
-        'events_count': events_count,  # Add for debugging
+        'calendar_view': calendar_view,
     }
+
+    if calendar_view == 'maintenance':
+        # Try to get maintenance activities, handle DB errors gracefully
+        try:
+            from maintenance.models import MaintenanceActivity
+            activities = MaintenanceActivity.objects.select_related('equipment', 'activity_type').all()
+            context['maintenance_count'] = activities.count()
+            # Optionally, pass activities for debugging or future use
+            # context['maintenance_activities'] = activities[:10]
+        except Exception as e:
+            context['maintenance_count'] = 0
+            context['maintenance_error'] = str(e)
+    else:
+        # Get events (will be filtered via AJAX)
+        try:
+            events = CalendarEvent.objects.select_related('equipment', 'equipment__location').all()
+            context['events_count'] = events.count()
+        except Exception as e:
+            context['events_count'] = 0
+            context['events_error'] = str(e)
+
     return render(request, 'events/calendar.html', context)
 
 

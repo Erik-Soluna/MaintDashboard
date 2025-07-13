@@ -1546,3 +1546,55 @@ def create_activity_type_from_template(request):
         return JsonResponse({'success': False, 'error': 'Template not found'})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@require_http_methods(["GET"])
+def fetch_activities(request):
+    """API endpoint: Return maintenance activities in FullCalendar JSON format."""
+    try:
+        # Filters
+        equipment_id = request.GET.get('equipment')
+        status = request.GET.get('status')
+        site_id = request.GET.get('site_id')
+        start = request.GET.get('start')  # ISO date string
+        end = request.GET.get('end')      # ISO date string
+
+        queryset = MaintenanceActivity.objects.select_related('equipment', 'activity_type', 'assigned_to')
+        if equipment_id:
+            queryset = queryset.filter(equipment_id=equipment_id)
+        if status:
+            queryset = queryset.filter(status=status)
+        if site_id:
+            # Filter by equipment's site or parent location
+            queryset = queryset.filter(
+                Q(equipment__location__parent_location_id=site_id) |
+                Q(equipment__location_id=site_id)
+            )
+        if start and end:
+            # Filter by scheduled_start within the calendar view range
+            queryset = queryset.filter(scheduled_start__date__gte=start, scheduled_end__date__lte=end)
+
+        activities = queryset.all()
+        results = []
+        for activity in activities:
+            results.append({
+                'id': activity.id,
+                'title': activity.title,
+                'start': activity.scheduled_start.isoformat(),
+                'end': activity.scheduled_end.isoformat() if activity.scheduled_end else None,
+                'allDay': False,
+                'status': activity.status,
+                'priority': activity.priority,
+                'equipment': activity.equipment.name if activity.equipment else None,
+                'location': activity.equipment.location.name if activity.equipment and activity.equipment.location else None,
+                'activity_type': activity.activity_type.name if activity.activity_type else None,
+                'assigned_to': activity.assigned_to.get_full_name() if activity.assigned_to else None,
+                'is_completed': activity.status == 'completed',
+                'backgroundColor': '#4299e1' if activity.status == 'scheduled' else '#dc3545' if activity.status == 'overdue' else '#28a745' if activity.status == 'completed' else '#ffc107',
+                'borderColor': '#2d3748',
+                'textColor': '#fff',
+            })
+        return JsonResponse(results, safe=False)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
