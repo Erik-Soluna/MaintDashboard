@@ -1945,15 +1945,32 @@ def health_check(request):
         status = 'error'
     # Celery check (beat task heartbeat)
     try:
-        last_beat = PeriodicTask.objects.order_by('-last_run_at').first()
-        if last_beat and (timezone.now() - last_beat.last_run_at).total_seconds() < 600:
-            checks.append({'name': 'Celery Beat', 'status': 'ok', 'message': 'Recent heartbeat'})
+        from django_celery_beat.models import PeriodicTask
+        enabled_tasks = PeriodicTask.objects.filter(enabled=True)
+        if not enabled_tasks.exists():
+            msg = 'No periodic tasks enabled'
+            checks.append({'name': 'Celery Beat', 'status': 'info', 'message': msg})
         else:
-            msg = 'No recent heartbeat'
-            checks.append({'name': 'Celery Beat', 'status': 'warning', 'message': msg})
-            log_health_failure('Celery Beat', msg)
-            if status != 'error':
-                status = 'warning'
+            recent = None
+            for task in enabled_tasks:
+                if task.last_run_at and (recent is None or task.last_run_at > recent):
+                    recent = task.last_run_at
+            if recent:
+                seconds_since = (timezone.now() - recent).total_seconds()
+                if seconds_since < 600:
+                    checks.append({'name': 'Celery Beat', 'status': 'ok', 'message': f'Recent heartbeat ({int(seconds_since)}s ago)'})
+                else:
+                    msg = f'No recent heartbeat (last was {int(seconds_since//60)} min ago)'
+                    checks.append({'name': 'Celery Beat', 'status': 'warning', 'message': msg})
+                    log_health_failure('Celery Beat', msg)
+                    if status != 'error':
+                        status = 'warning'
+            else:
+                msg = 'No periodic tasks have ever run'
+                checks.append({'name': 'Celery Beat', 'status': 'warning', 'message': msg})
+                log_health_failure('Celery Beat', msg)
+                if status != 'error':
+                    status = 'warning'
     except Exception as e:
         checks.append({'name': 'Celery Beat', 'status': 'error', 'message': str(e)})
         log_health_failure('Celery Beat', str(e))
@@ -1984,10 +2001,17 @@ def health_check(request):
 
 @require_POST
 def clear_health_logs(request):
-    """Clear the recent health failure log (from cache or file)."""
+    """Clear the recent health failure log (from cache and file)."""
     if not request.user.is_staff:
         return JsonResponse({'error': 'Permission denied'}, status=403)
     cache.delete('health_failure_log')
+    # Also clear the log file
+    try:
+        if os.path.exists(HEALTH_LOG_FILE):
+            with open(HEALTH_LOG_FILE, 'w') as f:
+                f.truncate(0)
+    except Exception as e:
+        return JsonResponse({'error': f'Failed to clear log file: {str(e)}'}, status=500)
     return JsonResponse({'success': True})
 
 

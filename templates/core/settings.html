@@ -14,6 +14,22 @@
     margin: 0 auto;
 }
 
+/* Dark mode override for System Health log */
+.card .list-group-item {
+    background-color: #232b3b !important;
+    color: #e2e8f0 !important;
+    border-color: #374151 !important;
+}
+.card .list-group-item.text-muted {
+    color: #a0aec0 !important;
+}
+.card .list-group-item small {
+    color: #a0aec0 !important;
+}
+.card .list-group-item:hover {
+    background-color: #2d3748 !important;
+}
+
 .settings-section {
     background-color: #2d3748;
     border: 1px solid #4a5568;
@@ -337,6 +353,32 @@
 
 {% block extra_js %}
 <script>
+// CSRF helper for AJAX
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+$.ajaxSetup({
+    beforeSend: function(xhr, settings) {
+        if (!(/^GET|HEAD|OPTIONS|TRACE$/i.test(settings.type)) && !this.crossDomain) {
+            xhr.setRequestHeader("X-CSRFToken", csrftoken);
+        }
+    }
+});
+
 $(document).ready(function() {
     // Enable/disable dependent notification options
     $('#notifications_enabled').on('change', function() {
@@ -354,13 +396,18 @@ $(document).ready(function() {
         if (!confirm('Clear all recent health failure logs?')) return;
         $.post('{% url "core:clear_health_logs" %}', function(data) {
             if (data.success) {
-                // Reload the page or just the log list
                 location.reload();
             } else {
                 alert('Failed to clear logs.');
+                console.error('Clear logs error:', data);
             }
         }).fail(function(xhr) {
-            alert('Failed to clear logs: ' + (xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : 'Unknown error'));
+            let errorMsg = 'Unknown error';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            }
+            alert('Failed to clear logs: ' + errorMsg);
+            console.error('AJAX error on clear logs:', xhr);
         });
     });
 });

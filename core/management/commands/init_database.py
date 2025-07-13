@@ -62,12 +62,12 @@ class Command(BaseCommand):
         )
 
         try:
-            with transaction.atomic():
-                # Step 1: Run migrations
-                if not options['skip_migrations']:
-                    self._run_migrations()
+            # Step 1: Run migrations (do NOT wrap in transaction.atomic)
+            if not options['skip_migrations']:
+                self._run_migrations()
 
-                # Step 2: Create admin user
+            # Step 2: Create admin user and initial data atomically
+            with transaction.atomic():
                 if not options['skip_admin']:
                     admin_user = self._create_admin_user(
                         username=options['admin_username'],
@@ -79,26 +79,26 @@ class Command(BaseCommand):
                 if not options['skip_sample_data']:
                     self._create_initial_data()
 
+            self.stdout.write(
+                self.style.SUCCESS('\n✅ Database initialization completed successfully!')
+            )
+            
+            if not options['skip_admin']:
                 self.stdout.write(
-                    self.style.SUCCESS('\n✅ Database initialization completed successfully!')
+                    self.style.WARNING(f'\n⚠️  IMPORTANT: Admin user created with temporary password.')
                 )
-                
-                if not options['skip_admin']:
-                    self.stdout.write(
-                        self.style.WARNING(f'\n⚠️  IMPORTANT: Admin user created with temporary password.')
-                    )
-                    self.stdout.write(
-                        self.style.WARNING(f'   Username: {options["admin_username"]}')
-                    )
-                    self.stdout.write(
-                        self.style.WARNING(f'   Password: {options["admin_password"]}')
-                    )
-                    self.stdout.write(
-                        self.style.WARNING(f'   Email: {options["admin_email"]}')
-                    )
-                    self.stdout.write(
-                        self.style.WARNING(f'\n🔒 The admin user will be required to change password on first login.')
-                    )
+                self.stdout.write(
+                    self.style.WARNING(f'   Username: {options["admin_username"]}')
+                )
+                self.stdout.write(
+                    self.style.WARNING(f'   Password: {options["admin_password"]}')
+                )
+                self.stdout.write(
+                    self.style.WARNING(f'   Email: {options["admin_email"]}')
+                )
+                self.stdout.write(
+                    self.style.WARNING(f'\n🔒 The admin user will be required to change password on first login.')
+                )
 
         except Exception as e:
             self.stdout.write(

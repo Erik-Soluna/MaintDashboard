@@ -10,6 +10,11 @@
             {% if depth > 0 %}
                 <span class="hierarchy-branch">├─</span>
             {% endif %}
+            {% if location.child_locations.all %}
+                <button class="btn btn-link btn-xs p-0 me-1 toggle-location-children" data-location-id="{{ location.id }}" aria-label="Toggle Children" style="color: #e2e8f0; vertical-align: middle;">
+                    <i class="fas fa-chevron-down" id="chevron-location-{{ location.id }}"></i>
+                </button>
+            {% endif %}
             <i class="fas fa-map-pin me-1"></i>
             {{ location.name }}
         </div>
@@ -60,7 +65,29 @@
     </div>
 </div>
 
-<!-- Recursively render child locations -->
-{% for child in location.child_locations.all %}
-    {% include 'core/location_tree_item.html' with location=child depth=depth|add:1 %}
-{% endfor %}
+{% if location.child_locations.all %}
+<div class="location-children" id="location-children-{{ location.id }}">
+    {% for child in location.child_locations.all %}
+        {% include 'core/location_tree_item.html' with location=child depth=depth|add:1 %}
+    {% endfor %}
+</div>
+{% endif %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Collapsible/expandable logic for locations
+    $('.toggle-location-children').on('click', function(e) {
+        e.preventDefault();
+        var locId = $(this).data('location-id');
+        var $children = $('#location-children-' + locId);
+        var $chevron = $('#chevron-location-' + locId);
+        $children.slideToggle(200);
+        $chevron.toggleClass('fa-chevron-down fa-chevron-right');
+    });
+    // Optionally, start with all collapsed:
+    // $('.location-children').hide();
+    // $('.toggle-location-children i').removeClass('fa-chevron-down').addClass('fa-chevron-right');
+});
+</script>
+{% endblock %}
