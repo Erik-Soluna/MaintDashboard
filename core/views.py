@@ -32,6 +32,12 @@ import re
 import time
 import psutil
 import logging
+import os
+import shutil
+import redis
+from django_celery_beat.models import PeriodicTask
+import requests
+from django.test import RequestFactory
 
 logger = logging.getLogger(__name__)
 
@@ -557,32 +563,14 @@ def map_view(request):
 @login_required
 @user_passes_test(is_staff_or_superuser)
 def settings_view(request):
-    """General settings view with user preferences."""
-    # Ensure user has a profile
-    from core.models import UserProfile
-    user_profile, created = UserProfile.objects.get_or_create(user=request.user)
-    
-    if request.method == 'POST':
-        # Handle user preferences update
-        user = request.user
-        profile = user_profile
-        
-        # Update user preferences
-        profile.default_location_id = request.POST.get('default_location')
-        profile.notifications_enabled = 'notifications_enabled' in request.POST
-        profile.email_notifications = 'email_notifications' in request.POST
-        profile.sms_notifications = 'sms_notifications' in request.POST
-        profile.save()
-        
-        messages.success(request, 'Settings updated successfully!')
-        return redirect('core:settings')
-    
-    locations = Location.objects.filter(is_active=True).order_by('name')
-    context = {
-        'locations': locations,
-        'user': request.user,
-    }
-    return render(request, 'core/settings.html', context)
+    # Fetch health data from the health_check view
+    from django.test import RequestFactory
+    rf = RequestFactory()
+    health_response = health_check(rf.get('/core/health/'))
+    health_data = health_response.content.decode('utf-8')
+    import json
+    health = json.loads(health_data)
+    return render(request, 'core/settings.html', {'health': health})
 
 
 @login_required
@@ -1911,8 +1899,87 @@ def check_cache_health():
         }
 
 
+import os
+import shutil
+import redis
+from django_celery_beat.models import PeriodicTask
+from django.utils import timezone
+
+HEALTH_LOG_FILE = os.path.join(os.path.dirname(__file__), '../health_failures.log')
+
+
+def log_health_failure(component, message):
+    with open(HEALTH_LOG_FILE, 'a') as f:
+        f.write(f"{timezone.now().isoformat()} | {component} | {message}\n")
+
+def get_recent_health_failures(limit=10):
+    if not os.path.exists(HEALTH_LOG_FILE):
+        return []
+    with open(HEALTH_LOG_FILE, 'r') as f:
+        lines = f.readlines()[-limit:]
+    return [
+        dict(zip(['timestamp', 'component', 'message'], line.strip().split(' | ', 2)))
+        for line in lines
+    ]
+
 def health_check(request):
-    return JsonResponse({'status': 'ok'})
+    checks = []
+    status = 'ok'
+    # DB check
+    try:
+        from django.db import connection
+        connection.ensure_connection()
+        checks.append({'name': 'Database', 'status': 'ok', 'message': 'Connected'})
+    except Exception as e:
+        checks.append({'name': 'Database', 'status': 'error', 'message': str(e)})
+        log_health_failure('Database', str(e))
+        status = 'error'
+    # Redis check
+    try:
+        r = redis.Redis.from_url('redis://redis:6379/0')
+        r.ping()
+        checks.append({'name': 'Redis', 'status': 'ok', 'message': 'Connected'})
+    except Exception as e:
+        checks.append({'name': 'Redis', 'status': 'error', 'message': str(e)})
+        log_health_failure('Redis', str(e))
+        status = 'error'
+    # Celery check (beat task heartbeat)
+    try:
+        last_beat = PeriodicTask.objects.order_by('-last_run_at').first()
+        if last_beat and (timezone.now() - last_beat.last_run_at).total_seconds() < 600:
+            checks.append({'name': 'Celery Beat', 'status': 'ok', 'message': 'Recent heartbeat'})
+        else:
+            msg = 'No recent heartbeat'
+            checks.append({'name': 'Celery Beat', 'status': 'warning', 'message': msg})
+            log_health_failure('Celery Beat', msg)
+            if status != 'error':
+                status = 'warning'
+    except Exception as e:
+        checks.append({'name': 'Celery Beat', 'status': 'error', 'message': str(e)})
+        log_health_failure('Celery Beat', str(e))
+        status = 'error'
+    # Disk space check
+    try:
+        total, used, free = shutil.disk_usage('/')
+        percent_free = free / total * 100
+        if percent_free < 10:
+            msg = f'Low disk space: {percent_free:.1f}% free'
+            checks.append({'name': 'Disk Space', 'status': 'warning', 'message': msg})
+            log_health_failure('Disk Space', msg)
+            if status != 'error':
+                status = 'warning'
+        else:
+            checks.append({'name': 'Disk Space', 'status': 'ok', 'message': f'{percent_free:.1f}% free'})
+    except Exception as e:
+        checks.append({'name': 'Disk Space', 'status': 'error', 'message': str(e)})
+        log_health_failure('Disk Space', str(e))
+        status = 'error'
+    # Add more checks as needed
+    return JsonResponse({
+        'status': status,
+        'checks': checks,
+        'last_failure_log': get_recent_health_failures(10)
+    })
 
 
 def api_explorer(request):
