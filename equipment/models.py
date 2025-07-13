@@ -6,7 +6,7 @@ Fixed associations and validation from the original web2py code.
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
-from core.models import TimeStampedModel, EquipmentCategory, Location
+from core.models import TimeStampedModel, EquipmentCategory, Location, NaturalSortManager
 
 
 class Equipment(TimeStampedModel):
@@ -99,6 +99,9 @@ class Equipment(TimeStampedModel):
     # Additional tracking fields
     commissioning_date = models.DateField(null=True, blank=True)
     warranty_expiry_date = models.DateField(null=True, blank=True)
+
+    # Custom manager for natural sorting
+    objects = NaturalSortManager()
     
     class Meta:
         verbose_name = "Equipment"

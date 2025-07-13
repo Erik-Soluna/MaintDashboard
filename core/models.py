@@ -3,9 +3,26 @@ Core models for the maintenance dashboard.
 Contains shared models used across multiple apps.
 """
 
+import re
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+
+def natural_sort_key(text):
+    """Generate a key for natural sorting (handles numbers in strings correctly)."""
+    return [int(part) if part.isdigit() else part.lower() for part in re.split(r'(\d+)', str(text))]
+
+class NaturalSortQuerySet(models.QuerySet):
+    def natural_order(self):
+        from django.db.models import Case, When
+        objects = list(self)
+        objects.sort(key=lambda obj: natural_sort_key(obj.name))
+        sorted_ids = [obj.id for obj in objects]
+        preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(sorted_ids)])
+        return self.filter(id__in=sorted_ids).order_by(preserved)
+
+class NaturalSortManager(models.Manager.from_queryset(NaturalSortQuerySet)):
+    pass
 
 
 class TimeStampedModel(models.Model):
@@ -141,6 +158,9 @@ class Location(TimeStampedModel):
     longitude = models.FloatField(null=True, blank=True, help_text="GPS longitude")
     address = models.TextField(blank=True, help_text="Physical address")
     is_active = models.BooleanField(default=True)
+
+    # Custom manager for natural sorting
+    objects = NaturalSortManager()
 
     class Meta:
         verbose_name = "Location"

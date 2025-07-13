@@ -218,3 +218,6 @@ Created UserProfile for new user: admin
 Forbidden (CSRF token missing.): /core/health/clear_logs/
 Not Found: /health/
 Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
