@@ -284,11 +284,15 @@
         </div>
     </div>
 
-    <!-- Calendar View Toggle -->
+    <!-- View Mode Toggle -->
     <div class="calendar-toggle" style="background:#0f1419; border-bottom:1px solid #2d3748; padding:10px 20px; display:flex; gap:20px; align-items:center;">
-        <button id="toggle-events" class="btn btn-sm {% if calendar_view == 'events' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar' %}?view=events'">Events</button>
-        <button id="toggle-maintenance" class="btn btn-sm {% if calendar_view == 'maintenance' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar' %}?view=maintenance'">Maintenance</button>
-        <span class="text-light ms-3">Switch between Events and Maintenance calendar views</span>
+        <button id="toggle-calendar" class="btn btn-sm {% if view_mode == 'calendar' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar_view' %}?view={{ calendar_view }}&mode=calendar'">
+            <i class="fas fa-calendar-alt me-1"></i>Calendar
+        </button>
+        <button id="toggle-list" class="btn btn-sm {% if view_mode == 'list' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar_view' %}?view={{ calendar_view }}&mode=list'">
+            <i class="fas fa-list me-1"></i>List
+        </button>
+        <span class="text-light ms-3">Switch between Calendar and List views</span>
     </div>
 
     <!-- Filters -->
@@ -478,24 +482,101 @@
         </div>
     </div>
 
-    <!-- Calendar -->
+    <!-- Maintenance Details Modal -->
+    <div class="modal fade" id="maintenanceDetailsModal" tabindex="-1" aria-labelledby="maintenanceDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" style="background-color: #1a2238; border: 1px solid #2d3748;">
+                <div class="modal-header" style="border-bottom: 1px solid #2d3748;">
+                    <h5 class="modal-title text-white" id="maintenanceDetailsModalLabel">Maintenance Activity Details</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div id="maintenanceDetailsContent">
+                        <div class="text-center py-4">
+                            <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                            <p class="text-muted mt-2">Loading maintenance details...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #2d3748;">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="viewMaintenanceDetailsBtn" style="display: none;">
+                        <i class="fas fa-external-link-alt me-1"></i> View Full Details
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calendar View -->
+    {% if view_mode == 'calendar' %}
     <div class="calendar-content">
         <div id="calendar"></div>
     </div>
+    {% endif %}
+
+    <!-- List View -->
+    {% if view_mode == 'list' %}
+    <div class="list-content">
+        <div class="table-responsive">
+            <table class="table table-dark table-striped table-hover">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>Title</th>
+                        <th>Type</th>
+                        <th>Equipment</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Assigned To</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="listTableBody">
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                            <p class="text-muted mt-2">Loading items...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var calendarView = '{{ calendar_view }}';
+    var viewMode = '{{ view_mode }}';
+    if (viewMode === 'calendar') {
+        initializeCalendar();
+    } else if (viewMode === 'list') {
+        loadListView();
+    }
+});
+
+function initializeCalendar() {
     var calendarEl = document.getElementById('calendar');
     var calendarView = '{{ calendar_view }}';
     var eventsUrl = '';
+    
+    console.log('initializeCalendar called');
+    console.log('calendarEl:', calendarEl);
+    console.log('calendarView:', calendarView);
+    
     if (calendarView === 'maintenance') {
         eventsUrl = '{% url "maintenance:fetch_activities" %}';
     } else {
         eventsUrl = '{% url "events:fetch_events" %}';
     }
+    
+    console.log('eventsUrl:', eventsUrl);
 
     var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
@@ -547,7 +628,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (calendarView === 'events') {
                 openEditEventModal(info.event.id);
             } else if (calendarView === 'maintenance') {
-                // TODO: open maintenance activity modal
+                openMaintenanceDetailsModal(info.event.id);
             }
         },
         eventMouseEnter: function(info) {
@@ -589,7 +670,7 @@ document.addEventListener('DOMContentLoaded', function() {
     calendar.render();
     window.calendar = calendar;
     updateActiveFilters();
-});
+}
 
 function updateCalendar() {
     if (window.calendar) {
@@ -812,5 +893,340 @@ function handleSiteChange(siteId) {
     }
     window.location.href = url.toString();
 }
+
+// Maintenance Details Modal Functions
+function openMaintenanceDetailsModal(activityId) {
+    // Show loading state
+    const content = document.getElementById('maintenanceDetailsContent');
+    content.innerHTML = `
+        <div class="text-center py-4">
+            <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+            <p class="text-muted mt-2">Loading maintenance details...</p>
+        </div>
+    `;
+    
+    // Show modal
+    $('#maintenanceDetailsModal').modal('show');
+    
+    // Load maintenance activity data
+    fetch(`/maintenance/api/activity/${activityId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                displayMaintenanceDetails(data.activity);
+            } else {
+                throw new Error(data.message || 'Failed to load maintenance details');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading maintenance details:', error);
+            content.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                    <p class="text-warning mt-2">Error loading maintenance details</p>
+                    <small class="text-muted">${error.message}</small>
+                </div>
+            `;
+        });
+}
+
+function displayMaintenanceDetails(activity) {
+    const content = document.getElementById('maintenanceDetailsContent');
+    const viewDetailsBtn = document.getElementById('viewMaintenanceDetailsBtn');
+    
+    // Show the "View Full Details" button
+    viewDetailsBtn.style.display = 'inline-block';
+    viewDetailsBtn.onclick = function() {
+        window.open(`/maintenance/activity/${activity.id}/`, '_blank');
+    };
+    
+    // Create the details HTML
+    const statusBadge = getStatusBadge(activity.status);
+    const priorityBadge = getPriorityBadge(activity.priority);
+    
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-8">
+                <h6 class="text-white mb-3">${activity.title}</h6>
+                <div class="mb-3">
+                    <span class="badge ${statusBadge.class} me-2">${statusBadge.text}</span>
+                    <span class="badge ${priorityBadge.class}">${priorityBadge.text}</span>
+                </div>
+                ${activity.description ? `<p class="text-light mb-3">${activity.description}</p>` : ''}
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-dark border-secondary">
+                    <div class="card-body">
+                        <h6 class="text-white">Quick Info</h6>
+                        <div class="mb-2">
+                            <small class="text-muted">Equipment:</small><br>
+                            <span class="text-white">${activity.equipment_name || 'N/A'}</span>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Location:</small><br>
+                            <span class="text-white">${activity.location_name || 'N/A'}</span>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Assigned To:</small><br>
+                            <span class="text-white">${activity.assigned_to_name || 'Unassigned'}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <div class="card bg-dark border-secondary">
+                    <div class="card-body">
+                        <h6 class="text-white">Schedule</h6>
+                        <div class="mb-2">
+                            <small class="text-muted">Start:</small><br>
+                            <span class="text-white">${formatDateTime(activity.scheduled_start)}</span>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">End:</small><br>
+                            <span class="text-white">${formatDateTime(activity.scheduled_end)}</span>
+                        </div>
+                        ${activity.actual_start ? `
+                        <div class="mb-2">
+                            <small class="text-muted">Actual Start:</small><br>
+                            <span class="text-white">${formatDateTime(activity.actual_start)}</span>
+                        </div>
+                        ` : ''}
+                        ${activity.actual_end ? `
+                        <div class="mb-2">
+                            <small class="text-muted">Actual End:</small><br>
+                            <span class="text-white">${formatDateTime(activity.actual_end)}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-dark border-secondary">
+                    <div class="card-body">
+                        <h6 class="text-white">Activity Type</h6>
+                        <div class="mb-2">
+                            <small class="text-muted">Type:</small><br>
+                            <span class="text-white">${activity.activity_type_name || 'N/A'}</span>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Category:</small><br>
+                            <span class="text-white">${activity.activity_type_category || 'N/A'}</span>
+                        </div>
+                        ${activity.tools_required ? `
+                        <div class="mb-2">
+                            <small class="text-muted">Tools Required:</small><br>
+                            <span class="text-white">${activity.tools_required}</span>
+                        </div>
+                        ` : ''}
+                        ${activity.parts_required ? `
+                        <div class="mb-2">
+                            <small class="text-muted">Parts Required:</small><br>
+                            <span class="text-white">${activity.parts_required}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        ${activity.completion_notes ? `
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card bg-dark border-secondary">
+                    <div class="card-body">
+                        <h6 class="text-white">Completion Notes</h6>
+                        <p class="text-light mb-0">${activity.completion_notes}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        ` : ''}
+    `;
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'scheduled': { class: 'badge-secondary', text: 'Scheduled' },
+        'pending': { class: 'badge-warning', text: 'Pending' },
+        'in_progress': { class: 'badge-info', text: 'In Progress' },
+        'completed': { class: 'badge-success', text: 'Completed' },
+        'cancelled': { class: 'badge-danger', text: 'Cancelled' },
+        'overdue': { class: 'badge-danger', text: 'Overdue' }
+    };
+    return badges[status] || { class: 'badge-secondary', text: status };
+}
+
+function getPriorityBadge(priority) {
+    const badges = {
+        'low': { class: 'badge-info', text: 'Low' },
+        'medium': { class: 'badge-warning', text: 'Medium' },
+        'high': { class: 'badge-danger', text: 'High' },
+        'critical': { class: 'badge-danger', text: 'Critical' }
+    };
+    return badges[priority] || { class: 'badge-secondary', text: priority };
+}
+
+function formatDateTime(dateTimeStr) {
+    if (!dateTimeStr) return 'N/A';
+    const date = new Date(dateTimeStr);
+    return date.toLocaleString();
+}
+
+// List View Functions
+function loadListView() {
+    const calendarView = '{{ calendar_view }}';
+    const tableBody = document.getElementById('listTableBody');
+    
+    console.log('loadListView called with calendarView:', calendarView);
+    
+    // Show loading state
+    tableBody.innerHTML = `
+        <tr>
+            <td colspan="8" class="text-center py-4">
+                <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+                <p class="text-muted mt-2">Loading items...</p>
+            </td>
+        </tr>
+    `;
+    
+    // Determine API endpoint
+    let apiUrl = '';
+    if (calendarView === 'maintenance') {
+        apiUrl = '{% url "maintenance:fetch_activities" %}';
+    } else {
+        apiUrl = '{% url "events:fetch_events" %}';
+    }
+    
+    console.log('API URL:', apiUrl);
+    
+    // Add filters to URL
+    const eventTypeFilter = document.getElementById('eventTypeFilter');
+    const equipmentFilter = document.getElementById('equipmentFilter');
+    
+    if (eventTypeFilter && eventTypeFilter.value) {
+        apiUrl += (apiUrl.includes('?') ? '&' : '?') + 'event_type=' + eventTypeFilter.value;
+    }
+    if (equipmentFilter && equipmentFilter.value) {
+        apiUrl += (apiUrl.includes('?') ? '&' : '?') + 'equipment=' + equipmentFilter.value;
+    }
+    
+    // Fetch data
+    fetch(apiUrl)
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('Fetched data:', data);
+            if (calendarView === 'maintenance') {
+                displayMaintenanceList(data || []);
+            } else {
+                displayEventsList(data || []);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading list data:', error);
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center py-4">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                        <p class="text-warning mt-2">Error loading items</p>
+                        <small class="text-muted">${error.message}</small>
+                    </td>
+                </tr>
+            `;
+        });
+}
+
+function displayMaintenanceList(activities) {
+    const tableBody = document.getElementById('listTableBody');
+    
+    if (activities.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center py-4">
+                    <i class="fas fa-inbox fa-2x text-muted"></i>
+                    <p class="text-muted mt-2">No maintenance activities found</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tableBody.innerHTML = activities.map(activity => {
+        const statusBadge = getStatusBadge(activity.status);
+        const priorityBadge = getPriorityBadge(activity.priority);
+        const scheduledDate = activity.scheduled_start ? new Date(activity.scheduled_start).toLocaleDateString() : 'N/A';
+        
+        return `
+            <tr>
+                <td>
+                    <strong class="text-white">${activity.title}</strong>
+                    ${activity.description ? `<br><small class="text-muted">${activity.description.substring(0, 100)}${activity.description.length > 100 ? '...' : ''}</small>` : ''}
+                </td>
+                <td>
+                    <span class="badge badge-info">${activity.activity_type_name || 'N/A'}</span>
+                </td>
+                <td>${activity.equipment_name || 'N/A'}</td>
+                <td>${scheduledDate}</td>
+                <td><span class="badge ${statusBadge.class}">${statusBadge.text}</span></td>
+                <td><span class="badge ${priorityBadge.class}">${priorityBadge.text}</span></td>
+                <td>${activity.assigned_to_name || 'Unassigned'}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="openMaintenanceDetailsModal(${activity.id})">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                    <a href="/maintenance/activity/${activity.id}/" class="btn btn-sm btn-outline-info" target="_blank">
+                        <i class="fas fa-external-link-alt"></i> Details
+                    </a>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function displayEventsList(events) {
+    const tableBody = document.getElementById('listTableBody');
+    if (events.length === 0) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center py-4">
+                    <i class="fas fa-inbox fa-2x text-muted"></i>
+                    <p class="text-muted mt-2">No events found</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    tableBody.innerHTML = events.map(event => {
+        const eventDate = event.event_date ? new Date(event.event_date).toLocaleDateString() : 'N/A';
+        const priorityBadge = getPriorityBadge(event.priority);
+        return `
+            <tr>
+                <td>
+                    <strong class="text-white">${event.title}</strong>
+                    ${event.description ? `<br><small class="text-muted">${event.description.substring(0, 100)}${event.description.length > 100 ? '...' : ''}</small>` : ''}
+                </td>
+                <td>
+                    <span class="badge badge-secondary">${event.event_type || 'N/A'}</span>
+                </td>
+                <td>${event.equipment_name || 'N/A'}</td>
+                <td>${eventDate}</td>
+                <td><span class="badge badge-info">Event</span></td>
+                <td><span class="badge ${priorityBadge.class}">${priorityBadge.text}</span></td>
+                <td>${event.assigned_to_name || 'Unassigned'}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="openEditEventModal(${event.id})">
+                        <i class="fas fa-edit"></i> Edit
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+});
 </script>
 {% endblock %}
