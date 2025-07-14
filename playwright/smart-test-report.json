@@ -1,0 +1,52 @@
+{
+  "timestamp": "2025-07-14T01:34:41.628Z",
+  "totalTests": 3,
+  "passedTests": 1,
+  "failedTests": 2,
+  "totalErrors": 2,
+  "totalWarnings": 0,
+  "totalScreenshots": 5,
+  "results": [
+    {
+      "testName": "Create Equipment Test",
+      "timestamp": "2025-07-14T01:34:22.377Z",
+      "success": false,
+      "errors": [
+        "Could not find Add Equipment button"
+      ],
+      "warnings": [],
+      "screenshots": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\smart-tests\\create_equipment_initial_2025-07-14T01-34-36-789Z.png"
+      ],
+      "htmlDumps": []
+    },
+    {
+      "testName": "Create Equipment Test",
+      "timestamp": "2025-07-14T01:34:37.263Z",
+      "success": false,
+      "errors": [
+        "Could not find Add Equipment button"
+      ],
+      "warnings": [],
+      "screenshots": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\smart-tests\\create_equipment_initial_2025-07-14T01-34-38-046Z.png"
+      ],
+      "htmlDumps": []
+    },
+    {
+      "testName": "Delete Equipment Test",
+      "timestamp": "2025-07-14T01:34:38.522Z",
+      "success": true,
+      "errors": [],
+      "warnings": [],
+      "screenshots": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\smart-tests\\delete_equipment_initial_2025-07-14T01-34-39-297Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\smart-tests\\delete_equipment_confirmation_2025-07-14T01-34-40-079Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\smart-tests\\delete_equipment_final_2025-07-14T01-34-41-146Z.png"
+      ],
+      "htmlDumps": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\html-dumps\\smart-tests\\delete_equipment_2025-07-14T01-34-41-622Z.html"
+      ]
+    }
+  ]
+}
