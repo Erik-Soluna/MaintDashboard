@@ -7,6 +7,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from django.utils import timezone
+import datetime
 from datetime import timedelta
 from core.models import TimeStampedModel, EquipmentCategory
 from equipment.models import Equipment
@@ -228,8 +229,18 @@ class MaintenanceActivity(TimeStampedModel):
     def __str__(self):
         return f"{self.equipment.name} - {self.title} ({self.get_status_display()})"
 
+    def _make_aware(self, dt):
+        if dt and isinstance(dt, datetime.datetime) and timezone.is_naive(dt):
+            return timezone.make_aware(dt)
+        return dt
+
     def clean(self):
         """Custom validation for maintenance activity."""
+        # Convert naive datetimes to aware
+        self.scheduled_start = self._make_aware(self.scheduled_start)
+        self.scheduled_end = self._make_aware(self.scheduled_end)
+        self.actual_start = self._make_aware(self.actual_start)
+        self.actual_end = self._make_aware(self.actual_end)
         if self.scheduled_start and self.scheduled_end:
             if self.scheduled_start >= self.scheduled_end:
                 raise ValidationError("Scheduled start must be before scheduled end.")
@@ -240,10 +251,15 @@ class MaintenanceActivity(TimeStampedModel):
                 
         # Update status based on dates
         now = timezone.now()
-        if self.scheduled_end < now and self.status not in ['completed', 'cancelled']:
+        if self.scheduled_end and self.scheduled_end < now and self.status not in ['completed', 'cancelled']:
             self.status = 'overdue'
 
     def save(self, *args, **kwargs):
+        # Convert naive datetimes to aware before saving
+        self.scheduled_start = self._make_aware(self.scheduled_start)
+        self.scheduled_end = self._make_aware(self.scheduled_end)
+        self.actual_start = self._make_aware(self.actual_start)
+        self.actual_end = self._make_aware(self.actual_end)
         # Auto-calculate next due date if completed
         if self.status == 'completed' and self.actual_end and not self.next_due_date:
             self.next_due_date = (

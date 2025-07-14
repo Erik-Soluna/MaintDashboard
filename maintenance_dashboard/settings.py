@@ -23,6 +23,10 @@ if not isinstance(ALLOWED_HOSTS, list):
         ALLOWED_HOSTS = str(ALLOWED_HOSTS)
         ALLOWED_HOSTS = [s.strip() for s in ALLOWED_HOSTS.split(',')]
 
+# Add testserver for Playwright testing
+if 'testserver' not in ALLOWED_HOSTS and '*' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('testserver')
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',

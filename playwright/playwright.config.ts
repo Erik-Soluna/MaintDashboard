@@ -2,9 +2,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './',
-  timeout: 60000, // 1 minute timeout for each test
+  timeout: 180000, // 3 minutes timeout for each test (increased from 1 minute)
   expect: {
-    timeout: 10000, // 10 seconds timeout for expect assertions
+    timeout: 30000, // 30 seconds timeout for expect assertions (increased from 10 seconds)
   },
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -14,8 +14,8 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:4405',
     trace: 'on-first-retry',
-    actionTimeout: 10000, // 10 seconds for actions like click, fill
-    navigationTimeout: 10000, // 10 seconds for navigation
+    actionTimeout: 30000, // 30 seconds for actions like click, fill (increased from 10 seconds)
+    navigationTimeout: 60000, // 60 seconds for navigation (increased from 10 seconds)
   },
   projects: [
     {

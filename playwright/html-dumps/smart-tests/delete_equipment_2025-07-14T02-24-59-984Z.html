@@ -1,0 +1,2350 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <title>Equipment List - Maintenance Dashboard</title>
+    
+    <!-- Bootstrap 4 CSS -->
+    <style data-fullcalendar=""></style><link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="/static/css/custom.css" rel="stylesheet">
+    
+    
+<style>
+/* Equipment page specific styles */
+.equipment-header {
+    background-color: #2d3748;
+    border-bottom: 1px solid #4a5568;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+}
+
+.equipment-filters {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-group label {
+    color: #e2e8f0;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    margin: 0;
+}
+
+.filter-select {
+    background-color: #1a2238;
+    color: white;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 14px;
+    min-width: 120px;
+}
+
+.filter-select:focus {
+    background-color: #1a2238;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+    color: white;
+}
+
+.search-input {
+    background-color: #1a2238;
+    color: white;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 14px;
+    min-width: 200px;
+}
+
+.search-input:focus {
+    background-color: #1a2238;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+    color: white;
+}
+
+.search-input::placeholder {
+    color: #a0aec0;
+}
+
+.action-buttons {
+    margin-left: auto;
+    display: flex;
+    gap: 10px;
+}
+
+.btn-group {
+    display: flex;
+    gap: 2px;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+/* Equipment table styling */
+.equipment-table-container {
+    background-color: #2d3748;
+    border-radius: 8px;
+    border: 1px solid #4a5568;
+    overflow: hidden;
+}
+
+.equipment-table-header {
+    background-color: #1a2238;
+    padding: 15px 20px;
+    border-bottom: 1px solid #4a5568;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.equipment-table-header h5 {
+    color: #e2e8f0;
+    margin: 0;
+}
+
+.table-responsive {
+    background-color: #2d3748;
+}
+
+.table thead th {
+    background-color: #1a2238;
+    color: #e2e8f0;
+    border-bottom: 2px solid #4a5568;
+    padding: 12px 15px;
+    font-weight: 600;
+}
+
+.table tbody tr {
+    border-bottom: 1px solid #4a5568;
+}
+
+.table tbody td {
+    padding: 12px 15px;
+    color: #e2e8f0;
+    border-bottom: 1px solid #4a5568;
+}
+
+.table tbody tr:hover {
+    background-color: #374151;
+}
+
+/* Badge styling for dark theme */
+.badge {
+    font-size: 11px;
+    padding: 4px 8px;
+}
+
+.pagination {
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.page-link {
+    background-color: #2d3748;
+    border-color: #4a5568;
+    color: #e2e8f0;
+}
+
+.page-link:hover {
+    background-color: #4299e1;
+    border-color: #4299e1;
+    color: white;
+}
+
+.page-item.active .page-link {
+    background-color: #4299e1;
+    border-color: #4299e1;
+}
+
+/* Empty state styling */
+.empty-equipment-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #a0aec0;
+}
+
+.empty-equipment-state i {
+    font-size: 48px;
+    margin-bottom: 20px;
+    color: #4a5568;
+}
+
+.dropdown-menu {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+}
+
+.dropdown-item {
+    color: #e2e8f0;
+}
+
+.dropdown-item:hover {
+    background-color: #4a5568;
+    color: white;
+}
+</style>
+
+    
+    <style>
+        :root {
+            --primary-color: #4299e1;
+            --secondary-color: #2d3748;
+            --success-color: #48bb78;
+            --warning-color: #ed8936;
+            --danger-color: #f56565;
+            --info-color: #4299e1;
+            --light-color: #e2e8f0;
+            --dark-color: #1a2238;
+            --darker-color: #0f1419;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        /* Dark Theme (Default) */
+        body, body.theme-dark {
+            background-color: #1a2238;
+            color: #e2e8f0;
+        }
+        
+        /* Light Theme */
+        body.theme-light {
+            background-color: #f7fafc;
+            color: #2d3748;
+        }
+        
+        /* Light Theme Variables */
+        body.theme-light {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7fafc;
+            --bg-tertiary: #edf2f7;
+            --text-primary: #2d3748;
+            --text-secondary: #718096;
+            --border-color: #e2e8f0;
+            --header-bg: #2d3748;
+            --card-bg: #ffffff;
+        }
+        
+        /* Dark Theme Variables */
+        body, body.theme-dark {
+            --bg-primary: #2d3748;
+            --bg-secondary: #1a2238;
+            --bg-tertiary: #0f1419;
+            --text-primary: #e2e8f0;
+            --text-secondary: #a0aec0;
+            --border-color: #4a5568;
+            --header-bg: #0f1419;
+            --card-bg: #2d3748;
+        }
+
+        /* Unified Header Styling */
+        .main-header {
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 20px;
+        }
+        
+        .header-brand {
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            text-decoration: none;
+        }
+        
+        .header-brand:hover {
+            color: #4299e1;
+            text-decoration: none;
+        }
+        
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .site-selector {
+            background-color: #2d3748;
+            color: white;
+            border: 1px solid #4a5568;
+            border-radius: 6px;
+            padding: 8px 12px;
+        }
+        
+        .site-selector:focus {
+            background-color: #2d3748;
+            color: white;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+        }
+        
+        /* Navigation Tabs */
+        .nav-tabs-custom {
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-tertiary);
+            padding: 0 20px;
+        }
+        
+        .nav-tabs-custom .nav-link {
+            color: var(--text-secondary);
+            border: none;
+            padding: 15px 25px;
+            font-weight: 500;
+            background: transparent;
+        }
+        
+        .nav-tabs-custom .nav-link.active {
+            color: var(--text-primary);
+            background-color: var(--bg-primary);
+            border-bottom: 2px solid #4299e1;
+        }
+        
+        .nav-tabs-custom .nav-link:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-primary);
+        }
+        
+        /* Page Content */
+        .main-container {
+            background-color: var(--bg-secondary);
+            min-height: calc(100vh - 140px);
+            padding: 20px;
+        }
+        
+        .page-header {
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+        }
+        
+        .card-header {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .card-body {
+            background-color: var(--card-bg);
+        }
+        
+        .form-control {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .form-control:focus {
+            background-color: var(--bg-secondary);
+            border-color: #4299e1;
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+            color: var(--text-primary);
+        }
+        
+        .btn-primary {
+            background-color: #4299e1;
+            border-color: #4299e1;
+        }
+        
+        .btn-primary:hover {
+            background-color: #3182ce;
+            border-color: #3182ce;
+        }
+        
+        .btn-outline-secondary {
+            color: #a0aec0;
+            border-color: #4a5568;
+        }
+        
+        .btn-outline-secondary:hover {
+            background-color: #4a5568;
+            border-color: #4a5568;
+            color: white;
+        }
+        
+        .table {
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+        }
+        
+        .table th {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .table td {
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: var(--bg-tertiary);
+        }
+        
+        .breadcrumb {
+            background: transparent;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .breadcrumb-item a {
+            color: #4299e1;
+        }
+        
+        .breadcrumb-item.active {
+            color: #a0aec0;
+        }
+        
+        .breadcrumb-item + .breadcrumb-item::before {
+            content: ">";
+            color: #6c757d;
+        }
+        
+        .badge-secondary {
+            background-color: #4a5568;
+        }
+        
+        .badge-success {
+            background-color: #48bb78;
+        }
+        
+        .badge-warning {
+            background-color: #ed8936;
+        }
+        
+        .badge-danger {
+            background-color: #f56565;
+        }
+        
+        .badge-primary {
+            background-color: #4299e1;
+        }
+        
+        /* Footer */
+        .footer {
+            background-color: #0f1419;
+            color: #a0aec0;
+            padding: 20px 0;
+            border-top: 1px solid #2d3748;
+        }
+        
+        /* Modal styling */
+        .modal-content {
+            background-color: #2d3748;
+            color: white;
+            border: 1px solid #4a5568;
+        }
+        
+        .modal-header {
+            border-bottom: 1px solid #4a5568;
+        }
+        
+        .close {
+            color: white;
+        }
+        
+        /* Dropdown Menu Fixes */
+        .dropdown-menu {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1050;
+            min-width: 200px;
+            padding: 8px 0;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            display: none;
+            float: left;
+            max-height: 90vh;
+            overflow-y: auto;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .dropdown-item {
+            color: var(--text-primary);
+            padding: 8px 16px;
+            transition: background-color 0.2s ease;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .dropdown-item:hover {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        .dropdown-item:focus {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        .dropdown-divider {
+            border-top: 1px solid var(--border-color);
+            margin: 8px 0;
+        }
+        
+        /* Ensure dropdowns are not clipped */
+        .dropdown {
+            position: relative;
+        }
+        
+        .dropdown.show .dropdown-menu {
+            display: block;
+        }
+        
+        .dropdown-menu-right {
+            right: 0;
+            left: auto;
+        }
+        
+        /* Fix for dropdown positioning and overflow */
+        .navbar-nav .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 1050;
+            float: none;
+            min-width: 160px;
+            max-width: 300px;
+            overflow: visible;
+            word-wrap: break-word;
+        }
+        
+        /* Form control dropdowns */
+        .form-control select {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 6px;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .form-control select:focus {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: #4299e1;
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+        }
+        
+        /* Select form control improvements */
+        select.form-control {
+            padding-right: 30px;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 8px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            height: auto;
+            min-height: 38px;
+        }
+        
+        select.form-control option {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+        }
+        
+        /* Site selector dropdown fixes */
+        .site-selector {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            z-index: 1040;
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            height: auto;
+            min-height: 38px;
+        }
+        
+        .site-selector:focus {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: #4299e1;
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+        }
+        
+        /* Navigation dropdown fixes */
+        .nav-tabs-custom {
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-tertiary);
+            padding: 0 20px;
+            position: relative;
+            z-index: 1030;
+            overflow: visible;
+        }
+        
+        .nav-tabs-custom .dropdown-menu {
+            top: 100%;
+            margin-top: 0;
+            position: absolute;
+            z-index: 1050;
+            min-width: 200px;
+            max-height: 90vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        /* Header positioning */
+        .main-header {
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 20px;
+            position: relative;
+            z-index: 1040;
+            overflow: visible;
+        }
+        
+        /* Fix for table overflow issues */
+        .table-responsive {
+            overflow-x: auto;
+            overflow-y: visible;
+            max-width: 100%;
+        }
+        
+        .table {
+            width: 100%;
+            max-width: 100%;
+            margin-bottom: 0;
+            table-layout: fixed;
+        }
+        
+        .table td,
+        .table th {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 12px 8px;
+            vertical-align: middle;
+        }
+        
+        .table td:last-child,
+        .table th:last-child {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+        }
+        
+        /* Fix for long text in table cells */
+        .table .text-wrap {
+            white-space: normal !important;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Card content overflow fixes */
+        .card {
+            overflow: visible;
+        }
+        
+        .card-body {
+            overflow: visible;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Modal fixes */
+        .modal-content {
+            overflow: visible;
+        }
+        
+        .modal-body {
+            overflow-y: auto;
+            max-height: 70vh;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Form control fixes */
+        .form-control {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-sizing: border-box;
+            max-width: 100%;
+        }
+        
+        /* Button group fixes */
+        .btn-group {
+            overflow: visible;
+            white-space: nowrap;
+        }
+        
+        .btn-group .btn {
+            float: none;
+            display: inline-block;
+        }
+        
+        /* Navbar fixes */
+        .navbar-nav {
+            overflow: visible;
+        }
+        
+        .navbar-nav .nav-item {
+            position: relative;
+        }
+        
+        .navbar-nav .dropdown {
+            position: static;
+        }
+        
+        /* Container fixes */
+        .container-fluid {
+            overflow-x: hidden;
+            overflow-y: visible;
+        }
+        
+        /* Text truncation utilities */
+        .text-truncate {
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+        }
+        
+        .text-wrap {
+            white-space: normal !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+        }
+        
+        /* Flex container fixes */
+        .d-flex {
+            overflow: visible;
+        }
+        
+        /* Badge overflow fixes */
+        .badge {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        
+        .badge.text-wrap {
+            white-space: normal !important;
+            max-width: none;
+        }
+        
+        /* Breadcrumb fixes */
+        .breadcrumb {
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            overflow: visible;
+            flex-wrap: wrap;
+        }
+        
+        .breadcrumb-item {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        
+        .breadcrumb-item:last-child {
+            max-width: none;
+            overflow: visible;
+            text-overflow: unset;
+        }
+        
+        /* Alerts */
+        .alert {
+            border: none;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        
+        .alert-success {
+            background-color: #2d5a3d;
+            color: #68d391;
+            border-left-color: #48bb78;
+        }
+        
+        .alert-danger {
+            background-color: #5a2d2d;
+            color: #fc8181;
+            border-left-color: #f56565;
+        }
+        
+        .alert-warning {
+            background-color: #5a4a2d;
+            color: #f6ad55;
+            border-left-color: #ed8936;
+        }
+        
+        .alert-info {
+            background-color: #2d4a5a;
+            color: #63b3ed;
+            border-left-color: #4299e1;
+        }
+    </style>
+</head>
+<body class="theme-dark modal-open" style="padding-right: 15px;">
+    <input type="hidden" name="csrfmiddlewaretoken" value="B60qIgjjVHDohzfhM9AKIAaF7yXgeF222CLkyr6Mbb9gna9FLAf0uZcM3Ofh6vjg" style="">
+    <!-- Main Header -->
+    <div class="main-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <a href="/core/dashboard/" class="header-brand">
+                <i class="fas fa-tools me-2"></i>
+                Maintenance Dashboard
+            </a>
+        </div>
+        
+        <div class="header-controls">
+            <!-- Site Selector -->
+            <div class="d-flex align-items-center">
+                <label for="site-selector" class="text-white me-2 mb-0">Select Site:</label>
+                <select id="site-selector" class="site-selector form-control form-control-sm" onchange="changeSite(this.value)">
+                    <option value="" selected="">All - Soluna</option>
+                    
+                    <option value="5">
+                        Dorothy Site
+                    </option>
+                    
+                    <option value="1">
+                        Main Site
+                    </option>
+                    
+                </select>
+            </div>
+            
+            <!-- User Info -->
+            
+            <div class="dropdown">
+                <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                    <i class="fas fa-user me-1"></i>
+                    System Administrator
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                    <a class="dropdown-item" href="/core/profile/">
+                        <i class="fas fa-user-cog me-1"></i> Profile
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="/auth/logout/">
+                        <i class="fas fa-sign-out-alt me-1"></i> Logout
+                    </a>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs-custom">
+        <ul class="nav nav-tabs border-0">
+            <li class="nav-item">
+                <a class="nav-link " href="/core/dashboard/">
+                    <i class="fas fa-home me-1"></i> Overview
+                </a>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle active" href="#" data-toggle="dropdown">
+                    <i class="fas fa-cogs me-1"></i> Equipment
+                </a>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="/equipment/">Equipment List</a>
+                    <a class="dropdown-item" href="/equipment/add/">Add Equipment</a>
+                </div>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle " href="#" data-toggle="dropdown">
+                    <i class="fas fa-calendar-check me-1"></i> Maintenance
+                </a>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="/maintenance/">Activities</a>
+                    <a class="dropdown-item" href="/maintenance/schedules/">Schedules</a>
+                    <a class="dropdown-item" href="/maintenance/activities/add/">New Activity</a>
+                </div>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/events/calendar/">
+                    <i class="fas fa-calendar me-1"></i> Calendar
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/core/map/">
+                    <i class="fas fa-map me-1"></i> Map
+                </a>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" data-toggle="dropdown">
+                    <i class="fas fa-cog me-1"></i> Settings
+                </a>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="/core/settings/">General Settings</a>
+                    <a class="dropdown-item" href="/core/settings/locations/">Locations</a>
+                    <a class="dropdown-item" href="/core/settings/customers/">Customers</a>
+                    <a class="dropdown-item" href="/core/settings/equipment-items/">Equipment Items</a>
+                </div>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Breadcrumb -->
+    
+    <div class="container-fluid mt-3">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/core/dashboard/">Home</a></li>
+                
+<li class="breadcrumb-item active">Equipment</li>
+
+            </ol>
+        </nav>
+    </div>
+    
+
+    <!-- Messages -->
+    
+
+    <!-- Main Content -->
+    <main class="container-fluid main-container">
+        
+<!-- Equipment Filters Header -->
+<div class="equipment-header">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="mb-0 text-white">
+                <i class="fas fa-cogs me-2"></i>
+                Equipment Management
+            </h3>
+            <p class="text-muted mb-0">Manage and monitor all equipment</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="/equipment/add/" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i> Add Equipment
+            </a>
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
+                    <i class="fas fa-download me-1"></i> Import/Export
+                </button>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="/equipment/export/csv/">
+                        <i class="fas fa-download me-1"></i> Export CSV
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <button class="dropdown-item" onclick="document.getElementById('csvImportFile').click()">
+                        <i class="fas fa-upload me-1"></i> Import CSV
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Hidden file input for CSV import -->
+        <form id="csvImportForm" method="post" action="/equipment/import/csv/" enctype="multipart/form-data" style="display: none;">
+            <input type="hidden" name="csrfmiddlewaretoken" value="B60qIgjjVHDohzfhM9AKIAaF7yXgeF222CLkyr6Mbb9gna9FLAf0uZcM3Ofh6vjg" style="">
+            <input type="file" id="csvImportFile" name="csv_file" accept=".csv" onchange="confirmCsvImport()" style="">
+        </form>
+    </div>
+    
+    <!-- Filters -->
+    <form method="get" class="equipment-filters">
+        <div class="filter-group">
+            <label for="search">Search:</label>
+            <div>
+                <input type="text" id="search" name="search" class="search-input" value="" placeholder="Search by name, category, location, serial, tag..." style="">
+                <small class="text-muted d-block" style="font-size: 11px; margin-top: 2px;">
+                    Searches: Equipment Name, Category, Location, Serial Number, Asset Tag, Manufacturer, Model
+                </small>
+            </div>
+        </div>
+        
+        <div class="filter-group">
+            <label for="category">Category:</label>
+            <select id="category" name="category" class="filter-select">
+                <option value="">All Categories</option>
+                
+                <option value="4">
+                    Generators
+                </option>
+                
+                <option value="5">
+                    HVAC
+                </option>
+                
+                <option value="3">
+                    Motors
+                </option>
+                
+                <option value="2">
+                    Switchgear
+                </option>
+                
+                <option value="1">
+                    Transformers
+                </option>
+                
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label for="location">Location:</label>
+            <select id="location" name="location" class="filter-select">
+                <option value="">All Locations</option>
+                
+                <option value="2">
+                    Building A
+                </option>
+                
+                <option value="3">
+                    Building B
+                </option>
+                
+                <option value="6">
+                    Dorothy POD 1
+                </option>
+                
+                <option value="15">
+                    Dorothy POD 10
+                </option>
+                
+                <option value="16">
+                    Dorothy POD 11
+                </option>
+                
+                <option value="17">
+                    Dorothy POD 12
+                </option>
+                
+                <option value="18">
+                    Dorothy POD 13
+                </option>
+                
+                <option value="19">
+                    Dorothy POD 14
+                </option>
+                
+                <option value="20">
+                    Dorothy POD 15
+                </option>
+                
+                <option value="21">
+                    Dorothy POD 16
+                </option>
+                
+                <option value="22">
+                    Dorothy POD 17
+                </option>
+                
+                <option value="23">
+                    Dorothy POD 18
+                </option>
+                
+                <option value="24">
+                    Dorothy POD 19
+                </option>
+                
+                <option value="7">
+                    Dorothy POD 2
+                </option>
+                
+                <option value="25">
+                    Dorothy POD 20
+                </option>
+                
+                <option value="26">
+                    Dorothy POD 21
+                </option>
+                
+                <option value="27">
+                    Dorothy POD 22
+                </option>
+                
+                <option value="8">
+                    Dorothy POD 3
+                </option>
+                
+                <option value="9">
+                    Dorothy POD 4
+                </option>
+                
+                <option value="10">
+                    Dorothy POD 5
+                </option>
+                
+                <option value="11">
+                    Dorothy POD 6
+                </option>
+                
+                <option value="12">
+                    Dorothy POD 7
+                </option>
+                
+                <option value="13">
+                    Dorothy POD 8
+                </option>
+                
+                <option value="14">
+                    Dorothy POD 9
+                </option>
+                
+                <option value="5">
+                    Dorothy Site
+                </option>
+                
+                <option value="4">
+                    Electrical Room
+                </option>
+                
+                <option value="1">
+                    Main Site
+                </option>
+                
+                <option value="38">
+                    MDC 1
+                </option>
+                
+                <option value="29">
+                    MDC 1
+                </option>
+                
+                <option value="55">
+                    MDC 10
+                </option>
+                
+                <option value="47">
+                    MDC 10
+                </option>
+                
+                <option value="48">
+                    MDC 11
+                </option>
+                
+                <option value="56">
+                    MDC 11
+                </option>
+                
+                <option value="57">
+                    MDC 12
+                </option>
+                
+                <option value="49">
+                    MDC 12
+                </option>
+                
+                <option value="59">
+                    MDC 13
+                </option>
+                
+                <option value="51">
+                    MDC 13
+                </option>
+                
+                <option value="52">
+                    MDC 14
+                </option>
+                
+                <option value="60">
+                    MDC 14
+                </option>
+                
+                <option value="61">
+                    MDC 15
+                </option>
+                
+                <option value="53">
+                    MDC 15
+                </option>
+                
+                <option value="30">
+                    MDC 2
+                </option>
+                
+                <option value="39">
+                    MDC 2
+                </option>
+                
+                <option value="32">
+                    MDC 3
+                </option>
+                
+                <option value="41">
+                    MDC 3
+                </option>
+                
+                <option value="33">
+                    MDC 4
+                </option>
+                
+                <option value="42">
+                    MDC 4
+                </option>
+                
+                <option value="35">
+                    MDC 5
+                </option>
+                
+                <option value="44">
+                    MDC 5
+                </option>
+                
+                <option value="36">
+                    MDC 6
+                </option>
+                
+                <option value="45">
+                    MDC 6
+                </option>
+                
+                <option value="37">
+                    POD 1
+                </option>
+                
+                <option value="28">
+                    POD 1
+                </option>
+                
+                <option value="40">
+                    POD 2
+                </option>
+                
+                <option value="31">
+                    POD 2
+                </option>
+                
+                <option value="43">
+                    POD 3
+                </option>
+                
+                <option value="34">
+                    POD 3
+                </option>
+                
+                <option value="54">
+                    POD 4
+                </option>
+                
+                <option value="46">
+                    POD 4
+                </option>
+                
+                <option value="50">
+                    POD 5
+                </option>
+                
+                <option value="58">
+                    POD 5
+                </option>
+                
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label for="status">Status:</label>
+            <select id="status" name="status" class="filter-select">
+                <option value="">All Statuses</option>
+                
+                <option value="active">
+                    Active
+                </option>
+                
+                <option value="inactive">
+                    Inactive
+                </option>
+                
+                <option value="maintenance">
+                    Under Maintenance
+                </option>
+                
+                <option value="retired">
+                    Retired
+                </option>
+                
+            </select>
+        </div>
+        
+        <div class="action-buttons">
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="fas fa-search me-1"></i> Search
+            </button>
+            <a href="/equipment/" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-times me-1"></i> Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Equipment List -->
+<div class="row">
+    <div class="col-12">
+        <div class="equipment-table-container">
+            <div class="equipment-table-header">
+                <h5>Equipment List</h5>
+                <span class="badge badge-primary">19 Total</span>
+            </div>
+            <div class="table-responsive">
+                
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Equipment Name</th>
+                                <th>Category</th>
+                                <th>Site / Location</th>
+                                <th>Serial Number</th>
+                                <th>Asset Tag</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - 32212679625</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 11</small>
+                                        
+                                    
+                                </td>
+                                <td>32212679625</td>
+                                <td>
+                                    <code>32212679625</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/11/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/11/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="11" data-equipment-name="Maddox - 32212679625" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - 32212680025</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 18</small>
+                                        
+                                    
+                                </td>
+                                <td>32212680025</td>
+                                <td>
+                                    <code>32212680025</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/18/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/18/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="18" data-equipment-name="Maddox - 32212680025" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - 32212680026</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 14</small>
+                                        
+                                    
+                                </td>
+                                <td>32212680026</td>
+                                <td>
+                                    <code>32212680026</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/14/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/14/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="14" data-equipment-name="Maddox - 32212680026" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - 32212680027</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 21</small>
+                                        
+                                    
+                                </td>
+                                <td>32212680027</td>
+                                <td>
+                                    <code>32212680027</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/21/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/21/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="21" data-equipment-name="Maddox - 32212680027" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - 42212707921</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 20</small>
+                                        
+                                    
+                                </td>
+                                <td>42212707921</td>
+                                <td>
+                                    <code>42212707921</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/20/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/20/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="20" data-equipment-name="Maddox - 42212707921" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - 52212725138</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 19</small>
+                                        
+                                    
+                                </td>
+                                <td>52212725138</td>
+                                <td>
+                                    <code>52212725138</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/19/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/19/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="19" data-equipment-name="Maddox - 52212725138" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - 52212725139</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 15</small>
+                                        
+                                    
+                                </td>
+                                <td>52212725139</td>
+                                <td>
+                                    <code>52212725139</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/15/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/15/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="15" data-equipment-name="Maddox - 52212725139" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - MD2550-2201</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 12</small>
+                                        
+                                    
+                                </td>
+                                <td>MD2550-2201</td>
+                                <td>
+                                    <code>MD2550-2201</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/12/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/12/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="12" data-equipment-name="Maddox - MD2550-2201" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - MD2550-2202</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 9</small>
+                                        
+                                    
+                                </td>
+                                <td>MD2550-2202</td>
+                                <td>
+                                    <code>MD2550-2202</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/9/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/9/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="9" data-equipment-name="Maddox - MD2550-2202" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - MD2550-2203</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 13</small>
+                                        
+                                    
+                                </td>
+                                <td>MD2550-2203</td>
+                                <td>
+                                    <code>MD2550-2203</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/13/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/13/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="13" data-equipment-name="Maddox - MD2550-2203" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - MD2550-2204</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 7</small>
+                                        
+                                    
+                                </td>
+                                <td>MD2550-2204</td>
+                                <td>
+                                    <code>MD2550-2204</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/7/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/7/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="7" data-equipment-name="Maddox - MD2550-2204" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - MD2550-2205</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 8</small>
+                                        
+                                    
+                                </td>
+                                <td>MD2550-2205</td>
+                                <td>
+                                    <code>MD2550-2205</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/8/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/8/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="8" data-equipment-name="Maddox - MD2550-2205" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - MD2550-2206</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 22</small>
+                                        
+                                    
+                                </td>
+                                <td>MD2550-2206</td>
+                                <td>
+                                    <code>MD2550-2206</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/22/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/22/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="22" data-equipment-name="Maddox - MD2550-2206" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - MD2550-2207</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 5</small>
+                                        
+                                    
+                                </td>
+                                <td>MD2550-2207</td>
+                                <td>
+                                    <code>MD2550-2207</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/5/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/5/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="5" data-equipment-name="Maddox - MD2550-2207" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - MD2550-2208</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 4</small>
+                                        
+                                    
+                                </td>
+                                <td>MD2550-2208</td>
+                                <td>
+                                    <code>MD2550-2208</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/4/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/4/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="4" data-equipment-name="Maddox - MD2550-2208" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - MD2550-2209</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 3</small>
+                                        
+                                    
+                                </td>
+                                <td>MD2550-2209</td>
+                                <td>
+                                    <code>MD2550-2209</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/3/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/3/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="3" data-equipment-name="Maddox - MD2550-2209" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - MD2550-2210</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 2</small>
+                                        
+                                    
+                                </td>
+                                <td>MD2550-2210</td>
+                                <td>
+                                    <code>MD2550-2210</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/2/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/2/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="2" data-equipment-name="Maddox - MD2550-2210" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - MD2550-2211</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 6</small>
+                                        
+                                    
+                                </td>
+                                <td>MD2550-2211</td>
+                                <td>
+                                    <code>MD2550-2211</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/6/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/6/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="6" data-equipment-name="Maddox - MD2550-2211" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td>
+                                    <strong>Maddox - MD2550-2212</strong><br>
+                                    
+                                        <small class="text-muted">Maddox</small>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-secondary">Transformers</span>
+                                    
+                                </td>
+                                <td>
+                                    
+                                        
+                                            <span class="badge badge-info">Dorothy Site</span><br>
+                                            <small>Dorothy POD 1</small>
+                                        
+                                    
+                                </td>
+                                <td>MD2550-2212</td>
+                                <td>
+                                    <code>MD2550-2212</code>
+                                </td>
+                                <td>
+                                    
+                                        <span class="badge badge-success">Active</span>
+                                    
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/equipment/1/" class="btn btn-sm btn-outline-primary" data-toggle="tooltip" title="" data-original-title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/equipment/1/edit/" class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="" data-original-title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger btn-delete" data-equipment-id="1" data-equipment-name="Maddox - MD2550-2212" data-toggle="tooltip" title="" data-original-title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            
+                        </tbody>
+                    </table>
+                    
+                    <!-- Pagination -->
+                    
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade show" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-modal="true" role="dialog" style="padding-right: 15px; display: block;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="equipmentName">Maddox - 32212679625</strong>?</p>
+                <p class="text-muted">This action cannot be undone and will also delete all associated maintenance records.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete" disabled=""><i class="fas fa-spinner fa-spin me-1"></i> Deleting...</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-0">© 2025 Maintenance Dashboard. All rights reserved.</p>
+                </div>
+                <div class="col-md-6 text-right">
+                    <small>Powered by Django</small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    
+    
+<script>
+$(document).ready(function() {
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+    
+    // Handle delete button clicks
+    $('.btn-delete').on('click', function() {
+        const equipmentId = $(this).data('equipment-id');
+        const equipmentName = $(this).data('equipment-name');
+        
+        $('#equipmentName').text(equipmentName);
+        $('#confirmDelete').data('equipment-id', equipmentId);
+        $('#deleteModal').modal('show');
+    });
+    
+    // Handle delete confirmation
+    $('#confirmDelete').on('click', function() {
+        const equipmentId = $(this).data('equipment-id');
+        
+        // Show loading state
+        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Deleting...');
+        
+        // Make AJAX request to delete
+        $.ajax({
+            url: '/equipment/' + equipmentId + '/delete/',
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.status === 'success') {
+                    $('#deleteModal').modal('hide');
+                    location.reload(); // Refresh the page
+                } else {
+                    alert('Error deleting equipment: ' + response.message);
+                }
+            },
+            error: function() {
+                alert('Error deleting equipment. Please try again.');
+            },
+            complete: function() {
+                $('#confirmDelete').prop('disabled', false).html('<i class="fas fa-trash me-1"></i> Delete Equipment');
+            }
+        });
+    });
+    
+    // Auto-submit search form on filter change
+    $('#category, #location, #status').on('change', function() {
+        $(this).closest('form').submit();
+    });
+});
+
+// CSV Import confirmation
+function confirmCsvImport() {
+    const fileInput = document.getElementById('csvImportFile');
+    if (fileInput.files.length > 0) {
+        const fileName = fileInput.files[0].name;
+        if (confirm(`Are you sure you want to import equipment data from "${fileName}"? This will create new equipment records.`)) {
+            document.getElementById('csvImportForm').submit();
+        } else {
+            fileInput.value = ''; // Clear the file input
+        }
+    }
+}
+</script>
+
+    
+    <script>
+        // Site selector change handler
+        function changeSite(siteId) {
+            const url = new URL(window.location);
+            if (siteId && siteId !== '') {
+                url.searchParams.set('site_id', siteId);
+            } else {
+                // Explicitly set empty string to trigger clearing logic in context processor
+                url.searchParams.set('site_id', '');
+            }
+            window.location.href = url.toString();
+        }
+        
+        // Theme switching function
+        function switchTheme(theme) {
+            if (theme === 'light') {
+                document.body.classList.remove('theme-dark');
+                document.body.classList.add('theme-light');
+            } else {
+                document.body.classList.remove('theme-light');
+                document.body.classList.add('theme-dark');
+            }
+        }
+        
+        // Global JavaScript utilities
+        $(document).ready(function() {
+            // Auto-dismiss alerts after 5 seconds
+            setTimeout(function() {
+                $('.alert').fadeOut('slow');
+            }, 5000);
+            
+            // Add loading state to buttons
+            $('form').on('submit', function() {
+                $(this).find('button[type="submit"]').prop('disabled', true).html(
+                    '<i class="fas fa-spinner fa-spin"></i> Processing...'
+                );
+            });
+            
+            // Confirm delete actions
+            $('.btn-delete').on('click', function(e) {
+                if (!confirm('Are you sure you want to delete this item?')) {
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+
+<div class="modal-backdrop fade show"></div></body></html>
