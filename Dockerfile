@@ -53,6 +53,7 @@ COPY . /app/
 # Copy entrypoint script and make it executable
 RUN chmod +x /app/docker-entrypoint.sh
 RUN chmod +x /app/start_celery_beat.sh
+RUN chmod +x /app/start_celery.sh
 
 # Create directories for static and media files
 RUN mkdir -p /app/staticfiles /app/media
