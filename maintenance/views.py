@@ -22,7 +22,7 @@ import json
 from .models import (
     MaintenanceActivity, MaintenanceActivityType, 
     MaintenanceSchedule, MaintenanceChecklist,
-    ActivityTypeCategory, ActivityTypeTemplate
+    ActivityTypeCategory, ActivityTypeTemplate, MaintenanceReport
 )
 from equipment.models import Equipment
 from core.models import EquipmentCategory
@@ -1598,3 +1598,388 @@ def fetch_activities(request):
         return JsonResponse(results, safe=False)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def get_activity_details(request, activity_id):
+    """Get detailed information about a maintenance activity for AJAX requests."""
+    try:
+        activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+        
+        # Get related data
+        checklist_items = activity.checklist_items.all().order_by('order')
+        timeline_entries = activity.timeline_entries.all().order_by('-created_at')[:10]
+        reports = activity.reports.all().order_by('-created_at')
+        
+        data = {
+            'id': activity.id,
+            'title': activity.title,
+            'description': activity.description,
+            'status': activity.get_status_display(),
+            'priority': activity.get_priority_display(),
+            'equipment': {
+                'id': activity.equipment.id,
+                'name': activity.equipment.name,
+                'category': activity.equipment.category.name if activity.equipment.category else None,
+            },
+            'activity_type': {
+                'id': activity.activity_type.id,
+                'name': activity.activity_type.name,
+                'category': activity.activity_type.category.name,
+            },
+            'scheduled_start': activity.scheduled_start.isoformat() if activity.scheduled_start else None,
+            'scheduled_end': activity.scheduled_end.isoformat() if activity.scheduled_end else None,
+            'actual_start': activity.actual_start.isoformat() if activity.actual_start else None,
+            'actual_end': activity.actual_end.isoformat() if activity.actual_end else None,
+            'assigned_to': activity.assigned_to.username if activity.assigned_to else None,
+            'completion_notes': activity.completion_notes,
+            'checklist_items': [
+                {
+                    'id': item.id,
+                    'text': item.item_text,
+                    'is_completed': item.is_completed,
+                    'completed_by': item.completed_by.username if item.completed_by else None,
+                    'completed_at': item.completed_at.isoformat() if item.completed_at else None,
+                    'notes': item.notes,
+                }
+                for item in checklist_items
+            ],
+            'timeline_entries': [
+                {
+                    'id': entry.id,
+                    'entry_type': entry.get_entry_type_display(),
+                    'title': entry.title,
+                    'description': entry.description,
+                    'created_at': entry.created_at.isoformat(),
+                    'created_by': entry.created_by.username if entry.created_by else None,
+                }
+                for entry in timeline_entries
+            ],
+            'reports': [
+                {
+                    'id': report.id,
+                    'title': report.title,
+                    'report_type': report.get_report_type_display(),
+                    'created_at': report.created_at.isoformat(),
+                    'is_processed': report.is_processed,
+                    'has_critical_issues': report.has_critical_issues(),
+                }
+                for report in reports
+            ],
+        }
+        
+        return JsonResponse(data)
+        
+    except Exception as e:
+        logger.error(f"Error getting activity details: {str(e)}")
+        return JsonResponse({'error': 'Failed to get activity details'}, status=500)
+
+
+# Maintenance Report Views
+@login_required
+def report_list(request):
+    """List all maintenance reports with filtering."""
+    try:
+        queryset = MaintenanceReport.objects.select_related(
+            'activity', 'activity__equipment', 'uploaded_by'
+        ).all()
+        
+        # Filtering
+        report_type = request.GET.get('report_type')
+        if report_type:
+            queryset = queryset.filter(report_type=report_type)
+            
+        activity_id = request.GET.get('activity')
+        if activity_id:
+            queryset = queryset.filter(activity_id=activity_id)
+            
+        is_processed = request.GET.get('is_processed')
+        if is_processed is not None:
+            queryset = queryset.filter(is_processed=is_processed == 'true')
+        
+        search_term = request.GET.get('search', '')
+        if search_term:
+            queryset = queryset.filter(
+                Q(title__icontains=search_term) |
+                Q(activity__title__icontains=search_term) |
+                Q(technician_name__icontains=search_term) |
+                Q(content__icontains=search_term)
+            )
+        
+        # Pagination
+        paginator = Paginator(queryset, 25)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        
+        context = {
+            'page_obj': page_obj,
+            'report_types': MaintenanceReport.REPORT_TYPES,
+        }
+        
+        return render(request, 'maintenance/report_list.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error in report_list: {str(e)}")
+        messages.error(request, 'Failed to load maintenance reports.')
+        return redirect('maintenance_list')
+
+
+@login_required
+def report_detail(request, report_id):
+    """View detailed information about a maintenance report."""
+    try:
+        report = get_object_or_404(MaintenanceReport, id=report_id)
+        
+        context = {
+            'report': report,
+            'issues': report.extract_issues(),
+            'parts_replaced': report.extract_parts_replaced(),
+            'measurements': report.extract_measurements(),
+        }
+        
+        return render(request, 'maintenance/report_detail.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error in report_detail: {str(e)}")
+        messages.error(request, 'Failed to load report details.')
+        return redirect('report_list')
+
+
+@login_required
+@require_http_methods(["POST"])
+def upload_report(request):
+    """Upload a new maintenance report."""
+    try:
+        activity_id = request.POST.get('activity_id')
+        title = request.POST.get('title')
+        report_type = request.POST.get('report_type', 'completion')
+        content = request.POST.get('content', '')
+        document = request.FILES.get('document')
+        
+        if not activity_id or not title:
+            return JsonResponse({'error': 'Activity ID and title are required'}, status=400)
+        
+        activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+        
+        report = MaintenanceReport.objects.create(
+            activity=activity,
+            title=title,
+            report_type=report_type,
+            content=content,
+            document=document,
+            uploaded_by=request.user,
+            created_by=request.user,
+            updated_by=request.user
+        )
+        
+        # Auto-process the report if content is provided
+        if content:
+            try:
+                # Basic text analysis
+                analyzed_data = analyze_report_content(content)
+                report.analyzed_data = analyzed_data
+                report.is_processed = True
+                report.save()
+            except Exception as e:
+                logger.error(f"Error processing report {report.id}: {str(e)}")
+                report.processing_errors = str(e)
+                report.save()
+        
+        return JsonResponse({
+            'success': True,
+            'report_id': report.id,
+            'message': 'Report uploaded successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error uploading report: {str(e)}")
+        return JsonResponse({'error': 'Failed to upload report'}, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def analyze_report(request, report_id):
+    """Analyze a maintenance report to extract structured data."""
+    try:
+        report = get_object_or_404(MaintenanceReport, id=report_id)
+        
+        if not report.content:
+            return JsonResponse({'error': 'No content to analyze'}, status=400)
+        
+        # Analyze the content
+        analyzed_data = analyze_report_content(report.content)
+        
+        # Update the report
+        report.analyzed_data = analyzed_data
+        report.is_processed = True
+        report.processing_errors = ''
+        report.save()
+        
+        return JsonResponse({
+            'success': True,
+            'analyzed_data': analyzed_data,
+            'message': 'Report analyzed successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error analyzing report: {str(e)}")
+        return JsonResponse({'error': 'Failed to analyze report'}, status=500)
+
+
+def analyze_report_content(content):
+    """Analyze report content to extract structured data."""
+    analyzed_data = {
+        'issues': [],
+        'parts_replaced': [],
+        'measurements': [],
+        'dates': [],
+        'technicians': [],
+        'work_hours': None,
+    }
+    import re
+    # Convert to lowercase for case-insensitive matching
+    content_lower = content.lower()
+
+    # --- Enhanced: Extract issues from 'Issues found:' sections and bullet points ---
+    # Find 'issues found:' or 'issues:' section
+    issues_section = re.search(r'(issues found:|issues:)([\s\S]+?)(\n\s*\n|$)', content, re.IGNORECASE)
+    if issues_section:
+        issues_block = issues_section.group(2)
+        # Extract bullet points or lines
+        for line in issues_block.splitlines():
+            line = line.strip('-•* ').strip()
+            if not line:
+                continue
+            # Only consider lines that are not empty and not a section header
+            severity = 'medium'  # Default severity
+            lcline = line.lower()
+            if any(word in lcline for word in ['critical', 'severe', 'emergency']):
+                severity = 'critical'
+            elif any(word in lcline for word in ['major', 'serious']):
+                severity = 'high'
+            elif any(word in lcline for word in ['minor', 'small']):
+                severity = 'low'
+            analyzed_data['issues'].append({
+                'text': line,
+                'severity': severity,
+                'position': content.find(line)
+            })
+
+    # --- Existing: Extract issues (basic pattern matching) ---
+    issue_patterns = [
+        r'issue[s]?\s*:?  *([^.\n]+)',
+        r'problem[s]?\s*:?  *([^.\n]+)',
+        r'fault[s]?\s*:?  *([^.\n]+)',
+        r'error[s]?\s*:?  *([^.\n]+)',
+        r'failure[s]?\s*:?  *([^.\n]+)',
+    ]
+    for pattern in issue_patterns:
+        matches = re.finditer(pattern, content_lower)
+        for match in matches:
+            issue_text = match.group(1).strip()
+            severity = 'medium'  # Default severity
+            if any(word in issue_text for word in ['critical', 'severe', 'emergency']):
+                severity = 'critical'
+            elif any(word in issue_text for word in ['major', 'serious']):
+                severity = 'high'
+            elif any(word in issue_text for word in ['minor', 'small']):
+                severity = 'low'
+            analyzed_data['issues'].append({
+                'text': issue_text,
+                'severity': severity,
+                'position': match.start()
+            })
+
+    # --- Existing: Extract parts replaced ---
+    parts_patterns = [
+        r'replaced\s+([^.\n]+)',
+        r'changed\s+([^.\n]+)',
+        r'installed\s+new\s+([^.\n]+)',
+        r'part[s]?\s*:?\s*([^.\n]+)',
+    ]
+    for pattern in parts_patterns:
+        matches = re.finditer(pattern, content_lower)
+        for match in matches:
+            part_text = match.group(1).strip()
+            analyzed_data['parts_replaced'].append({
+                'part': part_text,
+                'position': match.start()
+            })
+
+    # --- Existing: Extract measurements ---
+    measurement_patterns = [
+        r'(\d+(?:\.\d+)?)\s*(?:psi|bar|pa|kpa|mpa|°c|°f|volts?|v|amps?|a|watts?|w|rpm|hz|khz|mhz)',
+        r'temperature\s*:?\s*(\d+(?:\.\d+)?)\s*(?:°c|°f)',
+        r'pressure\s*:?\s*(\d+(?:\.\d+)?)\s*(?:psi|bar|pa|kpa|mpa)',
+    ]
+    for pattern in measurement_patterns:
+        matches = re.finditer(pattern, content_lower)
+        for match in matches:
+            value = match.group(1)
+            unit = match.group(0).replace(value, '').strip()
+            analyzed_data['measurements'].append({
+                'value': float(value),
+                'unit': unit,
+                'position': match.start()
+            })
+
+    # --- Existing: Extract dates ---
+    date_patterns = [
+        r'\d{1,2}/\d{1,2}/\d{2,4}',
+        r'\d{4}-\d{2}-\d{2}',
+        r'\d{1,2}-\d{1,2}-\d{2,4}',
+    ]
+    for pattern in date_patterns:
+        matches = re.finditer(pattern, content)
+        for match in matches:
+            analyzed_data['dates'].append({
+                'date': match.group(0),
+                'position': match.start()
+            })
+
+    # --- Existing: Extract work hours ---
+    hours_patterns = [
+        r'(\d+(?:\.\d+)?)\s*hours?',
+        r'(\d+(?:\.\d+)?)\s*hrs?',
+        r'worked\s+(\d+(?:\.\d+)?)\s*hours?',
+    ]
+    for pattern in hours_patterns:
+        match = re.search(pattern, content_lower)
+        if match:
+            analyzed_data['work_hours'] = float(match.group(1))
+            break
+
+    return analyzed_data
+
+
+@login_required
+@require_http_methods(["GET"])
+def get_reports_for_equipment(request, equipment_id):
+    """Get all reports for a specific equipment."""
+    try:
+        reports = MaintenanceReport.objects.filter(
+            activity__equipment_id=equipment_id
+        ).select_related('activity', 'uploaded_by').order_by('-created_at')
+        
+        data = {
+            'reports': [
+                {
+                    'id': report.id,
+                    'title': report.title,
+                    'report_type': report.get_report_type_display(),
+                    'created_at': report.created_at.isoformat(),
+                    'uploaded_by': report.uploaded_by.username if report.uploaded_by else None,
+                    'is_processed': report.is_processed,
+                    'has_critical_issues': report.has_critical_issues(),
+                    'priority_score': report.get_priority_score(),
+                }
+                for report in reports
+            ]
+        }
+        
+        return JsonResponse(data)
+        
+    except Exception as e:
+        logger.error(f"Error getting reports for equipment: {str(e)}")
+        return JsonResponse({'error': 'Failed to get reports'}, status=500)

@@ -350,27 +350,15 @@
 {% block content %}
 <!-- Site Overview Header -->
 <div class="dashboard-header">
-    <div class="d-flex justify-content-between align-items-center">
+    <div class="d-flex justify-content-between align-items-start">
         <div>
-            <h1 class="h3 mb-2 text-white">
-                <i class="fas fa-tachometer-alt me-3"></i>
-                {% if selected_site %}{{ selected_site.name }} Overview{% else %}System Overview{% endif %}
+            <h1 class="mb-2">
+                <i class="fas fa-tachometer-alt me-2"></i>
+                Dashboard Overview
             </h1>
-            <p class="text-muted mb-0">
-                Real-time status and maintenance tracking
-                <span class="site-health-indicator {{ site_health }}">
-                    <i class="fas fa-circle me-1"></i>{{ site_health|title }}
-                </span>
-            </p>
+            <p class="text-muted mb-0">Welcome back, {{ user.get_full_name|default:user.username }}!</p>
         </div>
-        <div class="text-right">
-            {% if overview_type == 'sites' %}
-            <div class="text-white">{{ total_overview_items }} Site{{ total_overview_items|pluralize }}</div>
-            {% else %}
-            <div class="text-white">{{ total_overview_items }} Pod{{ total_overview_items|pluralize }}</div>
-            {% endif %}
-            <div class="text-muted small">{{ site_stats.total_equipment }} Equipment Items</div>
-        </div>
+        <!-- Test System button removed -->
     </div>
     
     <!-- Site Statistics -->

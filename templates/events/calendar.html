@@ -286,10 +286,10 @@
 
     <!-- View Mode Toggle -->
     <div class="calendar-toggle" style="background:#0f1419; border-bottom:1px solid #2d3748; padding:10px 20px; display:flex; gap:20px; align-items:center;">
-        <button id="toggle-calendar" class="btn btn-sm {% if view_mode == 'calendar' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar_view' %}?view={{ calendar_view }}&mode=calendar'">
+        <button id="toggle-calendar" class="btn btn-sm {% if view_mode == 'calendar' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar_view' %}?mode=calendar'">
             <i class="fas fa-calendar-alt me-1"></i>Calendar
         </button>
-        <button id="toggle-list" class="btn btn-sm {% if view_mode == 'list' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar_view' %}?view={{ calendar_view }}&mode=list'">
+        <button id="toggle-list" class="btn btn-sm {% if view_mode == 'list' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar_view' %}?mode=list'">
             <i class="fas fa-list me-1"></i>List
         </button>
         <span class="text-light ms-3">Switch between Calendar and List views</span>
@@ -335,42 +335,33 @@
 
     <!-- Legend -->
     <div class="legend">
-        <h6>Event Types</h6>
+        <h6>Calendar Items</h6>
         <div class="legend-items">
             <div class="legend-item">
+                <div class="legend-color" style="background-color: #4299e1;"></div>
+                <span>Scheduled Maintenance</span>
+            </div>
+            <div class="legend-item">
                 <div class="legend-color" style="background-color: #dc3545;"></div>
-                <span>Maintenance</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background-color: #ffc107;"></div>
-                <span>Inspection</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background-color: #17a2b8;"></div>
-                <span>Calibration</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background-color: #fd7e14;"></div>
-                <span>Outage</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background-color: #6f42c1;"></div>
-                <span>Upgrade</span>
+                <span>Overdue Maintenance</span>
             </div>
             <div class="legend-item">
                 <div class="legend-color" style="background-color: #28a745;"></div>
-                <span>Testing</span>
+                <span>Completed Maintenance</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #ffc107;"></div>
+                <span>In Progress</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #17a2b8;"></div>
+                <span>Events</span>
             </div>
         </div>
     </div>
 
     <!-- Debug Info (remove in production) -->
-    {% if user.is_superuser %}
-    <div class="alert alert-info">
-        <strong>Debug Info:</strong> Found {{ events_count }} events in database. 
-        <a href="{% url 'events:test_events_api' %}" target="_blank" class="btn btn-sm btn-outline-info ms-2">Test API</a>
-    </div>
-    {% endif %}
+    {# Debug panel removed: now in settings/health #}
 
     <!-- Event Modal -->
     <div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
@@ -563,19 +554,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function initializeCalendar() {
     var calendarEl = document.getElementById('calendar');
-    var calendarView = '{{ calendar_view }}';
-    var eventsUrl = '';
+    var eventsUrl = '{% url "events:fetch_unified_events" %}';
     
     console.log('initializeCalendar called');
     console.log('calendarEl:', calendarEl);
-    console.log('calendarView:', calendarView);
-    
-    if (calendarView === 'maintenance') {
-        eventsUrl = '{% url "maintenance:fetch_activities" %}';
-    } else {
-        eventsUrl = '{% url "events:fetch_events" %}';
-    }
-    
     console.log('eventsUrl:', eventsUrl);
 
     var calendar = new FullCalendar.Calendar(calendarEl, {
@@ -592,14 +574,9 @@ function initializeCalendar() {
             extraParams: function() {
                 var params = {
                     equipment: document.getElementById('equipmentFilter').value,
-                    site_id: document.getElementById('siteSelector').value
+                    site_id: document.getElementById('siteSelector').value,
+                    event_type: document.getElementById('eventTypeFilter').value
                 };
-                if (calendarView === 'events') {
-                    params.event_type = document.getElementById('eventTypeFilter').value;
-                } else if (calendarView === 'maintenance') {
-                    // Optionally add status filter for maintenance
-                    // params.status = ...
-                }
                 return params;
             },
             failure: function(errorObj) {
@@ -617,18 +594,21 @@ function initializeCalendar() {
             }
         },
         dateClick: function(info) {
-            if (calendarView === 'events') {
-                openCreateEventModal(info.dateStr);
-            } else if (calendarView === 'maintenance') {
-                // TODO: open maintenance modal for new activity
-            }
+            openCreateEventModal(info.dateStr);
         },
         eventClick: function(info) {
             info.jsEvent.preventDefault();
-            if (calendarView === 'events') {
-                openEditEventModal(info.event.id);
-            } else if (calendarView === 'maintenance') {
-                openMaintenanceDetailsModal(info.event.id);
+            var eventId = info.event.id;
+            var eventType = info.event.extendedProps.type;
+            
+            if (eventType === 'event') {
+                // Remove 'event_' prefix for event ID
+                var actualEventId = eventId.replace('event_', '');
+                openEditEventModal(actualEventId);
+            } else if (eventType === 'maintenance') {
+                // Remove 'activity_' prefix for activity ID
+                var actualActivityId = eventId.replace('activity_', '');
+                openMaintenanceDetailsModal(actualActivityId);
             }
         },
         eventMouseEnter: function(info) {
@@ -1077,10 +1057,9 @@ function formatDateTime(dateTimeStr) {
 
 // List View Functions
 function loadListView() {
-    const calendarView = '{{ calendar_view }}';
     const tableBody = document.getElementById('listTableBody');
     
-    console.log('loadListView called with calendarView:', calendarView);
+    console.log('loadListView called');
     
     // Show loading state
     tableBody.innerHTML = `
@@ -1092,13 +1071,8 @@ function loadListView() {
         </tr>
     `;
     
-    // Determine API endpoint
-    let apiUrl = '';
-    if (calendarView === 'maintenance') {
-        apiUrl = '{% url "maintenance:fetch_activities" %}';
-    } else {
-        apiUrl = '{% url "events:fetch_events" %}';
-    }
+    // Use unified API endpoint
+    let apiUrl = '{% url "events:fetch_unified_events" %}';
     
     console.log('API URL:', apiUrl);
     
@@ -1121,11 +1095,7 @@ function loadListView() {
         })
         .then(data => {
             console.log('Fetched data:', data);
-            if (calendarView === 'maintenance') {
-                displayMaintenanceList(data || []);
-            } else {
-                displayEventsList(data || []);
-            }
+            displayUnifiedList(data || []);
         })
         .catch(error => {
             console.error('Error loading list data:', error);
@@ -1188,45 +1158,194 @@ function displayMaintenanceList(activities) {
     }).join('');
 }
 
-function displayEventsList(events) {
+function displayUnifiedList(items) {
     const tableBody = document.getElementById('listTableBody');
-    if (events.length === 0) {
+    if (items.length === 0) {
         tableBody.innerHTML = `
             <tr>
                 <td colspan="8" class="text-center py-4">
                     <i class="fas fa-inbox fa-2x text-muted"></i>
-                    <p class="text-muted mt-2">No events found</p>
+                    <p class="text-muted mt-2">No items found</p>
                 </td>
             </tr>
         `;
         return;
     }
-    tableBody.innerHTML = events.map(event => {
-        const eventDate = event.event_date ? new Date(event.event_date).toLocaleDateString() : 'N/A';
-        const priorityBadge = getPriorityBadge(event.priority);
-        return `
-            <tr>
-                <td>
-                    <strong class="text-white">${event.title}</strong>
-                    ${event.description ? `<br><small class="text-muted">${event.description.substring(0, 100)}${event.description.length > 100 ? '...' : ''}</small>` : ''}
-                </td>
-                <td>
-                    <span class="badge badge-secondary">${event.event_type || 'N/A'}</span>
-                </td>
-                <td>${event.equipment_name || 'N/A'}</td>
-                <td>${eventDate}</td>
-                <td><span class="badge badge-info">Event</span></td>
-                <td><span class="badge ${priorityBadge.class}">${priorityBadge.text}</span></td>
-                <td>${event.assigned_to_name || 'Unassigned'}</td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="openEditEventModal(${event.id})">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
-                </td>
-            </tr>
-        `;
+    
+    tableBody.innerHTML = items.map(item => {
+        const eventType = item.extendedProps?.type || 'unknown';
+        const startDate = item.start ? new Date(item.start).toLocaleDateString() : 'N/A';
+        const priorityBadge = getPriorityBadge(item.extendedProps?.priority || 'medium');
+        
+        if (eventType === 'maintenance') {
+            const statusBadge = getStatusBadge(item.extendedProps?.status || 'scheduled');
+            const actualId = item.id.replace('activity_', '');
+            return `
+                <tr>
+                    <td>
+                        <strong class="text-white">${item.title}</strong>
+                    </td>
+                    <td>
+                        <span class="badge badge-info">${item.extendedProps?.activity_type || 'Maintenance'}</span>
+                    </td>
+                    <td>${item.extendedProps?.equipment || 'N/A'}</td>
+                    <td>${startDate}</td>
+                    <td><span class="badge ${statusBadge.class}">${statusBadge.text}</span></td>
+                    <td><span class="badge ${priorityBadge.class}">${priorityBadge.text}</span></td>
+                    <td>${item.extendedProps?.assigned_to || 'Unassigned'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="openMaintenanceDetailsModal(${actualId})">
+                            <i class="fas fa-eye"></i> View
+                        </button>
+                        <a href="/maintenance/activity/${actualId}/" class="btn btn-sm btn-outline-info" target="_blank">
+                            <i class="fas fa-external-link-alt"></i> Details
+                        </a>
+                    </td>
+                </tr>
+            `;
+        } else {
+            const actualId = item.id.replace('event_', '');
+            return `
+                <tr>
+                    <td>
+                        <strong class="text-white">${item.title}</strong>
+                    </td>
+                    <td>
+                        <span class="badge badge-secondary">${item.extendedProps?.event_type || 'Event'}</span>
+                    </td>
+                    <td>${item.extendedProps?.equipment || 'N/A'}</td>
+                    <td>${startDate}</td>
+                    <td><span class="badge badge-info">Event</span></td>
+                    <td><span class="badge ${priorityBadge.class}">${priorityBadge.text}</span></td>
+                    <td>${item.extendedProps?.assigned_to || 'Unassigned'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="openEditEventModal(${actualId})">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
     }).join('');
 }
-});
+
+// Debug Functions
+function testApplicationHealth() {
+    const resultsDiv = document.getElementById('debugResults');
+    resultsDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Testing all components...</div>';
+    
+    fetch('{% url "events:test_application_health" %}')
+        .then(response => response.json())
+        .then(data => {
+            let html = '<h6 class="text-white mb-3">Application Health Test Results</h6>';
+            
+            if (data.success) {
+                html += '<div class="row">';
+                
+                for (const [component, info] of Object.entries(data.components)) {
+                    const statusClass = info.status === 'success' ? 'text-success' : 'text-danger';
+                    const statusIcon = info.status === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
+                    
+                    html += `
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-dark border-secondary">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="${statusIcon} ${statusClass} me-2"></i>
+                                        ${component.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-1"><strong>Status:</strong> <span class="${statusClass}">${info.status}</span></p>
+                                    <p class="mb-1"><strong>Count:</strong> ${info.count || 'N/A'}</p>
+                                    ${info.error ? `<p class="mb-1 text-danger"><strong>Error:</strong> ${info.error}</p>` : ''}
+                                    ${info.sample_data && info.sample_data.length > 0 ? `
+                                        <details class="mt-2">
+                                            <summary class="text-info">Sample Data</summary>
+                                            <pre class="text-muted mt-1" style="font-size: 11px;">${JSON.stringify(info.sample_data, null, 2)}</pre>
+                                        </details>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div>';
+            } else {
+                html += `<div class="alert alert-danger">Test failed: ${data.error}</div>`;
+            }
+            
+            resultsDiv.innerHTML = html;
+        })
+        .catch(error => {
+            resultsDiv.innerHTML = `<div class="alert alert-danger">Error running test: ${error.message}</div>`;
+        });
+}
+
+function testUnifiedAPI() {
+    const resultsDiv = document.getElementById('debugResults');
+    resultsDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Testing unified API...</div>';
+    
+    fetch('{% url "events:fetch_unified_events" %}?start=2025-01-01&end=2025-12-31')
+        .then(response => response.json())
+        .then(data => {
+            let html = '<h6 class="text-white mb-3">Unified Calendar API Test Results</h6>';
+            
+            if (Array.isArray(data)) {
+                html += `
+                    <div class="alert alert-success">
+                        <strong>Success!</strong> API returned ${data.length} events/activities
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-white">Event Types Breakdown:</h6>
+                            <ul class="text-light">
+                                ${getEventTypeBreakdown(data)}
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-white">Sample Events:</h6>
+                            <div style="max-height: 300px; overflow-y: auto;">
+                                ${data.slice(0, 5).map(event => `
+                                    <div class="card bg-dark border-secondary mb-2">
+                                        <div class="card-body p-2">
+                                            <small class="text-muted">${event.id}</small><br>
+                                            <strong class="text-white">${event.title}</strong><br>
+                                            <small class="text-info">${event.start}</small>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `<div class="alert alert-danger">Unexpected response format: ${JSON.stringify(data)}</div>`;
+            }
+            
+            resultsDiv.innerHTML = html;
+        })
+        .catch(error => {
+            resultsDiv.innerHTML = `<div class="alert alert-danger">Error testing unified API: ${error.message}</div>`;
+        });
+}
+
+function getEventTypeBreakdown(data) {
+    const breakdown = {};
+    data.forEach(event => {
+        const type = event.extendedProps?.type || 'unknown';
+        breakdown[type] = (breakdown[type] || 0) + 1;
+    });
+    
+    return Object.entries(breakdown).map(([type, count]) => 
+        `<li>${type}: ${count}</li>`
+    ).join('');
+}
+
+function toggleDebugPanel() {
+    const panel = document.getElementById('debugPanel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
 </script>
 {% endblock %}

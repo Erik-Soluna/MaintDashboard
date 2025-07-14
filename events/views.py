@@ -249,12 +249,12 @@ def index(request):
 
 @login_required
 def calendar_view(request):
-    """Display calendar view of events or maintenance with filtering capabilities."""
+    """Display unified calendar view of events and maintenance activities."""
     # Get filter parameters
     selected_site_id = request.GET.get('site_id', request.session.get('selected_site_id'))
     event_type = request.GET.get('event_type', '')
     equipment_filter = request.GET.get('equipment', '')
-    calendar_view = request.GET.get('view', 'events')
+    view_mode = request.GET.get('mode', 'calendar')
 
     # Get all sites for the site selector
     sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
@@ -273,37 +273,50 @@ def calendar_view(request):
             Q(location__parent_location=selected_site) | Q(location=selected_site)
         )
 
-    # Default context
+    # Get combined event types (both calendar events and maintenance activity types)
+    event_types = list(CalendarEvent.EVENT_TYPES)
+    
+    # Add maintenance activity types
+    try:
+        from maintenance.models import MaintenanceActivityType
+        maintenance_types = MaintenanceActivityType.objects.all()
+        for activity_type in maintenance_types:
+            event_types.append((f'maintenance_{activity_type.id}', f'Maintenance: {activity_type.name}'))
+    except Exception as e:
+        # If maintenance app is not available, continue without it
+        pass
+
+    # Default context - unified calendar
     context = {
         'sites': sites,
         'selected_site': selected_site,
         'equipment_list': equipment_list,
-        'event_types': CalendarEvent.EVENT_TYPES,
+        'event_types': event_types,
         'priority_choices': CalendarEvent.PRIORITY_CHOICES,
         'selected_event_type': event_type,
         'selected_equipment': equipment_filter,
-        'calendar_view': calendar_view,
+        'calendar_view': 'unified',  # Always unified now
+        'view_mode': view_mode,
     }
 
-    if calendar_view == 'maintenance':
-        # Try to get maintenance activities, handle DB errors gracefully
-        try:
-            from maintenance.models import MaintenanceActivity
-            activities = MaintenanceActivity.objects.select_related('equipment', 'activity_type').all()
-            context['maintenance_count'] = activities.count()
-            # Optionally, pass activities for debugging or future use
-            # context['maintenance_activities'] = activities[:10]
-        except Exception as e:
-            context['maintenance_count'] = 0
-            context['maintenance_error'] = str(e)
-    else:
-        # Get events (will be filtered via AJAX)
-        try:
-            events = CalendarEvent.objects.select_related('equipment', 'equipment__location').all()
-            context['events_count'] = events.count()
-        except Exception as e:
-            context['events_count'] = 0
-            context['events_error'] = str(e)
+    # Get counts for both types of data
+    try:
+        events = CalendarEvent.objects.select_related('equipment', 'equipment__location').all()
+        context['events_count'] = events.count()
+    except Exception as e:
+        context['events_count'] = 0
+        context['events_error'] = str(e)
+
+    try:
+        from maintenance.models import MaintenanceActivity
+        activities = MaintenanceActivity.objects.select_related('equipment', 'activity_type').all()
+        context['maintenance_count'] = activities.count()
+    except Exception as e:
+        context['maintenance_count'] = 0
+        context['maintenance_error'] = str(e)
+
+    # Total count
+    context['total_count'] = context.get('events_count', 0) + context.get('maintenance_count', 0)
 
     return render(request, 'events/calendar.html', context)
 
@@ -650,6 +663,182 @@ def fetch_events(request):
         }, status=500)
 
 
+@login_required
+@require_http_methods(["GET"])
+def fetch_unified_events(request):
+    """API endpoint to fetch both events and maintenance activities for unified calendar display."""
+    try:
+        start_date = request.GET.get('start')
+        end_date = request.GET.get('end')
+        equipment_filter = request.GET.get('equipment')
+        event_type_filter = request.GET.get('event_type')
+        site_id = request.GET.get('site_id')
+        
+        calendar_events = []
+        
+        # Fetch Calendar Events
+        try:
+            events = CalendarEvent.objects.select_related('equipment', 'equipment__location')
+            
+            # Date filtering
+            if start_date and end_date:
+                try:
+                    start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                    end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                    events = events.filter(
+                        event_date__gte=start_dt.date(),
+                        event_date__lte=end_dt.date()
+                    )
+                except ValueError:
+                    events = events.filter(
+                        event_date__gte=start_date,
+                        event_date__lte=end_date
+                    )
+            
+            # Site filtering
+            if site_id:
+                events = events.filter(
+                    Q(equipment__location__parent_location_id=site_id) | 
+                    Q(equipment__location_id=site_id)
+                )
+            
+            # Equipment filtering
+            if equipment_filter:
+                events = events.filter(equipment_id=equipment_filter)
+            
+            # Event type filtering
+            if event_type_filter and not event_type_filter.startswith('maintenance_'):
+                events = events.filter(event_type=event_type_filter)
+            
+            # Convert to FullCalendar format
+            for event in events:
+                try:
+                    title = event.title
+                    if event.equipment:
+                        title = f"{event.title} - {event.equipment.name}"
+                    
+                    calendar_event = {
+                        'id': f'event_{event.id}',
+                        'title': title,
+                        'start': str(event.event_date),
+                        'allDay': event.all_day,
+                        'backgroundColor': get_event_color(event.event_type, event.priority),
+                        'borderColor': get_event_color(event.event_type, event.priority),
+                        'textColor': '#ffffff',
+                        'url': f"/events/events/{event.id}/",
+                        'extendedProps': {
+                            'type': 'event',
+                            'equipment': event.equipment.name if event.equipment else 'No equipment',
+                            'location': event.equipment.location.name if event.equipment and event.equipment.location else 'No location',
+                            'priority': event.priority,
+                            'event_type': event.event_type,
+                            'assigned_to': event.assigned_to.get_full_name() if event.assigned_to else 'Unassigned',
+                            'is_completed': event.is_completed,
+                        }
+                    }
+                    
+                    # Add time information if not all day
+                    if not event.all_day and event.start_time:
+                        calendar_event['start'] = f"{event.event_date}T{event.start_time}"
+                        if event.end_time:
+                            calendar_event['end'] = f"{event.event_date}T{event.end_time}"
+                    
+                    calendar_events.append(calendar_event)
+                except Exception as e:
+                    print(f"Error processing event {event.id}: {str(e)}")
+                    continue
+        except Exception as e:
+            print(f"Error fetching events: {str(e)}")
+        
+        # Fetch Maintenance Activities
+        try:
+            from maintenance.models import MaintenanceActivity
+            activities = MaintenanceActivity.objects.select_related('equipment', 'activity_type', 'assigned_to')
+            
+            # Date filtering
+            if start_date and end_date:
+                activities = activities.filter(
+                    scheduled_start__date__gte=start_date,
+                    scheduled_end__date__lte=end_date
+                )
+            
+            # Site filtering
+            if site_id:
+                activities = activities.filter(
+                    Q(equipment__location__parent_location_id=site_id) |
+                    Q(equipment__location_id=site_id)
+                )
+            
+            # Equipment filtering
+            if equipment_filter:
+                activities = activities.filter(equipment_id=equipment_filter)
+            
+            # Activity type filtering
+            if event_type_filter and event_type_filter.startswith('maintenance_'):
+                activity_type_id = event_type_filter.replace('maintenance_', '')
+                activities = activities.filter(activity_type_id=activity_type_id)
+            
+            # Convert to FullCalendar format
+            for activity in activities:
+                try:
+                    title = activity.title
+                    if activity.equipment:
+                        title = f"{activity.title} - {activity.equipment.name}"
+                    
+                    # Determine color based on status
+                    if activity.status == 'scheduled':
+                        bg_color = '#4299e1'
+                    elif activity.status == 'overdue':
+                        bg_color = '#dc3545'
+                    elif activity.status == 'completed':
+                        bg_color = '#28a745'
+                    elif activity.status == 'in_progress':
+                        bg_color = '#ffc107'
+                    else:
+                        bg_color = '#6c757d'
+                    
+                    calendar_event = {
+                        'id': f'activity_{activity.id}',
+                        'title': title,
+                        'start': activity.scheduled_start.isoformat(),
+                        'end': activity.scheduled_end.isoformat() if activity.scheduled_end else None,
+                        'allDay': False,
+                        'backgroundColor': bg_color,
+                        'borderColor': '#2d3748',
+                        'textColor': '#ffffff',
+                        'url': f"/maintenance/activity/{activity.id}/",
+                        'extendedProps': {
+                            'type': 'maintenance',
+                            'equipment': activity.equipment.name if activity.equipment else 'No equipment',
+                            'location': activity.equipment.location.name if activity.equipment and activity.equipment.location else 'No location',
+                            'priority': activity.priority,
+                            'activity_type': activity.activity_type.name if activity.activity_type else 'N/A',
+                            'assigned_to': activity.assigned_to.get_full_name() if activity.assigned_to else 'Unassigned',
+                            'is_completed': activity.status == 'completed',
+                            'status': activity.status,
+                        }
+                    }
+                    
+                    calendar_events.append(calendar_event)
+                except Exception as e:
+                    print(f"Error processing activity {activity.id}: {str(e)}")
+                    continue
+        except Exception as e:
+            print(f"Error fetching maintenance activities: {str(e)}")
+        
+        return JsonResponse(calendar_events, safe=False)
+    
+    except Exception as e:
+        import traceback
+        print(f"Error in fetch_unified_events: {str(e)}")
+        print(traceback.format_exc())
+        return JsonResponse({
+            'error': str(e),
+            'message': 'There was an error while fetching events',
+            'debug_info': str(traceback.format_exc()) if request.user.is_superuser else None
+        }, status=500)
+
+
 def get_event_color(event_type, priority):
     """Get color for event based on type and priority."""
     colors = {
@@ -871,3 +1060,261 @@ def get_form_data(request):
             'success': False,
             'error': f'Error fetching form data: {str(e)}'
         })
+
+
+@login_required
+def test_application_health(request):
+    """Comprehensive test endpoint to check all application components."""
+    try:
+        results = {
+            'success': True,
+            'timestamp': timezone.now().isoformat(),
+            'user': request.user.username,
+            'components': {}
+        }
+        
+        # Test Events
+        try:
+            events = CalendarEvent.objects.select_related('equipment', 'equipment__location').all()
+            events_data = []
+            for event in events[:5]:  # Limit to first 5 for testing
+                events_data.append({
+                    'id': event.id,
+                    'title': event.title,
+                    'event_date': str(event.event_date),
+                    'equipment': event.equipment.name if event.equipment else 'No equipment',
+                    'event_type': event.event_type,
+                })
+            
+            results['components']['events'] = {
+                'status': 'success',
+                'count': events.count(),
+                'sample_data': events_data,
+                'error': None
+            }
+        except Exception as e:
+            results['components']['events'] = {
+                'status': 'error',
+                'count': 0,
+                'sample_data': [],
+                'error': str(e)
+            }
+        
+        # Test Maintenance Activities
+        try:
+            from maintenance.models import MaintenanceActivity
+            activities = MaintenanceActivity.objects.select_related('equipment', 'activity_type').all()
+            activities_data = []
+            for activity in activities[:5]:  # Limit to first 5 for testing
+                activities_data.append({
+                    'id': activity.id,
+                    'title': activity.title,
+                    'scheduled_start': str(activity.scheduled_start),
+                    'equipment': activity.equipment.name if activity.equipment else 'No equipment',
+                    'status': activity.status,
+                })
+            
+            results['components']['maintenance_activities'] = {
+                'status': 'success',
+                'count': activities.count(),
+                'sample_data': activities_data,
+                'error': None
+            }
+        except Exception as e:
+            results['components']['maintenance_activities'] = {
+                'status': 'error',
+                'count': 0,
+                'sample_data': [],
+                'error': str(e)
+            }
+        
+        # Test Equipment
+        try:
+            from equipment.models import Equipment
+            equipment = Equipment.objects.select_related('location', 'category').all()
+            equipment_data = []
+            for eq in equipment[:5]:  # Limit to first 5 for testing
+                equipment_data.append({
+                    'id': eq.id,
+                    'name': eq.name,
+                    'location': eq.location.name if eq.location else 'No location',
+                    'category': eq.category.name if eq.category else 'No category',
+                })
+            
+            results['components']['equipment'] = {
+                'status': 'success',
+                'count': equipment.count(),
+                'sample_data': equipment_data,
+                'error': None
+            }
+        except Exception as e:
+            results['components']['equipment'] = {
+                'status': 'error',
+                'count': 0,
+                'sample_data': [],
+                'error': str(e)
+            }
+        
+        # Test Locations
+        try:
+            from core.models import Location
+            locations = Location.objects.all()
+            locations_data = []
+            for loc in locations[:5]:  # Limit to first 5 for testing
+                locations_data.append({
+                    'id': loc.id,
+                    'name': loc.name,
+                    'is_site': loc.is_site,
+                    'parent': loc.parent_location.name if loc.parent_location else 'None',
+                })
+            
+            results['components']['locations'] = {
+                'status': 'success',
+                'count': locations.count(),
+                'sample_data': locations_data,
+                'error': None
+            }
+        except Exception as e:
+            results['components']['locations'] = {
+                'status': 'error',
+                'count': 0,
+                'sample_data': [],
+                'error': str(e)
+            }
+        
+        # Test Users
+        try:
+            from django.contrib.auth.models import User
+            users = User.objects.filter(is_active=True)
+            users_data = []
+            for user in users[:5]:  # Limit to first 5 for testing
+                users_data.append({
+                    'id': user.id,
+                    'username': user.username,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'is_staff': user.is_staff,
+                })
+            
+            results['components']['users'] = {
+                'status': 'success',
+                'count': users.count(),
+                'sample_data': users_data,
+                'error': None
+            }
+        except Exception as e:
+            results['components']['users'] = {
+                'status': 'error',
+                'count': 0,
+                'sample_data': [],
+                'error': str(e)
+            }
+        
+        # Test Maintenance Activity Types
+        try:
+            from maintenance.models import MaintenanceActivityType
+            activity_types = MaintenanceActivityType.objects.select_related('category').all()
+            activity_types_data = []
+            for at in activity_types[:5]:  # Limit to first 5 for testing
+                activity_types_data.append({
+                    'id': at.id,
+                    'name': at.name,
+                    'category': at.category.name if at.category else 'No category',
+                    'frequency_days': at.frequency_days,
+                })
+            
+            results['components']['maintenance_activity_types'] = {
+                'status': 'success',
+                'count': activity_types.count(),
+                'sample_data': activity_types_data,
+                'error': None
+            }
+        except Exception as e:
+            results['components']['maintenance_activity_types'] = {
+                'status': 'error',
+                'count': 0,
+                'sample_data': [],
+                'error': str(e)
+            }
+        
+        # Test Equipment Categories
+        try:
+            from core.models import EquipmentCategory
+            equipment_categories = EquipmentCategory.objects.all()
+            equipment_categories_data = []
+            for ec in equipment_categories[:5]:  # Limit to first 5 for testing
+                equipment_categories_data.append({
+                    'id': ec.id,
+                    'name': ec.name,
+                    'description': ec.description,
+                })
+            
+            results['components']['equipment_categories'] = {
+                'status': 'success',
+                'count': equipment_categories.count(),
+                'sample_data': equipment_categories_data,
+                'error': None
+            }
+        except Exception as e:
+            results['components']['equipment_categories'] = {
+                'status': 'error',
+                'count': 0,
+                'sample_data': [],
+                'error': str(e)
+            }
+        
+        # Test Database Connection
+        try:
+            from django.db import connection
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                db_test = cursor.fetchone()
+            
+            results['components']['database'] = {
+                'status': 'success',
+                'connection_test': db_test[0] if db_test else None,
+                'error': None
+            }
+        except Exception as e:
+            results['components']['database'] = {
+                'status': 'error',
+                'connection_test': None,
+                'error': str(e)
+            }
+        
+        # Test Unified Calendar API
+        try:
+            # Test the unified fetch function directly
+            test_request = request
+            test_request.GET = request.GET.copy()
+            test_request.GET['start'] = '2025-01-01'
+            test_request.GET['end'] = '2025-12-31'
+            
+            unified_response = fetch_unified_events(test_request)
+            unified_data = json.loads(unified_response.content)
+            
+            results['components']['unified_calendar_api'] = {
+                'status': 'success',
+                'response_status': unified_response.status_code,
+                'events_count': len(unified_data) if isinstance(unified_data, list) else 0,
+                'sample_events': unified_data[:3] if isinstance(unified_data, list) else [],
+                'error': None
+            }
+        except Exception as e:
+            results['components']['unified_calendar_api'] = {
+                'status': 'error',
+                'response_status': None,
+                'events_count': 0,
+                'sample_events': [],
+                'error': str(e)
+            }
+        
+        return JsonResponse(results)
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'timestamp': timezone.now().isoformat(),
+            'user': request.user.username if request.user.is_authenticated else 'anonymous'
+        }, status=500)

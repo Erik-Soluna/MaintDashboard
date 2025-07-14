@@ -649,6 +649,7 @@
     </style>
 </head>
 <body class="{% if user.is_authenticated and user_profile and user_profile.theme_preference == 'light' %}theme-light{% else %}theme-dark{% endif %}">
+    {% csrf_token %}
     <!-- Main Header -->
     <div class="main-header d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center">

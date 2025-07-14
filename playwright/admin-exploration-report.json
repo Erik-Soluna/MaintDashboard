@@ -1,0 +1,199 @@
+{
+  "timestamp": "2025-07-14T00:56:36.731Z",
+  "totalPages": 12,
+  "totalElementsFound": 12,
+  "totalElementsClicked": 11,
+  "totalErrors": 7,
+  "totalWarnings": 1,
+  "totalScreenshots": 34,
+  "results": [
+    {
+      "page": "Admin Dashboard",
+      "timestamp": "2025-07-14T00:55:45.428Z",
+      "elementsFound": 2,
+      "elementsClicked": 1,
+      "errors": [
+        "Failed to click element 2: Error: elementHandle.evaluate: Execution context was destroyed, most likely because of a navigation"
+      ],
+      "warnings": [
+        "Page context destroyed after clicking element 2, attempting recovery"
+      ],
+      "screenshots": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Admin Dashboard_initial_2025-07-14T00-55-45-430Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Admin Dashboard_before_click_1_2025-07-14T00-55-46-127Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Admin Dashboard_after_click_1_2025-07-14T00-55-48-722Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Admin Dashboard_final_2025-07-14T00-55-50-634Z.png"
+      ],
+      "htmlDumps": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\html-dumps\\admin-exploration\\Admin Dashboard_2025-07-14T00-55-50-812Z.html"
+      ]
+    },
+    {
+      "page": "Core Admin",
+      "timestamp": "2025-07-14T00:55:51.752Z",
+      "elementsFound": 2,
+      "elementsClicked": 2,
+      "errors": [],
+      "warnings": [],
+      "screenshots": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Core Admin_initial_2025-07-14T00-55-51-753Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Core Admin_before_click_1_2025-07-14T00-55-52-411Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Core Admin_after_click_1_2025-07-14T00-55-54-542Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Core Admin_before_click_2_2025-07-14T00-55-56-176Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Core Admin_after_click_2_2025-07-14T00-55-58-311Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Core Admin_final_2025-07-14T00-55-59-439Z.png"
+      ],
+      "htmlDumps": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\html-dumps\\admin-exploration\\Core Admin_2025-07-14T00-55-59-560Z.html"
+      ]
+    },
+    {
+      "page": "Equipment Admin",
+      "timestamp": "2025-07-14T00:56:00.495Z",
+      "elementsFound": 2,
+      "elementsClicked": 2,
+      "errors": [],
+      "warnings": [],
+      "screenshots": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Equipment Admin_initial_2025-07-14T00-56-00-496Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Equipment Admin_before_click_1_2025-07-14T00-56-01-143Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Equipment Admin_after_click_1_2025-07-14T00-56-03-273Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Equipment Admin_before_click_2_2025-07-14T00-56-04-892Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Equipment Admin_after_click_2_2025-07-14T00-56-07-027Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Equipment Admin_final_2025-07-14T00-56-08-139Z.png"
+      ],
+      "htmlDumps": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\html-dumps\\admin-exploration\\Equipment Admin_2025-07-14T00-56-08-240Z.html"
+      ]
+    },
+    {
+      "page": "Maintenance Admin",
+      "timestamp": "2025-07-14T00:56:09.173Z",
+      "elementsFound": 2,
+      "elementsClicked": 2,
+      "errors": [],
+      "warnings": [],
+      "screenshots": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Maintenance Admin_initial_2025-07-14T00-56-09-174Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Maintenance Admin_before_click_1_2025-07-14T00-56-09-792Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Maintenance Admin_after_click_1_2025-07-14T00-56-11-921Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Maintenance Admin_before_click_2_2025-07-14T00-56-13-542Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Maintenance Admin_after_click_2_2025-07-14T00-56-15-672Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Maintenance Admin_final_2025-07-14T00-56-16-780Z.png"
+      ],
+      "htmlDumps": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\html-dumps\\admin-exploration\\Maintenance Admin_2025-07-14T00-56-16-873Z.html"
+      ]
+    },
+    {
+      "page": "Events Admin",
+      "timestamp": "2025-07-14T00:56:17.806Z",
+      "elementsFound": 2,
+      "elementsClicked": 2,
+      "errors": [],
+      "warnings": [],
+      "screenshots": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Events Admin_initial_2025-07-14T00-56-17-807Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Events Admin_before_click_1_2025-07-14T00-56-18-425Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Events Admin_after_click_1_2025-07-14T00-56-20-538Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Events Admin_before_click_2_2025-07-14T00-56-22-160Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Events Admin_after_click_2_2025-07-14T00-56-24-290Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\Events Admin_final_2025-07-14T00-56-25-398Z.png"
+      ],
+      "htmlDumps": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\html-dumps\\admin-exploration\\Events Admin_2025-07-14T00-56-25-490Z.html"
+      ]
+    },
+    {
+      "page": "User Profiles",
+      "timestamp": "2025-07-14T00:56:26.424Z",
+      "elementsFound": 2,
+      "elementsClicked": 2,
+      "errors": [],
+      "warnings": [],
+      "screenshots": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\User Profiles_initial_2025-07-14T00-56-26-425Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\User Profiles_before_click_1_2025-07-14T00-56-27-043Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\User Profiles_after_click_1_2025-07-14T00-56-29-173Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\User Profiles_before_click_2_2025-07-14T00-56-30-793Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\User Profiles_after_click_2_2025-07-14T00-56-32-921Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\admin-exploration\\User Profiles_final_2025-07-14T00-56-34-033Z.png"
+      ],
+      "htmlDumps": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\html-dumps\\admin-exploration\\User Profiles_2025-07-14T00-56-34-125Z.html"
+      ]
+    },
+    {
+      "page": "Customers",
+      "timestamp": "2025-07-14T00:56:36.727Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.screenshot: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Locations",
+      "timestamp": "2025-07-14T00:56:36.727Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Equipment List",
+      "timestamp": "2025-07-14T00:56:36.728Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Activities",
+      "timestamp": "2025-07-14T00:56:36.729Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Schedules",
+      "timestamp": "2025-07-14T00:56:36.730Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Events",
+      "timestamp": "2025-07-14T00:56:36.731Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    }
+  ]
+}

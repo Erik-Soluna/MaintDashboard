@@ -1,0 +1,335 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ report.title }} - Maintenance Report{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+    }
+    .analysis-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .issue-card {
+        border-left: 4px solid #dc3545;
+        margin-bottom: 1rem;
+    }
+    .issue-card.high {
+        border-left-color: #fd7e14;
+    }
+    .issue-card.medium {
+        border-left-color: #ffc107;
+    }
+    .issue-card.low {
+        border-left-color: #28a745;
+    }
+    .measurement-card {
+        background: #e3f2fd;
+        border: 1px solid #bbdefb;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    .part-card {
+        background: #f3e5f5;
+        border: 1px solid #e1bee7;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    .content-section {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .metadata-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .metadata-item {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid #007bff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="report-header">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h1 class="h2 mb-2">{{ report.title }}</h1>
+                        <p class="mb-1">
+                            <i class="fas fa-tools"></i> 
+                            {{ report.activity.equipment.name }} - {{ report.activity.title }}
+                        </p>
+                        <p class="mb-0">
+                            <i class="fas fa-file-alt"></i> 
+                            {{ report.get_report_type_display }} Report
+                        </p>
+                    </div>
+                    <div class="text-end">
+                        <a href="{% url 'maintenance:report_list' %}" class="btn btn-outline-light">
+                            <i class="fas fa-arrow-left"></i> Back to Reports
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metadata -->
+            <div class="metadata-grid">
+                <div class="metadata-item">
+                    <h6 class="text-muted mb-1">Uploaded</h6>
+                    <p class="mb-0">{{ report.created_at|date:"M d, Y H:i" }}</p>
+                </div>
+                {% if report.uploaded_by %}
+                <div class="metadata-item">
+                    <h6 class="text-muted mb-1">Uploaded By</h6>
+                    <p class="mb-0">{{ report.uploaded_by.username }}</p>
+                </div>
+                {% endif %}
+                {% if report.report_date %}
+                <div class="metadata-item">
+                    <h6 class="text-muted mb-1">Report Date</h6>
+                    <p class="mb-0">{{ report.report_date|date:"M d, Y" }}</p>
+                </div>
+                {% endif %}
+                {% if report.technician_name %}
+                <div class="metadata-item">
+                    <h6 class="text-muted mb-1">Technician</h6>
+                    <p class="mb-0">{{ report.technician_name }}</p>
+                </div>
+                {% endif %}
+                {% if report.work_hours %}
+                <div class="metadata-item">
+                    <h6 class="text-muted mb-1">Work Hours</h6>
+                    <p class="mb-0">{{ report.work_hours }} hours</p>
+                </div>
+                {% endif %}
+                <div class="metadata-item">
+                    <h6 class="text-muted mb-1">Processing Status</h6>
+                    {% if report.is_processed %}
+                        <span class="badge bg-success">Processed</span>
+                    {% else %}
+                        <span class="badge bg-warning">Not Processed</span>
+                    {% endif %}
+                </div>
+                {% if report.document %}
+                <div class="metadata-item">
+                    <h6 class="text-muted mb-1">Document</h6>
+                    <p class="mb-0">
+                        <a href="{{ report.document.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-download"></i> Download ({{ report.get_file_size_display }})
+                        </a>
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Content -->
+            {% if report.content %}
+            <div class="content-section">
+                <h4><i class="fas fa-file-text text-primary"></i> Report Content</h4>
+                <div class="mt-3">
+                    {{ report.content|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Summary -->
+            {% if report.summary %}
+            <div class="content-section">
+                <h4><i class="fas fa-clipboard-list text-info"></i> Summary</h4>
+                <div class="mt-3">
+                    {{ report.summary|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Analysis Results -->
+            {% if report.is_processed %}
+            <div class="analysis-section">
+                <h4><i class="fas fa-brain text-success"></i> Analysis Results</h4>
+                
+                <!-- Issues -->
+                {% if issues %}
+                <div class="mt-4">
+                    <h5><i class="fas fa-exclamation-triangle text-danger"></i> Issues Found ({{ issues|length }})</h5>
+                    {% for issue in issues %}
+                    <div class="card issue-card {{ issue.severity }}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="card-title">{{ issue.text }}</h6>
+                                    <span class="badge bg-{{ issue.severity }}">
+                                        {{ issue.severity|title }} Severity
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Parts Replaced -->
+                {% if parts_replaced %}
+                <div class="mt-4">
+                    <h5><i class="fas fa-cogs text-warning"></i> Parts Replaced ({{ parts_replaced|length }})</h5>
+                    {% for part in parts_replaced %}
+                    <div class="part-card">
+                        <h6 class="mb-1">{{ part.part }}</h6>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Measurements -->
+                {% if measurements %}
+                <div class="mt-4">
+                    <h5><i class="fas fa-chart-line text-info"></i> Measurements ({{ measurements|length }})</h5>
+                    {% for measurement in measurements %}
+                    <div class="measurement-card">
+                        <h6 class="mb-1">{{ measurement.value }} {{ measurement.unit }}</h6>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Priority Score -->
+                <div class="mt-4">
+                    <h5><i class="fas fa-chart-bar text-primary"></i> Priority Score</h5>
+                    <div class="progress" style="height: 30px;">
+                        {% with priority_score=report.get_priority_score %}
+                        {% if priority_score <= 5 %}
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {% widthratio priority_score 1 5 %}%; max-width: 100%;" 
+                                 aria-valuenow="{{ priority_score }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ priority_score }} points
+                            </div>
+                        {% elif priority_score <= 10 %}
+                            <div class="progress-bar bg-warning" role="progressbar" 
+                                 style="width: {% widthratio priority_score 1 5 %}%; max-width: 100%;" 
+                                 aria-valuenow="{{ priority_score }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ priority_score }} points
+                            </div>
+                        {% elif priority_score <= 20 %}
+                            <div class="progress-bar bg-danger" role="progressbar" 
+                                 style="width: {% widthratio priority_score 1 5 %}%; max-width: 100%;" 
+                                 aria-valuenow="{{ priority_score }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ priority_score }} points
+                            </div>
+                        {% else %}
+                            <div class="progress-bar bg-danger" role="progressbar" 
+                                 style="width: {% widthratio priority_score 1 5 %}%; max-width: 100%;" 
+                                 aria-valuenow="{{ priority_score }}" aria-valuemin="0" aria-valuemax="100">
+                                {{ priority_score }} points
+                            </div>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                    <small class="text-muted">Higher score indicates more critical issues</small>
+                </div>
+            </div>
+            {% else %}
+            <div class="analysis-section">
+                <div class="text-center py-4">
+                    <i class="fas fa-brain fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Report Not Yet Analyzed</h5>
+                    <p class="text-muted">This report hasn't been processed for analysis yet.</p>
+                    {% if report.content %}
+                    <button class="btn btn-primary analyze-report" data-report-id="{{ report.id }}">
+                        <i class="fas fa-brain"></i> Analyze Report
+                    </button>
+                    {% else %}
+                    <p class="text-muted">No content available for analysis.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Processing Errors -->
+            {% if report.processing_errors %}
+            <div class="alert alert-danger">
+                <h5><i class="fas fa-exclamation-circle"></i> Processing Errors</h5>
+                <p class="mb-0">{{ report.processing_errors }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Analyze report functionality
+    const analyzeButton = document.querySelector('.analyze-report');
+    if (analyzeButton) {
+        analyzeButton.addEventListener('click', function() {
+            const reportId = this.dataset.reportId;
+            const button = this;
+            
+            // Show loading state
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+            button.disabled = true;
+            
+            fetch(`/maintenance/reports/${reportId}/analyze/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    button.innerHTML = '<i class="fas fa-check"></i> Analysis Complete';
+                    button.classList.remove('btn-primary');
+                    button.classList.add('btn-success');
+                    
+                    // Reload page after a short delay to show updated data
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    throw new Error(data.error || 'Analysis failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                button.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Analysis Failed';
+                button.classList.remove('btn-primary');
+                button.classList.add('btn-danger');
+                
+                // Reset button after 5 seconds
+                setTimeout(() => {
+                    button.innerHTML = '<i class="fas fa-brain"></i> Analyze Report';
+                    button.classList.remove('btn-danger');
+                    button.classList.add('btn-primary');
+                    button.disabled = false;
+                }, 5000);
+            });
+        });
+    }
+});
+</script>
+{% endblock %} 

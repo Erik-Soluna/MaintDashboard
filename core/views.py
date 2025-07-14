@@ -2018,3 +2018,11 @@ def clear_health_logs(request):
 def api_explorer(request):
     """API Explorer: Tree view of all models and API documentation."""
     return render(request, 'core/api_explorer.html')
+
+
+@login_required
+def system_health(request):
+    """System health/diagnostics page for superusers/admins."""
+    if not request.user.is_superuser:
+        return redirect('core:dashboard')
+    return render(request, 'core/system_health.html')

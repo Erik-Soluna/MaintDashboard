@@ -117,6 +117,11 @@
                             <i class="fas fa-file-alt me-1"></i> Documents
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="reports-tab" data-toggle="tab" href="#reports" role="tab">
+                            <i class="fas fa-chart-line me-1"></i> Maintenance Reports
+                        </a>
+                    </li>
                 </ul>
             </div>
             <div class="card-body">
@@ -246,7 +251,7 @@
                                                 {% endif %}
                                             </td>
                                             <td>{{ activity.scheduled_start|date:"M d, Y" }}</td>
-                                            <td>{{ activity.assigned_to.get_full_name|default:activity.assigned_to.username|default:"Unassigned" }}</td>
+                                            <td>{% if activity.assigned_to %}{{ activity.assigned_to.get_full_name|default:activity.assigned_to.username }}{% else %}Unassigned{% endif %}</td>
                                             <td>
                                                 <a href="{% url 'maintenance:activity_detail' activity.id %}" class="btn btn-sm btn-outline-primary">
                                                     <i class="fas fa-eye"></i>
@@ -372,6 +377,118 @@
                             </div>
                         {% endif %}
                     </div>
+                    
+                    <!-- Maintenance Reports Tab -->
+                    <div class="tab-pane fade" id="reports" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">Maintenance Reports & Analytics</h6>
+                            <button class="btn btn-primary" id="analyzeReportsBtn">
+                                <i class="fas fa-magic me-1"></i> Analyze Reports
+                            </button>
+                            <button class="btn btn-outline-primary mt-2" id="scanReportsBtn">
+                                <i class="fas fa-search me-1"></i> Scan Reports
+                            </button>
+                        </div>
+                        
+                        <!-- Report Summary Cards -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="card bg-primary text-white">
+                                    <div class="card-body text-center">
+                                        <h4 class="mb-0">{{ completed_count }}</h4>
+                                        <small>Completed Activities</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-warning text-white">
+                                    <div class="card-body text-center">
+                                        <h4 class="mb-0">{{ pending_count }}</h4>
+                                        <small>Pending Activities</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-danger text-white">
+                                    <div class="card-body text-center">
+                                        <h4 class="mb-0">{{ overdue_count }}</h4>
+                                        <small>Overdue Activities</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-info text-white">
+                                    <div class="card-body text-center">
+                                        <h4 class="mb-0">{{ maintenance_docs_count }}</h4>
+                                        <small>Maintenance Reports</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Automated Report Analysis -->
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-robot me-2"></i>
+                                            Automated Report Analysis
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="reportAnalysis">
+                                            <div class="text-center py-4">
+                                                <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                                                <p class="text-muted">No automated analysis available yet</p>
+                                                <button class="btn btn-primary" id="analyzeReportsBtn">
+                                                    <i class="fas fa-magic me-1"></i> Analyze Reports
+                                                </button>
+                                                <button class="btn btn-outline-primary mt-2" id="scanReportsBtn">
+                                                    <i class="fas fa-search me-1"></i> Scan Reports
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-lightbulb me-2"></i>
+                                            Key Insights
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="keyInsights">
+                                            <div class="text-center py-3">
+                                                <i class="fas fa-lightbulb fa-2x text-muted mb-2"></i>
+                                                <p class="text-muted small">Click "Analyze Reports" to generate insights</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Maintenance Trends -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-chart-area me-2"></i>
+                                            Maintenance Trends
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="maintenanceTrendsChart" width="400" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -440,6 +557,192 @@ $(document).ready(function() {
             }
         });
     });
+    
+    // Maintenance Reports Analysis
+    $('#analyzeReportsBtn').on('click', function() {
+        const equipmentId = {{ equipment.id|escapejs }};
+        const btn = $(this);
+        
+        // Show loading state
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Analyzing...');
+        
+        // Make AJAX request to analyze reports
+        $.ajax({
+            url: `/equipment/${equipmentId}/analyze-reports/`,
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.status === 'success') {
+                    displayReportAnalysis(response.analysis);
+                    displayKeyInsights(response.insights);
+                    updateMaintenanceTrends(response.trends);
+                } else {
+                    alert('Error analyzing reports: ' + response.message);
+                }
+            },
+            error: function() {
+                alert('Error analyzing reports. Please try again.');
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="fas fa-magic me-1"></i> Analyze Reports');
+            }
+        });
+    });
+    
+    // Scan Reports Button
+    $('#scanReportsBtn').on('click', function() {
+        const equipmentId = {{ equipment.id|escapejs }};
+        const btn = $(this);
+        
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Scanning...');
+        
+        $.ajax({
+            url: `/equipment/${equipmentId}/scan-reports/`,
+            type: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.status === 'success') {
+                    displayScanFindings(response.findings);
+                    // Optionally, also trigger analysis
+                    // $('#analyzeReportsBtn').click();
+                } else {
+                    alert('Error scanning reports: ' + response.message);
+                }
+            },
+            error: function() {
+                alert('Error scanning reports. Please try again.');
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="fas fa-search me-1"></i> Scan Reports');
+            }
+        });
+    });
+    
+    function displayReportAnalysis(analysis) {
+        const container = $('#reportAnalysis');
+        let html = '<div class="row">';
+        
+        if (analysis.findings && analysis.findings.length > 0) {
+            analysis.findings.forEach(function(finding) {
+                html += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-left-primary">
+                            <div class="card-body">
+                                <h6 class="card-title">${finding.type}</h6>
+                                <p class="card-text">${finding.description}</p>
+                                <small class="text-muted">Confidence: ${finding.confidence}%</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            html += '<div class="col-12"><p class="text-muted">No specific findings detected in reports.</p></div>';
+        }
+        
+        html += '</div>';
+        container.html(html);
+    }
+    
+    function displayKeyInsights(insights) {
+        const container = $('#keyInsights');
+        let html = '';
+        
+        if (insights && insights.length > 0) {
+            insights.forEach(function(insight) {
+                html += `
+                    <div class="alert alert-info mb-2">
+                        <i class="fas fa-lightbulb me-1"></i>
+                        ${insight}
+                    </div>
+                `;
+            });
+        } else {
+            html = '<p class="text-muted small">No insights available yet.</p>';
+        }
+        
+        container.html(html);
+    }
+    
+    function updateMaintenanceTrends(trends) {
+        const ctx = document.getElementById('maintenanceTrendsChart').getContext('2d');
+        
+        if (window.maintenanceChart) {
+            window.maintenanceChart.destroy();
+        }
+        
+        window.maintenanceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: trends.labels || [],
+                datasets: [{
+                    label: 'Maintenance Activities',
+                    data: trends.data || [],
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    function displayScanFindings(findings) {
+        const container = $('#reportAnalysis');
+        let html = '<div class="row">';
+        if (findings && findings.length > 0) {
+            findings.forEach(function(finding) {
+                let badgeClass = 'badge-secondary';
+                let statusText = 'Unknown';
+                if (finding.status === 'ok') { badgeClass = 'badge-success'; statusText = 'OK / Normal'; }
+                else if (finding.status === 'warning') { badgeClass = 'badge-warning'; statusText = 'Warning'; }
+                else if (finding.status === 'critical') { badgeClass = 'badge-danger'; statusText = 'Critical'; }
+                
+                let reportStatusBadge = 'badge-secondary';
+                if (finding.report_status === 'Approved') { reportStatusBadge = 'badge-success'; }
+                else if (finding.report_status === 'Completed') { reportStatusBadge = 'badge-info'; }
+                else if (finding.report_status === 'Draft') { reportStatusBadge = 'badge-warning'; }
+                
+                html += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card border-left-primary h-100">
+                            <div class="card-body">
+                                <h6 class="card-title mb-1">
+                                    <i class="fas fa-file-alt me-1"></i> ${finding.document}
+                                    <span class="badge ${badgeClass} float-right">${statusText}</span>
+                                </h6>
+                                <div class="mb-2">
+                                    <small class="text-muted">Report Type: ${finding.report_type || ''}</small><br>
+                                    <small class="text-muted">Activity: ${finding.activity_title || ''}</small><br>
+                                    <small class="text-muted">Activity Status: ${finding.activity_status || ''}</small><br>
+                                    <small class="text-muted">Report Status: <span class="badge ${reportStatusBadge}">${finding.report_status || ''}</span></small><br>
+                                    <small class="text-muted">Created by: ${finding.created_by || 'Unknown'}</small><br>
+                                    <small class="text-muted">Created: ${finding.created_at || 'N/A'}</small>
+                                    ${finding.approved_by ? '<br><small class="text-muted">Approved by: ' + finding.approved_by + ' on ' + finding.approved_at + '</small>' : ''}
+                                </div>
+                                ${finding.findings_summary ? '<div class="mb-2"><small class="text-muted"><strong>Findings Summary:</strong> ' + finding.findings_summary + '</small></div>' : ''}
+                                <pre class="bg-light p-2 rounded small" style="max-height:120px;overflow:auto;">${finding.summary}</pre>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            html += '<div class="col-12"><div class="alert alert-success text-center mb-0"><i class="fas fa-check-circle me-1"></i> All clear! No issues found in any maintenance reports.</div></div>';
+        }
+        html += '</div>';
+        container.html(html);
+    }
 });
 </script>
 {% endblock %}

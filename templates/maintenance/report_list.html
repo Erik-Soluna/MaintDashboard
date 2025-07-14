@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Maintenance Reports{% endblock %}
+
+{% block extra_css %}
+<style>
+    .report-card {
+        border-left: 4px solid #007bff;
+        transition: all 0.3s ease;
+    }
+    .report-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    .report-card.critical {
+        border-left-color: #dc3545;
+    }
+    .report-card.high {
+        border-left-color: #fd7e14;
+    }
+    .report-card.medium {
+        border-left-color: #ffc107;
+    }
+    .report-card.low {
+        border-left-color: #28a745;
+    }
+    .filter-section {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .status-badge {
+        font-size: 0.8em;
+        padding: 4px 8px;
+        border-radius: 12px;
+    }
+    .priority-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-file-alt text-primary"></i>
+                    Maintenance Reports
+                </h1>
+                <div>
+                    <a href="{% url 'maintenance:maintenance_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Maintenance
+                    </a>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filter-section">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="search" class="form-label">Search</label>
+                        <input type="text" class="form-control" id="search" name="search" 
+                               value="{{ request.GET.search }}" placeholder="Search reports...">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="report_type" class="form-label">Report Type</label>
+                        <select class="form-select" id="report_type" name="report_type">
+                            <option value="">All Types</option>
+                            {% for value, label in report_types %}
+                            <option value="{{ value }}" {% if request.GET.report_type == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="is_processed" class="form-label">Processing Status</label>
+                        <select class="form-select" id="is_processed" name="is_processed">
+                            <option value="">All</option>
+                            <option value="true" {% if request.GET.is_processed == 'true' %}selected{% endif %}>Processed</option>
+                            <option value="false" {% if request.GET.is_processed == 'false' %}selected{% endif %}>Not Processed</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search"></i> Filter
+                            </button>
+                            <a href="{% url 'maintenance:report_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Reports List -->
+            <div class="row">
+                {% for report in page_obj %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card report-card h-100 {% if report.has_critical_issues %}critical{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="card-title mb-0">{{ report.title }}</h6>
+                                <span class="badge bg-secondary status-badge">{{ report.get_report_type_display }}</span>
+                            </div>
+                            
+                            <p class="card-text text-muted small mb-2">
+                                <i class="fas fa-tools"></i> {{ report.activity.equipment.name }}
+                            </p>
+                            
+                            <p class="card-text text-muted small mb-2">
+                                <i class="fas fa-calendar"></i> {{ report.created_at|date:"M d, Y" }}
+                            </p>
+                            
+                            {% if report.uploaded_by %}
+                            <p class="card-text text-muted small mb-3">
+                                <i class="fas fa-user"></i> {{ report.uploaded_by.username }}
+                            </p>
+                            {% endif %}
+                            
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    {% if report.is_processed %}
+                                        <span class="badge bg-success">Processed</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Not Processed</span>
+                                    {% endif %}
+                                    
+                                    {% if report.has_critical_issues %}
+                                        <span class="badge bg-danger ms-1">Critical Issues</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'maintenance:report_detail' report.id %}" 
+                                       class="btn btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View
+                                    </a>
+                                    {% if not report.is_processed %}
+                                    <button class="btn btn-outline-info analyze-report" 
+                                            data-report-id="{{ report.id }}">
+                                        <i class="fas fa-brain"></i> Analyze
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12">
+                    <div class="text-center py-5">
+                        <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">No maintenance reports found</h4>
+                        <p class="text-muted">Upload reports to get started with maintenance analysis.</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <nav aria-label="Reports pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.report_type %}&report_type={{ request.GET.report_type }}{% endif %}{% if request.GET.is_processed %}&is_processed={{ request.GET.is_processed }}{% endif %}">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.report_type %}&report_type={{ request.GET.report_type }}{% endif %}{% if request.GET.is_processed %}&is_processed={{ request.GET.is_processed }}{% endif %}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ num }}</span>
+                            </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.report_type %}&report_type={{ request.GET.report_type }}{% endif %}{% if request.GET.is_processed %}&is_processed={{ request.GET.is_processed }}{% endif %}">{{ num }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.report_type %}&report_type={{ request.GET.report_type }}{% endif %}{% if request.GET.is_processed %}&is_processed={{ request.GET.is_processed }}{% endif %}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.report_type %}&report_type={{ request.GET.report_type }}{% endif %}{% if request.GET.is_processed %}&is_processed={{ request.GET.is_processed }}{% endif %}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Analyze report functionality
+    document.querySelectorAll('.analyze-report').forEach(button => {
+        button.addEventListener('click', function() {
+            const reportId = this.dataset.reportId;
+            const button = this;
+            
+            // Show loading state
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+            button.disabled = true;
+            
+            fetch(`/maintenance/reports/${reportId}/analyze/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message
+                    button.innerHTML = '<i class="fas fa-check"></i> Analyzed';
+                    button.classList.remove('btn-outline-info');
+                    button.classList.add('btn-success');
+                    
+                    // Reload page after a short delay to show updated data
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    throw new Error(data.error || 'Analysis failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                button.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error';
+                button.classList.remove('btn-outline-info');
+                button.classList.add('btn-danger');
+                
+                // Reset button after 3 seconds
+                setTimeout(() => {
+                    button.innerHTML = '<i class="fas fa-brain"></i> Analyze';
+                    button.classList.remove('btn-danger');
+                    button.classList.add('btn-outline-info');
+                    button.disabled = false;
+                }, 3000);
+            });
+        });
+    });
+});
+</script>
+{% endblock %} 

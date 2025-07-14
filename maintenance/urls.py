@@ -70,4 +70,12 @@ urlpatterns = [
     path('api/generate-activities/', views.generate_maintenance_activities, name='generate_activities'),
     path('generate-scheduled-activities/', views.generate_scheduled_activities, name='generate_scheduled_activities'),
     path('api/fetch-activities/', views.fetch_activities, name='fetch_activities'),
+    path('api/activity/<int:activity_id>/', views.get_activity_details, name='get_activity_details'),
+    
+    # Maintenance Reports
+    path('reports/list/', views.report_list, name='report_list'),
+    path('reports/<int:report_id>/', views.report_detail, name='report_detail'),
+    path('reports/upload/', views.upload_report, name='upload_report'),
+    path('reports/<int:report_id>/analyze/', views.analyze_report, name='analyze_report'),
+    path('api/reports/equipment/<int:equipment_id>/', views.get_reports_for_equipment, name='get_reports_for_equipment'),
 ]

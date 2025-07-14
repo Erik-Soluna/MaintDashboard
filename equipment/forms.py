@@ -139,8 +139,7 @@ class EquipmentDocumentForm(forms.ModelForm):
     class Meta:
         model = EquipmentDocument
         fields = [
-            'document_type', 'title', 'description', 'file',
-            'version', 'is_current'
+            'document_type', 'title', 'description', 'file', 'is_active'
         ]
         widgets = {
             'description': forms.Textarea(attrs={'rows': 3}),
@@ -152,8 +151,7 @@ class EquipmentDocumentForm(forms.ModelForm):
         self.helper.layout = Layout(
             Row(
                 Column('document_type', css_class='form-group col-md-6 mb-0'),
-                Column('version', css_class='form-group col-md-3 mb-0'),
-                Column('is_current', css_class='form-group col-md-3 mb-0'),
+                Column('is_active', css_class='form-group col-md-6 mb-0'),
             ),
             'title',
             'description',

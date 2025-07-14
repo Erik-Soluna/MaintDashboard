@@ -5,7 +5,7 @@ Admin interface for maintenance models.
 from django.contrib import admin
 from .models import (
     MaintenanceActivityType, MaintenanceActivity, MaintenanceChecklist, 
-    MaintenanceSchedule, ActivityTypeCategory, ActivityTypeTemplate
+    MaintenanceSchedule, ActivityTypeCategory, ActivityTypeTemplate, MaintenanceReport
 )
 
 
@@ -217,5 +217,58 @@ class MaintenanceScheduleAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         if not change:
             obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(MaintenanceReport)
+class MaintenanceReportAdmin(admin.ModelAdmin):
+    list_display = [
+        'title', 'maintenance_activity', 'report_type', 'status', 'created_by',
+        'created_at'
+    ]
+    list_filter = [
+        'report_type', 'status', 'maintenance_activity__status', 'created_at'
+    ]
+    search_fields = [
+        'title', 'maintenance_activity__title', 'findings_summary'
+    ]
+    readonly_fields = [
+        'created_at', 'updated_at', 'created_by', 'updated_by'
+    ]
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('activity', 'title', 'report_type', 'uploaded_by')
+        }),
+        ('Document', {
+            'fields': ('document', 'get_file_size_display')
+        }),
+        ('Content', {
+            'fields': ('content', 'summary')
+        }),
+        ('Analysis', {
+            'fields': ('analyzed_data', 'is_processed', 'processing_errors', 'get_priority_score'),
+            'classes': ('collapse',)
+        }),
+        ('Metadata', {
+            'fields': ('report_date', 'technician_name', 'work_hours'),
+            'classes': ('collapse',)
+        }),
+        ('Audit Information', {
+            'fields': ('created_at', 'updated_at', 'created_by', 'updated_by'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def has_critical_issues(self, obj):
+        return obj.has_critical_issues()
+    has_critical_issues.boolean = True
+    has_critical_issues.short_description = 'Critical Issues'
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+            obj.uploaded_by = request.user
         obj.updated_by = request.user
         super().save_model(request, obj, form, change)

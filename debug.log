@@ -689,3 +689,3235 @@ Not Found: /health/
 Not Found: /health/
 Not Found: /health/
 Not Found: /health/
+Not Found: /health/
+Database error in schedule_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Internal Server Error: /events/calendar/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/events/views.py", line 308, in calendar_view
+    return render(request, 'events/calendar.html', context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/backends/django.py", line 61, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 175, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 167, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader_tags.py", line 157, in render
+    return compiled_parent._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 167, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader_tags.py", line 63, in render
+    result = block.nodelist.render(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/defaulttags.py", line 471, in render
+    url = reverse(view_name, args=args, kwargs=kwargs, current_app=current_app)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/urls/base.py", line 88, in reverse
+    return resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/urls/resolvers.py", line 828, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'calendar' not found. 'calendar' is not a valid view function or pattern name.
+Not Found: /health/
+Not Found: /health/
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Not Found: /health/
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Total active equipment count: 22
+Filtered equipment queryset count: 22
+Database connection error in add_activity: cursor "_django_curs_140474392939392_sync_1" does not exist
+
+Database reconnected successfully
+Failed to reconnect to database: cursor "_django_curs_140474392939392_sync_2" does not exist
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Not Found: /health/
+Database error in schedule_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Internal Server Error: /maintenance/api/fetch-activities/
+Internal Server Error: /maintenance/api/fetch-activities/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Database error in schedule_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Total active equipment count: 22
+Filtered equipment queryset count: 22
+Database connection error in add_activity: cursor "_django_curs_140474392939392_sync_3" does not exist
+
+Database reconnected successfully
+Failed to reconnect to database: cursor "_django_curs_140474392939392_sync_4" does not exist
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Not Found: /health/
+Not Found: /health/
+Internal Server Error: /events/calendar/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/events/views.py", line 308, in calendar_view
+    return render(request, 'events/calendar.html', context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/backends/django.py", line 61, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 175, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 167, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader_tags.py", line 157, in render
+    return compiled_parent._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 167, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader_tags.py", line 63, in render
+    result = block.nodelist.render(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/defaulttags.py", line 471, in render
+    url = reverse(view_name, args=args, kwargs=kwargs, current_app=current_app)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/urls/base.py", line 88, in reverse
+    return resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/urls/resolvers.py", line 828, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'calendar' not found. 'calendar' is not a valid view function or pattern name.
+Internal Server Error: /maintenance/api/fetch-activities/
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Not Found: /health/
+Total active equipment count: 22
+Selected site: Main Site
+Filtered equipment queryset count: 0
+Database connection error in add_activity: cursor "_django_curs_140474392939392_sync_3" does not exist
+
+Database reconnected successfully
+Failed to reconnect to database: cursor "_django_curs_140474392939392_sync_4" does not exist
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Database error in schedule_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Database error in schedule_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Database error in maintenance_list: column maintenance_maintenanceactivitytype.template_id does not exist
+LINE 1: ...intenance_maintenanceactivitytype"."category_id", "maintenan...
+                                                             ^
+
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Created UserProfile for new user: admin
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Internal Server Error: /equipment/10/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 233, in equipment_detail
+    last_maintenance = equipment.get_last_maintenance_date()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/models.py", line 163, in get_last_maintenance_date
+    return last_maintenance.actual_end.date() if last_maintenance else None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'date'
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Internal Server Error: /equipment/16/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 233, in equipment_detail
+    last_maintenance = equipment.get_last_maintenance_date()
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/models.py", line 163, in get_last_maintenance_date
+AttributeError: 'NoneType' object has no attribute 'date'
+Internal Server Error: /equipment/17/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 880, in _resolve_lookup
+    current = current[bit]
+              ~~~~~~~^^^^^
+TypeError: 'NoneType' object is not subscriptable
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 890, in _resolve_lookup
+    current = getattr(current, bit)
+              ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'username'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 896, in _resolve_lookup
+    current = current[int(bit)]
+                      ^^^^^^^^
+ValueError: invalid literal for int() with base 10: 'username'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 264, in equipment_detail
+    return render(request, 'equipment/equipment_detail.html', context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 62, in render_to_string
+    return template.render(context, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/backends/django.py", line 61, in render
+    return self.template.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 175, in render
+    return self._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 167, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader_tags.py", line 157, in render
+    return compiled_parent._render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 167, in _render
+    return self.nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader_tags.py", line 63, in render
+    result = block.nodelist.render(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/defaulttags.py", line 321, in render
+    return nodelist.render(context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/defaulttags.py", line 238, in render
+    nodelist.append(node.render_annotated(context))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 966, in render_annotated
+    return self.render(context)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 1064, in render
+    output = self.filter_expression.resolve(context)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 736, in resolve
+    arg_vals.append(arg.resolve(context))
+                    ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 847, in resolve
+    value = self._resolve_lookup(context)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 903, in _resolve_lookup
+    raise VariableDoesNotExist(
+django.template.base.VariableDoesNotExist: Failed lookup for key [username] in None
+Not Found: /health/
+Internal Server Error: /equipment/17/components/add/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 480, in add_component
+    return render(request, 'equipment/add_component.html', context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: equipment/add_component.html
+Not Found: /health/
+Internal Server Error: /equipment/17/components/add/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 480, in add_component
+    return render(request, 'equipment/add_component.html', context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: equipment/add_component.html
+Internal Server Error: /equipment/17/documents/add/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 520, in add_document
+    return render(request, 'equipment/add_document.html', context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: equipment/add_document.html
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Internal Server Error: /equipment/17/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 267, in equipment_detail
+    return render(request, 'equipment/equipment_detail.html', context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 15, in get_template
+    return engine.get_template(template_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/backends/django.py", line 33, in get_template
+    return Template(self.engine.get_template(template_name), self)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/engine.py", line 175, in get_template
+    template, origin = self.find_template(template_name)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/engine.py", line 157, in find_template
+    template = loader.get_template(name, skip=skip)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loaders/cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loaders/base.py", line 28, in get_template
+    return Template(
+           ^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 200, in compile_nodelist
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader_tags.py", line 293, in do_extends
+    nodelist = parser.parse()
+               ^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader_tags.py", line 232, in do_block
+    nodelist = parser.parse(("endblock",))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 484, in parse
+    raise self.error(token, e)
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 482, in parse
+    filter_expression = self.compile_filter(token.contents)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 600, in compile_filter
+    return FilterExpression(token, self)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 673, in __init__
+    raise TemplateSyntaxError(
+django.template.exceptions.TemplateSyntaxError: Could not parse some characters: equipment.maintenance_activities.filter.status|='completed'||length
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Forbidden (CSRF token missing.): /equipment/17/analyze-reports/
+Not Found: /health/
+Not Found: /health/
+Forbidden (CSRF token missing.): /equipment/17/scan-reports/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Internal Server Error: /maintenance/api/fetch-activities/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/utils/deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/middleware/common.py", line 48, in process_request
+    host = request.get_host()
+           ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/http/request.py", line 150, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Bad Request: /events/api/fetch-events/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Total active equipment count: 22
+Filtered equipment queryset count: 22
+Total active equipment count: 22
+Filtered equipment queryset count: 22
+Not Found: /health/
+Not Found: /health/
+Total active equipment count: 22
+Filtered equipment queryset count: 22
+Not Found: /health/
+Total active equipment count: 22
+Filtered equipment queryset count: 22
+Total active equipment count: 22
+Filtered equipment queryset count: 22
+Not Found: /health/
+Not Found: /health/
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
+Not Found: /health/
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Forbidden (CSRF token missing.): /equipment/17/analyze-reports/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Forbidden (CSRF token missing.): /equipment/17/scan-reports/
+Forbidden (CSRF token missing.): /equipment/17/analyze-reports/
+Not Found: /health/
+Internal Server Error: /equipment/17/components/add/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 493, in add_component
+    return render(request, 'equipment/add_component.html', context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: equipment/add_component.html
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Created UserProfile for new user: demo_user
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Not Found: /health/
+Not Found: /health/
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Not Found: /health/
+Forbidden (CSRF token missing.): /equipment/8/scan-reports/
+Forbidden (CSRF token missing.): /equipment/8/analyze-reports/
+Not Found: /health/
+Forbidden (CSRF token missing.): /equipment/8/analyze-reports/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Not Found: /health/
+Not Found: /maintenance/activity/33/
+Not Found: /health/
+Not Found: /maintenance/activity/34/
+Total active equipment count: 23
+Selected site: Dorothy Site
+Filtered equipment queryset count: 22
+Not Found: /health/
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Not Found: /health/
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Not Found: /health/
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Not Found: /health/
+Not Found: /health/
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Not Found: /health/
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Error in report_detail: Invalid block tag on line 222: 'assign', expected 'elif', 'else' or 'endif'. Did you forget to register or load this tag?
+Internal Server Error: /maintenance/reports/10/
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 505, in parse
+    compile_func = self.tags[command]
+                   ~~~~~~~~~^^^^^^^^^
+KeyError: 'assign'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/app/maintenance/views.py", line 1741, in report_detail
+    return render(request, 'maintenance/report_detail.html', context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader.py", line 15, in get_template
+    return engine.get_template(template_name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/backends/django.py", line 33, in get_template
+    return Template(self.engine.get_template(template_name), self)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/engine.py", line 175, in get_template
+    template, origin = self.find_template(template_name)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/engine.py", line 157, in find_template
+    template = loader.get_template(name, skip=skip)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loaders/cached.py", line 57, in get_template
+    template = super().get_template(template_name, skip)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loaders/base.py", line 28, in get_template
+    return Template(
+           ^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 154, in __init__
+    self.nodelist = self.compile_nodelist()
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 200, in compile_nodelist
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader_tags.py", line 293, in do_extends
+    nodelist = parser.parse()
+               ^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/loader_tags.py", line 232, in do_block
+    nodelist = parser.parse(("endblock",))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/defaulttags.py", line 953, in do_if
+    nodelist = parser.parse(("elif", "else", "endif"))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/defaulttags.py", line 1491, in do_with
+    nodelist = parser.parse(("endwith",))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 513, in parse
+    raise self.error(token, e)
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 511, in parse
+    compiled_result = compile_func(self, token)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/defaulttags.py", line 953, in do_if
+    nodelist = parser.parse(("elif", "else", "endif"))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 507, in parse
+    self.invalid_block_tag(token, command, parse_until)
+  File "/usr/local/lib/python3.11/site-packages/django/template/base.py", line 558, in invalid_block_tag
+    raise self.error(
+django.template.exceptions.TemplateSyntaxError: Invalid block tag on line 222: 'assign', expected 'elif', 'else' or 'endif'. Did you forget to register or load this tag?
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/contrib/auth/decorators.py", line 23, in _wrapper_view
+    return view_func(request, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/maintenance/views.py", line 1746, in report_detail
+    return redirect('report_list')
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/shortcuts.py", line 48, in redirect
+    return redirect_class(resolve_url(to, *args, **kwargs))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/shortcuts.py", line 145, in resolve_url
+    return reverse(to, args=args, kwargs=kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/urls/base.py", line 88, in reverse
+    return resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/urls/resolvers.py", line 828, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'report_list' not found. 'report_list' is not a valid view function or pattern name.
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Bad Request: /maintenance/reports/upload/
+Not Found: /health/
+Not Found: /health/
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Created UserProfile for new user: testuser
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/utils/deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/middleware/common.py", line 48, in process_request
+    host = request.get_host()
+           ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/http/request.py", line 150, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Bad Request: /events/
+Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/utils/deprecation.py", line 133, in __call__
+    response = self.process_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/middleware/common.py", line 48, in process_request
+    host = request.get_host()
+           ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.11/site-packages/django/http/request.py", line 150, in get_host
+    raise DisallowedHost(msg)
+django.core.exceptions.DisallowedHost: Invalid HTTP_HOST header: 'testserver'. You may need to add 'testserver' to ALLOWED_HOSTS.
+Bad Request: /events/api/unified/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Forbidden (CSRF token missing.): /equipment/17/scan-reports/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Forbidden (CSRF token missing.): /equipment/17/scan-reports/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Total active equipment count: 23
+Selected site: Dorothy Site
+Filtered equipment queryset count: 22
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Forbidden (CSRF token missing.): /equipment/17/scan-reports/
+Not Found: /health/
+Created UserProfile for new user: admin
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Forbidden (CSRF token missing.): /equipment/17/scan-reports/
+Not Found: /health/
+Not Found: /health/
+Not Found: /equipment/17/
+Not Found: /equipment/17/
+Not Found: /equipment/17/
+Not Found: /equipment/17/
+Not Found: /equipment/17/
+Not Found: /core/overview
+Not Found: /health/
+Not Found: /core/overview
+Not Found: /core/overview
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /core/overview
+Not Found: /health/
+Not Found: /equipment/17/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Total active equipment count: 22
+Selected site: Dorothy Site
+Filtered equipment queryset count: 22
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Document: DGA Status Report, Type: maintenance, File: equipment/documents/dga_status_report.pdf
+Document: Equipment Manual, Type: manual, File: equipment/documents/equipment_manual.txt
+Document: Test Maintenance Report, Type: maintenance, File: equipment/documents/test_maintenance_report.txt
+Processing document: DGA Status Report
+Attempting to extract text from: /app/media/equipment/documents/dga_status_report.pdf
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Found 0 pattern matches in DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from: /app/media/equipment/documents/equipment_manual.txt
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Found 3 pattern matches in Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from: /app/media/equipment/documents/test_maintenance_report.txt
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Found 5 pattern matches in Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 8
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Document: DGA Status Report, Type: maintenance, File: equipment/documents/dga_status_report.pdf
+Document: Equipment Manual, Type: manual, File: equipment/documents/equipment_manual.txt
+Document: Test Maintenance Report, Type: maintenance, File: equipment/documents/test_maintenance_report.txt
+Processing document: DGA Status Report
+Attempting to extract text from: /app/media/equipment/documents/dga_status_report.pdf
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Found 0 pattern matches in DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from: /app/media/equipment/documents/equipment_manual.txt
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Found 3 pattern matches in Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from: /app/media/equipment/documents/test_maintenance_report.txt
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Found 5 pattern matches in Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 8
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Document: DGA Status Report, Type: maintenance, File: equipment/documents/dga_status_report.pdf
+Document: Equipment Manual, Type: manual, File: equipment/documents/equipment_manual.txt
+Document: Test Maintenance Report, Type: maintenance, File: equipment/documents/test_maintenance_report.txt
+Processing document: DGA Status Report
+Attempting to extract text from: /app/media/equipment/documents/dga_status_report.pdf
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Found 0 pattern matches in DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from: /app/media/equipment/documents/equipment_manual.txt
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Found 3 pattern matches in Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from: /app/media/equipment/documents/test_maintenance_report.txt
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Found 5 pattern matches in Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 8
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Document: DGA Status Report, Type: maintenance, File: equipment/documents/dga_status_report.pdf
+Document: Equipment Manual, Type: manual, File: equipment/documents/equipment_manual.txt
+Document: Test Maintenance Report, Type: maintenance, File: equipment/documents/test_maintenance_report.txt
+Processing document: DGA Status Report
+Attempting to extract text from: /app/media/equipment/documents/dga_status_report.pdf
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Found 0 pattern matches in DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from: /app/media/equipment/documents/equipment_manual.txt
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Found 3 pattern matches in Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from: /app/media/equipment/documents/test_maintenance_report.txt
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Found 5 pattern matches in Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 8
+Not Found: /health/
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Document: DGA Status Report, Type: maintenance, File: equipment/documents/dga_status_report.pdf
+Document: Equipment Manual, Type: manual, File: equipment/documents/equipment_manual.txt
+Document: Test Maintenance Report, Type: maintenance, File: equipment/documents/test_maintenance_report.txt
+Processing document: DGA Status Report
+Attempting to extract text from: /app/media/equipment/documents/dga_status_report.pdf
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Found 0 pattern matches in DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from: /app/media/equipment/documents/equipment_manual.txt
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Found 3 pattern matches in Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from: /app/media/equipment/documents/test_maintenance_report.txt
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Found 5 pattern matches in Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 8
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Document: DGA Status Report, Type: maintenance, File: equipment/documents/dga_status_report.pdf
+Document: Equipment Manual, Type: manual, File: equipment/documents/equipment_manual.txt
+Document: Test Maintenance Report, Type: maintenance, File: equipment/documents/test_maintenance_report.txt
+Processing document: DGA Status Report
+Attempting to extract text from: /app/media/equipment/documents/dga_status_report.pdf
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Found 0 pattern matches in DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from: /app/media/equipment/documents/equipment_manual.txt
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Found 3 pattern matches in Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from: /app/media/equipment/documents/test_maintenance_report.txt
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Found 5 pattern matches in Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 8
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Document: DGA Status Report, Type: maintenance, File: equipment/documents/dga_status_report.pdf
+Document: Equipment Manual, Type: manual, File: equipment/documents/equipment_manual.txt
+Document: Test Maintenance Report, Type: maintenance, File: equipment/documents/test_maintenance_report.txt
+Processing document: DGA Status Report
+Attempting to extract text from: /app/media/equipment/documents/dga_status_report.pdf
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Found 0 pattern matches in DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from: /app/media/equipment/documents/equipment_manual.txt
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Found 3 pattern matches in Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from: /app/media/equipment/documents/test_maintenance_report.txt
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Found 5 pattern matches in Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 8
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Document: DGA Status Report, Type: maintenance, File: equipment/documents/dga_status_report.pdf
+Document: Equipment Manual, Type: manual, File: equipment/documents/equipment_manual.txt
+Document: Test Maintenance Report, Type: maintenance, File: equipment/documents/test_maintenance_report.txt
+Processing document: DGA Status Report
+Attempting to extract text from: /app/media/equipment/documents/dga_status_report.pdf
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Found 0 pattern matches in DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from: /app/media/equipment/documents/equipment_manual.txt
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Found 3 pattern matches in Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from: /app/media/equipment/documents/test_maintenance_report.txt
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Found 5 pattern matches in Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 8
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Document: DGA Status Report, Type: maintenance, File: equipment/documents/dga_status_report.pdf
+Document: Equipment Manual, Type: manual, File: equipment/documents/equipment_manual.txt
+Document: Test Maintenance Report, Type: maintenance, File: equipment/documents/test_maintenance_report.txt
+Processing document: DGA Status Report
+Attempting to extract text from: /app/media/equipment/documents/dga_status_report.pdf
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Found 0 pattern matches in DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from: /app/media/equipment/documents/equipment_manual.txt
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Found 3 pattern matches in Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from: /app/media/equipment/documents/test_maintenance_report.txt
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Found 5 pattern matches in Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 8
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Document: DGA Status Report, Type: maintenance, File: equipment/documents/dga_status_report.pdf
+Document: Equipment Manual, Type: manual, File: equipment/documents/equipment_manual.txt
+Document: Test Maintenance Report, Type: maintenance, File: equipment/documents/test_maintenance_report.txt
+Processing document: DGA Status Report
+Attempting to extract text from: /app/media/equipment/documents/dga_status_report.pdf
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Found 0 pattern matches in DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from: /app/media/equipment/documents/equipment_manual.txt
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Found 3 pattern matches in Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from: /app/media/equipment/documents/test_maintenance_report.txt
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Found 5 pattern matches in Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 8
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Document: DGA Status Report, Type: maintenance, File: equipment/documents/dga_status_report.pdf
+Document: Equipment Manual, Type: manual, File: equipment/documents/equipment_manual.txt
+Document: Test Maintenance Report, Type: maintenance, File: equipment/documents/test_maintenance_report.txt
+Processing document: DGA Status Report
+Attempting to extract text from: /app/media/equipment/documents/dga_status_report.pdf
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Found 0 pattern matches in DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from: /app/media/equipment/documents/equipment_manual.txt
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Found 3 pattern matches in Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from: /app/media/equipment/documents/test_maintenance_report.txt
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Found 5 pattern matches in Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 8
+Not Found: /health/
+Not Found: /health/
+Not Found: /.well-known/appspecific/com.chrome.devtools.json
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Document: DGA Status Report, Type: maintenance, File: equipment/documents/dga_status_report.pdf
+Document: Equipment Manual, Type: manual, File: equipment/documents/equipment_manual.txt
+Document: Test Maintenance Report, Type: maintenance, File: equipment/documents/test_maintenance_report.txt
+Processing document: DGA Status Report
+Attempting to extract text from: /app/media/equipment/documents/dga_status_report.pdf
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Found 0 pattern matches in DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from: /app/media/equipment/documents/equipment_manual.txt
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Found 3 pattern matches in Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from: /app/media/equipment/documents/test_maintenance_report.txt
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Found 5 pattern matches in Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 8
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Processing document: DGA Status Report
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+Error processing document DGA Status Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Equipment Manual
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Error processing document Equipment Manual: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Test Maintenance Report
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Error processing document Test Maintenance Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Scan completed. Processed: 0, Failed: 3, Total findings: 0
+Not Found: /health/
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Processing document: DGA Status Report
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+Error processing document DGA Status Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Equipment Manual
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Error processing document Equipment Manual: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Test Maintenance Report
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Error processing document Test Maintenance Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Scan completed. Processed: 0, Failed: 3, Total findings: 0
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /login/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /login/
+Not Found: /login/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Processing document: DGA Status Report
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+Error processing document DGA Status Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Equipment Manual
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Error processing document Equipment Manual: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Test Maintenance Report
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Error processing document Test Maintenance Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Scan completed. Processed: 0, Failed: 3, Total findings: 0
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Processing document: DGA Status Report
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+Error processing document DGA Status Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Equipment Manual
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Error processing document Equipment Manual: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Test Maintenance Report
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Error processing document Test Maintenance Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Scan completed. Processed: 0, Failed: 3, Total findings: 0
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Processing document: DGA Status Report
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+Error processing document DGA Status Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Equipment Manual
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Error processing document Equipment Manual: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Test Maintenance Report
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Error processing document Test Maintenance Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Scan completed. Processed: 0, Failed: 3, Total findings: 0
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Processing document: DGA Status Report
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+Error processing document DGA Status Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Equipment Manual
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Error processing document Equipment Manual: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Test Maintenance Report
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Error processing document Test Maintenance Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Scan completed. Processed: 0, Failed: 3, Total findings: 0
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /favicon.ico
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Processing document: DGA Status Report
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+Error processing document DGA Status Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Equipment Manual
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Error processing document Equipment Manual: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Test Maintenance Report
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Error processing document Test Maintenance Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Scan completed. Processed: 0, Failed: 3, Total findings: 0
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Processing document: DGA Status Report
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+Error processing document DGA Status Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Equipment Manual
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Error processing document Equipment Manual: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Test Maintenance Report
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Error processing document Test Maintenance Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Scan completed. Processed: 0, Failed: 3, Total findings: 0
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Processing document: DGA Status Report
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+Error processing document DGA Status Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Equipment Manual
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Error processing document Equipment Manual: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Processing document: Test Maintenance Report
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Error processing document Test Maintenance Report: name 'os' is not defined
+Traceback (most recent call last):
+  File "/app/equipment/views.py", line 973, in scan_reports
+    text_content = extract_text_from_file(doc.file.path)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/equipment/views.py", line 1063, in extract_text_from_file
+    ext = os.path.splitext(file_path)[1].lower()
+          ^^
+NameError: name 'os' is not defined
+Scan completed. Processed: 0, Failed: 3, Total findings: 0
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Processing document: DGA Status Report
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 3
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Processing document: DGA Status Report
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 3
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /equipment/1000/
+Not Found: /equipment/1001/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Processing document: DGA Status Report
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 3
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /equipment/1000/
+Not Found: /equipment/1001/
+Starting scan_reports for equipment_id: 17
+Found equipment: Maddox - 32212679622 (ID: 17)
+Found 3 maintenance/manual documents for equipment Maddox - 32212679622
+Processing document: DGA Status Report
+Attempting to extract text from file: /app/media/equipment/documents/dga_status_report.pdf
+UTF-8 decode failed for /app/media/equipment/documents/dga_status_report.pdf: 'utf-8' codec can't decode byte 0x93 in position 10: invalid start byte
+Successfully read 1526 characters using latin-1 encoding
+Successfully extracted 1526 characters from DGA Status Report
+Processing document: Equipment Manual
+Attempting to extract text from file: /app/media/equipment/documents/equipment_manual.txt
+Successfully read 570 characters using UTF-8 encoding
+Successfully extracted 570 characters from Equipment Manual
+Processing document: Test Maintenance Report
+Attempting to extract text from file: /app/media/equipment/documents/test_maintenance_report.txt
+Successfully read 418 characters using UTF-8 encoding
+Successfully extracted 418 characters from Test Maintenance Report
+Scan completed. Processed: 3, Failed: 0, Total findings: 3
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /login/
+Not Found: /favicon.ico
+Not Found: /login/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /dashboard/
+Not Found: /health/
+Not Found: /customers/
+Not Found: /locations/
+Not Found: /profile/
+Not Found: /settings/
+Not Found: /reports/
+Not Found: /system-health/
+Not Found: /login/
+Not Found: /register/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /login/
+Not Found: /register/
+Not Found: /login/
+Not Found: /health/
+Not Found: /health/
+Not Found: /favicon.ico
+Not Found: /auth/register/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/
+Not Found: /health/

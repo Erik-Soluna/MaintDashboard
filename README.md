@@ -1,5 +1,15 @@
 # Maintenance Dashboard
 
+[![Development Status](https://img.shields.io/badge/status-unstable-orange.svg)](https://github.com/your-repo/maintenance-dashboard)
+[![Branch](https://img.shields.io/badge/branch-unstable%2Fdevelopment-orange.svg)](https://github.com/your-repo/maintenance-dashboard/tree/unstable/development)
+
+> ⚠️ **UNSTABLE DEVELOPMENT BRANCH** ⚠️
+> 
+> This branch is currently under active development and contains experimental features. 
+> **Do not use in production** - features may be incomplete, broken, or change without notice.
+> 
+> For stable releases, please use the `main` branch or check for tagged releases.
+
 A Django-based web application for managing equipment maintenance, events, and related operations with integrated Docker stack management.
 
 ## ✨ Key Features

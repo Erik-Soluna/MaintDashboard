@@ -182,8 +182,13 @@
                         <button id="clear-health-logs" class="btn btn-sm btn-outline-danger ms-2" type="button">
                             <i class="fas fa-trash-alt me-1"></i>Clear Logs
                         </button>
+                        {% if user.is_superuser %}
+                        <a href="{% url 'core:system_health' %}" class="btn btn-sm btn-outline-info ms-2">
+                            <i class="fas fa-stethoscope me-1"></i>Test System
+                        </a>
+                        {% endif %}
                     </h6>
-                    <ul class="list-group" id="health-failure-log-list">
+                    <ul class="list-group" id="health-failure-log-list" style="max-height: 300px; overflow-y: auto;">
                         {% for log in health.last_failure_log %}
                         <li class="list-group-item small">
                             <b>{{ log.timestamp }}</b> | <b>{{ log.component }}</b>: {{ log.message }}
@@ -247,6 +252,16 @@
             <div class="quick-action-title">API Explorer</div>
             <div class="quick-action-desc">Tree view of all data + API docs</div>
         </a>
+        
+        {% if user.is_superuser %}
+        <a href="{% url 'core:system_health' %}" class="quick-action-card text-decoration-none">
+            <div class="quick-action-icon">
+                <i class="fas fa-stethoscope"></i>
+            </div>
+            <div class="quick-action-title">System Health</div>
+            <div class="quick-action-desc">Run diagnostics and test all components</div>
+        </a>
+        {% endif %}
     </div>
 
     <!-- User Preferences -->

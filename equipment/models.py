@@ -152,15 +152,10 @@ class Equipment(TimeStampedModel):
         return "No pending maintenance"
 
     def get_last_maintenance_date(self):
-        """Get the date of the last completed maintenance."""
-        from maintenance.models import MaintenanceActivity
-        
-        last_maintenance = MaintenanceActivity.objects.filter(
-            equipment=self,
-            status='completed'
-        ).order_by('-actual_end').first()
-        
-        return last_maintenance.actual_end.date() if last_maintenance else None
+        last_activity = self.maintenance_activities.filter(status='completed').order_by('-actual_end').first()
+        if last_activity and last_activity.actual_end:
+            return last_activity.actual_end.date()
+        return None
 
     def get_full_location_path(self):
         """Get the full hierarchical path of the equipment location."""
@@ -175,30 +170,59 @@ class Equipment(TimeStampedModel):
 
 class EquipmentDocument(TimeStampedModel):
     """
-    Additional documents for equipment.
-    Fixed: Separated from main equipment model for better organization.
+    Reference documents attached to specific equipment.
+    These are reference materials like photos, notes, etc.
+    Maintenance reports should use the MaintenanceReport model instead.
     """
-    
-    DOCUMENT_TYPES = [
-        ('manual', 'Operation Manual'),
-        ('maintenance', 'Maintenance Manual'),
-        ('drawing', 'Technical Drawing'),
-        ('certificate', 'Certificate'),
-        ('warranty', 'Warranty Document'),
-        ('other', 'Other'),
-    ]
-    
     equipment = models.ForeignKey(
         Equipment,
         on_delete=models.CASCADE,
-        related_name='documents'
+        related_name='documents',
+        help_text="Equipment this document belongs to"
     )
-    document_type = models.CharField(max_length=20, choices=DOCUMENT_TYPES)
-    title = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
-    file = models.FileField(upload_to='equipment/documents/')
-    version = models.CharField(max_length=20, blank=True)
-    is_current = models.BooleanField(default=True)
+    
+    DOCUMENT_TYPE_CHOICES = [
+        ('photo', 'Equipment Photo'),
+        ('note', 'Equipment Note'),
+        ('specification', 'Equipment Specification'),
+        ('wiring', 'Equipment Wiring'),
+        ('other', 'Other Reference'),
+    ]
+    
+    document_type = models.CharField(
+        max_length=20,
+        choices=DOCUMENT_TYPE_CHOICES,
+        default='other',
+        help_text="Type of reference document"
+    )
+    
+    title = models.CharField(
+        max_length=200,
+        help_text="Title of the document"
+    )
+    
+    file = models.FileField(
+        upload_to='equipment/documents/',
+        help_text="The document file"
+    )
+    
+    description = models.TextField(
+        blank=True,
+        help_text="Description of the document"
+    )
+    
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this document is currently active"
+    )
+    
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_equipment_documents'
+    )
 
     class Meta:
         verbose_name = "Equipment Document"
@@ -206,7 +230,14 @@ class EquipmentDocument(TimeStampedModel):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"{self.equipment.name} - {self.title}"
+        return f"{self.title} - {self.equipment.name}"
+
+    def clean(self):
+        """Custom validation for equipment document."""
+        if self.title:
+            self.title = self.title.strip()
+        if not self.title:
+            raise ValidationError("Document title cannot be empty.")
 
 
 class EquipmentComponent(TimeStampedModel):

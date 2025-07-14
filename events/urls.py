@@ -26,8 +26,10 @@ urlpatterns = [
     
     # AJAX endpoints (replicate original web2py functionality)
     path('api/events/', views.fetch_events, name='fetch_events'),
+    path('api/unified/', views.fetch_unified_events, name='fetch_unified_events'),
     path('api/events/<int:event_id>/', views.get_event, name='get_event'),
     path('api/test-events/', views.test_events_api, name='test_events_api'),
+    path('api/health/', views.test_application_health, name='test_application_health'),
     
     # New AJAX endpoints for popup functionality
     path('api/events/create/', views.create_event_ajax, name='create_event_ajax'),

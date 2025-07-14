@@ -93,8 +93,8 @@ class EquipmentAdmin(admin.ModelAdmin):
 
 @admin.register(EquipmentDocument)
 class EquipmentDocumentAdmin(admin.ModelAdmin):
-    list_display = ['title', 'equipment', 'document_type', 'version', 'is_current', 'created_at']
-    list_filter = ['document_type', 'is_current', 'created_at']
+    list_display = ['title', 'equipment', 'document_type', 'is_active', 'created_at']
+    list_filter = ['document_type', 'is_active', 'created_at']
     search_fields = ['title', 'equipment__name', 'description']
     readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
     

@@ -7,17 +7,27 @@ import json
 import logging
 import csv
 import io
+import os
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 
+import re
+from datetime import datetime, timedelta
+import mimetypes
+try:
+    import PyPDF2
+except ImportError:
+    PyPDF2 = None
+
 from .models import Equipment, EquipmentDocument, EquipmentComponent
 from core.models import EquipmentCategory, Location
+from maintenance.models import MaintenanceReport
 from .forms import EquipmentForm, EquipmentComponentForm, EquipmentDocumentForm
 
 logger = logging.getLogger(__name__)
@@ -61,9 +71,15 @@ def create_default_maintenance_schedules(equipment, user):
         created_schedules = []
         
         for schedule_def in default_schedules:
-            # Get or create activity type
+            # Patch: Always set category when creating MaintenanceActivityType
+            if not equipment.category or not equipment.category.activitytypecategory_set.exists():
+                logger.error(f"Cannot create MaintenanceActivityType for '{schedule_def['name']}' because equipment category is missing or has no linked ActivityTypeCategory.")
+                continue
+            # Use the first ActivityTypeCategory as default (or customize as needed)
+            activity_type_category = equipment.category.activitytypecategory_set.first()
             activity_type, created = MaintenanceActivityType.objects.get_or_create(
                 name=schedule_def['name'],
+                category=activity_type_category,
                 defaults={
                     'description': f'Default {schedule_def["name"]} for {equipment.category.name if equipment.category else "equipment"}',
                     'estimated_duration_hours': 2,
@@ -255,10 +271,20 @@ def equipment_detail(request, equipment_id):
         }
         return JsonResponse({'status': 'success', 'equipment': equipment_data})
     
+    # Get counts for maintenance reports tab
+    completed_count = equipment.maintenance_activities.filter(status='completed').count()
+    pending_count = equipment.maintenance_activities.filter(status='pending').count()
+    overdue_count = equipment.maintenance_activities.filter(status='overdue').count()
+    maintenance_docs_count = equipment.documents.filter(document_type='maintenance').count()
+    
     context = {
         'equipment': equipment,
         'maintenance_status': maintenance_status,
         'last_maintenance': last_maintenance,
+        'completed_count': completed_count,
+        'pending_count': pending_count,
+        'overdue_count': overdue_count,
+        'maintenance_docs_count': maintenance_docs_count,
     }
     
     return render(request, 'equipment/equipment_detail.html', context)
@@ -912,3 +938,283 @@ def export_locations_csv(request):
         ])
     
     return response
+
+
+@login_required
+@require_http_methods(["POST"])
+def scan_reports(request, equipment_id):
+    """Scan maintenance reports for issues and extract findings."""
+    logger.info(f"Starting scan_reports for equipment_id: {equipment_id}")
+    
+    try:
+        equipment = get_object_or_404(Equipment, id=equipment_id)
+        logger.info(f"Found equipment: {equipment.name} (ID: {equipment.id})")
+        
+        # Get maintenance reports for this equipment
+        maintenance_reports = MaintenanceReport.objects.filter(
+            maintenance_activity__equipment=equipment
+        ).select_related('maintenance_activity', 'created_by')
+        
+        documents_scanned = maintenance_reports.count()
+        logger.info(f"Found {documents_scanned} maintenance reports for equipment {equipment.name}")
+        
+        findings = []
+        processed_files = 0
+        failed_files = 0
+        
+        for report in maintenance_reports:
+            logger.info(f"Processing maintenance report: {report.title}")
+            if not report.file or not report.file.path:
+                logger.warning(f"Report {report.title} has no file attached or path, skipping")
+                failed_files += 1
+                continue
+            try:
+                import os
+                if not os.path.exists(report.file.path):
+                    logger.error(f"File does not exist: {report.file.path}")
+                    failed_files += 1
+                    continue
+                if not os.access(report.file.path, os.R_OK):
+                    logger.error(f"Cannot read file due to permissions: {report.file.path}")
+                    failed_files += 1
+                    continue
+                text_content = extract_text_from_file(report.file.path)
+                logger.info(f"Successfully extracted {len(text_content)} characters from {report.title}")
+                if not text_content.strip():
+                    logger.warning(f"Extracted text is empty for {report.title}")
+                    failed_files += 1
+                    continue
+                
+                # Generate summary from content
+                summary_lines = '\n'.join(text_content.strip().splitlines()[:5])
+                
+                # Status detection based on content
+                status = 'unknown'
+                status_keywords = {
+                    'ok': ['ok', 'normal', 'no critical', 'no issues', 'no problems', 'pass', 'satisfactory'],
+                    'warning': ['warning', 'caution', 'monitor', 'attention', 'observe'],
+                    'critical': ['critical', 'fault', 'failure', 'issue', 'problem', 'error', 'defect', 'broken'],
+                }
+                text_lower = text_content.lower()
+                if any(k in text_lower for k in status_keywords['critical']):
+                    status = 'critical'
+                elif any(k in text_lower for k in status_keywords['warning']):
+                    status = 'warning'
+                elif any(k in text_lower for k in status_keywords['ok']):
+                    status = 'ok'
+                
+                findings.append({
+                    'document': report.title,
+                    'type': 'Maintenance Report',
+                    'status': status,
+                    'summary': summary_lines,
+                    'report_type': report.get_report_type_display(),
+                    'activity_title': report.maintenance_activity.title,
+                    'activity_status': report.maintenance_activity.get_status_display(),
+                    'findings_summary': report.findings_summary,
+                    'report_status': report.get_status_display(),
+                    'created_by': report.created_by.get_full_name() if report.created_by else 'Unknown',
+                    'created_at': report.created_at.strftime('%Y-%m-%d %H:%M') if report.created_at else '',
+                    'approved_by': report.approved_by.get_full_name() if report.approved_by else None,
+                    'approved_at': report.approved_at.strftime('%Y-%m-%d %H:%M') if report.approved_at else '',
+                })
+                processed_files += 1
+            except Exception as e:
+                logger.error(f"Error processing report {report.title}: {str(e)}", exc_info=True)
+                failed_files += 1
+                continue
+        
+        logger.info(f"Scan completed. Processed: {processed_files}, Failed: {failed_files}, Total findings: {len(findings)}")
+        return JsonResponse({
+            'status': 'success',
+            'documents_scanned': documents_scanned,
+            'documents_processed': processed_files,
+            'documents_failed': failed_files,
+            'findings': findings
+        })
+    except Exception as e:
+        logger.error(f"Error in scan_reports for equipment_id {equipment_id}: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def analyze_reports(request, equipment_id):
+    """Perform detailed analysis of maintenance reports and generate insights."""
+    try:
+        equipment = get_object_or_404(Equipment, id=equipment_id)
+        
+        # Get maintenance activities for trends
+        activities = equipment.maintenance_activities.all()
+        
+        # Generate maintenance trends (last 12 months)
+        trends = generate_maintenance_trends(activities)
+        
+        # Analyze maintenance patterns
+        analysis = analyze_maintenance_patterns(activities)
+        
+        # Generate insights
+        insights = generate_maintenance_insights(equipment, activities)
+        
+        return JsonResponse({
+            'status': 'success',
+            'analysis': analysis,
+            'insights': insights,
+            'trends': trends
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
+
+
+def extract_text_from_file(file_path):
+    """Extract text from uploaded file (supports .txt and .pdf)."""
+    logger.info(f"Attempting to extract text from file: {file_path}")
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext == '.pdf' and PyPDF2 is not None:
+        try:
+            with open(file_path, 'rb') as f:
+                reader = PyPDF2.PdfReader(f)
+                text = ''
+                for page in reader.pages:
+                    text += page.extract_text() or ''
+                logger.info(f"Extracted {len(text)} characters from PDF file {file_path}")
+                return text
+        except Exception as e:
+            logger.error(f"Failed to extract text from PDF: {file_path}: {str(e)}")
+            return ''
+    # Fallback to text extraction for .txt and others
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            logger.info(f"Successfully read {len(content)} characters using UTF-8 encoding")
+            return content
+    except UnicodeDecodeError as e:
+        logger.warning(f"UTF-8 decode failed for {file_path}: {str(e)}")
+        try:
+            with open(file_path, 'r', encoding='latin-1') as f:
+                content = f.read()
+                logger.info(f"Successfully read {len(content)} characters using latin-1 encoding")
+                return content
+        except Exception as e2:
+            logger.error(f"Latin-1 decode also failed for {file_path}: {str(e2)}")
+            return ''
+    except FileNotFoundError as e:
+        logger.error(f"File not found: {file_path} - {str(e)}")
+        return ''
+    except PermissionError as e:
+        logger.error(f"Permission denied reading file: {file_path} - {str(e)}")
+        return ''
+    except Exception as e:
+        logger.error(f"Unexpected error reading file {file_path}: {str(e)}")
+        return ''
+
+
+def generate_maintenance_trends(activities):
+    """Generate maintenance activity trends over time."""
+    # Get last 12 months
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=365)
+    
+    # Group activities by month
+    monthly_data = {}
+    for activity in activities.filter(scheduled_start__gte=start_date):
+        month_key = activity.scheduled_start.strftime('%Y-%m')
+        if month_key not in monthly_data:
+            monthly_data[month_key] = 0
+        monthly_data[month_key] += 1
+    
+    # Create labels and data for chart
+    labels = []
+    data = []
+    
+    current_date = start_date
+    while current_date <= end_date:
+        month_key = current_date.strftime('%Y-%m')
+        labels.append(current_date.strftime('%b %Y'))
+        data.append(monthly_data.get(month_key, 0))
+        current_date = current_date.replace(day=1) + timedelta(days=32)
+        current_date = current_date.replace(day=1)
+    
+    return {
+        'labels': labels,
+        'data': data
+    }
+
+
+def analyze_maintenance_patterns(activities):
+    """Analyze maintenance activity patterns."""
+    findings = []
+    
+    # Analyze completion rates
+    total_activities = activities.count()
+    completed_activities = activities.filter(status='completed').count()
+    if total_activities > 0:
+        completion_rate = (completed_activities / total_activities) * 100
+        findings.append({
+            'type': 'Completion Rate',
+            'description': f'{completion_rate:.1f}% of maintenance activities are completed on time',
+            'confidence': min(completion_rate, 100)
+        })
+    
+    # Analyze overdue activities
+    overdue_activities = activities.filter(status='overdue').count()
+    if overdue_activities > 0:
+        findings.append({
+            'type': 'Overdue Activities',
+            'description': f'{overdue_activities} maintenance activities are overdue',
+            'confidence': 90
+        })
+    
+    # Analyze activity types
+    activity_types = activities.values('activity_type__name').annotate(
+        count=Count('id')
+    ).order_by('-count')[:3]
+    
+    if activity_types:
+        most_common = activity_types[0]
+        findings.append({
+            'type': 'Most Common Activity',
+            'description': f'Most frequent maintenance type: {most_common["activity_type__name"]} ({most_common["count"]} times)',
+            'confidence': 85
+        })
+    
+    return {'findings': findings}
+
+
+def generate_maintenance_insights(equipment, activities):
+    """Generate actionable insights from maintenance data."""
+    insights = []
+    
+    # Check for overdue activities
+    overdue_count = activities.filter(status='overdue').count()
+    if overdue_count > 0:
+        insights.append(f"⚠️ {overdue_count} maintenance activities are overdue and require immediate attention")
+    
+    # Check maintenance frequency
+    recent_activities = activities.filter(
+        scheduled_start__gte=datetime.now() - timedelta(days=30)
+    ).count()
+    
+    if recent_activities == 0:
+        insights.append("📅 No maintenance activities scheduled in the last 30 days")
+    elif recent_activities > 5:
+        insights.append("⚡ High maintenance activity - consider reviewing maintenance schedule")
+    
+    # Check equipment age
+    if equipment.commissioning_date:
+        age_years = (datetime.now().date() - equipment.commissioning_date).days / 365
+        if age_years > 10:
+            insights.append("🔧 Equipment is over 10 years old - consider replacement planning")
+    
+    # Check warranty status
+    if equipment.warranty_expiry_date and equipment.warranty_expiry_date < datetime.now().date():
+        insights.append("📋 Warranty has expired - consider extended warranty options")
+    
+    return insights

@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Add Document - {{ equipment.name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_list' %}">Equipment</a></li>
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_detail' equipment.id %}">{{ equipment.name }}</a></li>
+<li class="breadcrumb-item active">Add Document</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-file-upload me-2"></i>
+                        Add Document
+                    </h1>
+                    <p class="text-muted mb-0">Upload document for {{ equipment.name }}</p>
+                </div>
+                <div>
+                    <a href="{% url 'equipment:equipment_detail' equipment.id %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Equipment
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-alt me-2"></i>
+                    Document Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.document_type|as_crispy_field }}
+                        </div>
+                        <div class="col-md-3">
+                            {{ form.version|as_crispy_field }}
+                        </div>
+                        <div class="col-md-3">
+                            {{ form.is_current|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            {{ form.title|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            {{ form.description|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            {{ form.file|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'equipment:equipment_detail' equipment.id %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times me-1"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> Save Document
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Document Type Help -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Document Types
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><strong>Operation Manual:</strong> User guides and operating instructions</li>
+                            <li><strong>Maintenance Manual:</strong> Service and repair procedures</li>
+                            <li><strong>Technical Drawing:</strong> Schematics, blueprints, and diagrams</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><strong>Certificate:</strong> Compliance and certification documents</li>
+                            <li><strong>Warranty Document:</strong> Warranty terms and conditions</li>
+                            <li><strong>Other:</strong> Any other relevant documentation</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Add file size validation
+    $('input[type="file"]').on('change', function() {
+        const file = this.files[0];
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        
+        if (file && file.size > maxSize) {
+            alert('File size must be less than 10MB');
+            this.value = '';
+        }
+    });
+    
+    // Auto-fill version if empty
+    $('#id_version').on('blur', function() {
+        if (!this.value.trim()) {
+            this.value = '1.0';
+        }
+    });
+});
+</script>
+{% endblock %} 

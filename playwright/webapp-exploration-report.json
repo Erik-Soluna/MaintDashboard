@@ -1,0 +1,240 @@
+{
+  "timestamp": "2025-07-14T01:03:53.452Z",
+  "totalPages": 18,
+  "totalElementsFound": 2,
+  "totalElementsClicked": 2,
+  "totalErrors": 15,
+  "totalWarnings": 0,
+  "totalScreenshots": 10,
+  "results": [
+    {
+      "page": "Home Page (Public)",
+      "timestamp": "2025-07-14T01:02:19.124Z",
+      "elementsFound": 1,
+      "elementsClicked": 1,
+      "errors": [],
+      "warnings": [],
+      "screenshots": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\webapp-exploration\\Home Page (Public)_initial_2025-07-14T01-02-19-126Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\webapp-exploration\\Home Page (Public)_before_click_1_2025-07-14T01-02-19-864Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\webapp-exploration\\Home Page (Public)_after_click_1_2025-07-14T01-02-22-069Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\webapp-exploration\\Home Page (Public)_final_2025-07-14T01-02-23-279Z.png"
+      ],
+      "htmlDumps": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\html-dumps\\webapp-exploration\\Home Page (Public)_2025-07-14T01-02-23-483Z.html"
+      ]
+    },
+    {
+      "page": "Login Page",
+      "timestamp": "2025-07-14T01:02:24.204Z",
+      "elementsFound": 1,
+      "elementsClicked": 1,
+      "errors": [],
+      "warnings": [],
+      "screenshots": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\webapp-exploration\\Login Page_initial_2025-07-14T01-02-24-205Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\webapp-exploration\\Login Page_before_click_1_2025-07-14T01-02-24-931Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\webapp-exploration\\Login Page_after_click_1_2025-07-14T01-02-27-130Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\webapp-exploration\\Login Page_final_2025-07-14T01-02-28-327Z.png"
+      ],
+      "htmlDumps": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\html-dumps\\webapp-exploration\\Login Page_2025-07-14T01-02-28-524Z.html"
+      ]
+    },
+    {
+      "page": "Register Page",
+      "timestamp": "2025-07-14T01:02:29.246Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [],
+      "warnings": [],
+      "screenshots": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\webapp-exploration\\Register Page_initial_2025-07-14T01-02-29-247Z.png",
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\screenshots\\webapp-exploration\\Register Page_final_2025-07-14T01-02-29-353Z.png"
+      ],
+      "htmlDumps": [
+        "C:\\Users\\erikw\\OneDrive\\Documents\\Projects\\Work\\Github\\New folder\\MaintDashboard\\playwright\\html-dumps\\webapp-exploration\\Register Page_2025-07-14T01-02-29-432Z.html"
+      ]
+    },
+    {
+      "page": "Dashboard (Protected)",
+      "timestamp": "2025-07-14T01:03:53.439Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Equipment List (Protected)",
+      "timestamp": "2025-07-14T01:03:53.442Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Add Equipment",
+      "timestamp": "2025-07-14T01:03:53.442Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Maintenance List (Protected)",
+      "timestamp": "2025-07-14T01:03:53.443Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Add Maintenance",
+      "timestamp": "2025-07-14T01:03:53.444Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Maintenance Schedules",
+      "timestamp": "2025-07-14T01:03:53.445Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Maintenance Activities",
+      "timestamp": "2025-07-14T01:03:53.445Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Events Calendar (Protected)",
+      "timestamp": "2025-07-14T01:03:53.446Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Add Event",
+      "timestamp": "2025-07-14T01:03:53.447Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Customers (Protected)",
+      "timestamp": "2025-07-14T01:03:53.448Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Locations (Protected)",
+      "timestamp": "2025-07-14T01:03:53.449Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "User Profile (Protected)",
+      "timestamp": "2025-07-14T01:03:53.450Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Settings (Protected)",
+      "timestamp": "2025-07-14T01:03:53.451Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "Reports (Protected)",
+      "timestamp": "2025-07-14T01:03:53.452Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    },
+    {
+      "page": "System Health (Protected)",
+      "timestamp": "2025-07-14T01:03:53.452Z",
+      "elementsFound": 0,
+      "elementsClicked": 0,
+      "errors": [
+        "Failed to load page: Error: page.goto: Target page, context or browser has been closed"
+      ],
+      "warnings": [],
+      "screenshots": [],
+      "htmlDumps": []
+    }
+  ]
+}

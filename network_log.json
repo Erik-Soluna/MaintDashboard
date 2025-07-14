@@ -1,0 +1,268 @@
+[
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "http://localhost:4405/auth/login/"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://code.jquery.com/jquery-3.6.0.min.js"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "http://localhost:4405/auth/login/",
+    "body": "\n\n\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Login - Maintenance Dashboard</title>\n    <link href=\"https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css\" rel=\"stylesheet\">\n    <link href=\"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css\" rel=\"stylesheet\">\n    <style>\n        body {\n            background: linear-gradient(135deg, #667eea 0%, #76"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://code.jquery.com/jquery-3.6.0.min.js"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2"
+  },
+  {
+    "type": "request",
+    "method": "POST",
+    "url": "http://localhost:4405/auth/login/"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "http://localhost:4405/"
+  },
+  {
+    "type": "response",
+    "status": 302,
+    "url": "http://localhost:4405/auth/login/",
+    "error": "Response.text: Response body is unavailable for redirect responses"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "http://localhost:4405/core/dashboard/"
+  },
+  {
+    "type": "response",
+    "status": 302,
+    "url": "http://localhost:4405/",
+    "error": "Response.text: Response body is unavailable for redirect responses"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "http://localhost:4405/static/css/custom.css"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://code.jquery.com/jquery-3.6.0.min.js"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://code.jquery.com/jquery-3.6.0.min.js"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "http://localhost:4405/core/dashboard/",
+    "body": "\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n    \n    <title>Overview - SOLUNA Maintenance Dashboard</title>\n    \n    <!-- Bootstrap 4 CSS -->\n    <link href=\"https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css\" rel=\"stylesheet\">\n    \n    <!-- Font Awesome Icons -->\n    <link href=\"https://cdnjs.cloudflare.com/ajax/libs/fo"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "http://localhost:4405/static/css/custom.css"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "http://localhost:4405/equipment/17/"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "http://localhost:4405/static/css/custom.css"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://code.jquery.com/jquery-3.6.0.min.js"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://code.jquery.com/jquery-3.6.0.min.js"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "http://localhost:4405/equipment/17/",
+    "body": "\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\">\n    \n    <title>Maddox - 32212679622 - Equipment Details</title>\n    \n    <!-- Bootstrap 4 CSS -->\n    <link href=\"https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css\" rel=\"stylesheet\">\n    \n    <!-- Font Awesome Icons -->\n    <link href=\"https://cdnjs.cloudflare.com/ajax/libs/f"
+  },
+  {
+    "type": "response",
+    "status": 304,
+    "url": "http://localhost:4405/static/css/custom.css"
+  },
+  {
+    "type": "request",
+    "method": "GET",
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/webfonts/fa-solid-900.woff2"
+  },
+  {
+    "type": "request",
+    "method": "POST",
+    "url": "http://localhost:4405/equipment/17/scan-reports/"
+  },
+  {
+    "type": "response",
+    "status": 200,
+    "url": "http://localhost:4405/equipment/17/scan-reports/",
+    "body": "{\"status\": \"success\", \"documents_scanned\": 3, \"documents_processed\": 0, \"documents_failed\": 3, \"findings\": []}"
+  }
+]

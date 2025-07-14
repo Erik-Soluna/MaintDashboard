@@ -420,3 +420,83 @@ class UserProfile(models.Model):
     class Meta:
         verbose_name = "User Profile"
         verbose_name_plural = "User Profiles"
+
+
+class ModelDocument(TimeStampedModel):
+    """
+    Documents shared across equipment of the same model/category.
+    These are reference materials like manuals, specifications, etc.
+    """
+    equipment_category = models.ForeignKey(
+        EquipmentCategory,
+        on_delete=models.CASCADE,
+        related_name='model_documents',
+        help_text="Equipment category this document applies to"
+    )
+    
+    DOCUMENT_TYPE_CHOICES = [
+        ('manual', 'Operation Manual'),
+        ('specification', 'Technical Specification'),
+        ('wiring_diagram', 'Wiring Diagram'),
+        ('schematic', 'Schematic Diagram'),
+        ('datasheet', 'Data Sheet'),
+        ('certification', 'Certification Document'),
+        ('other', 'Other Document'),
+    ]
+    
+    document_type = models.CharField(
+        max_length=20,
+        choices=DOCUMENT_TYPE_CHOICES,
+        default='manual',
+        help_text="Type of document"
+    )
+    
+    title = models.CharField(
+        max_length=200,
+        help_text="Title of the document"
+    )
+    
+    file = models.FileField(
+        upload_to='model_documents/',
+        help_text="The document file (PDF, DOC, etc.)"
+    )
+    
+    description = models.TextField(
+        blank=True,
+        help_text="Description of the document"
+    )
+    
+    version = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Document version (e.g., '1.0', 'Rev A')"
+    )
+    
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this document is currently active"
+    )
+    
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_model_documents'
+    )
+
+    class Meta:
+        verbose_name = "Model Document"
+        verbose_name_plural = "Model Documents"
+        ordering = ['equipment_category', 'document_type', 'title']
+        unique_together = ['equipment_category', 'title', 'version']
+
+    def __str__(self):
+        return f"{self.title} - {self.equipment_category.name}"
+
+    def clean(self):
+        """Custom validation for model document."""
+        if self.title:
+            self.title = self.title.strip()
+        if not self.title:
+            raise ValidationError("Document title cannot be empty.")

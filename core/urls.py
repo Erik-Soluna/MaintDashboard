@@ -30,6 +30,7 @@ urlpatterns = [
     path('settings/customers/', views.customers_settings, name='customers_settings'),
     path('settings/users/', views.user_management, name='user_management'),
     path('settings/roles-permissions/', views.roles_permissions_management, name='roles_permissions_management'),
+    path('settings/health/', views.system_health, name='system_health'),
     
     # Location management
     path('locations/add/', views.add_location, name='add_location'),
@@ -63,6 +64,6 @@ urlpatterns = [
 
 urlpatterns += [
     path('health/', health_check, name='health_check'),
-    path('api-explorer/', api_explorer, name='api_explorer'),
+    path('api-explorer/', views.api_explorer, name='api_explorer'),
     path('health/clear_logs/', clear_health_logs, name='clear_health_logs'),
 ]

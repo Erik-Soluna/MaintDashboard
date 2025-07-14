@@ -27,6 +27,8 @@ urlpatterns = [
     # Documents
     path('<int:equipment_id>/documents/', views.equipment_documents, name='equipment_documents'),
     path('<int:equipment_id>/documents/add/', views.add_document, name='add_document'),
+    path('<int:equipment_id>/scan-reports/', views.scan_reports, name='scan_reports'),
+    path('<int:equipment_id>/analyze-reports/', views.analyze_reports, name='analyze_reports'),
     
     # CSV Import/Export
     path('import/csv/', views.import_equipment_csv, name='import_equipment_csv'),

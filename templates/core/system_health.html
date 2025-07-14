@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}System Health & Diagnostics{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4"><i class="fas fa-stethoscope me-2"></i>System Health & Diagnostics</h2>
+    <div class="alert alert-info">
+        <strong>Diagnostics:</strong> Run comprehensive tests on all major system components. Only visible to superusers.
+        <div class="mt-2">
+            <button class="btn btn-sm btn-outline-info me-2" onclick="testApplicationHealth()">Test All Components</button>
+            <button class="btn btn-sm btn-outline-info me-2" onclick="testUnifiedAPI()">Test Unified API</button>
+            <a href="{% url 'events:test_events_api' %}" target="_blank" class="btn btn-sm btn-outline-info me-2">Test Events API</a>
+            <button class="btn btn-sm btn-outline-warning" onclick="toggleDebugPanel()">Toggle Debug Panel</button>
+        </div>
+        <div id="debugPanel" class="mt-3" style="display: none;">
+            <div id="debugResults" class="bg-dark p-3 rounded">
+                <p class="text-muted">Click "Test All Components" to see detailed results...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Debug Functions (same as before)
+function testApplicationHealth() {
+    const resultsDiv = document.getElementById('debugResults');
+    resultsDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Testing all components...</div>';
+    
+    fetch('{% url "events:test_application_health" %}')
+        .then(response => response.json())
+        .then(data => {
+            let html = '<h6 class="text-white mb-3">Application Health Test Results</h6>';
+            
+            if (data.success) {
+                html += '<div class="row">';
+                
+                for (const [component, info] of Object.entries(data.components)) {
+                    const statusClass = info.status === 'success' ? 'text-success' : 'text-danger';
+                    const statusIcon = info.status === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
+                    
+                    html += `
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-dark border-secondary">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="${statusIcon} ${statusClass} me-2"></i>
+                                        ${component.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-1"><strong>Status:</strong> <span class="${statusClass}">${info.status}</span></p>
+                                    <p class="mb-1"><strong>Count:</strong> ${info.count || 'N/A'}</p>
+                                    ${info.error ? `<p class="mb-1 text-danger"><strong>Error:</strong> ${info.error}</p>` : ''}
+                                    ${info.sample_data && info.sample_data.length > 0 ? `
+                                        <details class="mt-2">
+                                            <summary class="text-info">Sample Data</summary>
+                                            <pre class="text-muted mt-1" style="font-size: 11px;">${JSON.stringify(info.sample_data, null, 2)}</pre>
+                                        </details>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div>';
+            } else {
+                html += `<div class="alert alert-danger">Test failed: ${data.error}</div>`;
+            }
+            
+            resultsDiv.innerHTML = html;
+        })
+        .catch(error => {
+            resultsDiv.innerHTML = `<div class="alert alert-danger">Error running test: ${error.message}</div>`;
+        });
+}
+
+function testUnifiedAPI() {
+    const resultsDiv = document.getElementById('debugResults');
+    resultsDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Testing unified API...</div>';
+    
+    fetch('{% url "events:fetch_unified_events" %}?start=2025-01-01&end=2025-12-31')
+        .then(response => response.json())
+        .then(data => {
+            let html = '<h6 class="text-white mb-3">Unified Calendar API Test Results</h6>';
+            
+            if (Array.isArray(data)) {
+                html += `
+                    <div class="alert alert-success">
+                        <strong>Success!</strong> API returned ${data.length} events/activities
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-white">Event Types Breakdown:</h6>
+                            <ul class="text-light">
+                                ${getEventTypeBreakdown(data)}
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-white">Sample Events:</h6>
+                            <div style="max-height: 300px; overflow-y: auto;">
+                                ${data.slice(0, 5).map(event => `
+                                    <div class="card bg-dark border-secondary mb-2">
+                                        <div class="card-body p-2">
+                                            <small class="text-muted">${event.id}</small><br>
+                                            <strong class="text-white">${event.title}</strong><br>
+                                            <small class="text-info">${event.start}</small>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `<div class="alert alert-danger">Unexpected response format: ${JSON.stringify(data)}</div>`;
+            }
+            
+            resultsDiv.innerHTML = html;
+        })
+        .catch(error => {
+            resultsDiv.innerHTML = `<div class="alert alert-danger">Error testing unified API: ${error.message}</div>`;
+        });
+}
+
+function getEventTypeBreakdown(data) {
+    const breakdown = {};
+    data.forEach(event => {
+        const type = event.extendedProps?.type || 'unknown';
+        breakdown[type] = (breakdown[type] || 0) + 1;
+    });
+    
+    return Object.entries(breakdown).map(([type, count]) => 
+        `<li>${type}: ${count}</li>`
+    ).join('');
+}
+
+function toggleDebugPanel() {
+    const panel = document.getElementById('debugPanel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+</script>
+{% endblock %} 
