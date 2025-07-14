@@ -1,0 +1,793 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bulk Location Management{% endblock %}
+
+{% block extra_css %}
+<style>
+.bulk-management-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.bulk-actions-bar {
+    background: var(--bs-dark);
+    border: 1px solid var(--bs-secondary);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.bulk-actions-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.bulk-actions-right {
+    display: flex;
+    gap: 10px;
+}
+
+.selection-info {
+    color: var(--bs-light);
+    font-size: 14px;
+}
+
+.bulk-action-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--bs-secondary);
+    background: var(--bs-dark);
+    color: var(--bs-light);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.bulk-action-btn:hover {
+    background: var(--bs-secondary);
+    color: var(--bs-light);
+}
+
+.bulk-action-btn.primary {
+    background: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+.bulk-action-btn.danger {
+    background: var(--bs-danger);
+    border-color: var(--bs-danger);
+}
+
+.bulk-action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.locations-section {
+    background: var(--bs-dark);
+    border: 1px solid var(--bs-secondary);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.locations-header {
+    background: var(--bs-secondary);
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--bs-secondary);
+}
+
+.locations-header h5 {
+    margin: 0;
+    color: var(--bs-light);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.locations-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.locations-table th,
+.locations-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--bs-secondary);
+}
+
+.locations-table th {
+    background: var(--bs-darker);
+    color: var(--bs-light);
+    font-weight: 600;
+}
+
+.locations-table tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.checkbox-cell {
+    width: 40px;
+    text-align: center;
+}
+
+.location-name {
+    font-weight: 500;
+    color: var(--bs-light);
+}
+
+.location-path {
+    color: var(--bs-secondary);
+    font-size: 13px;
+}
+
+.location-customer {
+    color: var(--bs-info);
+    font-size: 13px;
+}
+
+.location-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.location-status.active {
+    background: var(--bs-success);
+    color: white;
+}
+
+.location-status.inactive {
+    background: var(--bs-secondary);
+    color: var(--bs-light);
+}
+
+.location-type {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.location-type.site {
+    background: var(--bs-primary);
+    color: white;
+}
+
+.location-type.pod {
+    background: var(--bs-warning);
+    color: var(--bs-dark);
+}
+
+/* Modal styles */
+.bulk-modal {
+    display: none;
+    position: fixed;
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.bulk-modal.show {
+    display: block;
+}
+
+.bulk-modal-content {
+    background: var(--bs-dark);
+    margin: 5% auto;
+    padding: 0;
+    border: 1px solid var(--bs-secondary);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.bulk-modal-header {
+    background: var(--bs-secondary);
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--bs-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.bulk-modal-header h5 {
+    margin: 0;
+    color: var(--bs-light);
+}
+
+.bulk-modal-close {
+    color: var(--bs-light);
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+
+.bulk-modal-close:hover {
+    color: var(--bs-danger);
+}
+
+.bulk-modal-body {
+    padding: 20px;
+}
+
+.bulk-form-group {
+    margin-bottom: 20px;
+}
+
+.bulk-form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--bs-light);
+    font-weight: 500;
+}
+
+.bulk-form-control {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bs-darker);
+    border: 1px solid var(--bs-secondary);
+    border-radius: 4px;
+    color: var(--bs-light);
+}
+
+.bulk-form-control:focus {
+    outline: none;
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.bulk-modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid var(--bs-secondary);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .bulk-actions-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .bulk-actions-left,
+    .bulk-actions-right {
+        justify-content: center;
+    }
+    
+    .locations-table {
+        font-size: 14px;
+    }
+    
+    .locations-table th,
+    .locations-table td {
+        padding: 8px 10px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bulk-management-container">
+    <div class="page-header mb-4">
+        <h2 class="mb-0">
+            <i class="fas fa-layer-group me-2"></i>
+            Bulk Location Management
+        </h2>
+        <p class="text-muted mb-0">Manage multiple sites and locations at once</p>
+    </div>
+
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-actions-bar">
+        <div class="bulk-actions-left">
+            <div class="selection-info">
+                <span id="selected-count">0</span> of <span id="total-count">{{ total_locations }}</span> selected
+            </div>
+            <button class="bulk-action-btn" onclick="selectAll()">
+                <i class="fas fa-check-square"></i> Select All
+            </button>
+            <button class="bulk-action-btn" onclick="deselectAll()">
+                <i class="fas fa-square"></i> Deselect All
+            </button>
+        </div>
+        <div class="bulk-actions-right">
+            <button class="bulk-action-btn" onclick="showBulkEditModal()" id="bulk-edit-btn" disabled>
+                <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="bulk-action-btn" onclick="showBulkMoveModal()" id="bulk-move-btn" disabled>
+                <i class="fas fa-arrows-alt"></i> Move
+            </button>
+            <button class="bulk-action-btn primary" onclick="showBulkGeneratePodsModal()" id="bulk-pods-btn" disabled>
+                <i class="fas fa-sitemap"></i> Generate Pods
+            </button>
+            <button class="bulk-action-btn danger" onclick="showBulkDeleteModal()" id="bulk-delete-btn" disabled>
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </div>
+    </div>
+
+    <!-- Sites Section -->
+    <div class="locations-section">
+        <div class="locations-header">
+            <h5>
+                <i class="fas fa-building me-2"></i>
+                Sites ({{ total_sites }})
+            </h5>
+        </div>
+        <div class="table-responsive">
+            <table class="locations-table">
+                <thead>
+                    <tr>
+                        <th class="checkbox-cell">
+                            <input type="checkbox" id="select-all-sites" onchange="toggleSiteSelection(this)">
+                        </th>
+                        <th>Name</th>
+                        <th>Customer</th>
+                        <th>Status</th>
+                        <th>Child Locations</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for site in sites %}
+                    <tr>
+                        <td class="checkbox-cell">
+                            <input type="checkbox" class="location-checkbox site-checkbox" 
+                                   value="{{ site.id }}" data-type="site" data-name="{{ site.name }}">
+                        </td>
+                        <td>
+                            <div class="location-name">{{ site.name }}</div>
+                            <div class="location-type site">Site</div>
+                        </td>
+                        <td>
+                            <div class="location-customer">
+                                {{ site.customer.name|default:"No Customer" }}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="location-status {% if site.is_active %}active{% else %}inactive{% endif %}">
+                                {% if site.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </td>
+                        <td>{{ site.child_locations.count }}</td>
+                        <td>{{ site.created_at|date:"M d, Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No sites found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Sub-Locations Section -->
+    <div class="locations-section">
+        <div class="locations-header">
+            <h5>
+                <i class="fas fa-map-marker-alt me-2"></i>
+                Sub-Locations ({{ total_sub_locations }})
+            </h5>
+        </div>
+        <div class="table-responsive">
+            <table class="locations-table">
+                <thead>
+                    <tr>
+                        <th class="checkbox-cell">
+                            <input type="checkbox" id="select-all-sub-locations" onchange="toggleSubLocationSelection(this)">
+                        </th>
+                        <th>Name</th>
+                        <th>Parent Site</th>
+                        <th>Customer</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for location in sub_locations %}
+                    <tr>
+                        <td class="checkbox-cell">
+                            <input type="checkbox" class="location-checkbox sub-location-checkbox" 
+                                   value="{{ location.id }}" data-type="sub-location" data-name="{{ location.name }}">
+                        </td>
+                        <td>
+                            <div class="location-name">{{ location.name }}</div>
+                            <div class="location-type pod">Pod</div>
+                        </td>
+                        <td>
+                            <div class="location-path">
+                                {{ location.parent_location.name|default:"No Parent" }}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="location-customer">
+                                {{ location.customer.name|default:"No Customer" }}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="location-status {% if location.is_active %}active{% else %}inactive{% endif %}">
+                                {% if location.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </td>
+                        <td>{{ location.created_at|date:"M d, Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No sub-locations found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Edit Modal -->
+<div id="bulkEditModal" class="bulk-modal">
+    <div class="bulk-modal-content">
+        <div class="bulk-modal-header">
+            <h5><i class="fas fa-edit me-2"></i>Bulk Edit Locations</h5>
+            <button class="bulk-modal-close" onclick="closeModal('bulkEditModal')">&times;</button>
+        </div>
+        <div class="bulk-modal-body">
+            <form id="bulkEditForm">
+                <div class="bulk-form-group">
+                    <label for="bulk-name">Name (leave blank to keep current)</label>
+                    <input type="text" id="bulk-name" class="bulk-form-control" placeholder="New name for all selected locations">
+                </div>
+                <div class="bulk-form-group">
+                    <label for="bulk-customer">Customer</label>
+                    <select id="bulk-customer" class="bulk-form-control">
+                        <option value="">Keep current customer</option>
+                        {% for customer in customers %}
+                        <option value="{{ customer.id }}">{{ customer.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="bulk-form-group">
+                    <label for="bulk-status">Status</label>
+                    <select id="bulk-status" class="bulk-form-control">
+                        <option value="">Keep current status</option>
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+        <div class="bulk-modal-footer">
+            <button class="bulk-action-btn" onclick="closeModal('bulkEditModal')">Cancel</button>
+            <button class="bulk-action-btn primary" onclick="executeBulkEdit()">Update Locations</button>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Move Modal -->
+<div id="bulkMoveModal" class="bulk-modal">
+    <div class="bulk-modal-content">
+        <div class="bulk-modal-header">
+            <h5><i class="fas fa-arrows-alt me-2"></i>Move Locations</h5>
+            <button class="bulk-modal-close" onclick="closeModal('bulkMoveModal')">&times;</button>
+        </div>
+        <div class="bulk-modal-body">
+            <form id="bulkMoveForm">
+                <div class="bulk-form-group">
+                    <label for="bulk-new-parent">New Parent Site</label>
+                    <select id="bulk-new-parent" class="bulk-form-control">
+                        <option value="">No parent (make top-level)</option>
+                        {% for site in sites %}
+                        <option value="{{ site.id }}">{{ site.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </form>
+        </div>
+        <div class="bulk-modal-footer">
+            <button class="bulk-action-btn" onclick="closeModal('bulkMoveModal')">Cancel</button>
+            <button class="bulk-action-btn primary" onclick="executeBulkMove()">Move Locations</button>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Generate Pods Modal -->
+<div id="bulkGeneratePodsModal" class="bulk-modal">
+    <div class="bulk-modal-content">
+        <div class="bulk-modal-header">
+            <h5><i class="fas fa-sitemap me-2"></i>Generate Pods</h5>
+            <button class="bulk-modal-close" onclick="closeModal('bulkGeneratePodsModal')">&times;</button>
+        </div>
+        <div class="bulk-modal-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                This will generate pods for all selected sites. Only sites will be processed; sub-locations will be skipped.
+            </div>
+            <form id="bulkGeneratePodsForm">
+                <div class="bulk-form-group">
+                    <label for="bulk-pod-count">Number of Pods per Site</label>
+                    <input type="number" id="bulk-pod-count" class="bulk-form-control" value="11" min="1" max="50">
+                </div>
+                <div class="bulk-form-group">
+                    <label for="bulk-mdcs-per-pod">MDCs per Pod</label>
+                    <input type="number" id="bulk-mdcs-per-pod" class="bulk-form-control" value="2" min="1" max="10">
+                </div>
+            </form>
+        </div>
+        <div class="bulk-modal-footer">
+            <button class="bulk-action-btn" onclick="closeModal('bulkGeneratePodsModal')">Cancel</button>
+            <button class="bulk-action-btn primary" onclick="executeBulkGeneratePods()">Generate Pods</button>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Delete Modal -->
+<div id="bulkDeleteModal" class="bulk-modal">
+    <div class="bulk-modal-content">
+        <div class="bulk-modal-header">
+            <h5><i class="fas fa-trash me-2"></i>Delete Locations</h5>
+            <button class="bulk-modal-close" onclick="closeModal('bulkDeleteModal')">&times;</button>
+        </div>
+        <div class="bulk-modal-body">
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Warning:</strong> This action cannot be undone. The following locations will be permanently deleted:
+            </div>
+            <div id="delete-locations-list" class="mb-3">
+                <!-- Selected locations will be listed here -->
+            </div>
+            <div class="alert alert-warning">
+                <i class="fas fa-info-circle me-2"></i>
+                Locations with child locations or associated equipment cannot be deleted.
+            </div>
+        </div>
+        <div class="bulk-modal-footer">
+            <button class="bulk-action-btn" onclick="closeModal('bulkDeleteModal')">Cancel</button>
+            <button class="bulk-action-btn danger" onclick="executeBulkDelete()">Delete Locations</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedLocations = new Set();
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    updateSelectionInfo();
+    updateBulkActionButtons();
+});
+
+// Selection management
+function updateSelectionInfo() {
+    const selectedCount = selectedLocations.size;
+    const totalCount = document.querySelectorAll('.location-checkbox').length;
+    
+    document.getElementById('selected-count').textContent = selectedCount;
+    document.getElementById('total-count').textContent = totalCount;
+}
+
+function updateBulkActionButtons() {
+    const hasSelection = selectedLocations.size > 0;
+    const hasSites = Array.from(selectedLocations).some(id => {
+        const checkbox = document.querySelector(`input[value="${id}"]`);
+        return checkbox && checkbox.dataset.type === 'site';
+    });
+    
+    document.getElementById('bulk-edit-btn').disabled = !hasSelection;
+    document.getElementById('bulk-move-btn').disabled = !hasSelection;
+    document.getElementById('bulk-pods-btn').disabled = !hasSites;
+    document.getElementById('bulk-delete-btn').disabled = !hasSelection;
+}
+
+function toggleSiteSelection(checkbox) {
+    const siteCheckboxes = document.querySelectorAll('.site-checkbox');
+    siteCheckboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+        if (checkbox.checked) {
+            selectedLocations.add(cb.value);
+        } else {
+            selectedLocations.delete(cb.value);
+        }
+    });
+    updateSelectionInfo();
+    updateBulkActionButtons();
+}
+
+function toggleSubLocationSelection(checkbox) {
+    const subLocationCheckboxes = document.querySelectorAll('.sub-location-checkbox');
+    subLocationCheckboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+        if (checkbox.checked) {
+            selectedLocations.add(cb.value);
+        } else {
+            selectedLocations.delete(cb.value);
+        }
+    });
+    updateSelectionInfo();
+    updateBulkActionButtons();
+}
+
+function selectAll() {
+    const allCheckboxes = document.querySelectorAll('.location-checkbox');
+    allCheckboxes.forEach(cb => {
+        cb.checked = true;
+        selectedLocations.add(cb.value);
+    });
+    updateSelectionInfo();
+    updateBulkActionButtons();
+}
+
+function deselectAll() {
+    const allCheckboxes = document.querySelectorAll('.location-checkbox');
+    allCheckboxes.forEach(cb => {
+        cb.checked = false;
+        selectedLocations.delete(cb.value);
+    });
+    updateSelectionInfo();
+    updateBulkActionButtons();
+}
+
+// Handle individual checkbox changes
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('location-checkbox')) {
+        if (e.target.checked) {
+            selectedLocations.add(e.target.value);
+        } else {
+            selectedLocations.delete(e.target.value);
+        }
+        updateSelectionInfo();
+        updateBulkActionButtons();
+    }
+});
+
+// Modal management
+function showModal(modalId) {
+    document.getElementById(modalId).classList.add('show');
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('show');
+}
+
+function showBulkEditModal() {
+    showModal('bulkEditModal');
+}
+
+function showBulkMoveModal() {
+    showModal('bulkMoveModal');
+}
+
+function showBulkGeneratePodsModal() {
+    showModal('bulkGeneratePodsModal');
+}
+
+function showBulkDeleteModal() {
+    // Populate the delete locations list
+    const deleteList = document.getElementById('delete-locations-list');
+    deleteList.innerHTML = '';
+    
+    selectedLocations.forEach(id => {
+        const checkbox = document.querySelector(`input[value="${id}"]`);
+        if (checkbox) {
+            const name = checkbox.dataset.name;
+            const type = checkbox.dataset.type;
+            const div = document.createElement('div');
+            div.className = 'mb-2';
+            div.innerHTML = `<i class="fas fa-${type === 'site' ? 'building' : 'map-marker-alt'} me-2"></i>${name}`;
+            deleteList.appendChild(div);
+        }
+    });
+    
+    showModal('bulkDeleteModal');
+}
+
+// Bulk action execution
+function executeBulkEdit() {
+    const updates = {};
+    
+    const name = document.getElementById('bulk-name').value.trim();
+    if (name) updates.name = name;
+    
+    const customerId = document.getElementById('bulk-customer').value;
+    if (customerId !== '') updates.customer_id = customerId;
+    
+    const status = document.getElementById('bulk-status').value;
+    if (status !== '') updates.is_active = status === 'true';
+    
+    if (Object.keys(updates).length === 0) {
+        alert('Please select at least one field to update.');
+        return;
+    }
+    
+    executeBulkAction('edit', { updates });
+}
+
+function executeBulkMove() {
+    const newParentId = document.getElementById('bulk-new-parent').value;
+    executeBulkAction('move', { new_parent_id: newParentId });
+}
+
+function executeBulkGeneratePods() {
+    const podCount = document.getElementById('bulk-pod-count').value;
+    const mdcsPerPod = document.getElementById('bulk-mdcs-per-pod').value;
+    executeBulkAction('generate_pods', { pod_count: podCount, mdcs_per_pod: mdcsPerPod });
+}
+
+function executeBulkDelete() {
+    if (!confirm('Are you sure you want to delete the selected locations? This action cannot be undone.')) {
+        return;
+    }
+    executeBulkAction('delete');
+}
+
+function executeBulkAction(action, additionalData = {}) {
+    const data = {
+        action: action,
+        location_ids: Array.from(selectedLocations),
+        ...additionalData
+    };
+    
+    fetch('{% url "core:bulk_edit_locations" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert(result.message);
+            // Close all modals
+            document.querySelectorAll('.bulk-modal').forEach(modal => {
+                modal.classList.remove('show');
+            });
+            // Reload page to show updated data
+            location.reload();
+        } else {
+            alert('Error: ' + (result.error || result.message));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while processing the request.');
+    });
+}
+
+// Close modals when clicking outside
+window.onclick = function(event) {
+    document.querySelectorAll('.bulk-modal').forEach(modal => {
+        if (event.target === modal) {
+            modal.classList.remove('show');
+        }
+    });
+}
+</script>
+{% endblock %} 

@@ -71,6 +71,10 @@ urlpatterns = [
     path('settings/clear-database/', views.clear_database, name='clear_database'),
     # Demo Data Population
     path('settings/populate-demo-data/', views.populate_demo_data, name='populate_demo_data'),
+    
+    # Bulk Location Management
+    path('settings/locations/bulk/', views.bulk_locations_view, name='bulk_locations'),
+    path('api/locations/bulk-edit/', views.bulk_edit_locations, name='bulk_edit_locations'),
 ]
 
 urlpatterns += [

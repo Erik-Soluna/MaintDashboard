@@ -571,14 +571,8 @@ function testApplicationHealth() {
 
 function testUnifiedAPI() {
     showDiagnosticResult('Testing unified API...');
-    fetch('{% url "core:test_unified_api" %}')
-    .then(response => response.json())
-    .then(data => {
-        showDiagnosticResult(JSON.stringify(data, null, 2));
-    })
-    .catch(error => {
-        showDiagnosticResult('Error: ' + error.message);
-    });
+    // TODO: Implement unified API endpoint
+    showDiagnosticResult('Unified API endpoint not yet implemented');
 }
 
 function testDatabaseHealth() {

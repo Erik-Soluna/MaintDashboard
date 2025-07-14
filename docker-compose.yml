@@ -191,6 +191,21 @@ services:
         reservations:
           memory: 128M
 
+  playwright:
+    build:
+      context: .
+      dockerfile: Dockerfile.playwright
+    container_name: playwright_runner
+    depends_on:
+      - web
+    volumes:
+      - ./playwright:/app/playwright
+    environment:
+      - BASE_URL=http://web:8000
+    networks:
+      - maintenance_network
+    restart: unless-stopped
+
 networks:
   maintenance_network:
     driver: bridge

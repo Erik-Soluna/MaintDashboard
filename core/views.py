@@ -2052,8 +2052,9 @@ def api_explorer(request):
     from events.models import CalendarEvent
     from django.contrib.auth.models import User
     
-    # Get live data counts and samples
-    context = {
+    try:
+        # Get live data counts and samples
+        context = {
         # Core models
         'customers': {
             'count': Customer.objects.filter(is_active=True).count(),
@@ -2243,6 +2244,53 @@ def api_explorer(request):
     }
     
     return render(request, 'core/api_explorer.html', context)
+    except Exception as e:
+        # Fallback context if there's an error
+        context = {
+            'locations': {
+                'count': 0,
+                'sample': [],
+                'model_name': 'Location',
+                'admin_url': '#',
+                'description': 'Error loading data'
+            },
+            'customers': {
+                'count': 0,
+                'sample': [],
+                'model_name': 'Customer',
+                'admin_url': '#',
+                'description': 'Error loading data'
+            },
+            'equipment': {
+                'count': 0,
+                'sample': [],
+                'model_name': 'Equipment',
+                'admin_url': '#',
+                'description': 'Error loading data'
+            },
+            'maintenance_activities': {
+                'count': 0,
+                'sample': [],
+                'model_name': 'MaintenanceActivity',
+                'admin_url': '#',
+                'description': 'Error loading data'
+            },
+            'calendar_events': {
+                'count': 0,
+                'sample': [],
+                'model_name': 'CalendarEvent',
+                'admin_url': '#',
+                'description': 'Error loading data'
+            },
+            'api_endpoints': [],
+            'system_info': {
+                'total_models': 0,
+                'total_endpoints': 0,
+                'database_tables': 0,
+                'last_updated': timezone.now()
+            }
+        }
+        return render(request, 'core/api_explorer.html', context)
 
 
 @login_required
