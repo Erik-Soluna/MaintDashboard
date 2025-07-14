@@ -5,10 +5,6 @@ const path = require('path');
 // Patch for node-fetch import compatibility
 let fetch;
 try {
-  console.log('NODE_PATH:', process.env.NODE_PATH);
-  console.log('CWD:', process.cwd());
-  console.log('NODE_MODULES:', require('module').globalPaths);
-  console.log('Trying to resolve node-fetch:', require.resolve('node-fetch'));
   fetch = require('node-fetch');
   if (fetch.default) fetch = fetch.default;
 } catch (e) {
