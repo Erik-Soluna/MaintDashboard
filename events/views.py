@@ -757,10 +757,20 @@ def fetch_unified_events(request):
             
             # Date filtering
             if start_date and end_date:
-                activities = activities.filter(
-                    scheduled_start__date__gte=start_date,
-                    scheduled_end__date__lte=end_date
-                )
+                try:
+                    # Parse ISO format dates and extract date part
+                    start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+                    end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+                    activities = activities.filter(
+                        scheduled_start__date__gte=start_dt.date(),
+                        scheduled_end__date__lte=end_dt.date()
+                    )
+                except ValueError:
+                    # Fallback for simple date format
+                    activities = activities.filter(
+                        scheduled_start__date__gte=start_date,
+                        scheduled_end__date__lte=end_date
+                    )
             
             # Site filtering
             if site_id:
