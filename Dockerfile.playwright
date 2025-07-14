@@ -10,7 +10,7 @@ COPY playwright/package.json ./
 COPY playwright/ ./
 
 # Install dependencies (after all files are present)
-RUN npm install > npm-install.log 2>&1 && npm install node-fetch@2 >> npm-install.log 2>&1 && ls -l && ls -l node_modules && cat npm-install.log
+RUN npm install > npm-install.log 2>&1 && npm install node-fetch@2 >> npm-install.log 2>&1 && ln -s /app/playwright/node_modules /app/node_modules && ls -l && ls -l node_modules && cat npm-install.log
 
 # Set environment variables for Playwright
 ENV CI=1
