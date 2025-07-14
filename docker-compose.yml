@@ -74,7 +74,7 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,maintenance.errorlog.app,10.0.0.28}
+      - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,maintenance.errorlog.app,10.0.0.28,web
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@maintenance.local}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-temppass123}
@@ -114,8 +114,7 @@ services:
   celery:
     build: .
     container_name: maintenance_celery
-    entrypoint: ["./docker-entrypoint.sh"]
-    command: ["celery"]
+    entrypoint: ["./start_celery.sh"]
     volumes:
       - .:/app
       - media_volume:/app/media
@@ -136,8 +135,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      web:
-        condition: service_healthy
     networks:
       - maintenance_network
     healthcheck:
@@ -157,7 +154,7 @@ services:
   celery-beat:
     build: .
     container_name: maintenance_celery_beat
-    entrypoint: ["./docker-entrypoint.sh"]
+    entrypoint: ["./start_celery_beat.sh"]
     command: ["celery-beat"]
     volumes:
       - .:/app
@@ -177,8 +174,6 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      web:
         condition: service_healthy
     networks:
       - maintenance_network
