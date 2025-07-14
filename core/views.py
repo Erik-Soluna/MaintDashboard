@@ -2042,9 +2042,207 @@ def clear_health_logs(request):
     return JsonResponse({'success': True})
 
 
+@login_required
 def api_explorer(request):
-    """API Explorer: Tree view of all models and API documentation."""
-    return render(request, 'core/api_explorer.html')
+    """API Explorer: Tree view of all models and API documentation with live data."""
+    from django.db.models import Count, Q
+    from django.urls import reverse
+    from equipment.models import Equipment
+    from maintenance.models import MaintenanceActivity, MaintenanceActivityType, ActivityTypeCategory
+    from events.models import CalendarEvent
+    from django.contrib.auth.models import User
+    
+    # Get live data counts and samples
+    context = {
+        # Core models
+        'customers': {
+            'count': Customer.objects.filter(is_active=True).count(),
+            'sample': list(Customer.objects.filter(is_active=True)[:5].values('id', 'name', 'code')),
+            'model_name': 'Customer',
+            'admin_url': reverse('admin:core_customer_changelist'),
+            'description': 'Customer/client information and contact details'
+        },
+        'locations': {
+            'count': Location.objects.filter(is_active=True).count(),
+            'sample': list(Location.objects.filter(is_active=True)[:5].values('id', 'name', 'is_site', 'customer__name')),
+            'model_name': 'Location',
+            'admin_url': reverse('admin:core_location_changelist'),
+            'description': 'Hierarchical locations including sites and equipment locations'
+        },
+        'equipment_categories': {
+            'count': EquipmentCategory.objects.filter(is_active=True).count(),
+            'sample': list(EquipmentCategory.objects.filter(is_active=True)[:5].values('id', 'name', 'description')),
+            'model_name': 'EquipmentCategory',
+            'admin_url': reverse('admin:core_equipmentcategory_changelist'),
+            'description': 'Categories for organizing equipment types'
+        },
+        'users': {
+            'count': User.objects.filter(is_active=True).count(),
+            'sample': list(User.objects.filter(is_active=True)[:5].values('id', 'username', 'first_name', 'last_name')),
+            'model_name': 'User',
+            'admin_url': reverse('admin:auth_user_changelist'),
+            'description': 'System users with roles and permissions'
+        },
+        'roles': {
+            'count': Role.objects.filter(is_active=True).count(),
+            'sample': list(Role.objects.filter(is_active=True)[:5].values('id', 'name', 'display_name')),
+            'model_name': 'Role',
+            'admin_url': reverse('admin:core_role_changelist'),
+            'description': 'User roles with associated permissions'
+        },
+        'permissions': {
+            'count': Permission.objects.filter(is_active=True).count(),
+            'sample': list(Permission.objects.filter(is_active=True)[:5].values('id', 'name', 'module')),
+            'model_name': 'Permission',
+            'admin_url': reverse('admin:core_permission_changelist'),
+            'description': 'System permissions for role-based access control'
+        },
+        
+        # Equipment models
+        'equipment': {
+            'count': Equipment.objects.filter(is_active=True).count(),
+            'sample': list(Equipment.objects.filter(is_active=True).select_related('category', 'location')[:5].values(
+                'id', 'name', 'category__name', 'location__name'
+            )),
+            'model_name': 'Equipment',
+            'admin_url': reverse('admin:equipment_equipment_changelist'),
+            'description': 'Equipment items with categories and locations'
+        },
+        
+        # Maintenance models
+        'maintenance_activities': {
+            'count': MaintenanceActivity.objects.count(),
+            'sample': list(MaintenanceActivity.objects.select_related('equipment', 'assigned_to')[:5].values(
+                'id', 'title', 'equipment__name', 'status', 'assigned_to__username'
+            )),
+            'model_name': 'MaintenanceActivity',
+            'admin_url': reverse('admin:maintenance_maintenanceactivity_changelist'),
+            'description': 'Maintenance activities and tasks'
+        },
+        'maintenance_activity_types': {
+            'count': MaintenanceActivityType.objects.filter(is_active=True).count(),
+            'sample': list(MaintenanceActivityType.objects.filter(is_active=True)[:5].values('id', 'name', 'description')),
+            'model_name': 'MaintenanceActivityType',
+            'admin_url': reverse('admin:maintenance_maintenanceactivitytype_changelist'),
+            'description': 'Types of maintenance activities'
+        },
+        'activity_type_categories': {
+            'count': ActivityTypeCategory.objects.filter(is_active=True).count(),
+            'sample': list(ActivityTypeCategory.objects.filter(is_active=True)[:5].values('id', 'name', 'description')),
+            'model_name': 'ActivityTypeCategory',
+            'admin_url': reverse('admin:maintenance_activitytypecategory_changelist'),
+            'description': 'Categories for organizing maintenance activity types'
+        },
+        
+        # Events models
+        'calendar_events': {
+            'count': CalendarEvent.objects.count(),
+            'sample': list(CalendarEvent.objects.select_related('equipment', 'assigned_to')[:5].values(
+                'id', 'title', 'equipment__name', 'event_date', 'assigned_to__username'
+            )),
+            'model_name': 'CalendarEvent',
+            'admin_url': reverse('admin:events_calendarevent_changelist'),
+            'description': 'Calendar events and scheduling'
+        },
+        
+        # API Endpoints
+        'api_endpoints': [
+            {
+                'name': 'Health Check',
+                'url': reverse('core:health_check'),
+                'method': 'GET',
+                'description': 'System health status and metrics',
+                'auth_required': False
+            },
+            {
+                'name': 'Health Check API',
+                'url': reverse('core:health_check_api'),
+                'method': 'GET',
+                'description': 'JSON health check endpoint',
+                'auth_required': False
+            },
+            {
+                'name': 'Locations API',
+                'url': reverse('core:locations_api'),
+                'method': 'GET',
+                'description': 'Get all locations with filtering',
+                'auth_required': True
+            },
+            {
+                'name': 'Equipment Items API',
+                'url': reverse('core:equipment_items_api'),
+                'method': 'GET',
+                'description': 'Get all equipment items',
+                'auth_required': True
+            },
+            {
+                'name': 'Users API',
+                'url': reverse('core:users_api'),
+                'method': 'GET',
+                'description': 'Get all users',
+                'auth_required': True
+            },
+            {
+                'name': 'Roles API',
+                'url': reverse('core:roles_api'),
+                'method': 'GET',
+                'description': 'Get all roles and permissions',
+                'auth_required': True
+            },
+            {
+                'name': 'Playwright Debug API',
+                'url': reverse('core:playwright_debug_api'),
+                'method': 'GET/POST',
+                'description': 'Playwright test execution and debugging',
+                'auth_required': True
+            },
+            {
+                'name': 'Natural Language Test API',
+                'url': reverse('core:run_natural_language_test_api'),
+                'method': 'POST',
+                'description': 'Execute natural language Playwright tests',
+                'auth_required': True
+            },
+            {
+                'name': 'RBAC Test Suite API',
+                'url': reverse('core:run_rbac_test_suite_api'),
+                'method': 'POST',
+                'description': 'Execute RBAC test suite',
+                'auth_required': True
+            },
+            {
+                'name': 'Test Results API',
+                'url': reverse('core:get_test_results_api'),
+                'method': 'GET',
+                'description': 'Get Playwright test results',
+                'auth_required': True
+            },
+            {
+                'name': 'Test Screenshots API',
+                'url': reverse('core:get_test_screenshots_api'),
+                'method': 'GET',
+                'description': 'Get Playwright test screenshots',
+                'auth_required': True
+            },
+            {
+                'name': 'Test Scenario API',
+                'url': reverse('core:run_test_scenario_api'),
+                'method': 'POST',
+                'description': 'Execute specific test scenarios',
+                'auth_required': True
+            }
+        ],
+        
+        # System Information
+        'system_info': {
+            'total_models': 12,  # Count of all models
+            'total_endpoints': 12,  # Count of API endpoints
+            'database_tables': 15,  # Approximate count of database tables
+            'last_updated': timezone.now()
+        }
+    }
+    
+    return render(request, 'core/api_explorer.html', context)
 
 
 @login_required
@@ -2662,3 +2860,187 @@ def test_health(request):
         })
     except Exception as e:
         return JsonResponse({'status': 'error', 'error': str(e)}, status=500)
+
+
+# ========================================
+# BULK LOCATION MANAGEMENT VIEWS
+# ========================================
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["GET", "POST"])
+def bulk_edit_locations(request):
+    """Bulk edit locations (sites and sub-locations)."""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body.decode())
+            action = data.get('action')
+            location_ids = data.get('location_ids', [])
+            
+            if not location_ids:
+                return JsonResponse({'success': False, 'error': 'No locations selected'})
+            
+            locations = Location.objects.filter(id__in=location_ids)
+            
+            if action == 'edit':
+                # Bulk edit fields
+                updates = data.get('updates', {})
+                updated_count = 0
+                
+                for location in locations:
+                    if 'name' in updates and updates['name'].strip():
+                        location.name = updates['name'].strip()
+                    if 'customer_id' in updates:
+                        if updates['customer_id']:
+                            location.customer_id = updates['customer_id']
+                        else:
+                            location.customer = None
+                    if 'is_active' in updates:
+                        location.is_active = updates['is_active']
+                    
+                    location.updated_by = request.user
+                    location.save()
+                    updated_count += 1
+                
+                return JsonResponse({
+                    'success': True, 
+                    'message': f'Successfully updated {updated_count} location(s)',
+                    'updated_count': updated_count
+                })
+            
+            elif action == 'move':
+                # Move locations to new parent
+                new_parent_id = data.get('new_parent_id')
+                moved_count = 0
+                
+                for location in locations:
+                    if new_parent_id:
+                        new_parent = Location.objects.get(id=new_parent_id)
+                        location.parent_location = new_parent
+                    else:
+                        location.parent_location = None
+                    
+                    location.updated_by = request.user
+                    location.save()
+                    moved_count += 1
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Successfully moved {moved_count} location(s)',
+                    'moved_count': moved_count
+                })
+            
+            elif action == 'delete':
+                # Bulk delete locations
+                deleted_count = 0
+                errors = []
+                
+                for location in locations:
+                    try:
+                        # Check if location has children
+                        if location.child_locations.exists():
+                            errors.append(f'Cannot delete "{location.name}" - has child locations')
+                            continue
+                        
+                        # Check if location has equipment
+                        if hasattr(location, 'equipment_set') and location.equipment_set.exists():
+                            errors.append(f'Cannot delete "{location.name}" - has associated equipment')
+                            continue
+                        
+                        location_name = location.name
+                        location.delete()
+                        deleted_count += 1
+                        
+                    except Exception as e:
+                        errors.append(f'Error deleting "{location.name}": {str(e)}')
+                
+                if errors:
+                    return JsonResponse({
+                        'success': False,
+                        'message': f'Deleted {deleted_count} location(s). Errors: {"; ".join(errors)}',
+                        'deleted_count': deleted_count,
+                        'errors': errors
+                    })
+                else:
+                    return JsonResponse({
+                        'success': True,
+                        'message': f'Successfully deleted {deleted_count} location(s)',
+                        'deleted_count': deleted_count
+                    })
+            
+            elif action == 'generate_pods':
+                # Bulk generate pods for sites
+                generated_count = 0
+                errors = []
+                
+                for location in locations:
+                    if not location.is_site:
+                        errors.append(f'"{location.name}" is not a site - skipping pod generation')
+                        continue
+                    
+                    try:
+                        from django.core.management import call_command
+                        from io import StringIO
+                        
+                        output = StringIO()
+                        call_command('generate_pods', '--site-id', str(location.id), stdout=output)
+                        output.close()
+                        generated_count += 1
+                        
+                    except Exception as e:
+                        errors.append(f'Error generating pods for "{location.name}": {str(e)}')
+                
+                if errors:
+                    return JsonResponse({
+                        'success': False,
+                        'message': f'Generated pods for {generated_count} site(s). Errors: {"; ".join(errors)}',
+                        'generated_count': generated_count,
+                        'errors': errors
+                    })
+                else:
+                    return JsonResponse({
+                        'success': True,
+                        'message': f'Successfully generated pods for {generated_count} site(s)',
+                        'generated_count': generated_count
+                    })
+            
+            else:
+                return JsonResponse({'success': False, 'error': f'Unknown action: {action}'})
+                
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    
+    # GET request - return form data
+    sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
+    customers = Customer.objects.filter(is_active=True).order_by('name')
+    
+    return JsonResponse({
+        'sites': [{'id': site.id, 'name': site.name} for site in sites],
+        'customers': [{'id': customer.id, 'name': customer.name} for customer in customers]
+    })
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def bulk_locations_view(request):
+    """View for bulk location management interface."""
+    # Get all locations for the bulk management interface
+    locations = Location.objects.all().order_by('name')
+    
+    # Separate sites and sub-locations
+    sites = locations.filter(is_site=True)
+    sub_locations = locations.filter(is_site=False)
+    
+    # Get customers for dropdowns
+    customers = Customer.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'sites': sites,
+        'sub_locations': sub_locations,
+        'customers': customers,
+        'total_locations': locations.count(),
+        'total_sites': sites.count(),
+        'total_sub_locations': sub_locations.count(),
+    }
+    
+    return render(request, 'core/bulk_locations.html', context)
