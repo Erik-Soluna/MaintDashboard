@@ -42,6 +42,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from .models import PlaywrightDebugLog
 from core.tasks import run_playwright_debug
+from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite
+from .tasks import run_natural_language_test_task, run_rbac_test_suite_task
+import asyncio
+from rest_framework.decorators import api_view
+from django.contrib.auth.decorators import permission_required
+from rest_framework.permissions import IsAuthenticated
 
 logger = logging.getLogger(__name__)
 
@@ -2050,6 +2056,29 @@ def system_health(request):
 
 
 @login_required
+def debug(request):
+    """Debug and diagnostics page with collapsible sections."""
+    if not request.user.is_superuser:
+        return redirect('core:dashboard')
+    
+    # Get health data for the health section
+    try:
+        health_data = get_system_metrics()
+        health = {
+            'status': health_data.get('status', 'unknown'),
+            'checks': health_data.get('checks', []),
+            'last_failure_log': get_recent_health_failures(5)
+        }
+    except Exception as e:
+        health = None
+    
+    context = {
+        'health': health,
+    }
+    return render(request, 'core/debug.html', context)
+
+
+@login_required
 @user_passes_test(is_staff_or_superuser)
 @require_http_methods(["POST"])
 def generate_pods(request):
@@ -2186,6 +2215,7 @@ def populate_demo_data(request):
 
 @login_required
 @user_passes_test(is_staff_or_superuser)
+@csrf_exempt
 @require_http_methods(["POST"])
 def clear_database(request):
     """Clear the database with safety confirmations."""
@@ -2230,4 +2260,388 @@ def clear_database(request):
         return JsonResponse({
             'success': False,
             'error': f'Error clearing database: {str(e)}'
+        }, status=500)
+
+
+@api_view(['POST'])
+@permission_required('core.can_run_playwright_tests')
+def run_natural_language_test_api(request):
+    """
+    Run a natural language test via API.
+    
+    Expected JSON payload:
+    {
+        "prompt": "Clear database with keep users option",
+        "user_role": "admin",
+        "username": "admin",
+        "password": "temppass123",
+        "async": false
+    }
+    """
+    try:
+        data = json.loads(request.body)
+        prompt = data.get('prompt', '')
+        user_role = data.get('user_role', 'admin')
+        username = data.get('username', 'admin')
+        password = data.get('password', 'temppass123')
+        run_async = data.get('async', False)
+        
+        if not prompt:
+            return JsonResponse({
+                'success': False,
+                'error': 'Prompt is required'
+            }, status=400)
+        
+        if run_async:
+            # Run as Celery task
+            task = run_natural_language_test_task.delay(
+                prompt=prompt,
+                user_role=user_role,
+                username=username,
+                password=password
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'task_id': task.id,
+                'status': 'queued',
+                'message': 'Test queued for execution'
+            })
+        else:
+            # Run synchronously
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                result = loop.run_until_complete(
+                    run_natural_language_test(prompt, user_role, username, password)
+                )
+                
+                return JsonResponse({
+                    'success': True,
+                    'result': result,
+                    'status': 'completed'
+                })
+            finally:
+                loop.close()
+                
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON payload'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@api_view(['POST'])
+@permission_required('core.can_run_playwright_tests')
+def run_rbac_test_suite_api(request):
+    """
+    Run comprehensive RBAC test suite via API.
+    
+    Expected JSON payload:
+    {
+        "async": false
+    }
+    """
+    try:
+        data = json.loads(request.body) if request.body else {}
+        run_async = data.get('async', False)
+        
+        if run_async:
+            # Run as Celery task
+            task = run_rbac_test_suite_task.delay()
+            
+            return JsonResponse({
+                'success': True,
+                'task_id': task.id,
+                'status': 'queued',
+                'message': 'RBAC test suite queued for execution'
+            })
+        else:
+            # Run synchronously
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                result = loop.run_until_complete(run_rbac_test_suite())
+                
+                return JsonResponse({
+                    'success': True,
+                    'result': result,
+                    'status': 'completed'
+                })
+            finally:
+                loop.close()
+                
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON payload'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@api_view(['GET'])
+@permission_required('core.can_view_playwright_results')
+def get_test_results_api(request):
+    """
+    Get test results and logs.
+    
+    Query parameters:
+    - log_id: Specific log ID to retrieve
+    - limit: Number of recent logs to retrieve (default: 10)
+    - status: Filter by status (pending, running, done, error)
+    """
+    try:
+        log_id = request.GET.get('log_id')
+        limit = int(request.GET.get('limit', 10))
+        status = request.GET.get('status')
+        
+        if log_id:
+            # Get specific log
+            try:
+                log = PlaywrightDebugLog.objects.get(id=log_id)
+                return JsonResponse({
+                    'success': True,
+                    'log': {
+                        'id': log.id,
+                        'prompt': log.prompt,
+                        'status': log.status,
+                        'started_at': log.started_at.isoformat() if log.started_at else None,
+                        'finished_at': log.finished_at.isoformat() if log.finished_at else None,
+                        'output': log.output,
+                        'result_json': log.result_json,
+                        'error_message': log.error_message
+                    }
+                })
+            except PlaywrightDebugLog.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Log not found'
+                }, status=404)
+        else:
+            # Get recent logs
+            queryset = PlaywrightDebugLog.objects.all().order_by('-created_at')
+            
+            if status:
+                queryset = queryset.filter(status=status)
+            
+            logs = queryset[:limit]
+            
+            return JsonResponse({
+                'success': True,
+                'logs': [{
+                    'id': log.id,
+                    'prompt': log.prompt,
+                    'status': log.status,
+                    'started_at': log.started_at.isoformat() if log.started_at else None,
+                    'finished_at': log.finished_at.isoformat() if log.finished_at else None,
+                    'created_at': log.created_at.isoformat(),
+                    'error_message': log.error_message
+                } for log in logs]
+            })
+            
+    except ValueError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid limit parameter'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@api_view(['GET'])
+@permission_required('core.can_view_playwright_results')
+def get_test_screenshots_api(request):
+    """
+    Get test screenshots and HTML dumps.
+    
+    Query parameters:
+    - log_id: Specific log ID to retrieve screenshots for
+    - test_name: Filter by test name
+    """
+    try:
+        log_id = request.GET.get('log_id')
+        test_name = request.GET.get('test_name')
+        
+        if not log_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'log_id parameter is required'
+            }, status=400)
+        
+        # Get the log
+        try:
+            log = PlaywrightDebugLog.objects.get(id=log_id)
+        except PlaywrightDebugLog.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Log not found'
+            }, status=404)
+        
+        # Extract screenshots and HTML dumps from result_json
+        screenshots = []
+        html_dumps = []
+        
+        if log.result_json:
+            result = log.result_json
+            screenshots = result.get('screenshots', [])
+            html_dumps = result.get('html_dumps', [])
+            
+            # Filter by test name if specified
+            if test_name:
+                screenshots = [s for s in screenshots if test_name in s.get('name', '')]
+                html_dumps = [h for h in html_dumps if test_name in h.get('name', '')]
+        
+        return JsonResponse({
+            'success': True,
+            'log_id': log_id,
+            'screenshots': screenshots,
+            'html_dumps': html_dumps,
+            'total_screenshots': len(screenshots),
+            'total_html_dumps': len(html_dumps)
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@api_view(['POST'])
+@permission_required('core.can_run_playwright_tests')
+def run_test_scenario_api(request):
+    """
+    Run a predefined test scenario.
+    
+    Expected JSON payload:
+    {
+        "scenario": "admin_tools",
+        "user_role": "admin",
+        "async": false
+    }
+    
+    Available scenarios:
+    - admin_tools: Test admin functionality (clear database, populate demo)
+    - rbac_basic: Test basic RBAC permissions
+    - equipment_management: Test equipment CRUD operations
+    - maintenance_workflow: Test maintenance activity workflow
+    """
+    try:
+        data = json.loads(request.body)
+        scenario = data.get('scenario', '')
+        user_role = data.get('user_role', 'admin')
+        run_async = data.get('async', False)
+        
+        if not scenario:
+            return JsonResponse({
+                'success': False,
+                'error': 'Scenario is required'
+            }, status=400)
+        
+        # Define test scenarios
+        scenarios = {
+            'admin_tools': [
+                'Test admin user can clear database with keep users option',
+                'Test admin user can populate demo data with 5 users and 10 equipment'
+            ],
+            'rbac_basic': [
+                'Test admin user can access settings page',
+                'Test technician user cannot access admin tools',
+                'Test manager user can view equipment list'
+            ],
+            'equipment_management': [
+                'Test creating equipment called Test Transformer in default location',
+                'Test viewing equipment list page',
+                'Test equipment detail page loads correctly'
+            ],
+            'maintenance_workflow': [
+                'Test maintenance activity list page',
+                'Test creating maintenance activity',
+                'Test maintenance report generation'
+            ]
+        }
+        
+        if scenario not in scenarios:
+            return JsonResponse({
+                'success': False,
+                'error': f'Unknown scenario: {scenario}. Available: {list(scenarios.keys())}'
+            }, status=400)
+        
+        test_prompts = scenarios[scenario]
+        results = []
+        
+        if run_async:
+            # Queue all tests as Celery tasks
+            task_ids = []
+            for prompt in test_prompts:
+                task = run_natural_language_test_task.delay(
+                    prompt=prompt,
+                    user_role=user_role,
+                    username='admin',
+                    password='temppass123'
+                )
+                task_ids.append(task.id)
+            
+            return JsonResponse({
+                'success': True,
+                'scenario': scenario,
+                'task_ids': task_ids,
+                'status': 'queued',
+                'message': f'Scenario {scenario} queued with {len(task_ids)} tests'
+            })
+        else:
+            # Run tests synchronously
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                for prompt in test_prompts:
+                    result = loop.run_until_complete(
+                        run_natural_language_test(prompt, user_role, 'admin', 'temppass123')
+                    )
+                    results.append({
+                        'prompt': prompt,
+                        'result': result
+                    })
+                
+                # Calculate scenario summary
+                total_tests = len(results)
+                passed_tests = sum(1 for r in results if r['result'].get('success', False))
+                
+                scenario_summary = {
+                    'scenario': scenario,
+                    'total_tests': total_tests,
+                    'passed_tests': passed_tests,
+                    'failed_tests': total_tests - passed_tests,
+                    'success_rate': (passed_tests / total_tests * 100) if total_tests > 0 else 0,
+                    'results': results
+                }
+                
+                return JsonResponse({
+                    'success': True,
+                    'scenario_summary': scenario_summary,
+                    'status': 'completed'
+                })
+            finally:
+                loop.close()
+                
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON payload'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
         }, status=500)

@@ -166,6 +166,16 @@ class SmartTestRunner {
       });
     }
 
+    // Danger zone / Clear Database admin tool
+    if (lowerRequest.includes('clear database') || lowerRequest.includes('danger zone') || lowerRequest.includes('reset database')) {
+      requests.push({
+        action: 'clear_database',
+        priority: 1,
+        flags: ['authenticated', 'danger_zone'],
+        description: 'Test the Clear Database modal and operation'
+      });
+    }
+
     // If no specific requests found, do comprehensive testing
     if (requests.length === 0) {
       requests.push({
@@ -179,79 +189,56 @@ class SmartTestRunner {
     return requests.sort((a, b) => a.priority - b.priority);
   }
 
-  // Authentication management
-  private async ensureAuthenticated(page: any): Promise<boolean> {
-    if (this.isAuthenticated) return true;
+  // Add user/role context extraction
+  private extractUserContext(request: string): { username: string, password: string, role: string } {
+    const lower = request.toLowerCase();
+    if (lower.includes('as a technician')) {
+      return { username: 'demo_user_2', password: 'demo123', role: 'technician' };
+    }
+    if (lower.includes('as a manager')) {
+      return { username: 'demo_user_3', password: 'demo123', role: 'manager' };
+    }
+    if (lower.includes('as an admin') || lower.includes('as a superuser')) {
+      return { username: 'admin', password: 'temppass123', role: 'admin' };
+    }
+    // Default to admin for backward compatibility
+    return { username: 'admin', password: 'temppass123', role: 'admin' };
+  }
 
+  // Update ensureAuthenticated to accept credentials
+  private async ensureAuthenticated(page: any, username = 'admin', password = 'temppass123'): Promise<boolean> {
+    if (this.isAuthenticated) return true;
     try {
       console.log('🔐 Attempting to authenticate...');
       await page.goto('http://localhost:4405/auth/login/', { timeout: 10000 });
       await page.waitForLoadState('networkidle', { timeout: 10000 });
-
-      // Check if already logged in
       const currentUrl = page.url();
       if (!currentUrl.includes('login')) {
         console.log('✅ Already authenticated');
         this.isAuthenticated = true;
         return true;
       }
-
-      // Fill login form
-      await page.fill('#id_username', 'admin', { timeout: 10000 });
-      await page.fill('#id_password', 'temppass123', { timeout: 10000 });
-      
-      // Take screenshot before clicking login
+      await page.fill('#id_username', username, { timeout: 10000 });
+      await page.fill('#id_password', password, { timeout: 10000 });
       await this.takeScreenshot(page, 'login_before_click');
-      
-      // Click the login button - try multiple selectors
-      console.log('🔘 Looking for login button...');
-      
       let loginClicked = false;
-      try {
-        // Try the most common selector first
-        await page.click('input[type="submit"]', { timeout: 10000 });
-        console.log('✅ Clicked login button with input[type="submit"]');
-        loginClicked = true;
-      } catch (e1) {
-        try {
-          // Try button selector
-          await page.click('button[type="submit"]', { timeout: 10000 });
-          console.log('✅ Clicked login button with button[type="submit"]');
-          loginClicked = true;
-        } catch (e2) {
-          try {
-            // Try text-based selector
-            await page.click('button:has-text("Login")', { timeout: 10000 });
-            console.log('✅ Clicked login button with button:has-text("Login")');
-            loginClicked = true;
-          } catch (e3) {
-            try {
-              // Try form button
-              await page.click('form button', { timeout: 10000 });
-              console.log('✅ Clicked login button with form button');
-              loginClicked = true;
-            } catch (e4) {
-              console.log('❌ Could not find or click login button');
-              console.log('Tried selectors: input[type="submit"], button[type="submit"], button:has-text("Login"), form button');
-              await this.takeScreenshot(page, 'login_button_not_found');
-              return false;
-            }
-          }
-        }
+      try { await page.click('input[type="submit"]', { timeout: 10000 }); loginClicked = true; } catch {}
+      if (!loginClicked) {
+        try { await page.click('button[type="submit"]', { timeout: 10000 }); loginClicked = true; } catch {}
       }
-
+      if (!loginClicked) {
+        try { await page.click('button:has-text("Login")', { timeout: 10000 }); loginClicked = true; } catch {}
+      }
+      if (!loginClicked) {
+        try { await page.click('form button', { timeout: 10000 }); loginClicked = true; } catch {}
+      }
       if (!loginClicked) {
         console.log('❌ Could not find login button');
         await this.takeScreenshot(page, 'login_button_not_found');
         return false;
       }
-
       await page.waitForLoadState('networkidle', { timeout: 10000 });
-      
-      // Take screenshot after login attempt
       await this.takeScreenshot(page, 'login_after_click');
-
-      // Verify login success
       const newUrl = page.url();
       if (!newUrl.includes('login')) {
         console.log('✅ Authentication successful');
@@ -710,11 +697,82 @@ class SmartTestRunner {
     return result;
   }
 
+  // Update clearDatabase to check RBAC
+  private async clearDatabase(page: any, userContext: { username: string, password: string, role: string }): Promise<TestResult> {
+    const result: TestResult = {
+      testName: `Clear Database (Danger Zone) Test as ${userContext.role}`,
+      timestamp: new Date().toISOString(),
+      success: false,
+      errors: [],
+      warnings: [],
+      screenshots: [],
+      htmlDumps: [],
+      data: { user: userContext }
+    };
+    try {
+      // Authenticate as the specified user
+      const authSuccess = await this.ensureAuthenticated(page, userContext.username, userContext.password);
+      if (!authSuccess) {
+        result.errors.push('Failed to authenticate as ' + userContext.username);
+        return result;
+      }
+      // Go to settings page
+      await page.goto('http://localhost:4405/core/settings/', { timeout: 20000 });
+      await page.waitForLoadState('networkidle');
+      result.screenshots.push(await this.takeScreenshot(page, 'settings_page_initial'));
+      result.htmlDumps.push(await this.dumpHTML(page, 'settings_page_initial'));
+      // Try to open the Clear Database modal
+      const clearDbButton = await page.$('button:has-text("Clear Database")');
+      if (!clearDbButton) {
+        result.success = userContext.role !== 'admin';
+        result.warnings.push('Clear Database button not visible for this user.');
+        result.screenshots.push(await this.takeScreenshot(page, 'clear_db_button_not_visible'));
+        return result;
+      }
+      await clearDbButton.click();
+      await page.waitForSelector('#databaseClearModal', { state: 'visible', timeout: 10000 });
+      result.screenshots.push(await this.takeScreenshot(page, 'clear_db_modal_open'));
+      result.htmlDumps.push(await this.dumpHTML(page, 'clear_db_modal_open'));
+      // Type CLEAR DATABASE in the confirmation field
+      await page.fill('#clearConfirmation', 'CLEAR DATABASE');
+      result.screenshots.push(await this.takeScreenshot(page, 'clear_db_confirmation_filled'));
+      // Click the Clear Database button
+      await page.click('#executeClearBtn');
+      await page.waitForSelector('#clearResults', { state: 'visible', timeout: 10000 });
+      const operationResult = await page.textContent('#clearOutput');
+      result.data.operationResult = operationResult;
+      result.screenshots.push(await this.takeScreenshot(page, 'clear_db_result'));
+      result.htmlDumps.push(await this.dumpHTML(page, 'clear_db_result'));
+      // Check for success or error
+      if (userContext.role === 'admin') {
+        if (operationResult && (operationResult.toLowerCase().includes('success') || operationResult.toLowerCase().includes('completed'))) {
+          result.success = true;
+        } else {
+          result.success = false;
+          result.errors.push('Operation did not complete successfully. Result: ' + (operationResult || 'No output'));
+        }
+      } else {
+        // Non-admins should not be able to clear the database
+        if (operationResult && (operationResult.toLowerCase().includes('permission') || operationResult.toLowerCase().includes('denied') || operationResult.toLowerCase().includes('not allowed'))) {
+          result.success = true;
+        } else {
+          result.success = false;
+          result.errors.push('Non-admin user was able to attempt or complete a dangerous operation!');
+        }
+      }
+    } catch (error) {
+      result.errors.push('Clear Database test failed: ' + error);
+      result.screenshots.push(await this.takeScreenshot(page, 'clear_db_error'));
+    }
+    return result;
+  }
+
   // Main test runner
   async runTests(page: any, naturalLanguageRequest: string): Promise<void> {
     console.log('🚀 Starting Smart Test Runner...');
     console.log(`📝 Request: "${naturalLanguageRequest}"`);
     
+    const userContext = this.extractUserContext(naturalLanguageRequest);
     const requests = this.parseNaturalLanguageRequest(naturalLanguageRequest);
     console.log(`\n🔍 Parsed ${requests.length} test requests:`);
     requests.forEach((req, index) => {
@@ -753,6 +811,9 @@ class SmartTestRunner {
           break;
         case 'explore_all_links':
           testResult = await this.exploreAllLinks(page);
+          break;
+        case 'clear_database':
+          testResult = await this.clearDatabase(page, userContext);
           break;
         case 'comprehensive_test':
           // Run all tests
@@ -829,3 +890,47 @@ test('Smart Test Runner', async ({ page }) => {
   
   await runner.runTests(page, testRequest);
 }); 
+
+// Automated review utility
+if (require.main === module) {
+  const { chromium } = require('playwright');
+  (async () => {
+    const runner = new SmartTestRunner();
+    const browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage();
+    const scenarios = [
+      {
+        prompt: 'As an admin, test the Clear Database modal and confirm it works.',
+        expected: 'allowed',
+      },
+      {
+        prompt: 'As a technician, try to clear the database and confirm access is denied.',
+        expected: 'denied',
+      },
+    ];
+    for (const scenario of scenarios) {
+      console.log(`\n=== Running scenario: ${scenario.prompt} ===`);
+      await runner.runTests(page, scenario.prompt);
+      const lastResult = runner.results[runner.results.length - 1];
+      console.log(`Result: ${lastResult.success ? '✅ PASS' : '❌ FAIL'}`);
+      if (lastResult.errors.length > 0) {
+        console.log('Errors:');
+        lastResult.errors.forEach(e => console.log('  - ' + e));
+      }
+      if (lastResult.warnings.length > 0) {
+        console.log('Warnings:');
+        lastResult.warnings.forEach(w => console.log('  - ' + w));
+      }
+      if (lastResult.screenshots.length > 0) {
+        console.log('Screenshots:');
+        lastResult.screenshots.forEach(s => console.log('  - ' + s));
+      }
+      if (lastResult.data && lastResult.data.operationResult) {
+        console.log('Operation Result:');
+        console.log(lastResult.data.operationResult);
+      }
+    }
+    await browser.close();
+    console.log('\n=== Automated RBAC Clear Database Review Complete ===');
+  })();
+} 

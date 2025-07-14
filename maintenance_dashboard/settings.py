@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'django_tables2',
     'widget_tweaks',
     'django_celery_beat',
-    
+    'rest_framework',  # <-- Added here
     # Local apps
     'equipment',
     'maintenance',

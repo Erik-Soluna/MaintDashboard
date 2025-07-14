@@ -347,38 +347,52 @@ class Command(BaseCommand):
         statuses = ['scheduled', 'in_progress', 'completed', 'cancelled']
         priorities = ['low', 'medium', 'high', 'critical']
         
+        created_count = 0
         for i in range(count):
-            equipment = random.choice(equipment_list)
-            activity_type = random.choice(activity_types)
-            status = random.choice(statuses)
-            
-            # Calculate dates
-            start_date = timezone.now() + timedelta(days=random.randint(-30, 90))
-            end_date = start_date + timedelta(hours=random.randint(2, 8))
-            
-            activity = MaintenanceActivity.objects.create(
-                equipment=equipment,
-                activity_type=activity_type,
-                title=f'Demo Activity {i+1} - {activity_type.name}',
-                description=f'Demo maintenance activity for {equipment.name}',
-                status=status,
-                priority=random.choice(priorities),
-                scheduled_start=start_date,
-                scheduled_end=end_date,
-                assigned_to=random.choice(users) if users else None,
-                tools_required='Demo tools required for this activity',
-                parts_required='Demo parts required for this activity',
-                safety_notes='Demo safety considerations for this activity'
-            )
-            
-            # Set actual dates for completed activities
-            if status == 'completed':
-                activity.actual_start = start_date
-                activity.actual_end = end_date
-                activity.completion_notes = 'Demo completion notes'
-                activity.save()
+            try:
+                equipment = random.choice(equipment_list)
+                activity_type = random.choice(activity_types)
+                status = random.choice(statuses)
                 
-        self.stdout.write(f'Created {count} demo maintenance activities')
+                # Calculate dates
+                start_date = timezone.now() + timedelta(days=random.randint(-30, 90))
+                end_date = start_date + timedelta(hours=random.randint(2, 8))
+                
+                activity = MaintenanceActivity.objects.create(
+                    equipment=equipment,
+                    activity_type=activity_type,
+                    title=f'Demo Activity {i+1} - {activity_type.name}',
+                    description=f'Demo maintenance activity for {equipment.name}',
+                    status=status,
+                    priority=random.choice(priorities),
+                    scheduled_start=start_date,
+                    scheduled_end=end_date,
+                    assigned_to=random.choice(users) if users else None,
+                    tools_required='Demo tools required for this activity',
+                    parts_required='Demo parts required for this activity',
+                    safety_notes='Demo safety considerations for this activity'
+                )
+                
+                # Verify scheduled_start was set correctly
+                if not activity.scheduled_start:
+                    self.stdout.write(f'Warning: Activity {activity.id} created without scheduled_start')
+                else:
+                    self.stdout.write(f'Created activity {activity.id} with scheduled_start: {activity.scheduled_start}')
+                
+                # Set actual dates for completed activities
+                if status == 'completed':
+                    activity.actual_start = start_date
+                    activity.actual_end = end_date
+                    activity.completion_notes = 'Demo completion notes'
+                    activity.save()
+                    
+                created_count += 1
+                
+            except Exception as e:
+                self.stdout.write(f'Error creating maintenance activity {i+1}: {str(e)}')
+                continue
+                
+        self.stdout.write(f'Created {created_count} demo maintenance activities')
 
     def create_demo_calendar_events(self, count):
         """Create demo calendar events."""
@@ -442,9 +456,13 @@ class Command(BaseCommand):
         
         for equipment in random.sample(equipment_list, min(20, len(equipment_list))):
             for i in range(random.randint(1, 3)):
+                component_name = f'Demo {random.choice(component_types)} {i+1}'
+                if EquipmentComponent.objects.filter(equipment=equipment, name=component_name).exists():
+                    self.stdout.write(f'Warning: Component "{component_name}" for equipment id={equipment.id} already exists, skipping.')
+                    continue
                 EquipmentComponent.objects.create(
                     equipment=equipment,
-                    name=f'Demo {random.choice(component_types)} {i+1}',
+                    name=component_name,
                     part_number=f'DEMO-PART-{random.randint(100, 999)}',
                     description=f'Demo component for {equipment.name}',
                     quantity=random.randint(1, 5),
@@ -452,7 +470,7 @@ class Command(BaseCommand):
                     next_replacement_date=timezone.now().date() + timedelta(days=random.randint(100, 1000)),
                     is_critical=random.choice([True, False])
                 )
-                
+        
         # Note: EquipmentDocument requires a file field, so we skip creating demo documents
         # to avoid file handling complexity in demo data generation
         self.stdout.write('Skipping EquipmentDocument creation (requires file upload)')
@@ -464,40 +482,63 @@ class Command(BaseCommand):
         # Link maintenance activities to calendar events
         maintenance_activities = MaintenanceActivity.objects.filter(
             title__startswith='Demo Activity'
-        )
+        ).select_related('equipment')
+        
         calendar_events = CalendarEvent.objects.filter(
             title__startswith='Demo Event',
             event_type='maintenance'
-        )
+        ).select_related('equipment')
         
+        linked_count = 0
         for activity in maintenance_activities[:min(20, len(maintenance_activities))]:
-            # Find matching calendar event
-            matching_events = calendar_events.filter(
-                equipment=activity.equipment,
-                event_date=activity.scheduled_start.date()
-            )
-            if matching_events.exists():
-                event = matching_events.first()
-                event.maintenance_activity = activity
-                event.save()
+            try:
+                # Ensure activity has scheduled_start
+                if not activity.scheduled_start:
+                    self.stdout.write(f'Warning: Activity {activity.id} has no scheduled_start, skipping...')
+                    continue
+                    
+                # Find matching calendar event
+                matching_events = calendar_events.filter(
+                    equipment=activity.equipment,
+                    event_date=activity.scheduled_start.date()
+                )
+                if matching_events.exists():
+                    event = matching_events.first()
+                    event.maintenance_activity = activity
+                    event.save()
+                    linked_count += 1
+                    
+            except Exception as e:
+                self.stdout.write(f'Warning: Error linking activity {activity.id}: {str(e)}')
+                continue
+                
+        self.stdout.write(f'Linked {linked_count} maintenance activities to calendar events')
                 
         # Create event reminders
         events = CalendarEvent.objects.filter(title__startswith='Demo Event')
         users = list(User.objects.filter(username__startswith='demo_'))
         
+        reminder_count = 0
         for event in random.sample(list(events), min(20, len(events))):
-            if users:
-                # Calculate reminder time based on event_date and start_time
-                reminder_datetime = datetime.combine(event.event_date, event.start_time or datetime.min.time())
-                reminder_datetime = timezone.make_aware(reminder_datetime)
-                reminder_datetime = reminder_datetime - timedelta(hours=random.randint(1, 24))
+            try:
+                if users:
+                    # Calculate reminder time based on event_date and start_time
+                    reminder_datetime = datetime.combine(event.event_date, event.start_time or datetime.min.time())
+                    reminder_datetime = timezone.make_aware(reminder_datetime)
+                    reminder_datetime = reminder_datetime - timedelta(hours=random.randint(1, 24))
+                    
+                    EventReminder.objects.create(
+                        event=event,
+                        reminder_type=random.choice(['email', 'dashboard']),
+                        user=random.choice(users),
+                        reminder_time=reminder_datetime,
+                        message=f'Reminder: {event.title} is scheduled for {event.event_date}'
+                    )
+                    reminder_count += 1
+                    
+            except Exception as e:
+                self.stdout.write(f'Warning: Error creating reminder for event {event.id}: {str(e)}')
+                continue
                 
-                EventReminder.objects.create(
-                    event=event,
-                    reminder_type=random.choice(['email', 'dashboard']),
-                    user=random.choice(users),
-                    reminder_time=reminder_datetime,
-                    message=f'Reminder: {event.title} is scheduled for {event.event_date}'
-                )
-                
+        self.stdout.write(f'Created {reminder_count} event reminders')
         self.stdout.write('Created relationships between models') 

@@ -6973,3 +6973,136 @@ Traceback (most recent call last):
     obj, end = self.scan_once(s, idx)
                ^^^^^^^^^^^^^^^^^^^^^^
 json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+Created UserProfile for new user: system
+Created UserProfile for new user: demo_user_1
+Created UserProfile for new user: demo_user_2
+Created UserProfile for new user: demo_user_3
+Created UserProfile for new user: demo_user_4
+Created UserProfile for new user: demo_user_5
+Created UserProfile for new user: demo_user_6
+Created UserProfile for new user: demo_user_7
+Created UserProfile for new user: demo_user_8
+Created UserProfile for new user: demo_user_9
+Created UserProfile for new user: demo_user_10
+Created UserProfile for new user: system
+Created UserProfile for new user: demo_user_1
+Created UserProfile for new user: demo_user_2
+Created UserProfile for new user: demo_user_3
+Created UserProfile for new user: demo_user_4
+Created UserProfile for new user: demo_user_5
+Created UserProfile for new user: demo_user_6
+Created UserProfile for new user: demo_user_7
+Created UserProfile for new user: demo_user_8
+Created UserProfile for new user: demo_user_9
+Created UserProfile for new user: demo_user_10
+Created UserProfile for new user: system
+Created UserProfile for new user: demo_user_1
+Created UserProfile for new user: demo_user_2
+Created UserProfile for new user: demo_user_3
+Created UserProfile for new user: demo_user_4
+Created UserProfile for new user: demo_user_5
+Created UserProfile for new user: demo_user_6
+Created UserProfile for new user: demo_user_7
+Created UserProfile for new user: demo_user_8
+Created UserProfile for new user: demo_user_9
+Created UserProfile for new user: demo_user_10
+Internal Server Error: /core/settings/clear-database/
+Internal Server Error: /core/settings/clear-database/
+Created UserProfile for new user: system
+Created UserProfile for new user: demo_user_1
+Created UserProfile for new user: demo_user_2
+Created UserProfile for new user: demo_user_3
+Created UserProfile for new user: demo_user_4
+Created UserProfile for new user: demo_user_5
+Created UserProfile for new user: demo_user_6
+Created UserProfile for new user: demo_user_7
+Created UserProfile for new user: demo_user_8
+Created UserProfile for new user: demo_user_9
+Created UserProfile for new user: demo_user_10
+Total active equipment count: 0
+Filtered equipment queryset count: 0
+Created UserProfile for new user: system
+Created UserProfile for new user: demo_user_1
+Created UserProfile for new user: demo_user_2
+Created UserProfile for new user: demo_user_3
+Created UserProfile for new user: demo_user_4
+Created UserProfile for new user: demo_user_5
+Created UserProfile for new user: demo_user_6
+Created UserProfile for new user: demo_user_7
+Created UserProfile for new user: demo_user_8
+Created UserProfile for new user: demo_user_9
+Created UserProfile for new user: demo_user_10
+Created UserProfile for new user: system
+Created UserProfile for new user: demo_user_1
+Created UserProfile for new user: demo_user_2
+Created UserProfile for new user: demo_user_3
+Created UserProfile for new user: demo_user_4
+Created UserProfile for new user: demo_user_5
+Created UserProfile for new user: demo_user_6
+Created UserProfile for new user: demo_user_7
+Created UserProfile for new user: demo_user_8
+Created UserProfile for new user: demo_user_9
+Created UserProfile for new user: demo_user_10
+Created UserProfile for new user: system
+Created UserProfile for new user: demo_user_1
+Created UserProfile for new user: demo_user_2
+Created UserProfile for new user: demo_user_3
+Created UserProfile for new user: demo_user_4
+Created UserProfile for new user: demo_user_5
+Created UserProfile for new user: demo_user_6
+Created UserProfile for new user: demo_user_7
+Created UserProfile for new user: demo_user_8
+Created UserProfile for new user: demo_user_9
+Created UserProfile for new user: demo_user_10
+Internal Server Error: /core/settings/clear-database/
+Internal Server Error: /core/settings/clear-database/
+Created UserProfile for new user: admin
+Created UserProfile for new user: system
+Created UserProfile for new user: demo_user_1
+Created UserProfile for new user: demo_user_2
+Created UserProfile for new user: demo_user_3
+Created UserProfile for new user: demo_user_4
+Created UserProfile for new user: demo_user_5
+Created UserProfile for new user: demo_user_6
+Created UserProfile for new user: demo_user_7
+Created UserProfile for new user: demo_user_8
+Created UserProfile for new user: demo_user_9
+Created UserProfile for new user: demo_user_10
+Database cleared by user at 2025-07-14 05:40:10.040671+00:00. Keep users: True, Keep admin: True
+Created UserProfile for new user: system
+Created UserProfile for new user: admin
+Created UserProfile for new user: demo_user_1
+Created UserProfile for new user: demo_user_2
+Created UserProfile for new user: demo_user_3
+Database cleared by user at 2025-07-14 05:42:01.525485+00:00. Keep users: True, Keep admin: True
+Created UserProfile for new user: system
+Created UserProfile for new user: admin
+Created UserProfile for new user: demo_user_1
+Created UserProfile for new user: demo_user_2
+Created UserProfile for new user: demo_user_3
+Parsed prompt 'Test admin user can clear database with keep users option' into 1 actions: [{'type': 'admin_clear_database', 'keep_users': True, 'keep_admin': False, 'dry_run': True, 'description': 'Clear database with specified options'}]
+Parsed prompt into 1 actions
+Error running test: BrowserType.launch: Executable doesn't exist at /home/appuser/.cache/ms-playwright/chromium-1140/chrome-linux/chrome
+╔════════════════════════════════════════════════════════════╗
+║ Looks like Playwright was just installed or updated.       ║
+║ Please run the following command to download new browsers: ║
+║                                                            ║
+║     playwright install                                     ║
+║                                                            ║
+║ <3 Playwright Team                                         ║
+╚════════════════════════════════════════════════════════════╝
+Database connection error: could not translate host name "db" to address: Name or service not known
+
+Slow request detected: GET:/core/health/simple/ took 7.33s
+Internal Server Error: /core/health/simple/
+Database connection error: could not translate host name "db" to address: Name or service not known
+
+Error recording endpoint metrics: Error -2 connecting to redis:6379. Name or service not known.
+Internal Server Error: /core/health/simple/
+Failed to reconnect to database: could not translate host name "db" to address: Name or service not known
+
+Error recording endpoint metrics: Error -2 connecting to redis:6379. Name or service not known.
+Internal Server Error: /core/health/simple/
+Parsed prompt 'Create a site called Test Site with 5 pods and 2 MDCs per pod' into 1 actions: [{'type': 'general_test', 'description': 'General test for prompt: Create a site called Test Site with 5 pods and 2 MDCs per pod', 'prompt': 'Create a site called Test Site with 5 pods and 2 MDCs per pod'}]
+Parsed prompt 'Create a site called Test Site with 5 pods and 2 MDCs per pod' into 1 actions: [{'type': 'create_site', 'site_name': 'called', 'pod_count': 5, 'mdcs_per_pod': 2, 'force': False, 'description': 'Create site with PODs and MDCs'}]
+Parsed prompt 'Create a site called Test Site with 5 pods and 2 MDCs per pod' into 1 actions: [{'type': 'create_site', 'site_name': 'test site', 'pod_count': 5, 'mdcs_per_pod': 2, 'force': False, 'description': 'Create site with PODs and MDCs'}]

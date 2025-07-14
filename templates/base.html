@@ -749,6 +749,14 @@
                     <a class="dropdown-item" href="{% url 'core:equipment_items_settings' %}">Equipment Items</a>
                 </div>
             </li>
+            {% if user.is_superuser %}
+            <li class="nav-item">
+                <a class="nav-link {% if request.resolver_match.url_name == 'debug' %}active{% endif %}" 
+                   href="{% url 'core:debug' %}">
+                    <i class="fas fa-bug me-1"></i> Debug
+                </a>
+            </li>
+            {% endif %}
         </ul>
     </div>
 

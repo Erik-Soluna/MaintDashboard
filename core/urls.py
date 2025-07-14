@@ -32,6 +32,9 @@ urlpatterns = [
     path('settings/roles-permissions/', views.roles_permissions_management, name='roles_permissions_management'),
     path('settings/health/', views.system_health, name='system_health'),
     
+    # Debug page
+    path('debug/', views.debug, name='debug'),
+    
     # Location management
     path('locations/add/', views.add_location, name='add_location'),
     path('locations/<int:location_id>/edit/', views.edit_location, name='edit_location'),
@@ -76,6 +79,11 @@ urlpatterns += [
     path('health/simple/', simple_health_check, name='simple_health_check'),
     path('health/simple', simple_health_check, name='simple_health_check_no_slash'),
     path('api/playwright-debug/', views.playwright_debug_api, name='playwright_debug_api'),
+    path('api/playwright/natural-language/', views.run_natural_language_test_api, name='run_natural_language_test_api'),
+    path('api/playwright/rbac-suite/', views.run_rbac_test_suite_api, name='run_rbac_test_suite_api'),
+    path('api/playwright/results/', views.get_test_results_api, name='get_test_results_api'),
+    path('api/playwright/screenshots/', views.get_test_screenshots_api, name='get_test_screenshots_api'),
+    path('api/playwright/scenarios/', views.run_test_scenario_api, name='run_test_scenario_api'),
     path('api-explorer/', views.api_explorer, name='api_explorer'),
     path('health/clear_logs/', clear_health_logs, name='clear_health_logs'),
 ]
