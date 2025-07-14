@@ -12,7 +12,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:4405',
+    baseURL: 'http://web:8000', // Use the Docker service name instead of localhost
     trace: 'on-first-retry',
     actionTimeout: 30000, // 30 seconds for actions like click, fill (increased from 10 seconds)
     navigationTimeout: 60000, // 60 seconds for navigation (increased from 10 seconds)
@@ -31,10 +31,5 @@ export default defineConfig({
       use: { ...devices['Desktop Safari'] },
     },
   ],
-  webServer: {
-    command: 'echo "Django server should be running on port 4405"',
-    url: 'http://localhost:4405',
-    reuseExistingServer: !process.env.CI,
-    timeout: 10000,
-  },
+  // Remove webServer section - we'll use the existing Django server
 }); 

@@ -10,7 +10,7 @@ django.setup()
 from core.models import PlaywrightDebugLog
 
 # Create test prompt
-prompt = 'Create a new equipment item named "Test Equipment Sophie" and assign it to location "Sophie". The equipment should be a server with category "Servers".'
+prompt = 'Create a new equipment item named "Playwright Test Equipment" and assign it to location "Sophie". The equipment should be a server with category "Servers".'
 
 try:
     log_entry = PlaywrightDebugLog.objects.create(

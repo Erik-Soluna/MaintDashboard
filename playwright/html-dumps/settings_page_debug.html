@@ -1,0 +1,1996 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <title>General Settings - Maintenance Dashboard</title>
+    
+    <!-- Bootstrap 4 CSS -->
+    <style data-fullcalendar=""></style><link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="/static/css/custom.css" rel="stylesheet">
+    
+    
+<style>
+.settings-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* Dark mode override for System Health log */
+.card .list-group-item {
+    background-color: #232b3b !important;
+    color: #e2e8f0 !important;
+    border-color: #374151 !important;
+}
+.card .list-group-item.text-muted {
+    color: #a0aec0 !important;
+}
+.card .list-group-item small {
+    color: #a0aec0 !important;
+}
+.card .list-group-item:hover {
+    background-color: #2d3748 !important;
+}
+
+.settings-section {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.settings-header {
+    background-color: #1a2238;
+    padding: 15px 20px;
+    border-bottom: 1px solid #4a5568;
+}
+
+.settings-header h5 {
+    color: #e2e8f0;
+    margin: 0;
+    font-weight: 600;
+}
+
+.settings-body {
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    color: #e2e8f0;
+    font-weight: 500;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.form-control, .form-select {
+    background-color: #1a2238;
+    color: #e2e8f0;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    padding: 10px 12px;
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: #1a2238;
+    border-color: #4299e1;
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+    color: #e2e8f0;
+}
+
+.form-check {
+    margin-bottom: 15px;
+}
+
+.form-check-input {
+    background-color: #1a2238;
+    border-color: #4a5568;
+}
+
+.form-check-input:checked {
+    background-color: #4299e1;
+    border-color: #4299e1;
+}
+
+.form-check-label {
+    color: #e2e8f0;
+    margin-left: 8px;
+}
+
+.settings-actions {
+    padding: 15px 20px;
+    background-color: #1a2238;
+    border-top: 1px solid #4a5568;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.info-text {
+    color: #a0aec0;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.quick-action-card {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.quick-action-card:hover {
+    background-color: #374151;
+    transform: translateY(-2px);
+}
+
+.quick-action-icon {
+    font-size: 24px;
+    color: #4299e1;
+    margin-bottom: 10px;
+}
+
+.quick-action-title {
+    color: #e2e8f0;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.quick-action-desc {
+    color: #a0aec0;
+    font-size: 14px;
+}
+
+/* System Health & Diagnostics specific styles */
+.health-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.health-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.health-indicator.healthy { background-color: #28a745; }
+.health-indicator.warning { background-color: #ffc107; }
+.health-indicator.error { background-color: #dc3545; }
+
+.diagnostic-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.diagnostic-button {
+    background-color: #1a2238;
+    border: 1px solid #4a5568;
+    color: #e2e8f0;
+    padding: 8px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.diagnostic-button:hover {
+    background-color: #2d3748;
+    border-color: #4299e1;
+    color: #e2e8f0;
+    text-decoration: none;
+}
+
+.diagnostic-button.primary {
+    background-color: #4299e1;
+    border-color: #4299e1;
+}
+
+.diagnostic-button.primary:hover {
+    background-color: #3182ce;
+    border-color: #3182ce;
+}
+
+.diagnostic-button.warning {
+    background-color: #ed8936;
+    border-color: #ed8936;
+}
+
+.diagnostic-button.warning:hover {
+    background-color: #dd6b20;
+    border-color: #dd6b20;
+}
+
+.playwright-section {
+    background-color: #1a2238;
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.playwright-form {
+    margin-bottom: 20px;
+}
+
+.playwright-output {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    padding: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: #e2e8f0;
+}
+
+.log-entry {
+    margin-bottom: 10px;
+    padding: 8px;
+    border-radius: 4px;
+    border-left: 3px solid #4a5568;
+}
+
+.log-entry.pending { border-left-color: #ffc107; }
+.log-entry.running { border-left-color: #4299e1; }
+.log-entry.done { border-left-color: #28a745; }
+.log-entry.error { border-left-color: #dc3545; }
+</style>
+
+    
+    <style>
+        :root {
+            --primary-color: #4299e1;
+            --secondary-color: #2d3748;
+            --success-color: #48bb78;
+            --warning-color: #ed8936;
+            --danger-color: #f56565;
+            --info-color: #4299e1;
+            --light-color: #e2e8f0;
+            --dark-color: #1a2238;
+            --darker-color: #0f1419;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        /* Dark Theme (Default) */
+        body, body.theme-dark {
+            background-color: #1a2238;
+            color: #e2e8f0;
+        }
+        
+        /* Light Theme */
+        body.theme-light {
+            background-color: #f7fafc;
+            color: #2d3748;
+        }
+        
+        /* Light Theme Variables */
+        body.theme-light {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7fafc;
+            --bg-tertiary: #edf2f7;
+            --text-primary: #2d3748;
+            --text-secondary: #718096;
+            --border-color: #e2e8f0;
+            --header-bg: #2d3748;
+            --card-bg: #ffffff;
+        }
+        
+        /* Dark Theme Variables */
+        body, body.theme-dark {
+            --bg-primary: #2d3748;
+            --bg-secondary: #1a2238;
+            --bg-tertiary: #0f1419;
+            --text-primary: #e2e8f0;
+            --text-secondary: #a0aec0;
+            --border-color: #4a5568;
+            --header-bg: #0f1419;
+            --card-bg: #2d3748;
+        }
+
+        /* Unified Header Styling */
+        .main-header {
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 20px;
+        }
+        
+        .header-brand {
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            text-decoration: none;
+        }
+        
+        .header-brand:hover {
+            color: #4299e1;
+            text-decoration: none;
+        }
+        
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .site-selector {
+            background-color: #2d3748;
+            color: white;
+            border: 1px solid #4a5568;
+            border-radius: 6px;
+            padding: 8px 12px;
+        }
+        
+        .site-selector:focus {
+            background-color: #2d3748;
+            color: white;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+        }
+        
+        /* Navigation Tabs */
+        .nav-tabs-custom {
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-tertiary);
+            padding: 0 20px;
+        }
+        
+        .nav-tabs-custom .nav-link {
+            color: var(--text-secondary);
+            border: none;
+            padding: 15px 25px;
+            font-weight: 500;
+            background: transparent;
+        }
+        
+        .nav-tabs-custom .nav-link.active {
+            color: var(--text-primary);
+            background-color: var(--bg-primary);
+            border-bottom: 2px solid #4299e1;
+        }
+        
+        .nav-tabs-custom .nav-link:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-primary);
+        }
+        
+        /* Page Content */
+        .main-container {
+            background-color: var(--bg-secondary);
+            min-height: calc(100vh - 140px);
+            padding: 20px;
+        }
+        
+        .page-header {
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+        }
+        
+        .card-header {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .card-body {
+            background-color: var(--card-bg);
+        }
+        
+        .form-control {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .form-control:focus {
+            background-color: var(--bg-secondary);
+            border-color: #4299e1;
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+            color: var(--text-primary);
+        }
+        
+        .btn-primary {
+            background-color: #4299e1;
+            border-color: #4299e1;
+        }
+        
+        .btn-primary:hover {
+            background-color: #3182ce;
+            border-color: #3182ce;
+        }
+        
+        .btn-outline-secondary {
+            color: #a0aec0;
+            border-color: #4a5568;
+        }
+        
+        .btn-outline-secondary:hover {
+            background-color: #4a5568;
+            border-color: #4a5568;
+            color: white;
+        }
+        
+        .table {
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+        }
+        
+        .table th {
+            background-color: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .table td {
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: var(--bg-tertiary);
+        }
+        
+        .breadcrumb {
+            background: transparent;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .breadcrumb-item a {
+            color: #4299e1;
+        }
+        
+        .breadcrumb-item.active {
+            color: #a0aec0;
+        }
+        
+        .breadcrumb-item + .breadcrumb-item::before {
+            content: ">";
+            color: #6c757d;
+        }
+        
+        .badge-secondary {
+            background-color: #4a5568;
+        }
+        
+        .badge-success {
+            background-color: #48bb78;
+        }
+        
+        .badge-warning {
+            background-color: #ed8936;
+        }
+        
+        .badge-danger {
+            background-color: #f56565;
+        }
+        
+        .badge-primary {
+            background-color: #4299e1;
+        }
+        
+        /* Footer */
+        .footer {
+            background-color: #0f1419;
+            color: #a0aec0;
+            padding: 20px 0;
+            border-top: 1px solid #2d3748;
+        }
+        
+        /* Modal styling */
+        .modal-content {
+            background-color: #2d3748;
+            color: white;
+            border: 1px solid #4a5568;
+        }
+        
+        .modal-header {
+            border-bottom: 1px solid #4a5568;
+        }
+        
+        .close {
+            color: white;
+        }
+        
+        /* Dropdown Menu Fixes */
+        .dropdown-menu {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1050;
+            min-width: 200px;
+            padding: 8px 0;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            display: none;
+            float: left;
+            max-height: 90vh;
+            overflow-y: auto;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .dropdown-item {
+            color: var(--text-primary);
+            padding: 8px 16px;
+            transition: background-color 0.2s ease;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .dropdown-item:hover {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        .dropdown-item:focus {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        .dropdown-divider {
+            border-top: 1px solid var(--border-color);
+            margin: 8px 0;
+        }
+        
+        /* Ensure dropdowns are not clipped */
+        .dropdown {
+            position: relative;
+        }
+        
+        .dropdown.show .dropdown-menu {
+            display: block;
+        }
+        
+        .dropdown-menu-right {
+            right: 0;
+            left: auto;
+        }
+        
+        /* Fix for dropdown positioning and overflow */
+        .navbar-nav .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 1050;
+            float: none;
+            min-width: 160px;
+            max-width: 300px;
+            overflow: visible;
+            word-wrap: break-word;
+        }
+        
+        /* Form control dropdowns */
+        .form-control select {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 6px;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .form-control select:focus {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: #4299e1;
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+        }
+        
+        /* Select form control improvements */
+        select.form-control {
+            padding-right: 30px;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 8px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            height: auto;
+            min-height: 38px;
+        }
+        
+        select.form-control option {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+        }
+        
+        /* Site selector dropdown fixes */
+        .site-selector {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            z-index: 1040;
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            height: auto;
+            min-height: 38px;
+        }
+        
+        .site-selector:focus {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: #4299e1;
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+        }
+        
+        /* Navigation dropdown fixes */
+        .nav-tabs-custom {
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--bg-tertiary);
+            padding: 0 20px;
+            position: relative;
+            z-index: 1030;
+            overflow: visible;
+        }
+        
+        .nav-tabs-custom .dropdown-menu {
+            top: 100%;
+            margin-top: 0;
+            position: absolute;
+            z-index: 1050;
+            min-width: 200px;
+            max-height: 90vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        /* Header positioning */
+        .main-header {
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 20px;
+            position: relative;
+            z-index: 1040;
+            overflow: visible;
+        }
+        
+        /* Fix for table overflow issues */
+        .table-responsive {
+            overflow-x: auto;
+            overflow-y: visible;
+            max-width: 100%;
+        }
+        
+        .table {
+            width: 100%;
+            max-width: 100%;
+            margin-bottom: 0;
+            table-layout: fixed;
+        }
+        
+        .table td,
+        .table th {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 12px 8px;
+            vertical-align: middle;
+        }
+        
+        .table td:last-child,
+        .table th:last-child {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+        }
+        
+        /* Fix for long text in table cells */
+        .table .text-wrap {
+            white-space: normal !important;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Card content overflow fixes */
+        .card {
+            overflow: visible;
+        }
+        
+        .card-body {
+            overflow: visible;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Modal fixes */
+        .modal-content {
+            overflow: visible;
+        }
+        
+        .modal-body {
+            overflow-y: auto;
+            max-height: 70vh;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Form control fixes */
+        .form-control {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-sizing: border-box;
+            max-width: 100%;
+        }
+        
+        /* Button group fixes */
+        .btn-group {
+            overflow: visible;
+            white-space: nowrap;
+        }
+        
+        .btn-group .btn {
+            float: none;
+            display: inline-block;
+        }
+        
+        /* Navbar fixes */
+        .navbar-nav {
+            overflow: visible;
+        }
+        
+        .navbar-nav .nav-item {
+            position: relative;
+        }
+        
+        .navbar-nav .dropdown {
+            position: static;
+        }
+        
+        /* Container fixes */
+        .container-fluid {
+            overflow-x: hidden;
+            overflow-y: visible;
+        }
+        
+        /* Text truncation utilities */
+        .text-truncate {
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+        }
+        
+        .text-wrap {
+            white-space: normal !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+        }
+        
+        /* Flex container fixes */
+        .d-flex {
+            overflow: visible;
+        }
+        
+        /* Badge overflow fixes */
+        .badge {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        
+        .badge.text-wrap {
+            white-space: normal !important;
+            max-width: none;
+        }
+        
+        /* Breadcrumb fixes */
+        .breadcrumb {
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            overflow: visible;
+            flex-wrap: wrap;
+        }
+        
+        .breadcrumb-item {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        
+        .breadcrumb-item:last-child {
+            max-width: none;
+            overflow: visible;
+            text-overflow: unset;
+        }
+        
+        /* Alerts */
+        .alert {
+            border: none;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        
+        .alert-success {
+            background-color: #2d5a3d;
+            color: #68d391;
+            border-left-color: #48bb78;
+        }
+        
+        .alert-danger {
+            background-color: #5a2d2d;
+            color: #fc8181;
+            border-left-color: #f56565;
+        }
+        
+        .alert-warning {
+            background-color: #5a4a2d;
+            color: #f6ad55;
+            border-left-color: #ed8936;
+        }
+        
+        .alert-info {
+            background-color: #2d4a5a;
+            color: #63b3ed;
+            border-left-color: #4299e1;
+        }
+    </style>
+</head>
+<body class="theme-dark">
+    <input type="hidden" name="csrfmiddlewaretoken" value="oW6sxCtKoxgtrhMdKNwK7qUWmtzXA74JXMhUbr2N3yGRtWj38mfFrQKYma6tyJ4X" style="">
+    <!-- Main Header -->
+    <div class="main-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <a href="/core/dashboard/" class="header-brand">
+                <i class="fas fa-tools me-2"></i>
+                Maintenance Dashboard
+            </a>
+        </div>
+        
+        <div class="header-controls">
+            <!-- Site Selector -->
+            <div class="d-flex align-items-center">
+                <label for="site-selector" class="text-white me-2 mb-0">Select Site:</label>
+                <select id="site-selector" class="site-selector form-control form-control-sm" onchange="changeSite(this.value)">
+                    <option value="" selected="">All - Soluna</option>
+                    
+                    <option value="160">
+                        Demo Site 1
+                    </option>
+                    
+                    <option value="183">
+                        Demo Site 2
+                    </option>
+                    
+                    <option value="204">
+                        Demo Site 3
+                    </option>
+                    
+                    <option value="35">
+                        Dorothy 1A
+                    </option>
+                    
+                    <option value="69">
+                        Dorothy 1B
+                    </option>
+                    
+                    <option value="103">
+                        Dorothy 2
+                    </option>
+                    
+                    <option value="137">
+                        Dorothy Site
+                    </option>
+                    
+                    <option value="244">
+                        Main Site
+                    </option>
+                    
+                    <option value="1">
+                        Sophie
+                    </option>
+                    
+                </select>
+            </div>
+            
+            <!-- User Info -->
+            
+            <div class="dropdown">
+                <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                    <i class="fas fa-user me-1"></i>
+                    admin
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                    <a class="dropdown-item" href="/core/profile/">
+                        <i class="fas fa-user-cog me-1"></i> Profile
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="/auth/logout/">
+                        <i class="fas fa-sign-out-alt me-1"></i> Logout
+                    </a>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs-custom">
+        <ul class="nav nav-tabs border-0">
+            <li class="nav-item">
+                <a class="nav-link " href="/core/dashboard/">
+                    <i class="fas fa-home me-1"></i> Overview
+                </a>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle " href="#" data-toggle="dropdown">
+                    <i class="fas fa-cogs me-1"></i> Equipment
+                </a>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="/equipment/">Equipment List</a>
+                    <a class="dropdown-item" href="/equipment/add/">Add Equipment</a>
+                </div>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle " href="#" data-toggle="dropdown">
+                    <i class="fas fa-calendar-check me-1"></i> Maintenance
+                </a>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="/maintenance/">Activities</a>
+                    <a class="dropdown-item" href="/maintenance/schedules/">Schedules</a>
+                    <a class="dropdown-item" href="/maintenance/activities/add/">New Activity</a>
+                </div>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/events/calendar/">
+                    <i class="fas fa-calendar me-1"></i> Calendar
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/core/map/">
+                    <i class="fas fa-map me-1"></i> Map
+                </a>
+            </li>
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" data-toggle="dropdown">
+                    <i class="fas fa-cog me-1"></i> Settings
+                </a>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="/core/settings/">General Settings</a>
+                    <a class="dropdown-item" href="/core/settings/locations/">Locations</a>
+                    <a class="dropdown-item" href="/core/settings/customers/">Customers</a>
+                    <a class="dropdown-item" href="/core/settings/equipment-items/">Equipment Items</a>
+                </div>
+            </li>
+            
+            <li class="nav-item">
+                <a class="nav-link " href="/core/debug/">
+                    <i class="fas fa-bug me-1"></i> Debug
+                </a>
+            </li>
+            
+        </ul>
+    </div>
+
+    <!-- Breadcrumb -->
+    
+    <div class="container-fluid mt-3">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/core/dashboard/">Home</a></li>
+                
+<li class="breadcrumb-item active">Settings</li>
+
+            </ol>
+        </nav>
+    </div>
+    
+
+    <!-- Messages -->
+    
+
+    <!-- Main Content -->
+    <main class="container-fluid main-container">
+        
+<div class="settings-container">
+
+
+
+
+    <div class="page-header">
+        <h2 class="mb-0">
+            <i class="fas fa-cog me-2"></i>
+            General Settings
+        </h2>
+        <p class="text-muted mb-0">Manage your preferences and system settings</p>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+        
+        <a href="/core/debug/" class="quick-action-card text-decoration-none">
+            <div class="quick-action-icon">
+                <i class="fas fa-bug"></i>
+            </div>
+            <div class="quick-action-title">Debug &amp; Diagnostics</div>
+            <div class="quick-action-desc">System health, tools, and Playwright testing</div>
+        </a>
+        
+        
+        <a href="/core/settings/locations/" class="quick-action-card text-decoration-none">
+            <div class="quick-action-icon">
+                <i class="fas fa-map-marker-alt"></i>
+            </div>
+            <div class="quick-action-title">Locations</div>
+            <div class="quick-action-desc">Manage sites and equipment locations</div>
+        </a>
+        
+        <a href="/core/settings/equipment-items/" class="quick-action-card text-decoration-none">
+            <div class="quick-action-icon">
+                <i class="fas fa-tools"></i>
+            </div>
+            <div class="quick-action-title">Equipment Items</div>
+            <div class="quick-action-desc">Manage equipment and categories</div>
+        </a>
+        
+        <a href="/core/settings/users/" class="quick-action-card text-decoration-none">
+            <div class="quick-action-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="quick-action-title">User Management</div>
+            <div class="quick-action-desc">Manage user accounts and permissions</div>
+        </a>
+        
+        <a href="/admin/" class="quick-action-card text-decoration-none">
+            <div class="quick-action-icon">
+                <i class="fas fa-database"></i>
+            </div>
+            <div class="quick-action-title">Database Settings</div>
+            <div class="quick-action-desc">View and update all database entries</div>
+        </a>
+        <a href="/core/api-explorer/" class="quick-action-card text-decoration-none">
+            <div class="quick-action-icon">
+                <i class="fas fa-sitemap"></i>
+            </div>
+            <div class="quick-action-title">API Explorer</div>
+            <div class="quick-action-desc">Tree view of all data + API docs</div>
+        </a>
+    </div>
+
+    <!-- User Preferences -->
+    <div class="settings-section">
+        <div class="settings-header">
+            <h5>
+                <i class="fas fa-user-cog me-2"></i>
+                User Preferences
+            </h5>
+        </div>
+        <form method="post">
+            <input type="hidden" name="csrfmiddlewaretoken" value="oW6sxCtKoxgtrhMdKNwK7qUWmtzXA74JXMhUbr2N3yGRtWj38mfFrQKYma6tyJ4X" style="">
+            <div class="settings-body">
+                <div class="form-group">
+                    <label for="default_location" class="form-label">Default Location</label>
+                    <select id="default_location" name="default_location" class="form-control">
+                        <option value="">Select a default location</option>
+                        
+                    </select>
+                    <div class="info-text">This location will be pre-selected when creating new equipment or maintenance activities.</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Notification Settings</label>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="notifications_enabled" name="notifications_enabled" checked="" style="">
+                        <label class="form-check-label" for="notifications_enabled">
+                            Enable notifications
+                        </label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="email_notifications" name="email_notifications" checked="" style="">
+                        <label class="form-check-label" for="email_notifications">
+                            Email notifications
+                        </label>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="sms_notifications" name="sms_notifications" style="">
+                        <label class="form-check-label" for="sms_notifications">
+                            SMS notifications
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>
+                    Save Settings
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- System Information -->
+    <div class="settings-section">
+        <div class="settings-header">
+            <h5>
+                <i class="fas fa-info-circle me-2"></i>
+                System Information
+            </h5>
+        </div>
+        <div class="settings-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Current User</label>
+                        <div class="info-text">admin</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">User Role</label>
+                        <div class="info-text"></div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Last Login</label>
+                        <div class="info-text">Jul 14, 2025 15:18</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Account Created</label>
+                        <div class="info-text">Jul 14, 2025</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Demo Data Population Modal -->
+<div class="modal fade" id="demoDataModal" tabindex="-1" aria-labelledby="demoDataModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="demoDataModalLabel">
+                    <i class="fas fa-database text-primary me-2"></i>
+                    Populate Comprehensive Demo Data
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle me-2"></i>Demo Data Configuration</h6>
+                    <p class="mb-0">This will create comprehensive demo data for all models in the system including users, equipment, maintenance activities, calendar events, and more.</p>
+                </div>
+                
+                <form id="demoDataForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="users-count" class="form-label">Number of Users</label>
+                                <input type="number" id="users-count" name="users_count" class="form-control" value="10" min="1" max="100" style="">
+                                <div class="form-text">Demo users with different roles</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="equipment-count" class="form-label">Number of Equipment Items</label>
+                                <input type="number" id="equipment-count" name="equipment_count" class="form-control" value="50" min="1" max="500" style="">
+                                <div class="form-text">Equipment with various categories and locations</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="activities-count" class="form-label">Number of Maintenance Activities</label>
+                                <input type="number" id="activities-count" name="activities_count" class="form-control" value="100" min="1" max="1000" style="">
+                                <div class="form-text">Maintenance activities with different statuses</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="events-count" class="form-label">Number of Calendar Events</label>
+                                <input type="number" id="events-count" name="events_count" class="form-control" value="75" min="1" max="500" style="">
+                                <div class="form-text">Calendar events linked to equipment</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="reset-data" name="reset_data" style="">
+                            <label class="form-check-label" for="reset-data">
+                                <strong>Clear existing demo data first</strong>
+                            </label>
+                        </div>
+                        <div class="form-text text-warning">This will remove existing demo data before creating new data</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="populateDemoData()">
+                    <i class="fas fa-database me-1"></i>Populate Demo Data
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Database Clear Modal -->
+<div class="modal fade" id="databaseClearModal" tabindex="-1" aria-labelledby="databaseClearModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="databaseClearModalLabel">
+                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                    Clear Database (DANGER ZONE)
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>WARNING: This is a destructive operation!</h6>
+                    <p class="mb-0">This will permanently delete all data from the database. This action cannot be undone.</p>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label class="form-label">Clear Options:</label>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="keepUsers" name="keep_users" style="">
+                        <label class="form-check-label" for="keepUsers">
+                            Keep user accounts (clear all other data)
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="keepAdmin" name="keep_admin" style="">
+                        <label class="form-check-label" for="keepAdmin">
+                            Keep admin user account
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="dryRun" name="dry_run" checked="" style="">
+                        <label class="form-check-label" for="dryRun">
+                            Dry run (show what would be deleted without actually deleting)
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="clearConfirmation" class="form-label">Confirmation:</label>
+                    <input type="text" class="form-control" id="clearConfirmation" placeholder="Type 'CLEAR DATABASE' to confirm" required="" style="">
+                    <div class="form-text text-muted">You must type exactly "CLEAR DATABASE" to proceed.</div>
+                </div>
+                
+                <div id="clearResults" class="mt-3" style="display: none;">
+                    <h6>Operation Results:</h6>
+                    <pre id="clearOutput" class="bg-dark border border-secondary p-3" style="max-height: 300px; overflow-y: auto; font-size: 12px;"></pre>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="executeClearBtn" disabled="">
+                    <i class="fas fa-trash-alt me-1"></i>Clear Database
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-0">© 2025 Maintenance Dashboard. All rights reserved.</p>
+                </div>
+                <div class="col-md-6 text-right">
+                    <small>Powered by Django</small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    
+    
+<script>
+// CSRF helper for AJAX
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            // Does this cookie string begin with the name we want?
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+$.ajaxSetup({
+    beforeSend: function(xhr, settings) {
+        if (!(/^GET|HEAD|OPTIONS|TRACE$/i.test(settings.type)) && !this.crossDomain) {
+            xhr.setRequestHeader("X-CSRFToken", csrftoken);
+        }
+    }
+});
+
+$(document).ready(function() {
+    // Enable/disable dependent notification options
+    $('#notifications_enabled').on('change', function() {
+        const enabled = $(this).is(':checked');
+        $('#email_notifications, #sms_notifications').prop('disabled', !enabled);
+        if (!enabled) {
+            $('#email_notifications, #sms_notifications').prop('checked', false);
+        }
+    });
+    
+    // Trigger initial state
+    $('#notifications_enabled').trigger('change');
+
+    $('#clear-health-logs').on('click', function() {
+        if (!confirm('Clear all recent health failure logs?')) return;
+        $.post('/core/health/clear_logs/', function(data) {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to clear logs.');
+                console.error('Clear logs error:', data);
+            }
+        }).fail(function(xhr) {
+            let errorMsg = 'Unknown error';
+            if (xhr.responseJSON && xhr.responseJSON.error) {
+                errorMsg = xhr.responseJSON.error;
+            }
+            alert('Failed to clear logs: ' + errorMsg);
+            console.error('AJAX error on clear logs:', xhr);
+        });
+    });
+
+    // Load Playwright logs on page load
+    refreshPlaywrightLogs();
+});
+
+// Diagnostic Functions
+function showDiagnosticResults(html) {
+    const resultsDiv = document.getElementById('diagnosticResults');
+    resultsDiv.style.display = 'block';
+    resultsDiv.innerHTML = html;
+    resultsDiv.scrollTop = 0;
+}
+
+function testApplicationHealth() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Testing all components...</div>');
+    
+    fetch('/events/api/health/')
+        .then(response => response.json())
+        .then(data => {
+            let html = '<h6 class="mb-3">Application Health Test Results</h6>';
+            
+            if (data.success) {
+                html += '<div class="row">';
+                
+                for (const [component, info] of Object.entries(data.components)) {
+                    const statusClass = info.status === 'success' ? 'text-success' : 'text-danger';
+                    const statusIcon = info.status === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
+                    
+                    html += `
+                        <div class="col-md-6 mb-3">
+                            <div class="card bg-dark border-secondary">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="${statusIcon} ${statusClass} me-2"></i>
+                                        ${component.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="mb-1"><strong>Status:</strong> <span class="${statusClass}">${info.status}</span></p>
+                                    <p class="mb-1"><strong>Count:</strong> ${info.count || 'N/A'}</p>
+                                    ${info.error ? `<p class="mb-1 text-danger"><strong>Error:</strong> ${info.error}</p>` : ''}
+                                    ${info.sample_data && info.sample_data.length > 0 ? `
+                                        <details class="mt-2">
+                                            <summary class="text-info">Sample Data</summary>
+                                            <pre class="text-muted mt-1" style="font-size: 11px;">${JSON.stringify(info.sample_data, null, 2)}</pre>
+                                        </details>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += '</div>';
+            } else {
+                html += `<div class="alert alert-danger">Test failed: ${data.error}</div>`;
+            }
+            
+            showDiagnosticResults(html);
+        })
+        .catch(error => {
+            showDiagnosticResults(`<div class="alert alert-danger">Error running test: ${error.message}</div>`);
+        });
+}
+
+function testUnifiedAPI() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Testing unified API...</div>');
+    
+    fetch('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+        .then(response => response.json())
+        .then(data => {
+            let html = '<h6 class="mb-3">Unified Calendar API Test Results</h6>';
+            
+            if (Array.isArray(data)) {
+                html += `
+                    <div class="alert alert-success">
+                        <strong>Success!</strong> API returned ${data.length} events/activities
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Event Types Breakdown:</h6>
+                            <ul>
+                                ${getEventTypeBreakdown(data)}
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Sample Events:</h6>
+                            <div style="max-height: 300px; overflow-y: auto;">
+                                ${data.slice(0, 5).map(event => `
+                                    <div class="card bg-dark border-secondary mb-2">
+                                        <div class="card-body p-2">
+                                            <small class="text-muted">${event.id}</small><br>
+                                            <strong>${event.title}</strong><br>
+                                            <small class="text-info">${event.start}</small>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                html += `<div class="alert alert-danger">Unexpected response format: ${JSON.stringify(data)}</div>`;
+            }
+            
+            showDiagnosticResults(html);
+        })
+        .catch(error => {
+            showDiagnosticResults(`<div class="alert alert-danger">Error testing unified API: ${error.message}</div>`);
+        });
+}
+
+function testDatabaseHealth() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Testing database health...</div>');
+    
+    fetch('/core/health-check/')
+        .then(response => response.json())
+        .then(data => {
+            let html = '<h6 class="mb-3">Database Health Test Results</h6>';
+            
+            html += `
+                <div class="card bg-dark border-secondary mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-database me-2"></i>
+                            Database Status
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Overall Status:</strong> <span class="badge ${data.overall_status === 'healthy' ? 'bg-success' : data.overall_status === 'warning' ? 'bg-warning' : 'bg-danger'}">${data.overall_status}</span></p>
+                        <p><strong>Database Status:</strong> <span class="badge ${data.database_health.status === 'healthy' ? 'bg-success' : 'bg-danger'}">${data.database_health.status}</span></p>
+                        <p><strong>Response Time:</strong> ${data.database_health.response_time ? (data.database_health.response_time * 1000).toFixed(2) + 'ms' : 'N/A'}</p>
+                        ${data.database_health.error ? `<p class="text-danger"><strong>Error:</strong> ${data.database_health.error}</p>` : ''}
+                    </div>
+                </div>
+            `;
+            
+            showDiagnosticResults(html);
+        })
+        .catch(error => {
+            showDiagnosticResults(`<div class="alert alert-danger">Error testing database health: ${error.message}</div>`);
+        });
+}
+
+function testCacheHealth() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Testing cache health...</div>');
+    
+    fetch('/core/health-check/')
+        .then(response => response.json())
+        .then(data => {
+            let html = '<h6 class="mb-3">Cache Health Test Results</h6>';
+            
+            html += `
+                <div class="card bg-dark border-secondary mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-memory me-2"></i>
+                            Cache Status
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Cache Status:</strong> <span class="badge ${data.cache_health.status === 'healthy' ? 'bg-success' : 'bg-danger'}">${data.cache_health.status}</span></p>
+                        <p><strong>Response Time:</strong> ${data.cache_health.response_time ? (data.cache_health.response_time * 1000).toFixed(2) + 'ms' : 'N/A'}</p>
+                        ${data.cache_health.error ? `<p class="text-danger"><strong>Error:</strong> ${data.cache_health.error}</p>` : ''}
+                    </div>
+                </div>
+            `;
+            
+            showDiagnosticResults(html);
+        })
+        .catch(error => {
+            showDiagnosticResults(`<div class="alert alert-danger">Error testing cache health: ${error.message}</div>`);
+        });
+}
+
+function runHealthCheck() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Running comprehensive health check...</div>');
+    
+    fetch('/core/health-check/run/')
+        .then(response => response.text())
+        .then(data => {
+            let html = '<h6 class="mb-3">Comprehensive Health Check Results</h6>';
+            html += `<pre style="white-space: pre-wrap; font-size: 12px;">${data}</pre>`;
+            showDiagnosticResults(html);
+        })
+        .catch(error => {
+            showDiagnosticResults(`<div class="alert alert-danger">Error running health check: ${error.message}</div>`);
+        });
+}
+
+function getEventTypeBreakdown(data) {
+    const breakdown = {};
+    data.forEach(event => {
+        const type = event.extendedProps?.type || 'unknown';
+        breakdown[type] = (breakdown[type] || 0) + 1;
+    });
+    
+    return Object.entries(breakdown).map(([type, count]) => 
+        `<li>${type}: ${count}</li>`
+    ).join('');
+}
+
+// Playwright Functions
+function submitPlaywrightPrompt() {
+    const prompt = document.getElementById('playwright-prompt').value.trim();
+    if (!prompt) {
+        alert('Please enter a prompt for Playwright testing.');
+        return;
+    }
+    
+    const logsDiv = document.getElementById('playwrightLogs');
+    logsDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Submitting Playwright test...</div>';
+    
+    fetch('/core/api/playwright-debug/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({ prompt: prompt })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            logsDiv.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
+        } else {
+            logsDiv.innerHTML = `<div class="alert alert-success">Playwright test submitted successfully! ID: ${data.id}</div>`;
+            // Refresh logs after a short delay
+            setTimeout(refreshPlaywrightLogs, 2000);
+        }
+    })
+    .catch(error => {
+        logsDiv.innerHTML = `<div class="alert alert-danger">Error submitting test: ${error.message}</div>`;
+    });
+}
+
+function refreshPlaywrightLogs() {
+    const logsDiv = document.getElementById('playwrightLogs');
+    
+    fetch('/core/api/playwright-debug/')
+    .then(response => response.json())
+    .then(data => {
+        if (data.logs && data.logs.length > 0) {
+            let html = '<h6 class="mb-3">Recent Playwright Debug Logs</h6>';
+            
+            data.logs.forEach(log => {
+                const statusClass = log.status === 'done' ? 'done' : 
+                                  log.status === 'running' ? 'running' : 
+                                  log.status === 'error' ? 'error' : 'pending';
+                
+                html += `
+                    <div class="log-entry ${statusClass}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>${log.prompt}</strong>
+                                <br><small class="text-muted">ID: ${log.id} | Status: ${log.status}</small>
+                                <br><small class="text-muted">Started: ${log.started_at || 'N/A'} | Finished: ${log.finished_at || 'N/A'}</small>
+                            </div>
+                            <span class="badge ${log.status === 'done' ? 'bg-success' : log.status === 'running' ? 'bg-primary' : log.status === 'error' ? 'bg-danger' : 'bg-warning'}">${log.status}</span>
+                        </div>
+                        ${log.output ? `<div class="mt-2"><strong>Output:</strong><pre style="font-size: 11px; margin-top: 5px;">${log.output}</pre></div>` : ''}
+                        ${log.error_message ? `<div class="mt-2 text-danger"><strong>Error:</strong> ${log.error_message}</div>` : ''}
+                    </div>
+                `;
+            });
+            
+            logsDiv.innerHTML = html;
+        } else {
+            logsDiv.innerHTML = '<div class="text-center text-muted">No Playwright logs found.</div>';
+        }
+    })
+    .catch(error => {
+        logsDiv.innerHTML = `<div class="alert alert-danger">Error loading logs: ${error.message}</div>`;
+    });
+}
+
+// Database Management Functions
+function showDatabaseClearModal() {
+    const modal = new bootstrap.Modal(document.getElementById('databaseClearModal'));
+    modal.show();
+    
+    // Reset form
+    document.getElementById('keepUsers').checked = false;
+    document.getElementById('keepAdmin').checked = false;
+    document.getElementById('dryRun').checked = true;
+    document.getElementById('clearConfirmation').value = '';
+    document.getElementById('executeClearBtn').disabled = true;
+    document.getElementById('clearResults').style.display = 'none';
+    
+    // Enable/disable execute button based on confirmation
+    document.getElementById('clearConfirmation').addEventListener('input', function() {
+        document.getElementById('executeClearBtn').disabled = this.value !== 'CLEAR DATABASE';
+    });
+    
+    // Execute clear operation
+    document.getElementById('executeClearBtn').onclick = function() {
+        const keepUsers = document.getElementById('keepUsers').checked;
+        const keepAdmin = document.getElementById('keepAdmin').checked;
+        const dryRun = document.getElementById('dryRun').checked;
+        
+        // Show loading state
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+        
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('keep_users', keepUsers);
+        formData.append('keep_admin', keepAdmin);
+        formData.append('dry_run', dryRun);
+        
+        // Execute the clear operation
+        fetch('/core/settings/clear-database/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Show results
+            document.getElementById('clearResults').style.display = 'block';
+            document.getElementById('clearOutput').textContent = data.output || data.message;
+            
+            if (data.success) {
+                document.getElementById('clearOutput').className = 'bg-dark border border-success p-3';
+            } else {
+                document.getElementById('clearOutput').className = 'bg-dark border border-danger p-3';
+            }
+            
+            // Reset button
+            this.disabled = false;
+            this.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Clear Database';
+        })
+        .catch(error => {
+            document.getElementById('clearResults').style.display = 'block';
+            document.getElementById('clearOutput').textContent = `Error: ${error.message}`;
+            document.getElementById('clearOutput').className = 'bg-dark border border-danger p-3';
+            
+            // Reset button
+            this.disabled = false;
+            this.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Clear Database';
+        });
+    };
+}
+
+function showDatabaseStats() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading database statistics...</div>');
+    
+    fetch('/core/health-check/')
+    .then(response => response.json())
+    .then(data => {
+        let html = '<h6 class="mb-3">Database Statistics</h6>';
+        
+        if (data.database_health && data.database_health.status === 'healthy') {
+            html += `
+                <div class="alert alert-success">
+                    <strong>Database Status:</strong> Healthy
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Connection Info:</h6>
+                        <ul>
+                            <li>Response Time: ${data.database_health.response_time ? (data.database_health.response_time * 1000).toFixed(2) + 'ms' : 'N/A'}</li>
+                            <li>Status: ${data.database_health.status}</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>System Health:</h6>
+                        <ul>
+                            <li>Overall Status: ${data.overall_status}</li>
+                            <li>Cache Status: ${data.cache_health ? data.cache_health.status : 'N/A'}</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+        } else {
+            html += `<div class="alert alert-danger">Database is not healthy: ${data.database_health ? data.database_health.error : 'Unknown error'}</div>`;
+        }
+        
+        showDiagnosticResults(html);
+    })
+    .catch(error => {
+        showDiagnosticResults(`<div class="alert alert-danger">Error loading database stats: ${error.message}</div>`);
+    });
+}
+
+function backupDatabase() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Creating database backup...</div>');
+    
+    // This would typically call a backup endpoint
+    setTimeout(() => {
+        showDiagnosticResults(`
+            <div class="alert alert-info">
+                <h6>Database Backup</h6>
+                <p>Backup functionality would be implemented here.</p>
+                <p>In a production environment, this would:</p>
+                <ul>
+                    <li>Create a timestamped backup file</li>
+                    <li>Compress the backup</li>
+                    <li>Store it in a secure location</li>
+                    <li>Provide download link</li>
+                </ul>
+            </div>
+        `);
+    }, 2000);
+}
+
+// Development Tools Functions
+function generatePods() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Generating PODs...</div>');
+    
+    const formData = new FormData();
+    formData.append('site_name', 'Default Site');
+    formData.append('pod_count', '11');
+    formData.append('mdcs_per_pod', '2');
+    formData.append('force', 'false');
+    
+    fetch('/core/locations/generate-pods/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        let html = '<h6 class="mb-3">POD Generation Results</h6>';
+        
+        if (data.success) {
+            html += `
+                <div class="alert alert-success">
+                    <strong>Success!</strong> PODs generated successfully
+                </div>
+                <pre style="white-space: pre-wrap; font-size: 12px;">${data.output}</pre>
+            `;
+        } else {
+            html += `<div class="alert alert-danger">Error: ${data.error}</div>`;
+        }
+        
+        showDiagnosticResults(html);
+    })
+    .catch(error => {
+        showDiagnosticResults(`<div class="alert alert-danger">Error generating PODs: ${error.message}</div>`);
+    });
+}
+
+function populateSampleData() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Populating sample data...</div>');
+    
+    setTimeout(() => {
+        showDiagnosticResults(`
+            <div class="alert alert-info">
+                <h6>Sample Data Population</h6>
+                <p>This would call management commands to populate sample data:</p>
+                <ul>
+                    <li>python manage.py populate_sample_data</li>
+                    <li>python manage.py populate_maintenance_data</li>
+                    <li>python manage.py populate_activity_types</li>
+                </ul>
+                <p>Sample data would include equipment, maintenance activities, and events.</p>
+            </div>
+        `);
+    }, 2000);
+}
+
+function resetRBAC() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Resetting RBAC system...</div>');
+    
+    setTimeout(() => {
+        showDiagnosticResults(`
+            <div class="alert alert-info">
+                <h6>RBAC Reset</h6>
+                <p>This would call management commands to reset the RBAC system:</p>
+                <ul>
+                    <li>python manage.py init_rbac</li>
+                    <li>python manage.py ensure_permissions</li>
+                </ul>
+                <p>This would recreate all roles and permissions with default settings.</p>
+            </div>
+        `);
+    }, 2000);
+}
+
+function showDemoDataModal() {
+    const modal = new bootstrap.Modal(document.getElementById('demoDataModal'));
+    modal.show();
+}
+
+function populateDemoData() {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Populating...';
+    button.disabled = true;
+    
+    // Get form data
+    const form = document.getElementById('demoDataForm');
+    const formData = new FormData(form);
+    
+    // Add reset_data checkbox value
+    formData.append('reset_data', document.getElementById('reset-data').checked);
+    
+    fetch('/core/settings/populate-demo-data/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showDiagnosticResults('<div class="alert alert-success"><strong>Demo Data Population Success!</strong><br>' + data.message + '</div><pre style="white-space: pre-wrap; font-size: 12px;">' + data.output + '</pre>');
+            // Close the modal
+            const modalElement = document.getElementById('demoDataModal');
+            const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
+            modal.hide();
+        } else {
+            showDiagnosticResults('<div class="alert alert-danger"><strong>Demo Data Population Error!</strong><br>' + data.message + '</div><pre style="white-space: pre-wrap; font-size: 12px;">' + data.output + '</pre>');
+        }
+    })
+    .catch(error => {
+        showDiagnosticResults('<div class="alert alert-danger">Error populating demo data: ' + error.message + '</div>');
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+</script>
+
+    
+    <script>
+        // Site selector change handler
+        function changeSite(siteId) {
+            const url = new URL(window.location);
+            if (siteId && siteId !== '') {
+                url.searchParams.set('site_id', siteId);
+            } else {
+                // Explicitly set empty string to trigger clearing logic in context processor
+                url.searchParams.set('site_id', '');
+            }
+            window.location.href = url.toString();
+        }
+        
+        // Theme switching function
+        function switchTheme(theme) {
+            if (theme === 'light') {
+                document.body.classList.remove('theme-dark');
+                document.body.classList.add('theme-light');
+            } else {
+                document.body.classList.remove('theme-light');
+                document.body.classList.add('theme-dark');
+            }
+        }
+        
+        // Global JavaScript utilities
+        $(document).ready(function() {
+            // Auto-dismiss alerts after 5 seconds
+            setTimeout(function() {
+                $('.alert').fadeOut('slow');
+            }, 5000);
+            
+            // Add loading state to buttons
+            $('form').on('submit', function() {
+                $(this).find('button[type="submit"]').prop('disabled', true).html(
+                    '<i class="fas fa-spinner fa-spin"></i> Processing...'
+                );
+            });
+            
+            // Confirm delete actions
+            $('.btn-delete').on('click', function(e) {
+                if (!confirm('Are you sure you want to delete this item?')) {
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+
+</body></html>

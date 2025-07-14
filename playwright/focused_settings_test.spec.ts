@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Focused Settings and Playwright Debug Test', () => {
-  test('Test Settings Page and Playwright Debug Functionality', async ({ page }) => {
-    const baseUrl = 'http://localhost:4405';
+  test('Test Settings Page and Playwright Debug Functionality', async ({ page, baseURL }) => {
+    // Use the baseURL from Playwright config
+    const url = baseURL || 'http://web:8000';
     const adminUsername = 'admin';
     const adminPassword = 'temppass123';
     
@@ -11,7 +12,7 @@ test.describe('Focused Settings and Playwright Debug Test', () => {
     try {
       // Navigate to the application
       console.log('📱 Navigating to application...');
-      await page.goto(baseUrl, { timeout: 120000 }); // Increased timeout to 2 minutes
+      await page.goto(url, { timeout: 120000 }); // Increased timeout to 2 minutes
       
       // Wait for page to load
       await page.waitForLoadState('networkidle', { timeout: 60000 });
@@ -38,7 +39,7 @@ test.describe('Focused Settings and Playwright Debug Test', () => {
       
       // Navigate to settings page
       console.log('⚙️ Navigating to settings page...');
-      await page.goto(`${baseUrl}/core/settings/`, { timeout: 120000 });
+      await page.goto(`${url}/core/settings/`, { timeout: 120000 });
       await page.waitForLoadState('networkidle', { timeout: 60000 });
       
       console.log(`📍 Settings page URL: ${page.url()}`);

@@ -202,6 +202,10 @@ services:
       - ./playwright:/app/playwright
     environment:
       - BASE_URL=http://web:8000
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - GITHUB_REPO=${GITHUB_REPO:-erikw/MaintDashboard}
+      - GITHUB_OWNER=${GITHUB_OWNER:-erikw}
+      - GITHUB_REPO_NAME=${GITHUB_REPO_NAME:-MaintDashboard}
     networks:
       - maintenance_network
     restart: unless-stopped

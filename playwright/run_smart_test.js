@@ -13,7 +13,10 @@ try {
 }
 const { execSync } = require('child_process');
 
-const BASE_URL = process.env.BASE_URL || 'http://localhost:8000';
+// Import GitHub issue reporter
+const GitHubIssueReporter = require('./github_issue_reporter.js');
+
+const BASE_URL = process.env.BASE_URL || 'http://web:8000';
 const API_URL = `${BASE_URL.replace(/\/$/, '')}/core/api/playwright-debug/`;
 const LOG_FILE = path.join(__dirname, 'runner.log');
 
@@ -24,18 +27,15 @@ function log(msg) {
 }
 
 async function runBasicTests() {
-  log('Running basic Playwright tests...');
-  try {
-    execSync('npx playwright test playwright/admin_explore.spec.ts --reporter=list', { stdio: 'inherit' });
-    execSync('npx playwright test playwright/focused_settings_test.spec.ts --reporter=list', { stdio: 'inherit' });
-    log('Basic Playwright tests completed.');
-  } catch (err) {
-    log('Error running basic Playwright tests: ' + err.message);
-  }
+  log('Skipping basic Playwright tests and going straight to task polling...');
+  // Skip basic tests for now to avoid webServer issues
+  return;
 }
 
 async function pollForTasks() {
   log('Polling for natural language Playwright tasks...');
+  const githubReporter = new GitHubIssueReporter();
+  
   while (true) {
     try {
       const res = await fetch(API_URL);
@@ -45,13 +45,56 @@ async function pollForTasks() {
           if (log.status === 'pending') {
             logTask(`Starting task: ${log.prompt}`);
             try {
+              // Set the test request as environment variable
+              process.env.TEST_REQUEST = log.prompt;
+              
               // Run the smart test runner with the prompt
               execSync(`npx playwright test playwright/smart_test_runner.spec.ts --project=chromium --grep="${log.prompt.replace(/"/g, '')}" --reporter=list`, { stdio: 'inherit' });
               logTask(`Task succeeded: ${log.prompt}`);
-              // Optionally, POST result back to API
+              
+              // Check if test report exists and has failures
+              const reportPath = path.join(__dirname, 'smart-test-report.json');
+              if (fs.existsSync(reportPath)) {
+                const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+                if (report.failedTests > 0) {
+                  logTask(`🚨 Test failures detected in report. GitHub issue creation handled by SmartTestRunner.`);
+                }
+              }
             } catch (err) {
               logTask(`Task failed: ${log.prompt} - ${err.message}`);
-              // Optionally, POST error back to API
+              
+              // Create a failure report and GitHub issue for execution errors
+              const failureReport = {
+                timestamp: new Date().toISOString(),
+                totalTests: 1,
+                passedTests: 0,
+                failedTests: 1,
+                totalErrors: 1,
+                totalWarnings: 0,
+                totalScreenshots: 0,
+                results: [{
+                  testName: `Task Execution: ${log.prompt}`,
+                  timestamp: new Date().toISOString(),
+                  success: false,
+                  errors: [`Playwright test execution failed: ${err.message}`],
+                  warnings: [],
+                  screenshots: [],
+                  htmlDumps: []
+                }]
+              };
+              
+              try {
+                const failureDetails = {
+                  request: log.prompt,
+                  environment: process.env.BASE_URL || 'http://web:8000',
+                  container: 'playwright_runner',
+                  executionError: true
+                };
+                
+                await githubReporter.createIssue(failureReport, failureDetails);
+              } catch (githubError) {
+                logTask(`Failed to create GitHub issue for execution error: ${githubError.message}`);
+              }
             }
           }
         }

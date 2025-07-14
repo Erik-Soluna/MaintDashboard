@@ -211,21 +211,18 @@ class EnhancedTestRunner {
     };
   }
 
-  private extractNumber(text: string, keyword: string, default: number): number {
+  private extractNumber(text: string, keyword: string, defaultValue: number): number {
     const patterns = [
-      new RegExp(`${keyword}[:\\s]*(\\d+)`),
-      new RegExp(`(\\d+)\\s*${keyword}`),
-      new RegExp(`${keyword}\\s*count[:\\s]*(\\d+)`)
+      new RegExp(`${keyword}[:\s]*(\d+)`),
+      new RegExp(`(\d+)\s*${keyword}`),
     ];
-    
     for (const pattern of patterns) {
       const match = text.match(pattern);
       if (match) {
         return parseInt(match[1]);
       }
     }
-    
-    return default;
+    return defaultValue;
   }
 
   private extractSiteName(text: string): string {

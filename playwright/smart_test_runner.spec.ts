@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Import GitHub issue reporter
+const GitHubIssueReporter = require('./github_issue_reporter.js');
+
 interface TestRequest {
   action: string;
   priority: number;
@@ -26,6 +29,7 @@ class SmartTestRunner {
   private htmlDir: string;
   private isAuthenticated: boolean = false;
   private testData: any = {};
+  private githubReporter: any;
 
   constructor() {
     this.screenshotDir = path.join(__dirname, 'screenshots', 'smart-tests');
@@ -37,6 +41,9 @@ class SmartTestRunner {
         fs.mkdirSync(dir, { recursive: true });
       }
     });
+    
+    // Initialize GitHub issue reporter
+    this.githubReporter = new GitHubIssueReporter();
   }
 
   private async takeScreenshot(page: any, name: string): Promise<string> {
@@ -448,7 +455,7 @@ class SmartTestRunner {
       await this.ensureAuthenticated(page);
       
       // Navigate to equipment page
-      await page.goto('http://localhost:4405/equipment/', { timeout: 10000 });
+      await page.goto('/equipment/', { timeout: 10000 });
       await page.waitForLoadState('networkidle', { timeout: 10000 });
       
       result.screenshots.push(await this.takeScreenshot(page, 'create_equipment_initial'));
@@ -481,18 +488,28 @@ class SmartTestRunner {
       // Fill required fields
       const testEquipment = {
         name: `Test Equipment ${Date.now()}`,
-        model: 'Test Model',
-        serial_number: `SN${Date.now()}`,
-        location: 'Test Location',
+        manufacturer_serial: `SN${Date.now()}`,
+        asset_tag: `AT${Date.now()}`,
+        manufacturer: 'Test Manufacturer',
+        model_number: 'Test Model',
         status: 'active'
       };
 
       // Fill form fields
       await page.fill('input[name="name"]', testEquipment.name, { timeout: 10000 });
-      await page.fill('input[name="model"]', testEquipment.model, { timeout: 10000 });
-      await page.fill('input[name="serial_number"]', testEquipment.serial_number, { timeout: 10000 });
-      await page.fill('input[name="location"]', testEquipment.location, { timeout: 10000 });
+      await page.fill('input[name="manufacturer_serial"]', testEquipment.manufacturer_serial, { timeout: 10000 });
+      await page.fill('input[name="asset_tag"]', testEquipment.asset_tag, { timeout: 10000 });
+      await page.fill('input[name="manufacturer"]', testEquipment.manufacturer, { timeout: 10000 });
+      await page.fill('input[name="model_number"]', testEquipment.model_number, { timeout: 10000 });
       await page.selectOption('select[name="status"]', testEquipment.status, { timeout: 10000 });
+      
+      // Select location - try to find and select Sophie
+      try {
+        await page.selectOption('select[name="location"]', '1'); // Sophie has ID 1
+      } catch (e) {
+        console.log('Could not select Sophie location, trying first available option');
+        await page.selectOption('select[name="location"]', '1');
+      }
 
       result.screenshots.push(await this.takeScreenshot(page, 'create_equipment_filled'));
 
@@ -551,7 +568,7 @@ class SmartTestRunner {
       await this.ensureAuthenticated(page);
       
       // Navigate to equipment list
-      await page.goto('http://localhost:4405/equipment/');
+      await page.goto('/equipment/');
       await page.waitForLoadState('networkidle');
       
       result.screenshots.push(await this.takeScreenshot(page, 'delete_equipment_initial'));
@@ -629,7 +646,7 @@ class SmartTestRunner {
     };
 
     const visitedUrls = new Set<string>();
-    const urlsToVisit = ['http://localhost:4405/'];
+    const urlsToVisit = ['/'];
 
     try {
       while (urlsToVisit.length > 0) {
@@ -851,6 +868,11 @@ class SmartTestRunner {
     await this.generateReport();
   }
 
+  // Public method to get results for external access
+  public getResults(): TestResult[] {
+    return this.results;
+  }
+
   private async generateReport() {
     const report = {
       timestamp: new Date().toISOString(),
@@ -875,6 +897,35 @@ class SmartTestRunner {
     console.log(`Total warnings: ${report.totalWarnings}`);
     console.log(`Total screenshots: ${report.totalScreenshots}`);
     console.log(`\nDetailed report saved to: ${reportPath}`);
+
+    // Create GitHub issue if there are failures
+    if (report.failedTests > 0) {
+      console.log('\n🚨 Test failures detected! Creating GitHub issue...');
+      try {
+        const failureDetails = {
+          request: process.env.TEST_REQUEST || 'Unknown test request',
+          environment: process.env.BASE_URL || 'http://web:8000',
+          container: 'playwright_runner'
+        };
+        
+        const issue = await this.githubReporter.createIssue(report, failureDetails);
+        
+        if (issue) {
+          // Upload screenshots from failed tests
+                  const allScreenshots = this.getResults()
+          .filter(r => !r.success && r.screenshots.length > 0)
+          .flatMap(r => r.screenshots);
+          
+          if (allScreenshots.length > 0) {
+            await this.githubReporter.uploadScreenshots(issue.number, allScreenshots);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Failed to create GitHub issue:', error.message);
+      }
+    } else {
+      console.log('✅ All tests passed! No GitHub issue needed.');
+    }
   }
 }
 
@@ -911,7 +962,8 @@ if (require.main === module) {
     for (const scenario of scenarios) {
       console.log(`\n=== Running scenario: ${scenario.prompt} ===`);
       await runner.runTests(page, scenario.prompt);
-      const lastResult = runner.results[runner.results.length - 1];
+      const results = runner.getResults();
+      const lastResult = results[results.length - 1];
       console.log(`Result: ${lastResult.success ? '✅ PASS' : '❌ FAIL'}`);
       if (lastResult.errors.length > 0) {
         console.log('Errors:');
