@@ -175,8 +175,8 @@ class Command(BaseCommand):
         # Create demo calendar events
         self.create_demo_calendar_events(options['events'])
         
-        # Create demo documents and components
-        self.create_demo_documents_and_components()
+        # Create demo components
+        self.create_demo_components()
 
     def create_demo_users(self, count):
         """Create demo users with different roles."""
@@ -429,8 +429,8 @@ class Command(BaseCommand):
                 
         self.stdout.write(f'Created {count} demo calendar events')
 
-    def create_demo_documents_and_components(self):
-        """Create demo documents and components for equipment."""
+    def create_demo_components(self):
+        """Create demo components for equipment."""
         equipment_list = list(Equipment.objects.all())
         
         if not equipment_list:
@@ -438,38 +438,26 @@ class Command(BaseCommand):
             return
             
         # Create demo components
-        component_types = ['Sensor', 'Relay', 'Switch', 'Fuse', 'Connector', 'Terminal']
+        component_types = ['Sensor', 'Relay', 'Switch', 'Fuse', 'Connector', 'Terminal', 'Filter', 'Pump', 'Motor', 'Valve']
         
         for equipment in random.sample(equipment_list, min(20, len(equipment_list))):
             for i in range(random.randint(1, 3)):
                 EquipmentComponent.objects.create(
                     equipment=equipment,
                     name=f'Demo {random.choice(component_types)} {i+1}',
-                    component_type=random.choice(['electrical', 'mechanical', 'electronic', 'hydraulic']),
-                    manufacturer=f'Demo Component Manufacturer {random.randint(1, 3)}',
-                    model_number=f'DEMO-COMP-{random.randint(100, 999)}',
-                    serial_number=f'DEMO-SN-{random.randint(10000, 99999)}',
-                    installation_date=timezone.now().date() - timedelta(days=random.randint(100, 1000)),
-                    warranty_expiry_date=timezone.now().date() + timedelta(days=random.randint(100, 1000)),
+                    part_number=f'DEMO-PART-{random.randint(100, 999)}',
                     description=f'Demo component for {equipment.name}',
-                    specifications=f'Demo specifications for component {i+1}',
-                    maintenance_notes=f'Demo maintenance notes for component {i+1}'
+                    quantity=random.randint(1, 5),
+                    replacement_date=timezone.now().date() - timedelta(days=random.randint(100, 1000)),
+                    next_replacement_date=timezone.now().date() + timedelta(days=random.randint(100, 1000)),
+                    is_critical=random.choice([True, False])
                 )
                 
-        # Create demo documents
-        document_types = ['photo', 'note', 'specification', 'wiring', 'other']
-        
-        for equipment in random.sample(equipment_list, min(15, len(equipment_list))):
-            for i in range(random.randint(1, 2)):
-                EquipmentDocument.objects.create(
-                    equipment=equipment,
-                    document_type=random.choice(document_types),
-                    title=f'Demo Document {i+1} for {equipment.name}',
-                    description=f'Demo document description for {equipment.name}',
-                    # Note: We don't create actual files, just the database records
-                )
+        # Note: EquipmentDocument requires a file field, so we skip creating demo documents
+        # to avoid file handling complexity in demo data generation
+        self.stdout.write('Skipping EquipmentDocument creation (requires file upload)')
                 
-        self.stdout.write('Created demo documents and components')
+        self.stdout.write('Created demo components')
 
     def create_relationships(self, options):
         """Create relationships between different models."""
