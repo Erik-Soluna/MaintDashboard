@@ -63,6 +63,11 @@ urlpatterns = [
     
     # POD Generation
     path('locations/generate-pods/', views.generate_pods, name='generate_pods'),
+    
+    # Database Management (DANGER ZONE)
+    path('settings/clear-database/', views.clear_database, name='clear_database'),
+    # Demo Data Population
+    path('settings/populate-demo-data/', views.populate_demo_data, name='populate_demo_data'),
 ]
 
 urlpatterns += [
