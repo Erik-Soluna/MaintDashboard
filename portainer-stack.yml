@@ -80,6 +80,17 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@maintenance.errorlog.app}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-SecureAdminPassword2024!}
       - DOMAIN=${DOMAIN:-errorlog.app}
+      # Security Settings
+      - SECURE_SSL_REDIRECT=True
+      - SESSION_COOKIE_SECURE=True
+      - CSRF_COOKIE_SECURE=True
+      - SECURE_BROWSER_XSS_FILTER=True
+      - SECURE_CONTENT_TYPE_NOSNIFF=True
+      - SECURE_HSTS_SECONDS=31536000
+      - SECURE_HSTS_INCLUDE_SUBDOMAINS=True
+      - SECURE_HSTS_PRELOAD=True
+      - CSRF_TRUSTED_ORIGINS=https://maintenance.errorlog.app,https://www.maintenance.errorlog.app
+      - SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https
     depends_on:
       db:
         condition: service_healthy
@@ -89,12 +100,30 @@ services:
       - maintenance_network
       - proxy-network
     labels:
+      # Traefik Configuration
       - "traefik.enable=true"
-      - "traefik.http.routers.maintenance-web.rule=Host(`maintenance.${DOMAIN:-errorlog.app}`)"
+      - "traefik.http.routers.maintenance-web.rule=Host(`maintenance.errorlog.app`)"
       - "traefik.http.routers.maintenance-web.entrypoints=websecure"
       - "traefik.http.routers.maintenance-web.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.maintenance-web.tls.domains[0].main=maintenance.errorlog.app"
+      - "traefik.http.routers.maintenance-web.tls.domains[0].sans=www.maintenance.errorlog.app"
       - "traefik.http.services.maintenance-web.loadbalancer.server.port=8000"
       - "traefik.docker.network=proxy-network"
+      # Security Headers
+      - "traefik.http.middlewares.maintenance-security.headers.sslredirect=true"
+      - "traefik.http.middlewares.maintenance-security.headers.forcestsheader=X-Forwarded-Proto:https"
+      - "traefik.http.middlewares.maintenance-security.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.maintenance-security.headers.customrequestheaders.X-Forwarded-Host=maintenance.errorlog.app"
+      - "traefik.http.middlewares.maintenance-security.headers.customrequestheaders.X-Forwarded-Server=maintenance.errorlog.app"
+      - "traefik.http.middlewares.maintenance-security.headers.customresponseheaders.X-Content-Type-Options=nosniff"
+      - "traefik.http.middlewares.maintenance-security.headers.customresponseheaders.X-Frame-Options=DENY"
+      - "traefik.http.middlewares.maintenance-security.headers.customresponseheaders.X-XSS-Protection=1; mode=block"
+      - "traefik.http.middlewares.maintenance-security.headers.customresponseheaders.Referrer-Policy=strict-origin-when-cross-origin"
+      - "traefik.http.middlewares.maintenance-security.headers.customresponseheaders.Permissions-Policy=geolocation=(), microphone=(), camera=()"
+      - "traefik.http.middlewares.maintenance-security.headers.customresponseheaders.Strict-Transport-Security=max-age=31536000; includeSubDomains; preload"
+      - "traefik.http.middlewares.maintenance-security.headers.customresponseheaders.Content-Security-Policy=default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none';"
+      # Apply security middleware
+      - "traefik.http.routers.maintenance-web.middlewares=maintenance-security"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/core/health/simple/", "||", "exit", "1"]
       interval: 30s
