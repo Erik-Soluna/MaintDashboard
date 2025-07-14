@@ -98,7 +98,7 @@ services:
       - "traefik.http.services.maintenance-web.loadbalancer.server.port=8000"
       - "traefik.docker.network=proxy-network"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health/", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/core/health/simple/", "||", "exit", "1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -261,7 +261,7 @@ services:
         while true; do
           echo '🌐 Checking web service health...'
           
-          if curl -f http://web:8000/health/ > /dev/null 2>&1; then
+          if curl -f http://web:8000/core/health/simple/ > /dev/null 2>&1; then
             echo '✅ Web service is healthy'
           else
             echo '❌ Web service health check failed'

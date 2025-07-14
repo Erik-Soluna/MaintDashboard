@@ -500,3 +500,26 @@ class ModelDocument(TimeStampedModel):
             self.title = self.title.strip()
         if not self.title:
             raise ValidationError("Document title cannot be empty.")
+
+
+class PlaywrightDebugLog(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('running', 'Running'),
+        ('done', 'Done'),
+        ('error', 'Error'),
+    ]
+    timestamp = models.DateTimeField(auto_now_add=True)
+    prompt = models.TextField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    output = models.TextField(blank=True)
+    result_json = models.JSONField(blank=True, null=True)
+    error_message = models.TextField(blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+    
+    def __str__(self):
+        return f"[{self.timestamp}] {self.prompt[:40]}... ({self.status})"

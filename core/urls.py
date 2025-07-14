@@ -4,7 +4,7 @@ URL configuration for core app.
 
 from django.urls import path
 from . import views
-from .views import health_check, api_explorer, clear_health_logs
+from .views import health_check, simple_health_check, api_explorer, clear_health_logs
 
 app_name = 'core'
 
@@ -60,10 +60,17 @@ urlpatterns = [
     path('sites/import/csv/', views.import_sites_csv, name='import_sites_csv'),
     path('locations/export/csv/', views.export_locations_csv, name='export_locations_csv'),
     path('locations/import/csv/', views.import_locations_csv, name='import_locations_csv'),
+    
+    # POD Generation
+    path('locations/generate-pods/', views.generate_pods, name='generate_pods'),
 ]
 
 urlpatterns += [
     path('health/', health_check, name='health_check'),
+    path('health', health_check, name='health_check_no_slash'),  # Handle requests without trailing slash
+    path('health/simple/', simple_health_check, name='simple_health_check'),
+    path('health/simple', simple_health_check, name='simple_health_check_no_slash'),
+    path('api/playwright-debug/', views.playwright_debug_api, name='playwright_debug_api'),
     path('api-explorer/', views.api_explorer, name='api_explorer'),
     path('health/clear_logs/', clear_health_logs, name='clear_health_logs'),
 ]

@@ -296,9 +296,13 @@
                 <i class="fas fa-plus me-1"></i>
                 Add Site
             </button>
-            <button class="btn btn-outline-primary" data-toggle="modal" data-target="#addLocationModal">
+            <button class="btn btn-outline-primary me-2" data-toggle="modal" data-target="#addLocationModal">
                 <i class="fas fa-plus me-1"></i>
                 Add Location
+            </button>
+            <button class="btn btn-outline-success" data-toggle="modal" data-target="#generatePodsModal">
+                <i class="fas fa-magic me-1"></i>
+                Generate PODs
             </button>
         </div>
     </div>
@@ -601,6 +605,83 @@
                     Delete Location
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Generate PODs Modal -->
+<div class="modal fade" id="generatePodsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-magic me-2"></i>
+                    Generate PODs for Sites
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="generatePodsForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        This will generate PODs (Power Distribution Units) and MDCs (Main Distribution Centers) for your sites.
+                        You can generate up to 100 PODs per site, and each POD will get the specified number of MDCs.
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="generateSiteSelect" class="form-label">Target Sites</label>
+                        <select id="generateSiteSelect" name="site_id" class="form-control">
+                            <option value="">All Sites</option>
+                            {% for site in sites %}
+                            <option value="{{ site.id }}">{{ site.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Leave empty to generate PODs for all sites</small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="podCount" class="form-label">PODs per Site</label>
+                                <input type="number" id="podCount" name="pod_count" class="form-control" value="11" min="1" max="100">
+                                <small class="form-text text-muted">Number of PODs to generate per site</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="mdcsPerPod" class="form-label">MDCs per POD</label>
+                                <input type="number" id="mdcsPerPod" name="mdcs_per_pod" class="form-control" value="2" min="1" max="10">
+                                <small class="form-text text-muted">Number of MDCs to generate per POD</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input type="checkbox" id="forceRegenerate" name="force" class="form-check-input" value="true">
+                            <label for="forceRegenerate" class="form-check-label">
+                                Force regeneration of existing PODs
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">If checked, existing PODs will be updated. If unchecked, existing PODs will be skipped.</small>
+                    </div>
+                    
+                    <div id="generatePodsOutput" class="mt-3" style="display: none;">
+                        <h6>Generation Output:</h6>
+                        <pre id="generatePodsOutputText" class="bg-dark text-light p-3 rounded" style="max-height: 200px; overflow-y: auto; font-size: 12px;"></pre>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="generatePodsBtn">
+                        <i class="fas fa-magic me-1"></i>
+                        Generate PODs
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -956,6 +1037,63 @@ $(document).ready(function() {
         $('#addLocationModal .modal-title').text('Add New Equipment Location');
     });
 
+    // Generate PODs Form
+    $('#generatePodsForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const $submitBtn = $('#generatePodsBtn');
+        const originalText = $submitBtn.html();
+        const $output = $('#generatePodsOutput');
+        const $outputText = $('#generatePodsOutputText');
+        
+        // Show loading state
+        $submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Generating...');
+        $output.hide();
+        
+        const formData = new FormData(this);
+        
+        $.ajax({
+            url: '{% url "core:generate_pods" %}',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    // Show output
+                    $outputText.text(response.output || 'PODs generated successfully!');
+                    $output.show();
+                    
+                    // Show success message
+                    $('<div class="alert alert-success alert-dismissible fade show" role="alert">' +
+                      response.message +
+                      '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                      '</div>').prependTo('.locations-header').delay(5000).fadeOut();
+                    
+                    // Reload page after a short delay to show new PODs
+                    setTimeout(function() {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    alert('Error: ' + (response.error || 'Unknown error occurred'));
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'Error generating PODs';
+                if (xhr.responseJSON) {
+                    errorMessage += ': ' + (xhr.responseJSON.error || xhr.responseJSON.message || 'Unknown error');
+                } else if (xhr.responseText) {
+                    errorMessage += ': ' + xhr.responseText;
+                }
+                alert(errorMessage);
+            },
+            complete: function() {
+                // Reset button state
+                $submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+    
     // Collapsible/expandable logic for sites
     $('.toggle-site-locations').on('click', function(e) {
         e.preventDefault();

@@ -38,6 +38,10 @@ import redis
 from django_celery_beat.models import PeriodicTask
 import requests
 from django.test import RequestFactory
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from .models import PlaywrightDebugLog
+from core.tasks import run_playwright_debug
 
 logger = logging.getLogger(__name__)
 
@@ -1923,6 +1927,7 @@ def get_recent_health_failures(limit=10):
     ]
 
 def health_check(request):
+    """Comprehensive health check endpoint that returns JSON with detailed status."""
     checks = []
     status = 'ok'
     # DB check
@@ -1999,6 +2004,22 @@ def health_check(request):
     })
 
 
+def simple_health_check(request):
+    """Simple health check endpoint for Docker health checks - returns 200 OK."""
+    try:
+        # Basic database connection check
+        from django.db import connection
+        connection.ensure_connection()
+        
+        # Basic Redis check
+        r = redis.Redis.from_url('redis://redis:6379/0')
+        r.ping()
+        
+        return JsonResponse({'status': 'ok'}, status=200)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
 @require_POST
 def clear_health_logs(request):
     """Clear the recent health failure log (from cache and file)."""
@@ -2026,3 +2047,89 @@ def system_health(request):
     if not request.user.is_superuser:
         return redirect('core:dashboard')
     return render(request, 'core/system_health.html')
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
+def generate_pods(request):
+    """Generate PODs for existing sites."""
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+        
+        # Get parameters from request
+        site_id = request.POST.get('site_id')
+        site_name = request.POST.get('site_name')
+        pod_count = int(request.POST.get('pod_count', 11))
+        mdcs_per_pod = int(request.POST.get('mdcs_per_pod', 2))
+        force = request.POST.get('force', 'false').lower() == 'true'
+        
+        # Capture command output
+        output = StringIO()
+        
+        # Build command arguments
+        args = ['generate_pods']
+        if site_id:
+            args.extend(['--site-id', site_id])
+        elif site_name:
+            args.extend(['--site-name', site_name])
+        
+        args.extend(['--pod-count', str(pod_count)])
+        args.extend(['--mdcs-per-pod', str(mdcs_per_pod)])
+        
+        if force:
+            args.append('--force')
+        
+        # Call the management command
+        call_command(*args, stdout=output)
+        
+        # Get the output
+        command_output = output.getvalue()
+        output.close()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'PODs generated successfully',
+            'output': command_output
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error generating PODs: {str(e)}'
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def playwright_debug_api(request):
+    if request.method == "GET":
+        # Return the latest 10 logs
+        logs = PlaywrightDebugLog.objects.all()[:10]
+        return JsonResponse({
+            "logs": [
+                {
+                    "id": log.id,
+                    "timestamp": log.timestamp,
+                    "prompt": log.prompt,
+                    "status": log.status,
+                    "output": log.output,
+                    "error_message": log.error_message,
+                    "result_json": log.result_json,
+                    "started_at": log.started_at,
+                    "finished_at": log.finished_at,
+                }
+                for log in logs
+            ]
+        })
+    elif request.method == "POST":
+        import json
+        data = json.loads(request.body.decode())
+        prompt = data.get("prompt", "").strip()
+        if not prompt:
+            return JsonResponse({"error": "Prompt is required."}, status=400)
+        log = PlaywrightDebugLog.objects.create(prompt=prompt, status="pending")
+        # Trigger Celery task
+        run_playwright_debug.delay(log.id)
+        return JsonResponse({"id": log.id, "status": log.status, "prompt": log.prompt})
