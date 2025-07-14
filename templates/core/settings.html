@@ -297,35 +297,80 @@
         </div>
     </div>
 
-    <!-- System Health & Diagnostics Section -->
+    <!-- System Tools & Diagnostics Section -->
     {% if user.is_superuser %}
     <div class="settings-section">
         <div class="settings-header">
             <h5>
-                <i class="fas fa-stethoscope me-2"></i>
-                System Health & Diagnostics
+                <i class="fas fa-tools me-2"></i>
+                System Tools & Diagnostics
             </h5>
         </div>
         <div class="settings-body">
-            <div class="diagnostic-buttons">
-                <button class="diagnostic-button primary" onclick="testApplicationHealth()">
-                    <i class="fas fa-vial me-1"></i>Test All Components
-                </button>
-                <button class="diagnostic-button" onclick="testUnifiedAPI()">
-                    <i class="fas fa-calendar-alt me-1"></i>Test Calendar API
-                </button>
-                <button class="diagnostic-button" onclick="testDatabaseHealth()">
-                    <i class="fas fa-database me-1"></i>Test Database
-                </button>
-                <button class="diagnostic-button" onclick="testCacheHealth()">
-                    <i class="fas fa-memory me-1"></i>Test Cache
-                </button>
-                <button class="diagnostic-button warning" onclick="runHealthCheck()">
-                    <i class="fas fa-heartbeat me-1"></i>Run Health Check
-                </button>
-                <a href="{% url 'events:test_events_api' %}" target="_blank" class="diagnostic-button">
-                    <i class="fas fa-external-link-alt me-1"></i>Test Events API
-                </a>
+            <!-- Health & Diagnostics Tools -->
+            <div class="mb-4">
+                <h6 class="text-light mb-3">
+                    <i class="fas fa-stethoscope me-2"></i>Health & Diagnostics
+                </h6>
+                <div class="diagnostic-buttons">
+                    <button class="diagnostic-button primary" onclick="testApplicationHealth()">
+                        <i class="fas fa-vial me-1"></i>Test All Components
+                    </button>
+                    <button class="diagnostic-button" onclick="testUnifiedAPI()">
+                        <i class="fas fa-calendar-alt me-1"></i>Test Calendar API
+                    </button>
+                    <button class="diagnostic-button" onclick="testDatabaseHealth()">
+                        <i class="fas fa-database me-1"></i>Test Database
+                    </button>
+                    <button class="diagnostic-button" onclick="testCacheHealth()">
+                        <i class="fas fa-memory me-1"></i>Test Cache
+                    </button>
+                    <button class="diagnostic-button warning" onclick="runHealthCheck()">
+                        <i class="fas fa-heartbeat me-1"></i>Run Health Check
+                    </button>
+                    <a href="{% url 'events:test_events_api' %}" target="_blank" class="diagnostic-button">
+                        <i class="fas fa-external-link-alt me-1"></i>Test Events API
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Database Management Tools -->
+            <div class="mb-4">
+                <h6 class="text-light mb-3">
+                    <i class="fas fa-database me-2"></i>Database Management
+                </h6>
+                <div class="diagnostic-buttons">
+                    <button class="diagnostic-button" onclick="showDatabaseClearModal()">
+                        <i class="fas fa-trash-alt me-1"></i>Clear Database
+                    </button>
+                    <button class="diagnostic-button" onclick="showDatabaseStats()">
+                        <i class="fas fa-chart-bar me-1"></i>Database Stats
+                    </button>
+                    <button class="diagnostic-button" onclick="backupDatabase()">
+                        <i class="fas fa-download me-1"></i>Backup Database
+                    </button>
+                    <button class="diagnostic-button primary" onclick="showDemoDataModal()">
+                        <i class="fas fa-database me-1"></i>Populate Demo Data
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Development Tools -->
+            <div class="mb-4">
+                <h6 class="text-light mb-3">
+                    <i class="fas fa-code me-2"></i>Development Tools
+                </h6>
+                <div class="diagnostic-buttons">
+                    <button class="diagnostic-button" onclick="generatePods()">
+                        <i class="fas fa-sitemap me-1"></i>Generate PODs
+                    </button>
+                    <button class="diagnostic-button" onclick="populateSampleData()">
+                        <i class="fas fa-seedling me-1"></i>Populate Sample Data
+                    </button>
+                    <button class="diagnostic-button" onclick="resetRBAC()">
+                        <i class="fas fa-users-cog me-1"></i>Reset RBAC
+                    </button>
+                </div>
             </div>
             
             <div id="diagnosticResults" class="playwright-output" style="display: none;">
@@ -348,10 +393,10 @@
         <div class="settings-body">
             <div class="playwright-form">
                 <div class="form-group">
-                    <label for="playwright-prompt" class="form-label">Debug Prompt</label>
+                    <label for="playwright-prompt" class="form-label">Natural Language Prompt</label>
                     <textarea id="playwright-prompt" class="form-control" rows="3" 
-                              placeholder="Enter a natural language prompt for Playwright testing (e.g., 'Test the equipment creation form')"></textarea>
-                    <div class="info-text">Describe what you want Playwright to test or debug in the application.</div>
+                              placeholder="Examples:&#10;- Add a Site called Sophie with 11 Pods and 2 MDCs per Pod&#10;- Create equipment called Transformer-1 in Site Alpha&#10;- Test the login page&#10;- Check the dashboard"></textarea>
+                    <div class="info-text">Describe what you want Playwright to do in natural language. The system will automatically interpret your request and perform the appropriate actions.</div>
                 </div>
                 <button class="diagnostic-button primary" onclick="submitPlaywrightPrompt()">
                     <i class="fas fa-play me-1"></i>Run Playwright Test
@@ -517,6 +562,140 @@
                         <div class="info-text">{{ user.date_joined|date:"M d, Y" }}</div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Demo Data Population Modal -->
+<div class="modal fade" id="demoDataModal" tabindex="-1" aria-labelledby="demoDataModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="demoDataModalLabel">
+                    <i class="fas fa-database text-primary me-2"></i>
+                    Populate Comprehensive Demo Data
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle me-2"></i>Demo Data Configuration</h6>
+                    <p class="mb-0">This will create comprehensive demo data for all models in the system including users, equipment, maintenance activities, calendar events, and more.</p>
+                </div>
+                
+                <form id="demoDataForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="users-count" class="form-label">Number of Users</label>
+                                <input type="number" id="users-count" name="users_count" class="form-control" value="10" min="1" max="100">
+                                <div class="form-text">Demo users with different roles</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="equipment-count" class="form-label">Number of Equipment Items</label>
+                                <input type="number" id="equipment-count" name="equipment_count" class="form-control" value="50" min="1" max="500">
+                                <div class="form-text">Equipment with various categories and locations</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="activities-count" class="form-label">Number of Maintenance Activities</label>
+                                <input type="number" id="activities-count" name="activities_count" class="form-control" value="100" min="1" max="1000">
+                                <div class="form-text">Maintenance activities with different statuses</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="events-count" class="form-label">Number of Calendar Events</label>
+                                <input type="number" id="events-count" name="events_count" class="form-control" value="75" min="1" max="500">
+                                <div class="form-text">Calendar events linked to equipment</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="reset-data" name="reset_data">
+                            <label class="form-check-label" for="reset-data">
+                                <strong>Clear existing demo data first</strong>
+                            </label>
+                        </div>
+                        <div class="form-text text-warning">This will remove existing demo data before creating new data</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="populateDemoData()">
+                    <i class="fas fa-database me-1"></i>Populate Demo Data
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Database Clear Modal -->
+<div class="modal fade" id="databaseClearModal" tabindex="-1" aria-labelledby="databaseClearModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="databaseClearModalLabel">
+                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                    Clear Database (DANGER ZONE)
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>WARNING: This is a destructive operation!</h6>
+                    <p class="mb-0">This will permanently delete all data from the database. This action cannot be undone.</p>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label class="form-label">Clear Options:</label>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="keepUsers" name="keep_users">
+                        <label class="form-check-label" for="keepUsers">
+                            Keep user accounts (clear all other data)
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="keepAdmin" name="keep_admin">
+                        <label class="form-check-label" for="keepAdmin">
+                            Keep admin user account
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="dryRun" name="dry_run" checked>
+                        <label class="form-check-label" for="dryRun">
+                            Dry run (show what would be deleted without actually deleting)
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="clearConfirmation" class="form-label">Confirmation:</label>
+                    <input type="text" class="form-control" id="clearConfirmation" 
+                           placeholder="Type 'CLEAR DATABASE' to confirm" required>
+                    <div class="form-text text-muted">You must type exactly "CLEAR DATABASE" to proceed.</div>
+                </div>
+                
+                <div id="clearResults" class="mt-3" style="display: none;">
+                    <h6>Operation Results:</h6>
+                    <pre id="clearOutput" class="bg-dark border border-secondary p-3" style="max-height: 300px; overflow-y: auto; font-size: 12px;"></pre>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="executeClearBtn" disabled>
+                    <i class="fas fa-trash-alt me-1"></i>Clear Database
+                </button>
             </div>
         </div>
     </div>
@@ -855,6 +1034,259 @@ function refreshPlaywrightLogs() {
     })
     .catch(error => {
         logsDiv.innerHTML = `<div class="alert alert-danger">Error loading logs: ${error.message}</div>`;
+    });
+}
+
+// Database Management Functions
+function showDatabaseClearModal() {
+    const modal = new bootstrap.Modal(document.getElementById('databaseClearModal'));
+    modal.show();
+    
+    // Reset form
+    document.getElementById('keepUsers').checked = false;
+    document.getElementById('keepAdmin').checked = false;
+    document.getElementById('dryRun').checked = true;
+    document.getElementById('clearConfirmation').value = '';
+    document.getElementById('executeClearBtn').disabled = true;
+    document.getElementById('clearResults').style.display = 'none';
+    
+    // Enable/disable execute button based on confirmation
+    document.getElementById('clearConfirmation').addEventListener('input', function() {
+        document.getElementById('executeClearBtn').disabled = this.value !== 'CLEAR DATABASE';
+    });
+    
+    // Execute clear operation
+    document.getElementById('executeClearBtn').onclick = function() {
+        const keepUsers = document.getElementById('keepUsers').checked;
+        const keepAdmin = document.getElementById('keepAdmin').checked;
+        const dryRun = document.getElementById('dryRun').checked;
+        
+        // Show loading state
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+        
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('keep_users', keepUsers);
+        formData.append('keep_admin', keepAdmin);
+        formData.append('dry_run', dryRun);
+        
+        // Execute the clear operation
+        fetch('{% url "core:clear_database" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Show results
+            document.getElementById('clearResults').style.display = 'block';
+            document.getElementById('clearOutput').textContent = data.output || data.message;
+            
+            if (data.success) {
+                document.getElementById('clearOutput').className = 'bg-dark border border-success p-3';
+            } else {
+                document.getElementById('clearOutput').className = 'bg-dark border border-danger p-3';
+            }
+            
+            // Reset button
+            this.disabled = false;
+            this.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Clear Database';
+        })
+        .catch(error => {
+            document.getElementById('clearResults').style.display = 'block';
+            document.getElementById('clearOutput').textContent = `Error: ${error.message}`;
+            document.getElementById('clearOutput').className = 'bg-dark border border-danger p-3';
+            
+            // Reset button
+            this.disabled = false;
+            this.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Clear Database';
+        });
+    };
+}
+
+function showDatabaseStats() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Loading database statistics...</div>');
+    
+    fetch('{% url "core:health_check_api" %}')
+    .then(response => response.json())
+    .then(data => {
+        let html = '<h6 class="mb-3">Database Statistics</h6>';
+        
+        if (data.database_health && data.database_health.status === 'healthy') {
+            html += `
+                <div class="alert alert-success">
+                    <strong>Database Status:</strong> Healthy
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Connection Info:</h6>
+                        <ul>
+                            <li>Response Time: ${data.database_health.response_time ? (data.database_health.response_time * 1000).toFixed(2) + 'ms' : 'N/A'}</li>
+                            <li>Status: ${data.database_health.status}</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>System Health:</h6>
+                        <ul>
+                            <li>Overall Status: ${data.overall_status}</li>
+                            <li>Cache Status: ${data.cache_health ? data.cache_health.status : 'N/A'}</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+        } else {
+            html += `<div class="alert alert-danger">Database is not healthy: ${data.database_health ? data.database_health.error : 'Unknown error'}</div>`;
+        }
+        
+        showDiagnosticResults(html);
+    })
+    .catch(error => {
+        showDiagnosticResults(`<div class="alert alert-danger">Error loading database stats: ${error.message}</div>`);
+    });
+}
+
+function backupDatabase() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Creating database backup...</div>');
+    
+    // This would typically call a backup endpoint
+    setTimeout(() => {
+        showDiagnosticResults(`
+            <div class="alert alert-info">
+                <h6>Database Backup</h6>
+                <p>Backup functionality would be implemented here.</p>
+                <p>In a production environment, this would:</p>
+                <ul>
+                    <li>Create a timestamped backup file</li>
+                    <li>Compress the backup</li>
+                    <li>Store it in a secure location</li>
+                    <li>Provide download link</li>
+                </ul>
+            </div>
+        `);
+    }, 2000);
+}
+
+// Development Tools Functions
+function generatePods() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Generating PODs...</div>');
+    
+    const formData = new FormData();
+    formData.append('site_name', 'Default Site');
+    formData.append('pod_count', '11');
+    formData.append('mdcs_per_pod', '2');
+    formData.append('force', 'false');
+    
+    fetch('{% url "core:generate_pods" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        let html = '<h6 class="mb-3">POD Generation Results</h6>';
+        
+        if (data.success) {
+            html += `
+                <div class="alert alert-success">
+                    <strong>Success!</strong> PODs generated successfully
+                </div>
+                <pre style="white-space: pre-wrap; font-size: 12px;">${data.output}</pre>
+            `;
+        } else {
+            html += `<div class="alert alert-danger">Error: ${data.error}</div>`;
+        }
+        
+        showDiagnosticResults(html);
+    })
+    .catch(error => {
+        showDiagnosticResults(`<div class="alert alert-danger">Error generating PODs: ${error.message}</div>`);
+    });
+}
+
+function populateSampleData() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Populating sample data...</div>');
+    
+    setTimeout(() => {
+        showDiagnosticResults(`
+            <div class="alert alert-info">
+                <h6>Sample Data Population</h6>
+                <p>This would call management commands to populate sample data:</p>
+                <ul>
+                    <li>python manage.py populate_sample_data</li>
+                    <li>python manage.py populate_maintenance_data</li>
+                    <li>python manage.py populate_activity_types</li>
+                </ul>
+                <p>Sample data would include equipment, maintenance activities, and events.</p>
+            </div>
+        `);
+    }, 2000);
+}
+
+function resetRBAC() {
+    showDiagnosticResults('<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Resetting RBAC system...</div>');
+    
+    setTimeout(() => {
+        showDiagnosticResults(`
+            <div class="alert alert-info">
+                <h6>RBAC Reset</h6>
+                <p>This would call management commands to reset the RBAC system:</p>
+                <ul>
+                    <li>python manage.py init_rbac</li>
+                    <li>python manage.py ensure_permissions</li>
+                </ul>
+                <p>This would recreate all roles and permissions with default settings.</p>
+            </div>
+        `);
+    }, 2000);
+}
+
+function showDemoDataModal() {
+    const modal = new bootstrap.Modal(document.getElementById('demoDataModal'));
+    modal.show();
+}
+
+function populateDemoData() {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Populating...';
+    button.disabled = true;
+    
+    // Get form data
+    const form = document.getElementById('demoDataForm');
+    const formData = new FormData(form);
+    
+    // Add reset_data checkbox value
+    formData.append('reset_data', document.getElementById('reset-data').checked);
+    
+    fetch('{% url "core:populate_demo_data" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showDiagnosticOutput('Demo Data Population', data.message + '\n\n' + data.output, 'success');
+            // Close the modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('demoDataModal'));
+            modal.hide();
+        } else {
+            showDiagnosticOutput('Demo Data Population Error', data.message + '\n\n' + data.output, 'error');
+        }
+    })
+    .catch(error => {
+        showDiagnosticOutput('Demo Data Population Error', error.message, 'error');
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
     });
 }
 </script>

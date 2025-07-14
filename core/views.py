@@ -2133,3 +2133,101 @@ def playwright_debug_api(request):
         # Trigger Celery task
         run_playwright_debug.delay(log.id)
         return JsonResponse({"id": log.id, "status": log.status, "prompt": log.prompt})
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
+def populate_demo_data(request):
+    """Populate the database with comprehensive demo data for all major datapoints."""
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+        output = StringIO()
+        
+        # Get parameters from request
+        reset_data = request.POST.get('reset_data', 'false').lower() == 'true'
+        users_count = int(request.POST.get('users_count', 10))
+        equipment_count = int(request.POST.get('equipment_count', 50))
+        activities_count = int(request.POST.get('activities_count', 100))
+        events_count = int(request.POST.get('events_count', 75))
+        
+        # Build command arguments
+        args = ['populate_comprehensive_demo_data']
+        
+        if reset_data:
+            args.append('--reset')
+        
+        args.extend([
+            '--users', str(users_count),
+            '--equipment', str(equipment_count),
+            '--activities', str(activities_count),
+            '--events', str(events_count)
+        ])
+        
+        # Call the comprehensive demo data command
+        call_command(*args, stdout=output)
+        
+        result = output.getvalue()
+        output.close()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Comprehensive demo data populated successfully! Created {users_count} users, {equipment_count} equipment items, {activities_count} maintenance activities, and {events_count} calendar events.',
+            'output': result
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error populating demo data: {str(e)}',
+            'output': str(e)
+        })
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
+def clear_database(request):
+    """Clear the database with safety confirmations."""
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+        import json
+        
+        # Get parameters from request
+        keep_users = request.POST.get('keep_users', 'false').lower() == 'true'
+        keep_admin = request.POST.get('keep_admin', 'false').lower() == 'true'
+        dry_run = request.POST.get('dry_run', 'false').lower() == 'true'
+        
+        # Capture command output
+        output = StringIO()
+        
+        # Build command arguments
+        args = ['clear_database']
+        
+        if keep_users:
+            args.append('--keep-users')
+        if keep_admin:
+            args.append('--keep-admin')
+        if dry_run:
+            args.append('--dry-run')
+        
+        # Call the management command
+        call_command(*args, stdout=output, verbosity=2)
+        
+        # Get the output
+        command_output = output.getvalue()
+        output.close()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Database clear operation completed',
+            'output': command_output,
+            'dry_run': dry_run
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error clearing database: {str(e)}'
+        }, status=500)
