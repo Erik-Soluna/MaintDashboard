@@ -1,7 +1,7 @@
 # Use the official Playwright image with all browsers
 FROM mcr.microsoft.com/playwright:v1.44.0-jammy
 
-WORKDIR /app/playwright
+WORKDIR /app
 
 # Copy only package.json first for caching
 COPY playwright/package.json ./
@@ -10,7 +10,7 @@ COPY playwright/package.json ./
 COPY playwright/ ./
 
 # Install dependencies (after all files are present)
-RUN npm install > npm-install.log 2>&1 && npm install node-fetch@2 >> npm-install.log 2>&1 && npm install -g node-fetch@2 >> npm-install.log 2>&1 && ls -l && ls -l node_modules && cat npm-install.log
+RUN npm install > npm-install.log 2>&1 && npm install node-fetch@2 >> npm-install.log 2>&1 && ls -l && ls -l node_modules && cat npm-install.log
 
 # Set environment variables for Playwright
 ENV CI=1
