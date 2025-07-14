@@ -27,7 +27,6 @@ from django.conf import settings
 from io import StringIO
 import json
 import csv
-import io
 import re
 import time
 import psutil
@@ -45,9 +44,7 @@ from core.tasks import run_playwright_debug
 from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite
 from .tasks import run_natural_language_test_task, run_rbac_test_suite_task
 import asyncio
-from rest_framework.decorators import api_view
-from django.contrib.auth.decorators import permission_required
-from rest_framework.permissions import IsAuthenticated
+from django.contrib.admin.views.decorators import staff_member_required
 
 logger = logging.getLogger(__name__)
 
@@ -694,10 +691,15 @@ def user_management(request):
 def locations_api(request):
     """API endpoint for locations management."""
     if request.method == 'GET':
-        locations = Location.objects.all().values(
-            'id', 'name', 'address', 'is_site', 'is_active', 'parent_location__name'
-        )
-        return JsonResponse(list(locations), safe=False)
+        try:
+            locations = Location.objects.all().values(
+                'id', 'name', 'address', 'is_site', 'is_active', 'parent_location__name'
+            )
+            return JsonResponse(list(locations), safe=False)
+        except Exception as e:
+            return JsonResponse({
+                'error': f'Error fetching locations: {str(e)}'
+            }, status=500)
     
     elif request.method == 'POST':
         try:
@@ -861,11 +863,16 @@ def location_detail_api(request, location_id):
 def equipment_items_api(request):
     """API endpoint for equipment items management."""
     if request.method == 'GET':
-        equipment = Equipment.objects.select_related('location', 'category').values(
-            'id', 'name', 'asset_tag', 'location__name', 'category__name', 
-            'status', 'is_active', 'serial_number'
-        )
-        return JsonResponse(list(equipment), safe=False)
+        try:
+            equipment = Equipment.objects.select_related('location', 'category').values(
+                'id', 'name', 'asset_tag', 'location__name', 'category__name', 
+                'status', 'is_active', 'manufacturer_serial'
+            )
+            return JsonResponse(list(equipment), safe=False)
+        except Exception as e:
+            return JsonResponse({
+                'error': f'Error fetching equipment: {str(e)}'
+            }, status=500)
 
 
 @login_required
@@ -873,12 +880,17 @@ def equipment_items_api(request):
 def users_api(request):
     """API endpoint for user management."""
     if request.method == 'GET':
-        users = User.objects.select_related('userprofile').values(
-            'id', 'username', 'first_name', 'last_name', 'email',
-            'is_active', 'is_staff', 'is_superuser', 'last_login',
-            'userprofile__department', 'userprofile__phone_number'
-        )
-        return JsonResponse(list(users), safe=False)
+        try:
+            users = User.objects.select_related('userprofile').values(
+                'id', 'username', 'first_name', 'last_name', 'email',
+                'is_active', 'is_staff', 'is_superuser', 'last_login',
+                'userprofile__department', 'userprofile__phone_number'
+            )
+            return JsonResponse(list(users), safe=False)
+        except Exception as e:
+            return JsonResponse({
+                'error': f'Error fetching users: {str(e)}'
+            }, status=500)
 
 
 @login_required
@@ -2059,7 +2071,7 @@ def api_explorer(request):
             'count': Customer.objects.filter(is_active=True).count(),
             'sample': list(Customer.objects.filter(is_active=True)[:5].values('id', 'name', 'code')),
             'model_name': 'Customer',
-            'admin_url': reverse('admin:core_customer_changelist'),
+            # 'admin_url': reverse('admin:core_customer_changelist'),  # Removed, not registered in admin
             'description': 'Customer/client information and contact details'
         },
         'locations': {
@@ -2259,20 +2271,7 @@ def debug(request):
     if not request.user.is_superuser:
         return redirect('core:dashboard')
     
-    # Get health data for the health section
-    try:
-        health_data = get_system_metrics()
-        health = {
-            'status': health_data.get('status', 'unknown'),
-            'checks': health_data.get('checks', []),
-            'last_failure_log': get_recent_health_failures(5)
-        }
-    except Exception as e:
-        health = None
-    
-    context = {
-        'health': health,
-    }
+    context = {}
     return render(request, 'core/debug.html', context)
 
 
@@ -2280,51 +2279,43 @@ def debug(request):
 @user_passes_test(is_staff_or_superuser)
 @require_http_methods(["POST"])
 def generate_pods(request):
-    """Generate PODs for existing sites."""
+    """Generate PODs for all sites."""
     try:
         from django.core.management import call_command
         from io import StringIO
         
-        # Get parameters from request
-        site_id = request.POST.get('site_id')
-        site_name = request.POST.get('site_name')
-        pod_count = int(request.POST.get('pod_count', 11))
-        mdcs_per_pod = int(request.POST.get('mdcs_per_pod', 2))
-        force = request.POST.get('force', 'false').lower() == 'true'
-        
         # Capture command output
         output = StringIO()
         
-        # Build command arguments
-        args = ['generate_pods']
-        if site_id:
-            args.extend(['--site-id', site_id])
-        elif site_name:
-            args.extend(['--site-name', site_name])
+        # Call the generate pods command
+        call_command('generate_pods', '--all-sites', stdout=output, verbosity=2)
         
-        args.extend(['--pod-count', str(pod_count)])
-        args.extend(['--mdcs-per-pod', str(mdcs_per_pod)])
-        
-        if force:
-            args.append('--force')
-        
-        # Call the management command
-        call_command(*args, stdout=output)
-        
-        # Get the output
-        command_output = output.getvalue()
+        result = output.getvalue()
         output.close()
+        
+        # Parse the output to extract generated count
+        generated_count = 0
+        
+        # Look for patterns in the output
+        import re
+        generated_matches = re.findall(r'Generated (\d+)', result)
+        
+        if generated_matches:
+            generated_count = sum(int(x) for x in generated_matches)
         
         return JsonResponse({
             'success': True,
-            'message': 'PODs generated successfully',
-            'output': command_output
+            'message': f'POD generation completed successfully! Generated: {generated_count} PODs',
+            'generated_count': generated_count,
+            'output': result
         })
-        
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         return JsonResponse({
             'success': False,
-            'error': f'Error generating PODs: {str(e)}'
+            'error': f'Error generating PODs: {str(e)}',
+            'details': error_details
         }, status=500)
 
 
@@ -2366,49 +2357,66 @@ def playwright_debug_api(request):
 @user_passes_test(is_staff_or_superuser)
 @require_http_methods(["POST"])
 def populate_demo_data(request):
-    """Populate the database with comprehensive demo data for all major datapoints."""
+    """Populate the database with comprehensive demo data."""
     try:
         from django.core.management import call_command
         from io import StringIO
-        output = StringIO()
         
         # Get parameters from request
-        reset_data = request.POST.get('reset_data', 'false').lower() == 'true'
-        users_count = int(request.POST.get('users_count', 10))
-        equipment_count = int(request.POST.get('equipment_count', 50))
-        activities_count = int(request.POST.get('activities_count', 100))
-        events_count = int(request.POST.get('events_count', 75))
+        clear_first = request.POST.get('clear_first', 'false').lower() == 'true'
+        include_maintenance = request.POST.get('include_maintenance', 'true').lower() == 'true'
+        include_events = request.POST.get('include_events', 'true').lower() == 'true'
+        
+        # Capture command output
+        output = StringIO()
         
         # Build command arguments
         args = ['populate_comprehensive_demo_data']
         
-        if reset_data:
+        if clear_first:
             args.append('--reset')
         
-        args.extend([
-            '--users', str(users_count),
-            '--equipment', str(equipment_count),
-            '--activities', str(activities_count),
-            '--events', str(events_count)
-        ])
+        if include_maintenance:
+            args.append('--include-maintenance')
+        
+        if include_events:
+            args.append('--include-events')
         
         # Call the comprehensive demo data command
-        call_command(*args, stdout=output)
+        call_command(*args, stdout=output, verbosity=2)
         
         result = output.getvalue()
         output.close()
         
+        # Parse the output to extract counts
+        created_count = 0
+        deleted_count = 0
+        
+        # Look for patterns in the output
+        import re
+        created_matches = re.findall(r'Created (\d+)', result)
+        deleted_matches = re.findall(r'Deleted (\d+)', result)
+        
+        if created_matches:
+            created_count = sum(int(x) for x in created_matches)
+        if deleted_matches:
+            deleted_count = sum(int(x) for x in deleted_matches)
+        
         return JsonResponse({
             'success': True,
-            'message': f'Comprehensive demo data populated successfully! Created {users_count} users, {equipment_count} equipment items, {activities_count} maintenance activities, and {events_count} calendar events.',
+            'message': f'Demo data populated successfully! Created: {created_count} items, Deleted: {deleted_count} items',
+            'created_count': created_count,
+            'deleted_count': deleted_count,
             'output': result
         })
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         return JsonResponse({
             'success': False,
-            'message': f'Error populating demo data: {str(e)}',
-            'output': str(e)
-        })
+            'error': f'Error populating demo data: {str(e)}',
+            'details': error_details
+        }, status=500)
 
 
 @login_required
@@ -2431,7 +2439,7 @@ def clear_database(request):
         output = StringIO()
         
         # Build command arguments
-        args = ['clear_database']
+        args = ['clear_database', '--force']  # Skip confirmation prompts
         
         if keep_users:
             args.append('--keep-users')
@@ -2455,14 +2463,17 @@ def clear_database(request):
         })
         
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
         return JsonResponse({
             'success': False,
-            'error': f'Error clearing database: {str(e)}'
+            'error': f'Error clearing database: {str(e)}',
+            'details': error_details
         }, status=500)
 
 
-@api_view(['POST'])
-@permission_required('core.can_run_playwright_tests')
+@csrf_exempt
+@require_http_methods(["POST"])
 def run_natural_language_test_api(request):
     """
     Run a natural language test via API.
@@ -2476,6 +2487,7 @@ def run_natural_language_test_api(request):
         "async": false
     }
     """
+    import json
     try:
         data = json.loads(request.body)
         prompt = data.get('prompt', '')
@@ -2483,12 +2495,8 @@ def run_natural_language_test_api(request):
         username = data.get('username', 'admin')
         password = data.get('password', 'temppass123')
         run_async = data.get('async', False)
-        
         if not prompt:
-            return JsonResponse({
-                'success': False,
-                'error': 'Prompt is required'
-            }, status=400)
+            return JsonResponse({'success': False, 'error': 'Prompt is required'}, status=400)
         
         if run_async:
             # Run as Celery task
@@ -2524,18 +2532,12 @@ def run_natural_language_test_api(request):
                 loop.close()
                 
     except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'error': 'Invalid JSON payload'
-        }, status=400)
+        return JsonResponse({'success': False, 'error': 'Invalid JSON payload'}, status=400)
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
-@api_view(['POST'])
-@permission_required('core.can_run_playwright_tests')
+@csrf_exempt
+@require_http_methods(["POST"])
 def run_rbac_test_suite_api(request):
     """
     Run comprehensive RBAC test suite via API.
@@ -2586,8 +2588,8 @@ def run_rbac_test_suite_api(request):
             'error': str(e)
         }, status=500)
 
-@api_view(['GET'])
-@permission_required('core.can_view_playwright_results')
+@csrf_exempt
+@require_http_methods(["GET"])
 def get_test_results_api(request):
     """
     Get test results and logs.
@@ -2657,8 +2659,8 @@ def get_test_results_api(request):
             'error': str(e)
         }, status=500)
 
-@api_view(['GET'])
-@permission_required('core.can_view_playwright_results')
+@csrf_exempt
+@require_http_methods(["GET"])
 def get_test_screenshots_api(request):
     """
     Get test screenshots and HTML dumps.
@@ -2715,8 +2717,8 @@ def get_test_screenshots_api(request):
             'error': str(e)
         }, status=500)
 
-@api_view(['POST'])
-@permission_required('core.can_run_playwright_tests')
+@csrf_exempt
+@require_http_methods(["POST"])
 def run_test_scenario_api(request):
     """
     Run a predefined test scenario.
@@ -3044,3 +3046,127 @@ def bulk_locations_view(request):
     }
     
     return render(request, 'core/bulk_locations.html', context)
+
+
+@staff_member_required
+def playwright_slideshow(request):
+    """
+    Display a slideshow of the latest Playwright test run steps/screenshots.
+    """
+    import json
+    report_path = os.path.join(settings.BASE_DIR, 'playwright', 'smart-test-report.json')
+    screenshots = []
+    captions = []
+    if os.path.exists(report_path):
+        with open(report_path, 'r', encoding='utf-8') as f:
+            report = json.load(f)
+            for i, result in enumerate(report.get('results', [])):
+                for j, screenshot in enumerate(result.get('screenshots', [])):
+                    # Only use the filename for static serving
+                    filename = os.path.basename(screenshot)
+                    step_caption = f"Step {len(screenshots)+1}: {result.get('testName', 'Step')}"
+                    if result.get('errors'):
+                        step_caption += f" (Error: {result['errors'][0]})"
+                    screenshots.append(filename)
+                    captions.append(step_caption)
+    context = {
+        'screenshots': screenshots,
+        'captions': captions,
+    }
+    return render(request, 'core/playwright_slideshow.html', context)
+
+
+def get_comprehensive_system_health():
+    """Get comprehensive system health (no Docker/container status)."""
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'overall_status': 'healthy',
+        'components': {}
+    }
+    
+    # Database health
+    db_health = check_database_health()
+    health_data['components']['database'] = db_health
+    
+    # Cache health
+    cache_health = check_cache_health()
+    health_data['components']['cache'] = cache_health
+    
+    # Celery worker health
+    celery_health = check_celery_worker_health()
+    health_data['components']['celery_worker'] = celery_health
+    
+    # Celery beat health
+    celery_beat_health = check_celery_beat_health()
+    health_data['components']['celery_beat'] = celery_beat_health
+    
+    # System metrics
+    try:
+        system_metrics = get_system_metrics()
+        health_data['components']['system'] = system_metrics
+    except Exception as e:
+        health_data['components']['system'] = {'error': str(e)}
+    
+    # Determine overall status
+    if db_health.get('status') == 'unhealthy':
+        health_data['overall_status'] = 'critical'
+    elif cache_health.get('status') == 'unhealthy':
+        health_data['overall_status'] = 'warning'
+    elif celery_health.get('status') == 'unhealthy' or celery_beat_health.get('status') == 'unhealthy':
+        health_data['overall_status'] = 'warning'
+    
+    return health_data
+
+
+def check_celery_worker_health():
+    """Check Celery worker health by running inspect ping."""
+    try:
+        import subprocess
+        result = subprocess.run([
+            'celery', '-A', 'maintenance_dashboard', 'inspect', 'ping'
+        ], capture_output=True, text=True, timeout=10)
+        if result.returncode == 0 and 'pong' in result.stdout:
+            return {'status': 'healthy', 'output': result.stdout}
+        else:
+            return {'status': 'unhealthy', 'output': result.stdout + result.stderr}
+    except Exception as e:
+        return {'status': 'unhealthy', 'error': str(e)}
+
+
+def check_celery_beat_health():
+    """Check Celery beat health by checking last run of periodic tasks."""
+    try:
+        from django_celery_beat.models import PeriodicTask
+        from django.utils import timezone
+        enabled_tasks = PeriodicTask.objects.filter(enabled=True)
+        if not enabled_tasks.exists():
+            return {'status': 'warning', 'message': 'No periodic tasks enabled'}
+        recent = None
+        for task in enabled_tasks:
+            if task.last_run_at and (recent is None or task.last_run_at > recent):
+                recent = task.last_run_at
+        if recent:
+            seconds_since = (timezone.now() - recent).total_seconds()
+            if seconds_since < 600:
+                return {'status': 'healthy', 'message': f'Recent heartbeat ({int(seconds_since)}s ago)'}
+            else:
+                return {'status': 'warning', 'message': f'No recent heartbeat (last was {int(seconds_since//60)} min ago)'}
+        else:
+            return {'status': 'warning', 'message': 'No periodic tasks have ever run'}
+    except Exception as e:
+        return {'status': 'unhealthy', 'error': str(e)}
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def comprehensive_health_check(request):
+    """Comprehensive health check including container status."""
+    try:
+        health_data = get_comprehensive_system_health()
+        return JsonResponse(health_data)
+    except Exception as e:
+        return JsonResponse({
+            'timestamp': timezone.now().isoformat(),
+            'overall_status': 'error',
+            'error': str(e)
+        }, status=500)

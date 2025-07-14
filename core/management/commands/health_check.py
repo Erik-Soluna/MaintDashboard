@@ -172,7 +172,7 @@ class Command(BaseCommand):
         """Get endpoint performance metrics from cache."""
         try:
             # Get all endpoint metrics from cache
-            all_keys = cache.keys('endpoint_metrics:*')
+            all_keys = cache.keys('endpoint_metrics:*')  # type: ignore
             endpoint_metrics = {}
             
             for key in all_keys:

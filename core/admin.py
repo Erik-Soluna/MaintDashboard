@@ -7,13 +7,12 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.contrib.auth.views import PasswordChangeView
-from django.urls import reverse_lazy, path
+from django.urls import reverse_lazy
 from django.utils.timezone import now
 from django.contrib import messages
-from django.http import HttpResponseRedirect
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
-from .models import EquipmentCategory, Location, UserProfile
+from .models import EquipmentCategory, Location, UserProfile, Customer, Role, Permission
 
 
 # Custom Password Change View for Admin
@@ -31,9 +30,9 @@ class AdminPasswordChangeView(PasswordChangeView):
         response = super().form_valid(form)
         
         # If this is a first-time login (last_login is None), update it
-        if self.request.user.last_login is None:
-            self.request.user.last_login = now()
-            self.request.user.save(update_fields=['last_login'])
+        if self.request.user.last_login is None:  # type: ignore
+            self.request.user.last_login = now()  # type: ignore
+            self.request.user.save(update_fields=['last_login'])  # type: ignore
             
             messages.success(
                 self.request,
@@ -67,8 +66,8 @@ class CustomUserAdmin(BaseUserAdmin):
                 return 'No Role Assigned'
         except UserProfile.DoesNotExist:
             return 'No Profile'
-    get_role.short_description = 'Role'
-    get_role.admin_order_field = 'userprofile__role'
+    get_role.short_description = 'Role'  # type: ignore
+    get_role.admin_order_field = 'userprofile__role'  # type: ignore
 
 
 # Equipment Category Admin
@@ -158,3 +157,21 @@ admin.site.register(User, CustomUserAdmin)
 admin.site.site_header = 'Maintenance Dashboard Administration'
 admin.site.site_title = 'Maintenance Dashboard Admin'
 admin.site.index_title = 'Welcome to Maintenance Dashboard Administration'
+
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'contact_email', 'is_active')
+    search_fields = ('name', 'code', 'contact_email')
+    list_filter = ('is_active',)
+
+@admin.register(Role)
+class RoleAdmin(admin.ModelAdmin):
+    list_display = ('name', 'display_name', 'is_active', 'is_system_role')
+    search_fields = ('name', 'display_name')
+    list_filter = ('is_active', 'is_system_role')
+
+@admin.register(Permission)
+class PermissionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'codename', 'module', 'is_active')
+    search_fields = ('name', 'codename', 'module')
+    list_filter = ('is_active', 'module')

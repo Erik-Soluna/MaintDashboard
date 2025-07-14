@@ -8,6 +8,7 @@ from django.db import connection
 from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.utils import timezone
+from django.db import transaction
 import logging
 import sys
 
@@ -98,59 +99,91 @@ class Command(BaseCommand):
         self.stdout.write('\nStarting database clear operation...')
         
         try:
-            # Clear all data except users if requested
-            if keep_users:
-                self.stdout.write('Keeping user accounts...')
-                # Clear all data except User and UserProfile
-                models_to_clear = [
-                    'equipment.Equipment',
-                    'equipment.EquipmentComponent', 
-                    'equipment.EquipmentDocument',
-                    'maintenance.MaintenanceActivity',
-                    'maintenance.MaintenanceActivityType',
-                    'maintenance.MaintenanceSchedule',
-                    'maintenance.MaintenanceReport',
-                    'events.CalendarEvent',
-                    'events.EventComment',
-                    'events.EventAttachment',
-                    'events.EventReminder',
-                    'core.Location',
-                    'core.EquipmentCategory',
-                    'core.Customer',
-                    'core.PlaywrightDebugLog',
-                ]
-                
-                for model in models_to_clear:
-                    try:
-                        call_command('flush', '--noinput', verbosity=0)
-                        break  # flush clears everything, so we only need to call it once
-                    except Exception as e:
-                        self.stdout.write(f'Error clearing {model}: {e}')
-            else:
-                # Clear everything including users
-                if keep_admin:
-                    self.stdout.write('Preserving admin user...')
-                    # Get admin user before clearing
-                    try:
-                        admin_user = User.objects.filter(is_superuser=True).first()
-                        admin_username = admin_user.username if admin_user else None
-                    except:
+            with transaction.atomic():
+                # Clear all data except users if requested
+                if keep_users:
+                    self.stdout.write('Keeping user accounts...')
+                    # Clear all data except User and UserProfile
+                    models_to_clear = [
+                        'equipment.Equipment',
+                        'equipment.EquipmentComponent', 
+                        'equipment.EquipmentDocument',
+                        'maintenance.MaintenanceActivity',
+                        'maintenance.MaintenanceActivityType',
+                        'maintenance.MaintenanceSchedule',
+                        'maintenance.MaintenanceReport',
+                        'events.CalendarEvent',
+                        'events.EventComment',
+                        'events.EventAttachment',
+                        'events.EventReminder',
+                        'core.Location',
+                        'core.EquipmentCategory',
+                        'core.Customer',
+                        'core.PlaywrightDebugLog',
+                    ]
+                    
+                    for model in models_to_clear:
+                        try:
+                            # Import the model dynamically
+                            app_label, model_name = model.split('.')
+                            from django.apps import apps
+                            Model = apps.get_model(app_label, model_name)
+                            count = Model.objects.all().count()
+                            Model.objects.all().delete()
+                            self.stdout.write(f'  Cleared {model}: {count} records')
+                        except Exception as e:
+                            self.stdout.write(f'  Error clearing {model}: {e}')
+                else:
+                    # Clear everything including users
+                    if keep_admin:
+                        self.stdout.write('Preserving admin user...')
+                        # Get admin user before clearing
                         admin_username = None
-                
-                # Clear all data
-                call_command('flush', '--noinput', verbosity=0)
-                
-                # Recreate admin user if requested
-                if keep_admin and admin_username:
-                    try:
-                        User.objects.create_superuser(
-                            username=admin_username,
-                            email=f'{admin_username}@admin.local',
-                            password='admin123'
-                        )
-                        self.stdout.write(f'Recreated admin user: {admin_username}')
-                    except Exception as e:
-                        self.stdout.write(f'Error recreating admin user: {e}')
+                        admin_email = None
+                        try:
+                            admin_user = User.objects.filter(is_superuser=True).first()
+                            if admin_user:
+                                admin_username = admin_user.username
+                                admin_email = admin_user.email
+                        except:
+                            pass
+                    
+                    # Clear all data using raw SQL for better control
+                    with connection.cursor() as cursor:
+                        # Disable foreign key checks temporarily
+                        cursor.execute("SET session_replication_role = replica;")
+                        
+                        # Get all tables
+                        cursor.execute("""
+                            SELECT tablename FROM pg_tables 
+                            WHERE schemaname = 'public' 
+                            AND tablename NOT LIKE 'django_%'
+                            AND tablename NOT LIKE 'auth_%'
+                        """)
+                        tables = [row[0] for row in cursor.fetchall()]
+                        
+                        # Clear each table
+                        for table in tables:
+                            try:
+                                cursor.execute(f"TRUNCATE TABLE {table} CASCADE;")
+                                self.stdout.write(f'  Cleared table: {table}')
+                            except Exception as e:
+                                self.stdout.write(f'  Error clearing {table}: {e}')
+                        
+                        # Re-enable foreign key checks
+                        cursor.execute("SET session_replication_role = DEFAULT;")
+                    
+                    # Recreate admin user if requested
+                    if keep_admin and admin_username:
+                        try:
+                            User.objects.create_superuser(
+                                username=admin_username,
+                                email=admin_email or f'{admin_username}@admin.local',
+                                password='admin123'
+                            )
+                            self.stdout.write(f'Recreated admin user: {admin_username}')
+                        except Exception as e:
+                            self.stdout.write(f'Error recreating admin user: {e}')
             
             # Log the operation
             logger.warning(

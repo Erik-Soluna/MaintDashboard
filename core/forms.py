@@ -27,12 +27,12 @@ class LocationForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         # Filter active locations for parent selection
-        self.fields['parent_location'].queryset = Location.objects.filter(
+        self.fields['parent_location'].queryset = Location.objects.filter(  # type: ignore
             is_active=True
         ).order_by('name')
         
         # Filter active customers for customer selection
-        self.fields['customer'].queryset = Customer.objects.filter(
+        self.fields['customer'].queryset = Customer.objects.filter(  # type: ignore
             is_active=True
         ).order_by('name')
         
@@ -65,8 +65,8 @@ class LocationForm(forms.ModelForm):
     def clean(self):
         """Custom validation for location."""
         cleaned_data = super().clean()
-        is_site = cleaned_data.get('is_site')
-        parent_location = cleaned_data.get('parent_location')
+        is_site = cleaned_data.get('is_site')  # type: ignore
+        parent_location = cleaned_data.get('parent_location')  # type: ignore
         
         # Site locations cannot have parent locations
         if is_site and parent_location:
