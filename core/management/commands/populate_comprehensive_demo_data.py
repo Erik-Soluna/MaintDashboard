@@ -487,11 +487,16 @@ class Command(BaseCommand):
         
         for event in random.sample(list(events), min(20, len(events))):
             if users:
+                # Calculate reminder time based on event_date and start_time
+                reminder_datetime = datetime.combine(event.event_date, event.start_time or datetime.min.time())
+                reminder_datetime = timezone.make_aware(reminder_datetime)
+                reminder_datetime = reminder_datetime - timedelta(hours=random.randint(1, 24))
+                
                 EventReminder.objects.create(
                     event=event,
                     reminder_type=random.choice(['email', 'dashboard']),
                     user=random.choice(users),
-                    reminder_time=event.scheduled_start - timedelta(hours=random.randint(1, 24)),
+                    reminder_time=reminder_datetime,
                     message=f'Reminder: {event.title} is scheduled for {event.event_date}'
                 )
                 
