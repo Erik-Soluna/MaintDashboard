@@ -19,7 +19,7 @@ from django.http import JsonResponse, HttpResponseRedirect, HttpResponse
 from django.core.paginator import Paginator
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods, require_POST
+from django.views.decorators.http import require_http_methods, require_POST, require_GET
 from django.core.management import call_command
 from django.core.cache import cache
 from django.db import connection
@@ -39,7 +39,7 @@ from django_celery_beat.models import PeriodicTask
 import requests
 from django.test import RequestFactory
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST, require_GET
 from .models import PlaywrightDebugLog
 from core.tasks import run_playwright_debug
 from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite
@@ -2645,3 +2645,20 @@ def run_test_scenario_api(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+@require_GET
+def test_health(request):
+    """Minimal health check endpoint for debug page AJAX."""
+    import psutil
+    try:
+        cpu = psutil.cpu_percent(interval=0.1)
+        mem = psutil.virtual_memory().percent
+        disk = psutil.disk_usage('/').percent
+        return JsonResponse({
+            'status': 'ok',
+            'cpu': cpu,
+            'memory': mem,
+            'disk': disk
+        })
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)}, status=500)
