@@ -11,6 +11,17 @@ DB_USER="${DB_USER:-postgres}"
 DB_PASSWORD="${DB_PASSWORD:-postgres}"
 DB_HOST="${DB_HOST:-db}"
 DB_PORT="${DB_PORT:-5432}"
+
+# For production, we need to connect as postgres to create the database
+# but the application will use maintenance_user
+if [ "$DB_USER" = "maintenance_user" ]; then
+    # Use postgres superuser for database creation
+    DB_CREATE_USER="postgres"
+    DB_CREATE_PASSWORD="${POSTGRES_PASSWORD:-postgres}"
+else
+    DB_CREATE_USER="$DB_USER"
+    DB_CREATE_PASSWORD="$DB_PASSWORD"
+fi
 MAX_RETRIES=30
 RETRY_DELAY=2
 
@@ -45,7 +56,7 @@ wait_for_postgres() {
     print_status "Waiting for database to be ready..."
     
     while [ $retry_count -lt $MAX_RETRIES ]; do
-        if PGPASSWORD="$DB_PASSWORD" pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" > /dev/null 2>&1; then
+        if PGPASSWORD="$DB_CREATE_PASSWORD" pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_CREATE_USER" > /dev/null 2>&1; then
             print_success "Database is ready"
             return 0
         fi
@@ -62,7 +73,7 @@ wait_for_postgres() {
 # Function to check if database exists
 database_exists() {
     local result
-    result=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "postgres" -t -c "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null | xargs)
+    result=$(PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_CREATE_USER" -d "postgres" -t -c "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null | xargs)
     [ "$result" = "1" ]
 }
 
@@ -70,8 +81,15 @@ database_exists() {
 create_database() {
     print_status "Creating database '$DB_NAME'..."
     
-    if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "postgres" -c "CREATE DATABASE $DB_NAME" > /dev/null 2>&1; then
+    if PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_CREATE_USER" -d "postgres" -c "CREATE DATABASE $DB_NAME" > /dev/null 2>&1; then
         print_success "Database '$DB_NAME' created successfully"
+        
+        # Grant privileges to maintenance_user if it's different from the create user
+        if [ "$DB_USER" != "$DB_CREATE_USER" ]; then
+            print_status "Granting privileges to $DB_USER..."
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_CREATE_USER" -d "postgres" -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;" > /dev/null 2>&1 || true
+        fi
+        
         return 0
     else
         print_error "Failed to create database '$DB_NAME'"
@@ -82,7 +100,7 @@ create_database() {
 # Function to list all databases (for debugging)
 list_databases() {
     print_status "Current databases:"
-    PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "postgres" -l 2>/dev/null || true
+    PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_CREATE_USER" -d "postgres" -l 2>/dev/null || true
 }
 
 # Main function
@@ -90,7 +108,8 @@ main() {
     print_status "🚀 Starting database initialization check..."
     print_status "Database: $DB_NAME"
     print_status "Host: $DB_HOST:$DB_PORT"
-    print_status "User: $DB_USER"
+    print_status "Application User: $DB_USER"
+    print_status "Database Creation User: $DB_CREATE_USER"
     
     # Wait for PostgreSQL to be ready
     if ! wait_for_postgres; then
