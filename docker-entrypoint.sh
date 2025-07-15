@@ -39,10 +39,21 @@ check_database_ready() {
     local max_attempts=30
     local attempt=1
     
-    print_status "Waiting for database to be ready..."
+    # For production, we need to connect as postgres to create the database
+    # but the application will use maintenance_user
+    if [ "$DB_USER" = "maintenance_user" ]; then
+        # Use postgres superuser for database operations
+        DB_CHECK_USER="postgres"
+        DB_CHECK_PASSWORD="${POSTGRES_PASSWORD:-SecureProdPassword2024!}"
+    else
+        DB_CHECK_USER="$DB_USER"
+        DB_CHECK_PASSWORD="$DB_PASSWORD"
+    fi
+    
+    print_status "Waiting for database to be ready with user: $DB_CHECK_USER..."
     
     while [ $attempt -le $max_attempts ]; do
-        if pg_isready -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "${DB_USER:-postgres}" -d "${DB_NAME:-maintenance_dashboard}" > /dev/null 2>&1; then
+        if PGPASSWORD="$DB_CHECK_PASSWORD" pg_isready -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CHECK_USER" -d "${DB_NAME:-maintenance_dashboard}" > /dev/null 2>&1; then
             print_success "Database is ready"
             return 0
         fi
@@ -60,16 +71,36 @@ check_database_ready() {
 ensure_database_exists() {
     print_status "Checking if database exists..."
     
+    # For production, we need to connect as postgres to create the database
+    # but the application will use maintenance_user
+    if [ "$DB_USER" = "maintenance_user" ]; then
+        # Use postgres superuser for database operations
+        DB_CREATE_USER="postgres"
+        DB_CREATE_PASSWORD="${POSTGRES_PASSWORD:-SecureProdPassword2024!}"
+    else
+        DB_CREATE_USER="$DB_USER"
+        DB_CREATE_PASSWORD="$DB_PASSWORD"
+    fi
+    
+    print_status "Using user: $DB_CREATE_USER for database operations"
+    
     # Check if database exists
-    if PGPASSWORD="${DB_PASSWORD:-postgres}" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "${DB_USER:-postgres}" -d "postgres" -t -c "SELECT 1 FROM pg_database WHERE datname='${DB_NAME:-maintenance_dashboard}'" | grep -q 1; then
+    if PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -t -c "SELECT 1 FROM pg_database WHERE datname='${DB_NAME:-maintenance_dashboard}'" | grep -q 1; then
         print_success "Database '${DB_NAME:-maintenance_dashboard}' already exists"
         return 0
     fi
     
     # Create database
-    print_status "Creating database '${DB_NAME:-maintenance_dashboard}'..."
-    if PGPASSWORD="${DB_PASSWORD:-postgres}" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "${DB_USER:-postgres}" -d "postgres" -c "CREATE DATABASE ${DB_NAME:-maintenance_dashboard}"; then
+    print_status "Creating database '${DB_NAME:-maintenance_dashboard}' with user: $DB_CREATE_USER..."
+    if PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -c "CREATE DATABASE ${DB_NAME:-maintenance_dashboard}"; then
         print_success "Database '${DB_NAME:-maintenance_dashboard}' created successfully"
+        
+        # Grant privileges to maintenance_user if it's different from the create user
+        if [ "$DB_USER" != "$DB_CREATE_USER" ]; then
+            print_status "Granting privileges to $DB_USER..."
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME:-maintenance_dashboard} TO $DB_USER;" > /dev/null 2>&1 || true
+        fi
+        
         return 0
     else
         print_error "Failed to create database"
