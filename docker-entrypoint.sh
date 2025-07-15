@@ -95,9 +95,10 @@ ensure_database_exists() {
     if PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -c "CREATE DATABASE ${DB_NAME:-maintenance_dashboard}"; then
         print_success "Database '${DB_NAME:-maintenance_dashboard}' created successfully"
         
-        # Grant privileges to maintenance_user if it's different from the create user
+        # Create maintenance_user and grant privileges if it's different from the create user
         if [ "$DB_USER" != "$DB_CREATE_USER" ]; then
-            print_status "Granting privileges to $DB_USER..."
+            print_status "Creating user $DB_USER and granting privileges..."
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -c "CREATE USER $DB_USER WITH PASSWORD '${DB_PASSWORD:-SecureProdPassword2024!}';" > /dev/null 2>&1 || true
             PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME:-maintenance_dashboard} TO $DB_USER;" > /dev/null 2>&1 || true
         fi
         

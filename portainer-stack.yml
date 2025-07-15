@@ -8,7 +8,7 @@ services:
       - postgres_data:/var/lib/postgresql/data/
     environment:
       POSTGRES_DB: ${DB_NAME:-maintenance_dashboard_prod}
-      POSTGRES_USER: ${DB_USER:-maintenance_user}
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SecureProdPassword2024!}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     ports:
@@ -16,7 +16,7 @@ services:
     networks:
       - maintenance_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-maintenance_user} -d ${DB_NAME:-maintenance_dashboard_prod}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME:-maintenance_dashboard_prod}"]
       interval: 10s
       timeout: 5s
       retries: 5
