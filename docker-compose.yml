@@ -191,24 +191,24 @@ services:
         reservations:
           memory: 128M
 
-  playwright:
-    build:
-      context: .
-      dockerfile: Dockerfile.playwright
-    container_name: playwright_runner
-    depends_on:
-      - web
-    volumes:
-      - ./playwright:/app/playwright
-    environment:
-      - BASE_URL=http://web:8000
-      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
-      - GITHUB_REPO=${GITHUB_REPO:-erikw/MaintDashboard}
-      - GITHUB_OWNER=${GITHUB_OWNER:-erikw}
-      - GITHUB_REPO_NAME=${GITHUB_REPO_NAME:-MaintDashboard}
-    networks:
-      - maintenance_network
-    restart: unless-stopped
+  # playwright:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.playwright
+  #   container_name: playwright_runner
+  #   depends_on:
+  #     - web
+  #   volumes:
+  #     - ./playwright:/app/playwright
+  #   environment:
+  #     - BASE_URL=http://web:8000
+  #     - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+  #     - GITHUB_REPO=${GITHUB_REPO:-erikw/MaintDashboard}
+  #     - GITHUB_OWNER=${GITHUB_OWNER:-erikw}
+  #     - GITHUB_REPO_NAME=${GITHUB_REPO_NAME:-MaintDashboard}
+  #   networks:
+  #     - maintenance_network
+  #   restart: unless-stopped
 
 networks:
   maintenance_network:
