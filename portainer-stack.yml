@@ -144,8 +144,8 @@ services:
       dockerfile: Dockerfile
     container_name: maintenance_celery_prod
     command: >
-      sh -c "chmod +x /app/start_celery.sh &&
-             /app/start_celery.sh"
+      sh -c "chmod +x /app/start_celery_prod.sh &&
+             /app/start_celery_prod.sh"
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY:-django-production-secret-key-change-this-immediately-2024}
@@ -156,6 +156,12 @@ services:
       - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
       - C_FORCE_ROOT=1
+      # Celery Production Settings
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - CELERY_WORKER_CONCURRENCY=2
+      - CELERY_WORKER_MAX_TASKS_PER_CHILD=1000
+      - CELERY_WORKER_PREFETCH_MULTIPLIER=1
     depends_on:
       db:
         condition: service_healthy
@@ -164,11 +170,11 @@ services:
     networks:
       - maintenance_network
     healthcheck:
-      test: ["CMD", "celery", "-A", "maintenance_dashboard", "inspect", "ping"]
+      test: ["CMD-SHELL", "celery -A maintenance_dashboard inspect ping || exit 1"]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
     restart: unless-stopped
     deploy:
       resources:
@@ -183,8 +189,8 @@ services:
       dockerfile: Dockerfile
     container_name: maintenance_celery_beat_prod
     command: >
-      sh -c "chmod +x /app/start_celery_beat.sh &&
-             /app/start_celery_beat.sh"
+      sh -c "chmod +x /app/start_celery_beat_prod.sh &&
+             /app/start_celery_beat_prod.sh"
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY:-django-production-secret-key-change-this-immediately-2024}
@@ -194,6 +200,9 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
+      # Celery Beat Production Settings
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       db:
         condition: service_healthy
@@ -202,11 +211,11 @@ services:
     networks:
       - maintenance_network
     healthcheck:
-      test: ["CMD", "pgrep", "-f", "celery.*beat"]
+      test: ["CMD-SHELL", "pgrep -f 'celery.*beat' || exit 1"]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
     restart: unless-stopped
     deploy:
       resources:
