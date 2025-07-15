@@ -37,8 +37,6 @@ import redis
 from django_celery_beat.models import PeriodicTask
 import requests
 from django.test import RequestFactory
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods, require_POST, require_GET
 from .models import PlaywrightDebugLog
 from core.tasks import run_playwright_debug
 from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite

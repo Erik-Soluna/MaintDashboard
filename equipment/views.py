@@ -22,8 +22,10 @@ from datetime import datetime, timedelta
 import mimetypes
 try:
     import PyPDF2
+    PYPDF2_AVAILABLE = True
 except ImportError:
     PyPDF2 = None
+    PYPDF2_AVAILABLE = False
 
 from .models import Equipment, EquipmentDocument, EquipmentComponent
 from core.models import EquipmentCategory, Location
@@ -1077,7 +1079,7 @@ def extract_text_from_file(file_path):
     """Extract text from uploaded file (supports .txt and .pdf)."""
     logger.info(f"Attempting to extract text from file: {file_path}")
     ext = os.path.splitext(file_path)[1].lower()
-    if ext == '.pdf' and PyPDF2 is not None:
+    if ext == '.pdf' and PYPDF2_AVAILABLE:
         try:
             with open(file_path, 'rb') as f:
                 reader = PyPDF2.PdfReader(f)
@@ -1089,6 +1091,9 @@ def extract_text_from_file(file_path):
         except Exception as e:
             logger.error(f"Failed to extract text from PDF: {file_path}: {str(e)}")
             return ''
+    elif ext == '.pdf' and not PYPDF2_AVAILABLE:
+        logger.warning(f"PyPDF2 not available - cannot extract text from PDF: {file_path}")
+        return ''
     # Fallback to text extraction for .txt and others
     try:
         with open(file_path, 'r', encoding='utf-8') as f:

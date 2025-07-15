@@ -842,8 +842,7 @@ def import_maintenance_csv(request):
         # Skip header row
         header = next(csv_data)
         
-        # Import data
-        from .models import MaintenanceActivity, MaintenanceActivityType
+        # Import data (moved to top of file)
         from equipment.models import Equipment
         from django.contrib.auth.models import User
         from datetime import datetime
