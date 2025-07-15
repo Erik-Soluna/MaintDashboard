@@ -6973,6 +6973,7 @@ Traceback (most recent call last):
     obj, end = self.scan_once(s, idx)
                ^^^^^^^^^^^^^^^^^^^^^^
 json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+<<<<<<< HEAD
 Created UserProfile for new user: system
 Created UserProfile for new user: demo_user_1
 Created UserProfile for new user: demo_user_2
@@ -7918,4 +7919,6 @@ Internal Server Error: /core/health/simple/
 Watching for file changes with StatReloader
 /workspace/core/views.py changed, reloading.
 Watching for file changes with StatReloader
+=======
+>>>>>>> latest
 Watching for file changes with StatReloader
