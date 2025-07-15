@@ -7900,3 +7900,4 @@ Traceback (most recent call last):
 django.urls.exceptions.NoReverseMatch: Reverse for 'test_database' not found. 'test_database' is not a valid view function or pattern name.
 Total active equipment count: 28
 Filtered equipment queryset count: 28
+Watching for file changes with StatReloader
