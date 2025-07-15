@@ -231,6 +231,7 @@ trap graceful_shutdown SIGTERM SIGINT
 # Main execution
 main() {
     print_status "🚀 Starting Docker container initialization..."
+    print_status "🔧 ENTRYPOINT VERSION: 2024-07-15-FIXED-DB-AUTH"
     
     # Change to app directory
     cd /app || exit 1
@@ -244,6 +245,7 @@ main() {
     print_status "  Database Host: ${DB_HOST:-db}"
     print_status "  Database Name: ${DB_NAME:-maintenance_dashboard}"
     print_status "  Database User: ${DB_USER:-postgres}"
+    print_status "  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:0:10}..."
     print_status "  Admin Username: ${ADMIN_USERNAME:-admin}"
     print_status "  Admin Email: ${ADMIN_EMAIL:-admin@maintenance.local}"
     print_status "  Debug Mode: ${DEBUG:-False}"

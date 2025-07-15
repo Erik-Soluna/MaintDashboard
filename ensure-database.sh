@@ -109,6 +109,7 @@ list_databases() {
 # Main function
 main() {
     print_status "🚀 Starting database initialization check..."
+    print_status "🔧 SCRIPT VERSION: 2024-07-15-FIXED-DB-AUTH"
     print_status "Database: $DB_NAME"
     print_status "Host: $DB_HOST:$DB_PORT"
     print_status "Application User: $DB_USER"
