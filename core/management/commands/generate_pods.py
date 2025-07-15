@@ -22,6 +22,11 @@ class Command(BaseCommand):
             help='Generate PODs for a specific site name'
         )
         parser.add_argument(
+            '--all-sites',
+            action='store_true',
+            help='Generate PODs for all sites'
+        )
+        parser.add_argument(
             '--pod-count',
             type=int,
             default=11,

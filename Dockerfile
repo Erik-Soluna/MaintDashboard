@@ -54,6 +54,8 @@ COPY . /app/
 RUN chmod +x /app/docker-entrypoint.sh
 RUN chmod +x /app/start_celery_beat.sh
 RUN chmod +x /app/start_celery.sh
+RUN chmod +x /app/start_celery_beat_prod.sh
+RUN chmod +x /app/start_celery_prod.sh
 
 # Create directories for static and media files
 RUN mkdir -p /app/staticfiles /app/media
