@@ -159,4 +159,4 @@ Thumbs.db
 debug.log
 health_failures.log
 *.bak
-*.tmp 
+*.tmp playwright/screenshots/
