@@ -75,13 +75,14 @@ wait_for_postgres() {
 # Function to check if database exists
 database_exists() {
     local result
+    print_status "Checking database existence with user: $DB_CREATE_USER"
     result=$(PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_CREATE_USER" -d "postgres" -t -c "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" 2>/dev/null | xargs)
     [ "$result" = "1" ]
 }
 
 # Function to create database
 create_database() {
-    print_status "Creating database '$DB_NAME'..."
+    print_status "Creating database '$DB_NAME' with user: $DB_CREATE_USER..."
     
     if PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_CREATE_USER" -d "postgres" -c "CREATE DATABASE $DB_NAME" > /dev/null 2>&1; then
         print_success "Database '$DB_NAME' created successfully"
@@ -112,6 +113,9 @@ main() {
     print_status "Host: $DB_HOST:$DB_PORT"
     print_status "Application User: $DB_USER"
     print_status "Database Creation User: $DB_CREATE_USER"
+    print_status "POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:0:10}..."
+    print_status "DB_PASSWORD: ${DB_PASSWORD:0:10}..."
+    print_status "DB_CREATE_PASSWORD: ${DB_CREATE_PASSWORD:0:10}..."
     
     # Wait for PostgreSQL to be ready
     if ! wait_for_postgres; then
