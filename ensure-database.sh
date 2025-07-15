@@ -5,10 +5,10 @@
 
 set -e
 
-# Configuration
-DB_NAME="maintenance_dashboard"
-DB_USER="postgres"
-DB_PASSWORD="postgres"
+# Configuration - Use environment variables with fallbacks
+DB_NAME="${DB_NAME:-maintenance_dashboard}"
+DB_USER="${DB_USER:-postgres}"
+DB_PASSWORD="${DB_PASSWORD:-postgres}"
 DB_HOST="${DB_HOST:-db}"
 DB_PORT="${DB_PORT:-5432}"
 MAX_RETRIES=30
@@ -42,20 +42,20 @@ print_error() {
 wait_for_postgres() {
     local retry_count=0
     
-    print_status "Waiting for PostgreSQL to be ready..."
+    print_status "Waiting for database to be ready..."
     
     while [ $retry_count -lt $MAX_RETRIES ]; do
         if PGPASSWORD="$DB_PASSWORD" pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" > /dev/null 2>&1; then
-            print_success "PostgreSQL is ready"
+            print_success "Database is ready"
             return 0
         fi
         
-        print_status "PostgreSQL not ready, waiting... (attempt $((retry_count + 1))/$MAX_RETRIES)"
+        print_status "Database not ready, waiting... (attempt $((retry_count + 1))/$MAX_RETRIES)"
         sleep $RETRY_DELAY
         retry_count=$((retry_count + 1))
     done
     
-    print_error "PostgreSQL did not become ready within timeout"
+    print_error "Database did not become ready within timeout"
     return 1
 }
 
@@ -98,6 +98,7 @@ main() {
     fi
     
     # Check if database exists
+    print_status "Checking if database exists..."
     if database_exists; then
         print_success "✅ Database '$DB_NAME' already exists - no action needed"
         return 0
