@@ -50,6 +50,10 @@ check_database_ready() {
         DB_CHECK_PASSWORD="$DB_PASSWORD"
     fi
     
+    print_status "🔍 DB READY DEBUG:"
+    print_status "  DB_CHECK_USER: $DB_CHECK_USER"
+    print_status "  DB_CHECK_PASSWORD: ${DB_CHECK_PASSWORD:0:10}..."
+    print_status "  Full DB_CHECK_PASSWORD: $DB_CHECK_PASSWORD"
     print_status "Waiting for database to be ready with user: $DB_CHECK_USER..."
     
     while [ $attempt -le $max_attempts ]; do
@@ -82,6 +86,10 @@ ensure_database_exists() {
         DB_CREATE_PASSWORD="$DB_PASSWORD"
     fi
     
+    print_status "🔍 DB CREATE DEBUG:"
+    print_status "  DB_CREATE_USER: $DB_CREATE_USER"
+    print_status "  DB_CREATE_PASSWORD: ${DB_CREATE_PASSWORD:0:10}..."
+    print_status "  Full DB_CREATE_PASSWORD: $DB_CREATE_PASSWORD"
     print_status "Using user: $DB_CREATE_USER for database operations"
     
     # Check if database exists
@@ -125,6 +133,23 @@ run_database_initialization() {
             sleep $RETRY_DELAY
             retry_count=$((retry_count + 1))
             continue
+        fi
+        
+        # Test direct connection to postgres container
+        print_status "🔍 TESTING DIRECT POSTGRES CONNECTION:"
+        print_status "  Testing with user: postgres"
+        print_status "  Testing with password: ${POSTGRES_PASSWORD:0:10}..."
+        
+        if PGPASSWORD="$POSTGRES_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "postgres" -d "postgres" -c "SELECT version();" > /dev/null 2>&1; then
+            print_success "✅ Direct postgres connection successful!"
+        else
+            print_error "❌ Direct postgres connection failed!"
+            print_status "  Trying to connect with default password..."
+            if PGPASSWORD="SecureProdPassword2024!" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "postgres" -d "postgres" -c "SELECT version();" > /dev/null 2>&1; then
+                print_success "✅ Direct postgres connection successful with default password!"
+            else
+                print_error "❌ Direct postgres connection failed with default password too!"
+            fi
         fi
         
         # Ensure database exists
@@ -247,9 +272,16 @@ main() {
     print_status "  Database Name: ${DB_NAME:-maintenance_dashboard}"
     print_status "  Database User: ${DB_USER:-postgres}"
     print_status "  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:0:10}..."
+    print_status "  DB_PASSWORD: ${DB_PASSWORD:0:10}..."
     print_status "  Admin Username: ${ADMIN_USERNAME:-admin}"
     print_status "  Admin Email: ${ADMIN_EMAIL:-admin@maintenance.local}"
     print_status "  Debug Mode: ${DEBUG:-False}"
+    
+    # Debug password values
+    print_status "🔍 PASSWORD DEBUG:"
+    print_status "  POSTGRES_PASSWORD full: ${POSTGRES_PASSWORD}"
+    print_status "  DB_PASSWORD full: ${DB_PASSWORD}"
+    print_status "  DB_CREATE_PASSWORD will be: ${POSTGRES_PASSWORD:-SecureProdPassword2024!}"
     
     # Skip database initialization if requested
     if [ "${SKIP_DB_INIT:-false}" = "true" ]; then
