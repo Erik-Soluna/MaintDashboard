@@ -91,4 +91,6 @@ urlpatterns += [
     path('api-explorer/', views.api_explorer, name='api_explorer'),
     path('health/clear_logs/', clear_health_logs, name='clear_health_logs'),
     path('api/test-health/', views.test_health, name='test_health'),
+    path('api/test-database/', views.test_database, name='test_database'),
+    path('api/test-cache/', views.test_cache, name='test_cache'),
 ]

@@ -1957,9 +1957,13 @@ def health_check(request):
         status = 'error'
     # Redis check
     try:
-        r = redis.Redis.from_url('redis://redis:6379/0')
-        r.ping()
-        checks.append({'name': 'Redis', 'status': 'ok', 'message': 'Connected'})
+        from django.conf import settings
+        if getattr(settings, 'USE_REDIS', True):
+            r = redis.Redis.from_url('redis://redis:6379/0')
+            r.ping()
+            checks.append({'name': 'Redis', 'status': 'ok', 'message': 'Connected'})
+        else:
+            checks.append({'name': 'Redis', 'status': 'info', 'message': 'Redis disabled for development'})
     except Exception as e:
         checks.append({'name': 'Redis', 'status': 'error', 'message': str(e)})
         log_health_failure('Redis', str(e))
@@ -2027,9 +2031,11 @@ def simple_health_check(request):
         from django.db import connection
         connection.ensure_connection()
         
-        # Basic Redis check
-        r = redis.Redis.from_url('redis://redis:6379/0')
-        r.ping()
+        # Basic Redis check (only if enabled)
+        from django.conf import settings
+        if getattr(settings, 'USE_REDIS', True):
+            r = redis.Redis.from_url('redis://redis:6379/0')
+            r.ping()
         
         return JsonResponse({'status': 'ok'}, status=200)
     except Exception as e:
@@ -2860,6 +2866,84 @@ def test_health(request):
         })
     except Exception as e:
         return JsonResponse({'status': 'error', 'error': str(e)}, status=500)
+
+@require_GET
+def test_database(request):
+    """Database health check endpoint for debug page AJAX."""
+    try:
+        from django.db import connection
+        from django.db.utils import OperationalError
+        
+        # Test database connection
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            result = cursor.fetchone()
+        
+        # Get database stats
+        from django.contrib.auth.models import User
+        from core.models import Location, Customer
+        from equipment.models import Equipment
+        from maintenance.models import MaintenanceActivity
+        
+        stats = {
+            'users': User.objects.count(),
+            'locations': Location.objects.count(),
+            'customers': Customer.objects.count(),
+            'equipment': Equipment.objects.count(),
+            'maintenance_activities': MaintenanceActivity.objects.count(),
+        }
+        
+        return JsonResponse({
+            'status': 'ok',
+            'connection': 'healthy',
+            'stats': stats
+        })
+    except OperationalError as e:
+        return JsonResponse({
+            'status': 'error',
+            'error': f'Database connection failed: {str(e)}'
+        }, status=500)
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'error': str(e)
+        }, status=500)
+
+@require_GET
+def test_cache(request):
+    """Cache health check endpoint for debug page AJAX."""
+    try:
+        from django.core.cache import cache
+        from django.conf import settings
+        
+        # Test cache connection
+        test_key = 'debug_cache_test'
+        test_value = 'test_value_123'
+        
+        # Set a test value
+        cache.set(test_key, test_value, 60)
+        
+        # Get the test value
+        retrieved_value = cache.get(test_key)
+        
+        # Clean up
+        cache.delete(test_key)
+        
+        if retrieved_value == test_value:
+            cache_status = 'healthy'
+        else:
+            cache_status = 'unhealthy'
+        
+        return JsonResponse({
+            'status': 'ok',
+            'cache': cache_status,
+            'backend': getattr(settings, 'CACHES', {}).get('default', {}).get('BACKEND', 'unknown')
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'error': str(e)
+        }, status=500)
 
 
 # ========================================

@@ -7901,3 +7901,21 @@ django.urls.exceptions.NoReverseMatch: Reverse for 'test_database' not found. 't
 Total active equipment count: 28
 Filtered equipment queryset count: 28
 Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Created UserProfile for new user: admin
+Watching for file changes with StatReloader
+Error recording endpoint metrics: Error -2 connecting to redis:6379. Name or service not known.
+Internal Server Error: /core/health/simple/
+Error recording endpoint metrics: Error -2 connecting to redis:6379. Name or service not known.
+Error recording endpoint metrics: Error -2 connecting to redis:6379. Name or service not known.
+Watching for file changes with StatReloader
+Internal Server Error: /core/health/simple/
+Watching for file changes with StatReloader
+Internal Server Error: /core/health/simple/
+/workspace/core/views.py changed, reloading.
+Watching for file changes with StatReloader
+/workspace/core/views.py changed, reloading.
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
