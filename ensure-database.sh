@@ -17,10 +17,12 @@ DB_PORT="${DB_PORT:-5432}"
 if [ "$DB_USER" = "maintenance_user" ]; then
     # Use postgres superuser for database creation
     DB_CREATE_USER="postgres"
-    DB_CREATE_PASSWORD="${POSTGRES_PASSWORD:-postgres}"
+    DB_CREATE_PASSWORD="${POSTGRES_PASSWORD:-SecureProdPassword2024!}"
+    print_status "Using postgres superuser for database operations"
 else
     DB_CREATE_USER="$DB_USER"
     DB_CREATE_PASSWORD="$DB_PASSWORD"
+    print_status "Using application user for database operations"
 fi
 MAX_RETRIES=30
 RETRY_DELAY=2
