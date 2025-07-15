@@ -95,6 +95,14 @@ ensure_database_exists() {
     # Check if database exists
     if PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -t -c "SELECT 1 FROM pg_database WHERE datname='${DB_NAME:-maintenance_dashboard}'" | grep -q 1; then
         print_success "Database '${DB_NAME:-maintenance_dashboard}' already exists"
+        
+        # Always ensure maintenance_user exists and has privileges
+        if [ "$DB_USER" != "$DB_CREATE_USER" ]; then
+            print_status "Ensuring user $DB_USER exists and has privileges..."
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -c "CREATE USER $DB_USER WITH PASSWORD '${DB_PASSWORD:-SecureProdPassword2024!}';" > /dev/null 2>&1 || true
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME:-maintenance_dashboard} TO $DB_USER;" > /dev/null 2>&1 || true
+        fi
+        
         return 0
     fi
     
