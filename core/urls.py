@@ -72,6 +72,12 @@ urlpatterns = [
     # Demo Data Population
     path('settings/populate-demo-data/', views.populate_demo_data, name='populate_demo_data'),
     
+    # Database Statistics and Management
+    path('settings/database-stats/', views.database_stats, name='database_stats'),
+    path('settings/backup-database/', views.backup_database, name='backup_database'),
+    path('settings/populate-sample-data/', views.populate_sample_data, name='populate_sample_data'),
+    path('settings/reset-rbac/', views.reset_rbac, name='reset_rbac'),
+    
     # Bulk Location Management
     path('settings/locations/bulk/', views.bulk_locations_view, name='bulk_locations'),
     path('api/locations/bulk-edit/', views.bulk_edit_locations, name='bulk_edit_locations'),
