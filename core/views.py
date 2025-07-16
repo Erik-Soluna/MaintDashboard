@@ -3252,3 +3252,211 @@ def comprehensive_health_check(request):
             'overall_status': 'error',
             'error': str(e)
         }, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["GET"])
+def database_stats(request):
+    """Get database statistics and information."""
+    try:
+        from django.db import connection
+        from django.db.models import Count
+        from .models import Location, Customer
+        from equipment.models import Equipment
+        from maintenance.models import MaintenanceActivity
+        from events.models import CalendarEvent
+        
+        # Get basic counts
+        stats = {
+            'locations': {
+                'total': Location.objects.count(),
+                'sites': Location.objects.filter(is_site=True).count(),
+                'sub_locations': Location.objects.filter(is_site=False).count(),
+                'active': Location.objects.filter(is_active=True).count(),
+            },
+            'customers': {
+                'total': Customer.objects.count(),
+                'active': Customer.objects.filter(is_active=True).count(),
+            },
+            'equipment': {
+                'total': Equipment.objects.count(),
+                'active': Equipment.objects.filter(is_active=True).count(),
+            },
+            'maintenance': {
+                'total': MaintenanceActivity.objects.count(),
+                'completed': MaintenanceActivity.objects.filter(status='completed').count(),
+                'pending': MaintenanceActivity.objects.filter(status='pending').count(),
+            },
+            'events': {
+                'total': CalendarEvent.objects.count(),
+                'recent': CalendarEvent.objects.filter(created_at__gte=timezone.now() - timezone.timedelta(days=7)).count(),
+            }
+        }
+        
+        # Get database size info
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT 
+                    pg_size_pretty(pg_database_size(current_database())) as db_size,
+                    pg_size_pretty(pg_total_relation_size('core_location')) as locations_size,
+                    pg_size_pretty(pg_total_relation_size('core_customer')) as customers_size,
+                    pg_size_pretty(pg_total_relation_size('equipment_equipment')) as equipment_size
+            """)
+            db_info = cursor.fetchone()
+            
+        stats['database'] = {
+            'total_size': db_info[0] if db_info else 'Unknown',
+            'locations_table_size': db_info[1] if db_info else 'Unknown',
+            'customers_table_size': db_info[2] if db_info else 'Unknown',
+            'equipment_table_size': db_info[3] if db_info else 'Unknown',
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'stats': stats,
+            'timestamp': timezone.now().isoformat()
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
+def backup_database(request):
+    """Create a database backup."""
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+        import os
+        from django.conf import settings
+        
+        # Create backup directory if it doesn't exist
+        backup_dir = os.path.join(settings.BASE_DIR, 'backups')
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Generate backup filename with timestamp
+        timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+        backup_filename = f'backup_{timestamp}.json'
+        backup_path = os.path.join(backup_dir, backup_filename)
+        
+        # Capture command output
+        output = StringIO()
+        
+        # Call the dumpdata command
+        call_command('dumpdata', 
+                    '--exclude', 'contenttypes',
+                    '--exclude', 'auth.Permission',
+                    '--exclude', 'sessions',
+                    '--indent', '2',
+                    '--output', backup_path,
+                    stdout=output,
+                    verbosity=2)
+        
+        result = output.getvalue()
+        output.close()
+        
+        # Get file size
+        file_size = os.path.getsize(backup_path) if os.path.exists(backup_path) else 0
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Database backup created successfully: {backup_filename}',
+            'filename': backup_filename,
+            'file_size': file_size,
+            'file_size_pretty': f'{file_size / 1024 / 1024:.2f} MB' if file_size > 0 else '0 B',
+            'output': result
+        })
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'Error creating database backup: {str(e)}',
+            'details': error_details
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
+def populate_sample_data(request):
+    """Populate the database with sample data."""
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+        
+        # Capture command output
+        output = StringIO()
+        
+        # Call the populate sample data command
+        call_command('populate_sample_data', stdout=output, verbosity=2)
+        
+        result = output.getvalue()
+        output.close()
+        
+        # Parse the output to extract counts
+        created_count = 0
+        
+        # Look for patterns in the output
+        import re
+        created_matches = re.findall(r'Created (\d+)', result)
+        
+        if created_matches:
+            created_count = sum(int(x) for x in created_matches)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Sample data populated successfully! Created: {created_count} items',
+            'created_count': created_count,
+            'output': result
+        })
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'Error populating sample data: {str(e)}',
+            'details': error_details
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
+def reset_rbac(request):
+    """Reset RBAC (Role-Based Access Control) system."""
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+        
+        # Capture command output
+        output = StringIO()
+        
+        # Call the reset RBAC command
+        call_command('reset_rbac', stdout=output, verbosity=2)
+        
+        result = output.getvalue()
+        output.close()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'RBAC system reset successfully',
+            'output': result
+        })
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'Error resetting RBAC: {str(e)}',
+            'details': error_details
+        }, status=500)
