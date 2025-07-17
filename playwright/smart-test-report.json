@@ -1,19 +1,23 @@
 {
-  "timestamp": "2025-07-14T02:25:13.309Z",
+  "timestamp": "2025-07-15T12:19:41.721Z",
   "totalTests": 1,
-  "passedTests": 1,
-  "failedTests": 0,
-  "totalErrors": 0,
+  "passedTests": 0,
+  "failedTests": 1,
+  "totalErrors": 1,
   "totalWarnings": 0,
-  "totalScreenshots": 0,
+  "totalScreenshots": 1,
   "results": [
     {
-      "testName": "Comprehensive Test",
-      "timestamp": "2025-07-14T02:25:13.309Z",
-      "success": true,
-      "errors": [],
+      "testName": "Create Equipment Test",
+      "timestamp": "2025-07-15T12:19:40.212Z",
+      "success": false,
+      "errors": [
+        "Could not find Add Equipment button"
+      ],
       "warnings": [],
-      "screenshots": [],
+      "screenshots": [
+        "/app/playwright/screenshots/smart-tests/create_equipment_initial_2025-07-15T12-19-41-484Z.png"
+      ],
       "htmlDumps": []
     }
   ]

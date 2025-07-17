@@ -4,7 +4,7 @@ URL configuration for core app.
 
 from django.urls import path
 from . import views
-from .views import health_check, simple_health_check, api_explorer, clear_health_logs
+from .views import health_check, simple_health_check, api_explorer, clear_health_logs, playwright_slideshow
 
 app_name = 'core'
 
@@ -19,6 +19,7 @@ urlpatterns = [
     path('monitoring/', views.monitoring_dashboard, name='monitoring_dashboard'),
     path('health-check/', views.health_check_api, name='health_check_api'),
     path('health-check/run/', views.run_health_check, name='run_health_check'),
+    path('health-check/comprehensive/', views.comprehensive_health_check, name='comprehensive_health_check'),
     path('api/endpoint-metrics/', views.endpoint_metrics_api, name='endpoint_metrics_api'),
     path('api/toggle-monitoring/', views.toggle_monitoring, name='toggle_monitoring'),
     
@@ -75,6 +76,7 @@ urlpatterns = [
     # Bulk Location Management
     path('settings/locations/bulk/', views.bulk_locations_view, name='bulk_locations'),
     path('api/locations/bulk-edit/', views.bulk_edit_locations, name='bulk_edit_locations'),
+    path('playwright-slideshow/', playwright_slideshow, name='playwright_slideshow'),
 ]
 
 urlpatterns += [

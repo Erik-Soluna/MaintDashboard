@@ -49,7 +49,7 @@ async function pollForTasks() {
               process.env.TEST_REQUEST = log.prompt;
               
               // Run the smart test runner with the prompt
-              execSync(`npx playwright test playwright/smart_test_runner.spec.ts --project=chromium --grep="${log.prompt.replace(/"/g, '')}" --reporter=list`, { stdio: 'inherit' });
+              execSync(`npx playwright test playwright/smart_test_runner.spec.ts --project=chromium --reporter=list`, { stdio: 'inherit' });
               logTask(`Task succeeded: ${log.prompt}`);
               
               // Check if test report exists and has failures

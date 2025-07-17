@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Playwright Test Slideshow</h2>
+  {% if screenshots %}
+    <div class="slideshow-container" id="slideshow" style="max-width:900px;margin:40px auto;background:#232846;border-radius:12px;box-shadow:0 2px 16px #0008;padding:24px;">
+      {% for screenshot in screenshots %}
+        <div class="slide" style="display: {% if forloop.first %}block{% else %}none{% endif %};">
+          <img src="{% static 'playwright/screenshots/smart-tests/' %}{{ screenshot }}" alt="Step {{ forloop.counter }}" style="max-width:100%;max-height:600px;border-radius:8px;box-shadow:0 2px 8px #0006;">
+          <div class="caption" style="margin:16px 0 0 0;font-size:1.1em;color:#aee;">{{ captions|index:forloop.counter0 }}</div>
+        </div>
+      {% endfor %}
+    </div>
+    <div>
+      <button class="btn btn-primary" onclick="plusSlides(-1)">&#8592; Prev</button>
+      <span class="step-indicator" id="step-indicator">Step 1 of {{ screenshots|length }}</span>
+      <button class="btn btn-primary" onclick="plusSlides(1)">Next &#8594;</button>
+    </div>
+    <script>
+      const slides = document.getElementsByClassName('slide');
+      let slideIndex = 1;
+      function showSlides(n) {
+        if (n > slides.length) slideIndex = 1;
+        if (n < 1) slideIndex = slides.length;
+        for (let i = 0; i < slides.length; i++) {
+          slides[i].style.display = 'none';
+        }
+        slides[slideIndex-1].style.display = 'block';
+        document.getElementById('step-indicator').textContent = `Step ${slideIndex} of ${slides.length}`;
+      }
+      function plusSlides(n) {
+        showSlides(slideIndex += n);
+      }
+      showSlides(slideIndex);
+    </script>
+  {% else %}
+    <div class="alert alert-warning mt-4">No screenshots found for the latest Playwright test run.</div>
+  {% endif %}
+</div>
+{% endblock %} 

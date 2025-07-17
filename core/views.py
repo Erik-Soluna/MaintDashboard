@@ -2269,8 +2269,18 @@ def debug(request):
     if not request.user.is_superuser:
         return redirect('core:dashboard')
     
-    context = {}
-    return render(request, 'core/debug.html', context)
+    try:
+        context = {}
+        return render(request, 'core/debug.html', context)
+    except Exception as e:
+        import traceback
+        logger.error(f"Error in debug view: {str(e)}")
+        logger.error(traceback.format_exc())
+        # Return a simple error page instead of 500
+        return render(request, 'core/debug.html', {
+            'error': f'Debug page error: {str(e)}',
+            'traceback': traceback.format_exc() if request.user.is_superuser else None
+        })
 
 
 @login_required

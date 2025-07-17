@@ -194,6 +194,19 @@
 
 {% block content %}
 <div class="debug-container">
+    {% if error %}
+    <div class="alert alert-danger mb-4">
+        <h4><i class="fas fa-exclamation-triangle me-2"></i>Debug Page Error</h4>
+        <p>{{ error }}</p>
+        {% if traceback and user.is_superuser %}
+        <details>
+            <summary>Technical Details (Superuser Only)</summary>
+            <pre class="mt-2">{{ traceback }}</pre>
+        </details>
+        {% endif %}
+    </div>
+    {% endif %}
+    
     <div class="page-header mb-4">
         <h2 class="mb-0">
             <i class="fas fa-bug me-2"></i>
@@ -207,41 +220,54 @@
         <div class="debug-header" onclick="toggleSection('health')">
             <h5>
                 <i class="fas fa-heartbeat me-2"></i>
-                System Health
+                System Health & Diagnostics
             </h5>
             <i class="fas fa-chevron-down collapse-icon"></i>
         </div>
         <div class="debug-body" id="health-body">
-            {% if health %}
-                <div class="health-status">
-                    <span class="health-indicator {% if health.status == 'ok' %}healthy{% elif health.status == 'warning' %}warning{% else %}error{% endif %}"></span>
-                    <span>System status: <b>{{ health.status|title }}</b></span>
+            <div class="health-status mb-3">
+                <span class="health-indicator" id="overall-health-indicator"></span>
+                <span>System status: <b id="overall-health-status">Loading...</b></span>
+            </div>
+            
+            <!-- System Metrics -->
+            <div class="mb-4">
+                <h6 class="text-light mb-3">
+                    <i class="fas fa-chart-line me-2"></i>System Metrics
+                </h6>
+                <div id="system-metrics" class="bg-dark p-3 rounded">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-spinner fa-spin me-1"></i>Loading system metrics...
+                    </div>
                 </div>
-                <ul class="list-group mb-3">
-                    {% for check in health.checks %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><b>{{ check.name }}</b>: {{ check.message }}</span>
-                        <span class="badge {% if check.status == 'ok' %}bg-success{% elif check.status == 'warning' %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ check.status|title }}</span>
-                    </li>
-                    {% endfor %}
-                </ul>
-                <h6>Recent Health Failures
+            </div>
+            
+            <!-- Health Checks -->
+            <div class="mb-4">
+                <h6 class="text-light mb-3">
+                    <i class="fas fa-stethoscope me-2"></i>Health Checks
+                </h6>
+                <div id="health-checks" class="bg-dark p-3 rounded">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-spinner fa-spin me-1"></i>Loading health checks...
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Health Failures -->
+            <div class="mb-4">
+                <h6 class="text-light mb-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Recent Health Failures
                     <button id="clear-health-logs" class="btn btn-sm btn-outline-danger ms-2" type="button">
                         <i class="fas fa-trash-alt me-1"></i>Clear Logs
                     </button>
                 </h6>
-                <ul class="list-group" id="health-failure-log-list" style="max-height: 300px; overflow-y: auto;">
-                    {% for log in health.last_failure_log %}
-                    <li class="list-group-item small">
-                        <b>{{ log.timestamp }}</b> | <b>{{ log.component }}</b>: {{ log.message }}
-                    </li>
-                    {% empty %}
-                    <li class="list-group-item text-muted">No recent failures.</li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <div class="alert alert-secondary">Health status unavailable.</div>
-            {% endif %}
+                <div id="health-failure-log-list" class="bg-dark p-3 rounded" style="max-height: 300px; overflow-y: auto;">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-spinner fa-spin me-1"></i>Loading failure logs...
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -268,12 +294,9 @@
                     <button class="diagnostic-button" onclick="testUnifiedAPI()">
                         <i class="fas fa-calendar-alt me-1"></i>Test Calendar API
                     </button>
-                    <button class="diagnostic-button" onclick="testDatabaseHealth()">
+                    <!-- <button class="diagnostic-button" onclick="testDatabaseHealth()">
                         <i class="fas fa-database me-1"></i>Test Database
-                    </button>
-                    <button class="diagnostic-button" onclick="testCacheHealth()">
-                        <i class="fas fa-memory me-1"></i>Test Cache
-                    </button>
+                    </button> -->
                     <button class="diagnostic-button warning" onclick="runHealthCheck()">
                         <i class="fas fa-heartbeat me-1"></i>Run Health Check
                     </button>
@@ -292,12 +315,6 @@
                     <button class="diagnostic-button" onclick="showDatabaseClearModal()">
                         <i class="fas fa-trash-alt me-1"></i>Clear Database
                     </button>
-                    <button class="diagnostic-button" onclick="showDatabaseStats()">
-                        <i class="fas fa-chart-bar me-1"></i>Database Stats
-                    </button>
-                    <button class="diagnostic-button" onclick="backupDatabase()">
-                        <i class="fas fa-download me-1"></i>Backup Database
-                    </button>
                     <button class="diagnostic-button primary" onclick="showDemoDataModal()">
                         <i class="fas fa-database me-1"></i>Populate Demo Data
                     </button>
@@ -312,12 +329,6 @@
                 <div class="diagnostic-buttons">
                     <button class="diagnostic-button" onclick="generatePods()">
                         <i class="fas fa-sitemap me-1"></i>Generate PODs
-                    </button>
-                    <button class="diagnostic-button" onclick="populateSampleData()">
-                        <i class="fas fa-seedling me-1"></i>Populate Sample Data
-                    </button>
-                    <button class="diagnostic-button" onclick="resetRBAC()">
-                        <i class="fas fa-users-cog me-1"></i>Reset RBAC
                     </button>
                 </div>
             </div>
@@ -414,25 +425,58 @@
 
 <!-- Database Clear Confirmation Modal -->
 <div class="modal fade" id="databaseClearModal" tabindex="-1" aria-labelledby="databaseClearModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content bg-dark text-light">
             <div class="modal-header border-secondary">
                 <h5 class="modal-title" id="databaseClearModalLabel">
                     <i class="fas fa-exclamation-triangle text-danger me-2"></i>
-                    Clear Database
+                    Clear Database (DANGER ZONE)
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Warning:</strong> This will permanently delete all data in the database. This action cannot be undone.
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>WARNING: This is a destructive operation!</h6>
+                    <p class="mb-0">This will permanently delete all data from the database. This action cannot be undone.</p>
                 </div>
-                <p>Are you sure you want to clear all data from the database?</p>
+                
+                <div class="form-group mb-3">
+                    <label class="form-label">Clear Options:</label>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="keepUsers" name="keep_users">
+                        <label class="form-check-label" for="keepUsers">
+                            Keep user accounts (clear all other data)
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="keepAdmin" name="keep_admin">
+                        <label class="form-check-label" for="keepAdmin">
+                            Keep admin user account
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="dryRun" name="dry_run" checked>
+                        <label class="form-check-label" for="dryRun">
+                            Dry run (show what would be deleted without actually deleting)
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="clearConfirmation" class="form-label">Confirmation:</label>
+                    <input type="text" class="form-control" id="clearConfirmation" 
+                           placeholder="Type 'CLEAR DATABASE' to confirm" required>
+                    <div class="form-text text-muted">You must type exactly "CLEAR DATABASE" to proceed.</div>
+                </div>
+                
+                <div id="clearResults" class="mt-3" style="display: none;">
+                    <h6>Operation Results:</h6>
+                    <pre id="clearOutput" class="bg-dark border border-secondary p-3" style="max-height: 300px; overflow-y: auto; font-size: 12px;"></pre>
+                </div>
             </div>
             <div class="modal-footer border-secondary">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" onclick="clearDatabase()">
+                <button type="button" class="btn btn-danger" id="executeClearBtn" disabled>
                     <i class="fas fa-trash-alt me-1"></i>Clear Database
                 </button>
             </div>
@@ -457,46 +501,200 @@ function toggleSection(sectionId) {
     }
 }
 
-// Initialize sections (all expanded by default)
+// Load comprehensive health data on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Load Playwright logs on page load
+    loadComprehensiveHealth();
     refreshPlaywrightLogs();
+});
+
+function loadComprehensiveHealth() {
+    fetch('{% url "core:comprehensive_health_check" %}')
+    .then(response => response.json())
+    .then(data => {
+        updateHealthDisplay(data);
+    })
+    .catch(error => {
+        console.error('Error loading health data:', error);
+        updateHealthDisplay({ overall_status: 'error', error: 'Failed to load health data' });
+    });
+}
+
+function updateHealthDisplay(data) {
+    // Update overall status
+    const statusIndicator = document.getElementById('overall-health-indicator');
+    const statusText = document.getElementById('overall-health-status');
     
-    // Initialize health logs clear functionality
-    document.getElementById('clear-health-logs')?.addEventListener('click', function() {
-        if (confirm('Are you sure you want to clear all health logs?')) {
-            fetch('{% url "core:clear_health_logs" %}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Failed to clear logs: ' + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to clear logs');
-            });
+    if (data.overall_status === 'healthy') {
+        statusIndicator.className = 'health-indicator healthy';
+        statusText.textContent = 'Healthy';
+    } else if (data.overall_status === 'warning') {
+        statusIndicator.className = 'health-indicator warning';
+        statusText.textContent = 'Warning';
+    } else {
+        statusIndicator.className = 'health-indicator error';
+        statusText.textContent = 'Error';
+    }
+    
+    // Update system metrics
+    const metricsDiv = document.getElementById('system-metrics');
+    if (data.components && data.components.system) {
+        const system = data.components.system;
+        if (system.error) {
+            metricsDiv.innerHTML = `<div class="text-danger">${system.error}</div>`;
+        } else {
+            metricsDiv.innerHTML = `
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h4 text-primary">${system.cpu_percent?.toFixed(1) || 'N/A'}%</div>
+                            <small class="text-muted">CPU Usage</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h4 text-warning">${system.memory_percent?.toFixed(1) || 'N/A'}%</div>
+                            <small class="text-muted">Memory Usage</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h4 text-info">${system.disk_usage?.toFixed(1) || 'N/A'}%</div>
+                            <small class="text-muted">Disk Usage</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h4 text-success">${system.process_count || 'N/A'}</div>
+                            <small class="text-muted">Processes</small>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
+    }
+    
+    // Update health checks
+    const checksDiv = document.getElementById('health-checks');
+    if (data.components) {
+        let html = '';
+        Object.entries(data.components).forEach(([name, component]) => {
+            if (name !== 'system') {
+                const statusClass = component.status === 'healthy' ? 'text-success' : 
+                                  component.status === 'unhealthy' ? 'text-danger' : 'text-warning';
+                const statusIcon = component.status === 'healthy' ? 'fas fa-check-circle' : 
+                                 component.status === 'unhealthy' ? 'fas fa-times-circle' : 'fas fa-exclamation-triangle';
+                
+                html += `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span><strong>${name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</strong></span>
+                        <span class="${statusClass}">
+                            <i class="${statusIcon} me-1"></i>${component.status || 'Unknown'}
+                        </span>
+                        ${component.message ? `<span class="ms-2 text-muted small">${component.message}</span>` : ''}
+                        ${component.error ? `<span class="ms-2 text-danger small">${component.error}</span>` : ''}
+                    </div>
+                `;
+            }
+        });
+        checksDiv.innerHTML = html || '<div class="text-muted">No health checks available</div>';
+    }
+    
+    // Load failure logs
+    loadFailureLogs();
+}
+
+function loadFailureLogs() {
+    fetch('{% url "core:health_check" %}')
+    .then(response => response.json())
+    .then(data => {
+        const logsDiv = document.getElementById('health-failure-log-list');
+        if (data.checks) {
+            const failures = data.checks.filter(check => check.status === 'error' || check.status === 'warning');
+            if (failures.length > 0) {
+                let html = '';
+                failures.forEach(failure => {
+                    html += `
+                        <div class="small mb-1">
+                            <strong>${failure.name}</strong>: ${failure.message}
+                        </div>
+                    `;
+                });
+                logsDiv.innerHTML = html;
+            } else {
+                logsDiv.innerHTML = '<div class="text-muted">No recent failures.</div>';
+            }
+        }
+    })
+    .catch(error => {
+        document.getElementById('health-failure-log-list').innerHTML = 
+            '<div class="text-danger">Failed to load failure logs</div>';
+    });
+}
+
+// Clear health logs
+document.getElementById('clear-health-logs').addEventListener('click', function() {
+    fetch('{% url "core:clear_health_logs" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadFailureLogs();
+            showDebugMessage('Health logs cleared successfully', 'success');
+        } else {
+            showDebugMessage('Failed to clear health logs: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showDebugMessage('Error clearing health logs: ' + error.message, 'error');
     });
 });
+
+// Debug message system
+function showDebugMessage(message, type = 'info') {
+    const debugDiv = document.getElementById('debugMessages') || createDebugMessagesContainer();
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} alert-dismissible fade show`;
+    messageDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    debugDiv.appendChild(messageDiv);
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+        if (messageDiv.parentNode) {
+            messageDiv.remove();
+        }
+    }, 10000);
+}
+
+function createDebugMessagesContainer() {
+    const container = document.createElement('div');
+    container.id = 'debugMessages';
+    container.className = 'position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
+}
 
 // Playwright Debug Functions
 function submitPlaywrightPrompt() {
     const prompt = document.getElementById('playwright-prompt').value.trim();
     if (!prompt) {
-        alert('Please enter a prompt');
+        showDebugMessage('Please enter a prompt for Playwright testing.', 'warning');
         return;
     }
-
+    
     const logsContainer = document.getElementById('playwrightLogs');
-    logsContainer.innerHTML = '<div class="text-center text-muted"><i class="fas fa-spinner fa-spin me-1"></i>Running Playwright test...</div>';
+    logsContainer.innerHTML = '<div class="text-center text-muted"><i class="fas fa-spinner fa-spin me-1"></i>Submitting Playwright test...</div>';
+    
+    showDebugMessage('Submitting Playwright test: ' + prompt, 'info');
 
     fetch('{% url "core:playwright_debug_api" %}', {
         method: 'POST',
@@ -506,19 +704,32 @@ function submitPlaywrightPrompt() {
         },
         body: JSON.stringify({ prompt: prompt })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
-        if (data.success) {
-            logsContainer.innerHTML = `<div class="log-entry done"><strong>Test submitted:</strong> ${prompt}<br><small>Log ID: ${data.log_id}</small></div>`;
-            // Refresh logs after a short delay
-            setTimeout(refreshPlaywrightLogs, 2000);
+        if (data && data.success !== undefined) {
+            if (data.success) {
+                logsContainer.innerHTML = `<div class="log-entry done"><strong>Test submitted:</strong> ${prompt}<br><small>Log ID: ${data.log_id || 'Unknown'}</small></div>`;
+                showDebugMessage('Playwright test submitted successfully! ID: ' + (data.log_id || 'Unknown'), 'success');
+                // Refresh logs after a short delay
+                setTimeout(refreshPlaywrightLogs, 2000);
+            } else {
+                logsContainer.innerHTML = `<div class="log-entry error"><strong>Error:</strong> ${data.error || 'Unknown error'}</div>`;
+                showDebugMessage('Playwright test submission failed: ' + (data.error || 'Unknown error'), 'error');
+            }
         } else {
-            logsContainer.innerHTML = `<div class="log-entry error"><strong>Error:</strong> ${data.error}</div>`;
+            logsContainer.innerHTML = `<div class="log-entry error"><strong>Error:</strong> Invalid response format</div>`;
+            showDebugMessage('Playwright test submission failed: Invalid response format', 'error');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        logsContainer.innerHTML = '<div class="log-entry error"><strong>Error:</strong> Failed to submit test</div>';
+        console.error('Playwright API Error:', error);
+        logsContainer.innerHTML = '<div class="log-entry error"><strong>Error:</strong> Failed to submit test - ' + error.message + '</div>';
+        showDebugMessage('Error submitting Playwright test: ' + error.message, 'error');
     });
 }
 
@@ -526,11 +737,16 @@ function refreshPlaywrightLogs() {
     const logsContainer = document.getElementById('playwrightLogs');
     
     fetch('{% url "core:playwright_debug_api" %}')
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         let html = '<h6 class="mb-3">Recent Playwright Debug Logs</h6>';
         
-        if (data.logs && data.logs.length > 0) {
+        if (data && data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
             data.logs.forEach(log => {
                 const statusClass = log.status === 'done' ? 'done' : 
                                   log.status === 'running' ? 'running' : 
@@ -538,9 +754,10 @@ function refreshPlaywrightLogs() {
                 
                 html += `
                     <div class="log-entry ${statusClass}">
-                        <strong>${log.created_at}</strong> - ${log.prompt}<br>
-                        <small>Status: ${log.status} | ID: ${log.id}</small>
-                        ${log.result ? `<br><pre class="mt-2">${log.result}</pre>` : ''}
+                        <strong>${log.timestamp || 'Unknown time'}</strong> - ${log.prompt || 'No prompt'}<br>
+                        <small>Status: ${log.status || 'unknown'} | ID: ${log.id || 'Unknown'}</small>
+                        ${log.output ? `<br><pre class="mt-2">${log.output}</pre>` : ''}
+                        ${log.error_message ? `<br><small class="text-danger">Error: ${log.error_message}</small>` : ''}
                     </div>
                 `;
             });
@@ -551,116 +768,139 @@ function refreshPlaywrightLogs() {
         logsContainer.innerHTML = html;
     })
     .catch(error => {
-        console.error('Error:', error);
-        logsContainer.innerHTML = '<div class="log-entry error"><strong>Error:</strong> Failed to load logs</div>';
+        console.error('Error refreshing Playwright logs:', error);
+        logsContainer.innerHTML = '<div class="log-entry error"><strong>Error:</strong> Failed to load logs - ' + error.message + '</div>';
     });
 }
 
 // Diagnostic Functions
 function testApplicationHealth() {
-    showDiagnosticResult('Testing application health...');
-    fetch('{% url "core:test_health" %}')
+    showDebugMessage('Testing all application components...', 'info');
+    
+    fetch('{% url "events:test_application_health" %}')
     .then(response => response.json())
     .then(data => {
-        showDiagnosticResult(JSON.stringify(data, null, 2));
+        if (data.success) {
+            let componentSummary = [];
+            Object.entries(data.components).forEach(([name, info]) => {
+                const status = info.status === 'success' ? '✅' : '❌';
+                componentSummary.push(`${status} ${name.replace(/_/g, ' ')}: ${info.count || 0} items`);
+            });
+            
+            showDebugMessage(`Application health test completed! ${componentSummary.join(', ')}`, 'success');
+            
+            // Show detailed results in debug panel
+            showDiagnosticResult(JSON.stringify(data, null, 2));
+        } else {
+            showDebugMessage('Application health test failed: ' + (data.error || 'Unknown error'), 'error');
+        }
     })
     .catch(error => {
-        showDiagnosticResult('Error: ' + error.message);
+        showDebugMessage('Error testing application health: ' + error.message, 'error');
     });
 }
 
 function testUnifiedAPI() {
-    showDiagnosticResult('Testing unified API...');
+    showDebugMessage('Testing unified API...', 'info');
     // TODO: Implement unified API endpoint
-    showDiagnosticResult('Unified API endpoint not yet implemented');
+    showDebugMessage('Unified API endpoint not yet implemented', 'warning');
 }
 
 function testDatabaseHealth() {
-    showDiagnosticResult('Testing database health...');
-    fetch('{% url "core:test_database" %}')
-    .then(response => response.json())
-    .then(data => {
-        showDiagnosticResult(JSON.stringify(data, null, 2));
-    })
-    .catch(error => {
-        showDiagnosticResult('Error: ' + error.message);
-    });
-}
-
-function testCacheHealth() {
-    showDiagnosticResult('Testing cache health...');
-    fetch('{% url "core:test_cache" %}')
-    .then(response => response.json())
-    .then(data => {
-        showDiagnosticResult(JSON.stringify(data, null, 2));
-    })
-    .catch(error => {
-        showDiagnosticResult('Error: ' + error.message);
-    });
+    showDebugMessage('Testing database health...', 'info');
+    // No endpoint implemented
+    showDebugMessage('Database health check endpoint not implemented.', 'warning');
 }
 
 function runHealthCheck() {
-    showDiagnosticResult('Running health check...');
+    showDebugMessage('Running comprehensive health check...', 'info');
     fetch('{% url "core:run_health_check" %}')
     .then(response => response.json())
     .then(data => {
+        showDebugMessage('Health check completed successfully', 'success');
         showDiagnosticResult(JSON.stringify(data, null, 2));
     })
     .catch(error => {
-        showDiagnosticResult('Error: ' + error.message);
+        showDebugMessage('Error running health check: ' + error.message, 'error');
     });
 }
 
 function showDatabaseClearModal() {
-    new bootstrap.Modal(document.getElementById('databaseClearModal')).show();
-}
-
-function clearDatabase() {
-    showDiagnosticResult('Clearing database...');
-    fetch('{% url "core:clear_database" %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        showDiagnosticResult(JSON.stringify(data, null, 2));
-        if (data.success) {
-            setTimeout(() => location.reload(), 2000);
-        }
-    })
-    .catch(error => {
-        showDiagnosticResult('Error: ' + error.message);
+    const modal = new bootstrap.Modal(document.getElementById('databaseClearModal'));
+    modal.show();
+    
+    // Reset form
+    document.getElementById('keepUsers').checked = false;
+    document.getElementById('keepAdmin').checked = false;
+    document.getElementById('dryRun').checked = true;
+    document.getElementById('clearConfirmation').value = '';
+    document.getElementById('executeClearBtn').disabled = true;
+    document.getElementById('clearResults').style.display = 'none';
+    
+    // Enable/disable execute button based on confirmation
+    document.getElementById('clearConfirmation').addEventListener('input', function() {
+        document.getElementById('executeClearBtn').disabled = this.value !== 'CLEAR DATABASE';
     });
-}
-
-function showDatabaseStats() {
-    showDiagnosticResult('Loading database stats...');
-    fetch('{% url "core:database_stats" %}')
-    .then(response => response.json())
-    .then(data => {
-        showDiagnosticResult(JSON.stringify(data, null, 2));
-    })
-    .catch(error => {
-        showDiagnosticResult('Error: ' + error.message);
-    });
-}
-
-function backupDatabase() {
-    showDiagnosticResult('Creating database backup...');
-    fetch('{% url "core:backup_database" %}')
-    .then(response => response.json())
-    .then(data => {
-        showDiagnosticResult(JSON.stringify(data, null, 2));
-    })
-    .catch(error => {
-        showDiagnosticResult('Error: ' + error.message);
-    });
+    
+    // Execute clear operation
+    document.getElementById('executeClearBtn').onclick = function() {
+        const keepUsers = document.getElementById('keepUsers').checked;
+        const keepAdmin = document.getElementById('keepAdmin').checked;
+        const dryRun = document.getElementById('dryRun').checked;
+        
+        // Show loading state
+        this.disabled = true;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+        
+        // Prepare form data
+        const formData = new FormData();
+        formData.append('keep_users', keepUsers);
+        formData.append('keep_admin', keepAdmin);
+        formData.append('dry_run', dryRun);
+        
+        // Execute the clear operation
+        fetch('{% url "core:clear_database" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Show results
+            document.getElementById('clearResults').style.display = 'block';
+            document.getElementById('clearOutput').textContent = data.output || data.message;
+            
+            if (data.success) {
+                document.getElementById('clearOutput').className = 'bg-dark border border-success p-3';
+                showDebugMessage('Database clear operation completed successfully', 'success');
+            } else {
+                document.getElementById('clearOutput').className = 'bg-dark border border-danger p-3';
+                showDebugMessage('Database clear operation failed: ' + (data.error || 'Unknown error'), 'error');
+            }
+            
+            // Reset button
+            this.disabled = false;
+            this.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Clear Database';
+        })
+        .catch(error => {
+            document.getElementById('clearResults').style.display = 'block';
+            document.getElementById('clearOutput').textContent = 'Error: ' + error.message;
+            document.getElementById('clearOutput').className = 'bg-dark border border-danger p-3';
+            
+            // Reset button
+            this.disabled = false;
+            this.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Clear Database';
+            
+            showDebugMessage('Error executing database clear: ' + error.message, 'error');
+        });
+    };
 }
 
 function showDemoDataModal() {
-    new bootstrap.Modal(document.getElementById('demoDataModal')).show();
+    const modal = new bootstrap.Modal(document.getElementById('demoDataModal'));
+    modal.show();
 }
 
 function populateDemoData() {
@@ -668,34 +908,39 @@ function populateDemoData() {
     const includeMaintenance = document.getElementById('includeMaintenance').checked;
     const includeEvents = document.getElementById('includeEvents').checked;
     
-    showDiagnosticResult('Populating demo data...');
+    showDebugMessage('Starting demo data population...', 'info');
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('clear_first', clearFirst);
+    formData.append('include_maintenance', includeMaintenance);
+    formData.append('include_events', includeEvents);
     
     fetch('{% url "core:populate_demo_data" %}', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
             'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
         },
-        body: JSON.stringify({
-            clear_first: clearFirst,
-            include_maintenance: includeMaintenance,
-            include_events: includeEvents
-        })
+        body: formData
     })
     .then(response => response.json())
     .then(data => {
-        showDiagnosticResult(JSON.stringify(data, null, 2));
         if (data.success) {
-            setTimeout(() => location.reload(), 2000);
+            showDebugMessage(`Demo data populated successfully! Created: ${data.created_count} items, Deleted: ${data.deleted_count} items`, 'success');
+            // Close modal
+            bootstrap.Modal.getInstance(document.getElementById('demoDataModal')).hide();
+        } else {
+            showDebugMessage('Failed to populate demo data: ' + (data.error || 'Unknown error'), 'error');
         }
     })
     .catch(error => {
-        showDiagnosticResult('Error: ' + error.message);
+        showDebugMessage('Error populating demo data: ' + error.message, 'error');
     });
 }
 
 function generatePods() {
-    showDiagnosticResult('Generating PODs...');
+    showDebugMessage('Starting POD generation...', 'info');
+    
     fetch('{% url "core:generate_pods" %}', {
         method: 'POST',
         headers: {
@@ -704,46 +949,18 @@ function generatePods() {
     })
     .then(response => response.json())
     .then(data => {
-        showDiagnosticResult(JSON.stringify(data, null, 2));
+        if (data.success) {
+            showDebugMessage(`POD generation completed successfully! Generated: ${data.generated_count} PODs`, 'success');
+        } else {
+            showDebugMessage('POD generation failed: ' + (data.error || 'Unknown error'), 'error');
+        }
     })
     .catch(error => {
-        showDiagnosticResult('Error: ' + error.message);
+        showDebugMessage('Error generating PODs: ' + error.message, 'error');
     });
 }
 
-function populateSampleData() {
-    showDiagnosticResult('Populating sample data...');
-    fetch('{% url "core:populate_sample_data" %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        showDiagnosticResult(JSON.stringify(data, null, 2));
-    })
-    .catch(error => {
-        showDiagnosticResult('Error: ' + error.message);
-    });
-}
 
-function resetRBAC() {
-    showDiagnosticResult('Resetting RBAC...');
-    fetch('{% url "core:reset_rbac" %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        showDiagnosticResult(JSON.stringify(data, null, 2));
-    })
-    .catch(error => {
-        showDiagnosticResult('Error: ' + error.message);
-    });
-}
 
 function showDiagnosticResult(result) {
     const resultsDiv = document.getElementById('diagnosticResults');

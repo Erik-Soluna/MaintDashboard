@@ -6,6 +6,44 @@
 {% block content %}
 <div class="container py-4">
     <h2 class="mb-4"><i class="fas fa-stethoscope me-2"></i>System Health & Diagnostics</h2>
+    
+    <!-- Overall Health Status -->
+    <div class="alert alert-info mb-4">
+        <div class="d-flex align-items-center">
+            <span class="health-indicator me-2" id="overall-health-indicator"></span>
+            <span><strong>System Status:</strong> <span id="overall-health-status">Loading...</span></span>
+        </div>
+    </div>
+    
+    <!-- System Metrics -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>System Metrics</h5>
+        </div>
+        <div class="card-body">
+            <div id="system-metrics">
+                <div class="text-center text-muted">
+                    <i class="fas fa-spinner fa-spin me-1"></i>Loading system metrics...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Health Checks -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-stethoscope me-2"></i>Health Checks</h5>
+        </div>
+        <div class="card-body">
+            <div id="health-checks">
+                <div class="text-center text-muted">
+                    <i class="fas fa-spinner fa-spin me-1"></i>Loading health checks...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Diagnostic Tools -->
     <div class="alert alert-info">
         <strong>Diagnostics:</strong> Run comprehensive tests on all major system components. Only visible to superusers.
         <div class="mt-2">
@@ -21,122 +59,164 @@
         </div>
     </div>
 </div>
+
+<!-- Debug Messages Container -->
+<div id="debugMessages" class="position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-// Debug Functions (same as before)
+// Load comprehensive health data on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadComprehensiveHealth();
+});
+
+function loadComprehensiveHealth() {
+    fetch('{% url "core:comprehensive_health_check" %}')
+    .then(response => response.json())
+    .then(data => {
+        updateHealthDisplay(data);
+    })
+    .catch(error => {
+        console.error('Error loading health data:', error);
+        updateHealthDisplay({ overall_status: 'error', error: 'Failed to load health data' });
+    });
+}
+
+function updateHealthDisplay(data) {
+    // Update overall status
+    const statusIndicator = document.getElementById('overall-health-indicator');
+    const statusText = document.getElementById('overall-health-status');
+    
+    if (data.overall_status === 'healthy') {
+        statusIndicator.className = 'health-indicator healthy';
+        statusText.textContent = 'Healthy';
+    } else if (data.overall_status === 'warning') {
+        statusIndicator.className = 'health-indicator warning';
+        statusText.textContent = 'Warning';
+    } else {
+        statusIndicator.className = 'health-indicator error';
+        statusText.textContent = 'Error';
+    }
+    
+    // Update system metrics
+    const metricsDiv = document.getElementById('system-metrics');
+    if (data.components && data.components.system) {
+        const system = data.components.system;
+        if (system.error) {
+            metricsDiv.innerHTML = `<div class="text-danger">${system.error}</div>`;
+        } else {
+            metricsDiv.innerHTML = `
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h4 text-primary">${system.cpu_percent?.toFixed(1) || 'N/A'}%</div>
+                            <small class="text-muted">CPU Usage</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h4 text-warning">${system.memory_percent?.toFixed(1) || 'N/A'}%</div>
+                            <small class="text-muted">Memory Usage</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h4 text-info">${system.disk_usage?.toFixed(1) || 'N/A'}%</div>
+                            <small class="text-muted">Disk Usage</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <div class="h4 text-success">${system.process_count || 'N/A'}</div>
+                            <small class="text-muted">Processes</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    // Update health checks
+    const checksDiv = document.getElementById('health-checks');
+    if (data.components) {
+        let html = '';
+        Object.entries(data.components).forEach(([name, component]) => {
+            if (name !== 'system') {
+                const statusClass = component.status === 'healthy' ? 'text-success' : 
+                                  component.status === 'unhealthy' ? 'text-danger' : 'text-warning';
+                const statusIcon = component.status === 'healthy' ? 'fas fa-check-circle' : 
+                                 component.status === 'unhealthy' ? 'fas fa-times-circle' : 'fas fa-exclamation-triangle';
+                
+                html += `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span><strong>${name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</strong></span>
+                        <span class="${statusClass}">
+                            <i class="${statusIcon} me-1"></i>${component.status || 'Unknown'}
+                        </span>
+                        ${component.message ? `<span class="ms-2 text-muted small">${component.message}</span>` : ''}
+                        ${component.error ? `<span class="ms-2 text-danger small">${component.error}</span>` : ''}
+                    </div>
+                `;
+            }
+        });
+        checksDiv.innerHTML = html || '<div class="text-muted">No health checks available</div>';
+    }
+}
+
+// Debug message system
+function showDebugMessage(message, type = 'info') {
+    const debugDiv = document.getElementById('debugMessages');
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} alert-dismissible fade show`;
+    messageDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    debugDiv.appendChild(messageDiv);
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+        if (messageDiv.parentNode) {
+            messageDiv.remove();
+        }
+    }, 10000);
+}
+
+// Test All Components
 function testApplicationHealth() {
-    const resultsDiv = document.getElementById('debugResults');
-    resultsDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Testing all components...</div>';
+    showDebugMessage('Testing all application components...', 'info');
     
     fetch('{% url "events:test_application_health" %}')
-        .then(response => response.json())
-        .then(data => {
-            let html = '<h6 class="text-white mb-3">Application Health Test Results</h6>';
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let componentSummary = [];
+            Object.entries(data.components).forEach(([name, info]) => {
+                const status = info.status === 'success' ? '✅' : '❌';
+                componentSummary.push(`${status} ${name.replace(/_/g, ' ')}: ${info.count || 0} items`);
+            });
             
-            if (data.success) {
-                html += '<div class="row">';
-                
-                for (const [component, info] of Object.entries(data.components)) {
-                    const statusClass = info.status === 'success' ? 'text-success' : 'text-danger';
-                    const statusIcon = info.status === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
-                    
-                    html += `
-                        <div class="col-md-6 mb-3">
-                            <div class="card bg-dark border-secondary">
-                                <div class="card-header">
-                                    <h6 class="mb-0">
-                                        <i class="${statusIcon} ${statusClass} me-2"></i>
-                                        ${component.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                    </h6>
-                                </div>
-                                <div class="card-body">
-                                    <p class="mb-1"><strong>Status:</strong> <span class="${statusClass}">${info.status}</span></p>
-                                    <p class="mb-1"><strong>Count:</strong> ${info.count || 'N/A'}</p>
-                                    ${info.error ? `<p class="mb-1 text-danger"><strong>Error:</strong> ${info.error}</p>` : ''}
-                                    ${info.sample_data && info.sample_data.length > 0 ? `
-                                        <details class="mt-2">
-                                            <summary class="text-info">Sample Data</summary>
-                                            <pre class="text-muted mt-1" style="font-size: 11px;">${JSON.stringify(info.sample_data, null, 2)}</pre>
-                                        </details>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                html += '</div>';
-            } else {
-                html += `<div class="alert alert-danger">Test failed: ${data.error}</div>`;
-            }
+            showDebugMessage(`Application health test completed! ${componentSummary.join(', ')}`, 'success');
             
-            resultsDiv.innerHTML = html;
-        })
-        .catch(error => {
-            resultsDiv.innerHTML = `<div class="alert alert-danger">Error running test: ${error.message}</div>`;
-        });
+            // Show detailed results in debug panel
+            const resultsDiv = document.getElementById('debugResults');
+            resultsDiv.innerHTML = `<pre class="text-light">${JSON.stringify(data, null, 2)}</pre>`;
+        } else {
+            showDebugMessage('Application health test failed: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        showDebugMessage('Error testing application health: ' + error.message, 'error');
+    });
 }
 
 function testUnifiedAPI() {
-    const resultsDiv = document.getElementById('debugResults');
-    resultsDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Testing unified API...</div>';
-    
-    fetch('{% url "events:fetch_unified_events" %}?start=2025-01-01&end=2025-12-31')
-        .then(response => response.json())
-        .then(data => {
-            let html = '<h6 class="text-white mb-3">Unified Calendar API Test Results</h6>';
-            
-            if (Array.isArray(data)) {
-                html += `
-                    <div class="alert alert-success">
-                        <strong>Success!</strong> API returned ${data.length} events/activities
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6 class="text-white">Event Types Breakdown:</h6>
-                            <ul class="text-light">
-                                ${getEventTypeBreakdown(data)}
-                            </ul>
-                        </div>
-                        <div class="col-md-6">
-                            <h6 class="text-white">Sample Events:</h6>
-                            <div style="max-height: 300px; overflow-y: auto;">
-                                ${data.slice(0, 5).map(event => `
-                                    <div class="card bg-dark border-secondary mb-2">
-                                        <div class="card-body p-2">
-                                            <small class="text-muted">${event.id}</small><br>
-                                            <strong class="text-white">${event.title}</strong><br>
-                                            <small class="text-info">${event.start}</small>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                html += `<div class="alert alert-danger">Unexpected response format: ${JSON.stringify(data)}</div>`;
-            }
-            
-            resultsDiv.innerHTML = html;
-        })
-        .catch(error => {
-            resultsDiv.innerHTML = `<div class="alert alert-danger">Error testing unified API: ${error.message}</div>`;
-        });
-}
-
-function getEventTypeBreakdown(data) {
-    const breakdown = {};
-    data.forEach(event => {
-        const type = event.extendedProps?.type || 'unknown';
-        breakdown[type] = (breakdown[type] || 0) + 1;
-    });
-    
-    return Object.entries(breakdown).map(([type, count]) => 
-        `<li>${type}: ${count}</li>`
-    ).join('');
+    showDebugMessage('Testing unified API...', 'info');
+    // TODO: Implement unified API endpoint
+    showDebugMessage('Unified API endpoint not yet implemented', 'warning');
 }
 
 function toggleDebugPanel() {
@@ -144,4 +224,17 @@ function toggleDebugPanel() {
     panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
 </script>
+
+<style>
+.health-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.health-indicator.healthy { background-color: #28a745; }
+.health-indicator.warning { background-color: #ffc107; }
+.health-indicator.error { background-color: #dc3545; }
+</style>
 {% endblock %} 
