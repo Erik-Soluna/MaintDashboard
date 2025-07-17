@@ -1,67 +1,279 @@
 {% load static %}
 
-<div class="form-group">
-    <label for="{{ field.id_for_label }}" class="form-label">
-        {{ field.label }}
-        {% if field.field.required %}
-            <span class="text-danger">*</span>
-        {% endif %}
-    </label>
-    
-    <select name="{{ field.name }}" id="{{ field.id_for_label }}" class="form-control" {% if field.field.required %}required{% endif %}>
-        <option value="">Select a location...</option>
-        
-        {% if selected_site %}
-            <!-- Show locations for selected site only -->
-            <optgroup label="🏢 {{ selected_site.name }}">
-                {% for location in locations %}
-                    {% if location.parent_location == selected_site %}
-                        <option value="{{ location.id }}" {% if field.value == location.id %}selected{% endif %}>
-                            📦 {{ location.name }}
-                        </option>
-                        {% for child in location.child_locations.all %}
-                            {% if child.is_active %}
-                                <option value="{{ child.id }}" {% if field.value == child.id %}selected{% endif %}>
-                                    &nbsp;&nbsp;&nbsp;&nbsp;🔧 {{ child.name }}
-                                </option>
-                            {% endif %}
-                        {% endfor %}
-                    {% endif %}
+<!-- CUSTOM LOCATION SELECTION TEMPLATE -->
+<div class="location-selection-container">
+    <!-- Site Filter -->
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label for="site-filter" class="form-label">Filter by Site:</label>
+            <select id="site-filter" class="form-control">
+                <option value="">All Sites</option>
+                {% for site in sites %}
+                    <option value="{{ site.id }}">{{ site.name }}</option>
                 {% endfor %}
-            </optgroup>
-        {% else %}
-            <!-- Show all locations grouped by site -->
-            {% regroup locations by parent_location as site_list %}
-            {% for site in site_list %}
-                {% if site.grouper %}
-                    <optgroup label="🏢 {{ site.grouper.name }}">
-                        {% for location in site.list %}
-                            <option value="{{ location.id }}" {% if field.value == location.id %}selected{% endif %}>
-                                📦 {{ location.name }}
-                            </option>
-                            {% for child in location.child_locations.all %}
-                                {% if child.is_active %}
-                                    <option value="{{ child.id }}" {% if field.value == child.id %}selected{% endif %}>
-                                        &nbsp;&nbsp;&nbsp;&nbsp;🔧 {{ child.name }}
-                                    </option>
-                                {% endif %}
-                            {% endfor %}
-                        {% endfor %}
-                    </optgroup>
-                {% endif %}
-            {% endfor %}
-        {% endif %}
-    </select>
-    
-    {% if field.help_text %}
-        <small class="form-text text-muted">{{ field.help_text }}</small>
-    {% endif %}
-    
-    {% if field.errors %}
-        <div class="invalid-feedback d-block">
-            {% for error in field.errors %}
-                {{ error }}
-            {% endfor %}
+            </select>
         </div>
-    {% endif %}
-</div> 
+    </div>
+    
+    <!-- Location Selection -->
+    <div class="row">
+        <div class="col-md-12">
+            <label for="id_location" class="form-label">Equipment Location:</label>
+            <select name="location" id="id_location" class="form-control location-select" required>
+                <option value="">Select a location...</option>
+                {% for location in locations %}
+                    <option value="{{ location.id }}" 
+                            data-site="{{ location.get_site_location.id|default:'' }}"
+                            data-level="{{ location.get_level }}"
+                            {% if location.id == selected_location %}selected{% endif %}>
+                        {% if location.is_site %}
+                            🏢 {{ location.name }}
+                        {% elif location.parent_location.is_site %}
+                            &nbsp;&nbsp;&nbsp;&nbsp;🏗️ {{ location.name }}
+                        {% else %}
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📍 {{ location.name }}
+                        {% endif %}
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="form-text">Choose the location where this equipment is installed</div>
+        </div>
+    </div>
+</div>
+
+<!-- Debug info -->
+<div class="alert alert-info mt-3">
+    <strong>Debug Info:</strong><br>
+    Sites available: {{ sites|length }}<br>
+    Locations available: {{ locations|length }}<br>
+    Selected location: {{ selected_location }}
+</div>
+
+<style>
+/* Light mode styles */
+.location-select {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.location-select option {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.2s ease;
+}
+
+.location-select option[data-level="0"] {
+    font-weight: 700;
+    font-size: 15px;
+    background-color: #f8f9fa;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.location-select option[data-level="1"] {
+    font-weight: 500;
+    background-color: #ffffff;
+    color: #495057;
+    padding-left: 20px;
+}
+
+.location-select option[data-level="2"] {
+    font-weight: 400;
+    background-color: #ffffff;
+    color: #6c757d;
+    padding-left: 40px;
+}
+
+.location-select option:hover {
+    background-color: #e9ecef !important;
+}
+
+.location-select option:checked {
+    background-color: #007bff !important;
+    color: #ffffff !important;
+}
+
+/* Dark mode styles */
+@media (prefers-color-scheme: dark) {
+    .location-select {
+        background-color: #2d3748;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .location-select option {
+        background-color: #2d3748;
+        color: #e2e8f0;
+        border-bottom: 1px solid #4a5568;
+    }
+    
+    .location-select option[data-level="0"] {
+        background-color: #1a202c;
+        color: #f7fafc;
+        border-bottom: 2px solid #4a5568;
+        font-weight: 700;
+    }
+    
+    .location-select option[data-level="1"] {
+        background-color: #2d3748;
+        color: #e2e8f0;
+        padding-left: 20px;
+    }
+    
+    .location-select option[data-level="2"] {
+        background-color: #2d3748;
+        color: #a0aec0;
+        padding-left: 40px;
+    }
+    
+    .location-select option:hover {
+        background-color: #4a5568 !important;
+        color: #f7fafc !important;
+    }
+    
+    .location-select option:checked {
+        background-color: #3182ce !important;
+        color: #ffffff !important;
+    }
+}
+
+/* Bootstrap dark theme override */
+.bg-dark .location-select,
+[data-bs-theme="dark"] .location-select {
+    background-color: #2d3748;
+    border-color: #4a5568;
+    color: #e2e8f0;
+}
+
+.bg-dark .location-select option,
+[data-bs-theme="dark"] .location-select option {
+    background-color: #2d3748;
+    color: #e2e8f0;
+    border-bottom: 1px solid #4a5568;
+}
+
+.bg-dark .location-select option[data-level="0"],
+[data-bs-theme="dark"] .location-select option[data-level="0"] {
+    background-color: #1a202c;
+    color: #f7fafc;
+    border-bottom: 2px solid #4a5568;
+    font-weight: 700;
+}
+
+.bg-dark .location-select option[data-level="1"],
+[data-bs-theme="dark"] .location-select option[data-level="1"] {
+    background-color: #2d3748;
+    color: #e2e8f0;
+    padding-left: 20px;
+}
+
+.bg-dark .location-select option[data-level="2"],
+[data-bs-theme="dark"] .location-select option[data-level="2"] {
+    background-color: #2d3748;
+    color: #a0aec0;
+    padding-left: 40px;
+}
+
+.bg-dark .location-select option:hover,
+[data-bs-theme="dark"] .location-select option:hover {
+    background-color: #4a5568 !important;
+    color: #f7fafc !important;
+}
+
+.bg-dark .location-select option:checked,
+[data-bs-theme="dark"] .location-select option:checked {
+    background-color: #3182ce !important;
+    color: #ffffff !important;
+}
+
+/* Enhanced focus states */
+.location-select:focus {
+    border-color: #3182ce;
+    box-shadow: 0 0 0 0.2rem rgba(49, 130, 206, 0.25);
+}
+
+.bg-dark .location-select:focus,
+[data-bs-theme="dark"] .location-select:focus {
+    border-color: #63b3ed;
+    box-shadow: 0 0 0 0.2rem rgba(99, 179, 237, 0.25);
+}
+
+/* Site filter styling */
+#site-filter {
+    font-weight: 500;
+}
+
+.bg-dark #site-filter,
+[data-bs-theme="dark"] #site-filter {
+    background-color: #2d3748;
+    border-color: #4a5568;
+    color: #e2e8f0;
+}
+
+.bg-dark #site-filter option,
+[data-bs-theme="dark"] #site-filter option {
+    background-color: #2d3748;
+    color: #e2e8f0;
+}
+</style>
+
+<script>
+$(document).ready(function() {
+    const siteFilter = $('#site-filter');
+    const locationSelect = $('#id_location');
+    const allOptions = locationSelect.find('option[data-site]');
+    
+    // Site filtering functionality
+    siteFilter.on('change', function() {
+        const selectedSite = $(this).val();
+        
+        if (selectedSite) {
+            // Show only locations from the selected site
+            allOptions.each(function() {
+                const option = $(this);
+                const optionSite = option.attr('data-site');
+                
+                if (optionSite === selectedSite || optionSite === '') {
+                    option.show();
+                } else {
+                    option.hide();
+                }
+            });
+        } else {
+            // Show all locations
+            allOptions.show();
+        }
+        
+        // Reset location selection if current selection is hidden
+        const currentSelection = locationSelect.find('option:selected');
+        if (currentSelection.length && currentSelection.is(':hidden')) {
+            locationSelect.val('');
+        }
+    });
+    
+    // Enhanced select styling
+    locationSelect.on('focus', function() {
+        $(this).addClass('border-primary');
+    }).on('blur', function() {
+        $(this).removeClass('border-primary');
+    });
+    
+    // Auto-detect dark mode and apply styles
+    function applyDarkModeStyles() {
+        const isDarkMode = $('body').hasClass('bg-dark') || 
+                          $('html').attr('data-bs-theme') === 'dark' ||
+                          window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        if (isDarkMode) {
+            locationSelect.addClass('dark-mode');
+            siteFilter.addClass('dark-mode');
+        }
+    }
+    
+    // Apply on load and watch for changes
+    applyDarkModeStyles();
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyDarkModeStyles);
+});
+</script> 

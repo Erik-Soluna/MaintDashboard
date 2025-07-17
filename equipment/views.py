@@ -308,31 +308,16 @@ def add_equipment(request):
     else:
         form = EquipmentForm(request=request)
     
-    # Get selected site and locations for template
-    selected_site = None
-    if request.session.get('selected_site_id'):
-        try:
-            selected_site = Location.objects.get(id=request.session['selected_site_id'], is_site=True)
-        except Location.DoesNotExist:
-            pass
-    
-    # Get locations for the template
-    if selected_site:
-        locations = Location.objects.filter(
-            parent_location=selected_site,
-            is_active=True
-        ).select_related('parent_location').prefetch_related('child_locations').order_by('name')
-    else:
-        locations = Location.objects.filter(
-            is_site=False,
-            is_active=True
-        ).select_related('parent_location').prefetch_related('child_locations').order_by('name')
+    # Get all sites and locations for the enhanced template
+    sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
+    locations = Location.objects.filter(is_active=True).order_by('name')
     
     context = {
         'form': form,
         'categories': EquipmentCategory.objects.filter(is_active=True),
         'locations': locations,
-        'selected_site': selected_site,
+        'sites': sites,
+        'selected_location': None,
     }
     
     return render(request, 'equipment/add_equipment.html', context)
@@ -355,32 +340,17 @@ def edit_equipment(request, equipment_id):
     else:
         form = EquipmentForm(instance=equipment, request=request)
     
-    # Get selected site and locations for template
-    selected_site = None
-    if request.session.get('selected_site_id'):
-        try:
-            selected_site = Location.objects.get(id=request.session['selected_site_id'], is_site=True)
-        except Location.DoesNotExist:
-            pass
-    
-    # Get locations for the template
-    if selected_site:
-        locations = Location.objects.filter(
-            parent_location=selected_site,
-            is_active=True
-        ).select_related('parent_location').prefetch_related('child_locations').order_by('name')
-    else:
-        locations = Location.objects.filter(
-            is_site=False,
-            is_active=True
-        ).select_related('parent_location').prefetch_related('child_locations').order_by('name')
+    # Get all sites and locations for the enhanced template
+    sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
+    locations = Location.objects.filter(is_active=True).order_by('name')
     
     context = {
         'form': form,
         'equipment': equipment,
         'categories': EquipmentCategory.objects.filter(is_active=True),
         'locations': locations,
-        'selected_site': selected_site,
+        'sites': sites,
+        'selected_location': equipment.location.id if equipment.location else None,
     }
     
     return render(request, 'equipment/edit_equipment.html', context)
