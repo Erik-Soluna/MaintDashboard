@@ -180,7 +180,20 @@ run_database_initialization() {
             continue
         fi
         
-        # Run database initialization
+        # Run comprehensive database check and initialization
+        print_status "Running comprehensive database check and initialization..."
+        
+        # First, ensure all required tables exist
+        if python manage.py ensure_database; then
+            print_success "Database tables check completed successfully!"
+        else
+            print_warning "Database tables check failed, retrying in $RETRY_DELAY seconds..."
+            sleep $RETRY_DELAY
+            retry_count=$((retry_count + 1))
+            continue
+        fi
+        
+        # Then run the standard initialization
         print_status "Running Django database initialization..."
         if python manage.py init_database \
             --admin-username "${ADMIN_USERNAME:-admin}" \
