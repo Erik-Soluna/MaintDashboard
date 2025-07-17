@@ -2293,16 +2293,39 @@ def debug(request):
 @user_passes_test(is_staff_or_superuser)
 @require_http_methods(["POST"])
 def generate_pods(request):
-    """Generate PODs for all sites."""
+    """Generate PODs for selected sites or all sites."""
     try:
         from django.core.management import call_command
         from io import StringIO
         
+        # Get parameters from the form
+        site_id = request.POST.get('site_id', '').strip()
+        pod_count = int(request.POST.get('pod_count', 11))
+        mdcs_per_pod = int(request.POST.get('mdcs_per_pod', 2))
+        force = request.POST.get('force', 'false').lower() == 'true'
+        
         # Capture command output
         output = StringIO()
         
+        # Build command arguments
+        args = ['generate_pods']
+        
+        if site_id:
+            # Generate for specific site
+            args.extend(['--site-id', site_id])
+        else:
+            # Generate for all sites
+            args.append('--all-sites')
+        
+        # Add other parameters
+        args.extend(['--pod-count', str(pod_count)])
+        args.extend(['--mdcs-per-pod', str(mdcs_per_pod)])
+        
+        if force:
+            args.append('--force')
+        
         # Call the generate pods command
-        call_command('generate_pods', '--all-sites', stdout=output, verbosity=2)
+        call_command(*args, stdout=output, verbosity=2)
         
         result = output.getvalue()
         output.close()
@@ -2317,9 +2340,19 @@ def generate_pods(request):
         if generated_matches:
             generated_count = sum(int(x) for x in generated_matches)
         
+        # Determine target description
+        if site_id:
+            try:
+                site = Location.objects.get(id=site_id, is_site=True)
+                target_desc = f"site '{site.name}'"
+            except Location.DoesNotExist:
+                target_desc = "selected site"
+        else:
+            target_desc = "all sites"
+        
         return JsonResponse({
             'success': True,
-            'message': f'POD generation completed successfully! Generated: {generated_count} PODs',
+            'message': f'POD generation completed successfully for {target_desc}! Generated: {generated_count} PODs',
             'generated_count': generated_count,
             'output': result
         })
