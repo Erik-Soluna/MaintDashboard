@@ -266,13 +266,24 @@ if USE_REDIS and not DEBUG:
     SESSION_CACHE_ALIAS = 'default'
 else:
     # Use database for development when Redis is not available
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-            'LOCATION': 'cache_table',
+    # Fall back to dummy cache if database cache fails
+    try:
+        from django.core.cache.backends.db import DatabaseCache
+        CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+                'LOCATION': 'cache_table',
+            }
         }
-    }
-    SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+        SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+    except Exception:
+        # Fall back to dummy cache if database cache is not available
+        CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+            }
+        }
+        SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
 SESSION_COOKIE_AGE = 86400  # 24 hours
 
