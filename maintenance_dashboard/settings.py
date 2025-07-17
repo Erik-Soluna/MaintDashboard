@@ -211,8 +211,19 @@ if not DEBUG:
     X_FRAME_OPTIONS = 'DENY'
 
 # Celery Configuration
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://redis:6379/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://redis:6379/0')
+# Try to use Redis, fall back to database if Redis is not available
+REDIS_HOST = config('REDIS_HOST', default='redis')
+REDIS_PORT = config('REDIS_PORT', default='6379')
+REDIS_PASSWORD = config('REDIS_PASSWORD', default='')
+
+# Build Redis URLs with fallback options
+if REDIS_PASSWORD:
+    REDIS_URL = f'redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}'
+else:
+    REDIS_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}'
+
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default=f'{REDIS_URL}/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default=f'{REDIS_URL}/0')
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -249,41 +260,47 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 # Use Redis if available, fall back to database for development
 USE_REDIS = config('USE_REDIS', default=True, cast=bool)
 
-if USE_REDIS and not DEBUG:
-    # Use Redis for production
-    CACHES = {
-        'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': config('REDIS_URL', default='redis://redis:6379/1'),
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            },
-            'KEY_PREFIX': 'maintenance_dashboard',
-            'TIMEOUT': 300,  # 5 minutes default timeout
-        }
-    }
-    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-    SESSION_CACHE_ALIAS = 'default'
-else:
-    # Use database for development when Redis is not available
-    # Fall back to dummy cache if database cache fails
+# Test Redis connectivity and fall back gracefully
+def get_cache_config():
+    """Get cache configuration with Redis fallback."""
+    if USE_REDIS and not DEBUG:
+        # Try Redis for production
+        try:
+            import redis
+            r = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=2, socket_timeout=2)
+            r.ping()  # Test connection
+            return {
+                'default': {
+                    'BACKEND': 'django_redis.cache.RedisCache',
+                    'LOCATION': f'{REDIS_URL}/1',
+                    'OPTIONS': {
+                        'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                    },
+                    'KEY_PREFIX': 'maintenance_dashboard',
+                    'TIMEOUT': 300,  # 5 minutes default timeout
+                }
+            }, 'django.contrib.sessions.backends.cache'
+        except Exception as e:
+            print(f"Redis connection failed: {e}. Falling back to database cache.")
+    
+    # Use database cache as fallback
     try:
         from django.core.cache.backends.db import DatabaseCache
-        CACHES = {
+        return {
             'default': {
                 'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
                 'LOCATION': 'cache_table',
             }
-        }
-        SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-    except Exception:
-        # Fall back to dummy cache if database cache is not available
-        CACHES = {
+        }, 'django.contrib.sessions.backends.db'
+    except Exception as e:
+        print(f"Database cache failed: {e}. Falling back to dummy cache.")
+        return {
             'default': {
                 'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
             }
-        }
-        SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+        }, 'django.contrib.sessions.backends.db'
+
+CACHES, SESSION_ENGINE = get_cache_config()
 
 SESSION_COOKIE_AGE = 86400  # 24 hours
 
