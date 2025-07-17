@@ -39,10 +39,25 @@ check_database_ready() {
     local max_attempts=30
     local attempt=1
     
-    print_status "Waiting for database to be ready..."
+    # For production, we need to connect as postgres to create the database
+    # but the application will use maintenance_user
+    if [ "$DB_USER" = "maintenance_user" ]; then
+        # Use postgres superuser for database operations
+        DB_CHECK_USER="postgres"
+        DB_CHECK_PASSWORD="${POSTGRES_PASSWORD:-SecureProdPassword2024!}"
+    else
+        DB_CHECK_USER="$DB_USER"
+        DB_CHECK_PASSWORD="$DB_PASSWORD"
+    fi
+    
+    print_status "🔍 DB READY DEBUG:"
+    print_status "  DB_CHECK_USER: $DB_CHECK_USER"
+    print_status "  DB_CHECK_PASSWORD: ${DB_CHECK_PASSWORD:0:10}..."
+    print_status "  Full DB_CHECK_PASSWORD: $DB_CHECK_PASSWORD"
+    print_status "Waiting for database to be ready with user: $DB_CHECK_USER..."
     
     while [ $attempt -le $max_attempts ]; do
-        if pg_isready -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "${DB_USER:-postgres}" -d "${DB_NAME:-maintenance_dashboard}" > /dev/null 2>&1; then
+        if PGPASSWORD="$DB_CHECK_PASSWORD" pg_isready -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CHECK_USER" -d "${DB_NAME:-maintenance_dashboard}" > /dev/null 2>&1; then
             print_success "Database is ready"
             return 0
         fi
@@ -60,16 +75,61 @@ check_database_ready() {
 ensure_database_exists() {
     print_status "Checking if database exists..."
     
+    # For production, we need to connect as postgres to create the database
+    # but the application will use maintenance_user
+    if [ "$DB_USER" = "maintenance_user" ]; then
+        # Use postgres superuser for database operations
+        DB_CREATE_USER="postgres"
+        DB_CREATE_PASSWORD="${POSTGRES_PASSWORD:-SecureProdPassword2024!}"
+    else
+        DB_CREATE_USER="$DB_USER"
+        DB_CREATE_PASSWORD="$DB_PASSWORD"
+    fi
+    
+    print_status "🔍 DB CREATE DEBUG:"
+    print_status "  DB_CREATE_USER: $DB_CREATE_USER"
+    print_status "  DB_CREATE_PASSWORD: ${DB_CREATE_PASSWORD:0:10}..."
+    print_status "  Full DB_CREATE_PASSWORD: $DB_CREATE_PASSWORD"
+    print_status "Using user: $DB_CREATE_USER for database operations"
+    
     # Check if database exists
-    if PGPASSWORD="${DB_PASSWORD:-postgres}" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "${DB_USER:-postgres}" -d "postgres" -t -c "SELECT 1 FROM pg_database WHERE datname='${DB_NAME:-maintenance_dashboard}'" | grep -q 1; then
+    if PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -t -c "SELECT 1 FROM pg_database WHERE datname='${DB_NAME:-maintenance_dashboard}'" | grep -q 1; then
         print_success "Database '${DB_NAME:-maintenance_dashboard}' already exists"
+        
+        # Always ensure maintenance_user exists and has privileges
+        if [ "$DB_USER" != "$DB_CREATE_USER" ]; then
+            print_status "Ensuring user $DB_USER exists and has privileges..."
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -c "CREATE USER $DB_USER WITH PASSWORD '${DB_PASSWORD:-SecureProdPassword2024!}';" > /dev/null 2>&1 || true
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME:-maintenance_dashboard} TO $DB_USER;" > /dev/null 2>&1 || true
+            
+            # Grant schema-level permissions for Django migrations
+            print_status "Granting schema permissions to $DB_USER..."
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "${DB_NAME:-maintenance_dashboard}" -c "GRANT ALL ON SCHEMA public TO $DB_USER;" > /dev/null 2>&1 || true
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "${DB_NAME:-maintenance_dashboard}" -c "GRANT CREATE ON SCHEMA public TO $DB_USER;" > /dev/null 2>&1 || true
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "${DB_NAME:-maintenance_dashboard}" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $DB_USER;" > /dev/null 2>&1 || true
+        fi
+        
         return 0
     fi
     
     # Create database
-    print_status "Creating database '${DB_NAME:-maintenance_dashboard}'..."
-    if PGPASSWORD="${DB_PASSWORD:-postgres}" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "${DB_USER:-postgres}" -d "postgres" -c "CREATE DATABASE ${DB_NAME:-maintenance_dashboard}"; then
+    print_status "Creating database '${DB_NAME:-maintenance_dashboard}' with user: $DB_CREATE_USER..."
+    if PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -c "CREATE DATABASE ${DB_NAME:-maintenance_dashboard}"; then
         print_success "Database '${DB_NAME:-maintenance_dashboard}' created successfully"
+        
+        # Create maintenance_user and grant privileges if it's different from the create user
+        if [ "$DB_USER" != "$DB_CREATE_USER" ]; then
+            print_status "Creating user $DB_USER and granting privileges..."
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -c "CREATE USER $DB_USER WITH PASSWORD '${DB_PASSWORD:-SecureProdPassword2024!}';" > /dev/null 2>&1 || true
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "postgres" -c "GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME:-maintenance_dashboard} TO $DB_USER;" > /dev/null 2>&1 || true
+            
+            # Grant schema-level permissions for Django migrations
+            print_status "Granting schema permissions to $DB_USER..."
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "${DB_NAME:-maintenance_dashboard}" -c "GRANT ALL ON SCHEMA public TO $DB_USER;" > /dev/null 2>&1 || true
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "${DB_NAME:-maintenance_dashboard}" -c "GRANT CREATE ON SCHEMA public TO $DB_USER;" > /dev/null 2>&1 || true
+            PGPASSWORD="$DB_CREATE_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "$DB_CREATE_USER" -d "${DB_NAME:-maintenance_dashboard}" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $DB_USER;" > /dev/null 2>&1 || true
+        fi
+        
         return 0
     else
         print_error "Failed to create database"
@@ -93,6 +153,23 @@ run_database_initialization() {
             sleep $RETRY_DELAY
             retry_count=$((retry_count + 1))
             continue
+        fi
+        
+        # Test direct connection to postgres container
+        print_status "🔍 TESTING DIRECT POSTGRES CONNECTION:"
+        print_status "  Testing with user: postgres"
+        print_status "  Testing with password: ${POSTGRES_PASSWORD:0:10}..."
+        
+        if PGPASSWORD="$POSTGRES_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "postgres" -d "postgres" -c "SELECT version();" > /dev/null 2>&1; then
+            print_success "✅ Direct postgres connection successful!"
+        else
+            print_error "❌ Direct postgres connection failed!"
+            print_status "  Trying to connect with default password..."
+            if PGPASSWORD="SecureProdPassword2024!" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "postgres" -d "postgres" -c "SELECT version();" > /dev/null 2>&1; then
+                print_success "✅ Direct postgres connection successful with default password!"
+            else
+                print_error "❌ Direct postgres connection failed with default password too!"
+            fi
         fi
         
         # Ensure database exists
@@ -200,6 +277,7 @@ trap graceful_shutdown SIGTERM SIGINT
 # Main execution
 main() {
     print_status "🚀 Starting Docker container initialization..."
+    print_status "🔧 ENTRYPOINT VERSION: 2024-07-15-FIXED-DB-AUTH"
     
     # Change to app directory
     cd /app || exit 1
@@ -213,9 +291,17 @@ main() {
     print_status "  Database Host: ${DB_HOST:-db}"
     print_status "  Database Name: ${DB_NAME:-maintenance_dashboard}"
     print_status "  Database User: ${DB_USER:-postgres}"
+    print_status "  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:0:10}..."
+    print_status "  DB_PASSWORD: ${DB_PASSWORD:0:10}..."
     print_status "  Admin Username: ${ADMIN_USERNAME:-admin}"
     print_status "  Admin Email: ${ADMIN_EMAIL:-admin@maintenance.local}"
     print_status "  Debug Mode: ${DEBUG:-False}"
+    
+    # Debug password values
+    print_status "🔍 PASSWORD DEBUG:"
+    print_status "  POSTGRES_PASSWORD full: ${POSTGRES_PASSWORD}"
+    print_status "  DB_PASSWORD full: ${DB_PASSWORD}"
+    print_status "  DB_CREATE_PASSWORD will be: ${POSTGRES_PASSWORD:-SecureProdPassword2024!}"
     
     # Skip database initialization if requested
     if [ "${SKIP_DB_INIT:-false}" = "true" ]; then

@@ -8,15 +8,15 @@ services:
       - postgres_data:/var/lib/postgresql/data/
     environment:
       POSTGRES_DB: ${DB_NAME:-maintenance_dashboard_prod}
-      POSTGRES_USER: ${DB_USER:-maintenance_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-SecureProdPassword2024!}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-SecureProdPassword2024!}
       POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     ports:
       - "${DB_PORT:-5432}:5432"
     networks:
       - maintenance_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-maintenance_user} -d ${DB_NAME:-maintenance_dashboard_prod}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${DB_NAME:-maintenance_dashboard_prod}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -74,6 +74,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-SecureProdPassword2024!}
       - DB_HOST=db
       - DB_PORT=5432
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-SecureProdPassword2024!}
       - REDIS_URL=redis://redis:6379/0
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-maintenance.errorlog.app,10.0.0.28,localhost,127.0.0.1}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
@@ -154,6 +155,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-SecureProdPassword2024!}
       - DB_HOST=db
       - DB_PORT=5432
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-SecureProdPassword2024!}
       - REDIS_URL=redis://redis:6379/0
       - C_FORCE_ROOT=1
       # Celery Production Settings
@@ -199,6 +201,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-SecureProdPassword2024!}
       - DB_HOST=db
       - DB_PORT=5432
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-SecureProdPassword2024!}
       - REDIS_URL=redis://redis:6379/0
       # Celery Beat Production Settings
       - CELERY_BROKER_URL=redis://redis:6379/0
