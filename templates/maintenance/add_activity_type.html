@@ -34,6 +34,14 @@
                         </div>
 
                         <div class="form-group mb-3">
+                            <label for="{{ form.category.id_for_label }}" class="form-label">{{ form.category.label }}</label>
+                            {{ form.category }}
+                            {% if form.category.errors %}
+                                <div class="text-danger">{{ form.category.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mb-3">
                             <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
                             {{ form.description }}
                             {% if form.description.errors %}
@@ -89,6 +97,39 @@
                                     {% endif %}
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="{{ form.applicable_equipment_categories.id_for_label }}" class="form-label">{{ form.applicable_equipment_categories.label }}</label>
+                            {{ form.applicable_equipment_categories }}
+                            {% if form.applicable_equipment_categories.errors %}
+                                <div class="text-danger">{{ form.applicable_equipment_categories.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">Select which equipment categories this activity type applies to.</small>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="{{ form.tools_required.id_for_label }}" class="form-label">{{ form.tools_required.label }}</label>
+                            {{ form.tools_required }}
+                            {% if form.tools_required.errors %}
+                                <div class="text-danger">{{ form.tools_required.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="{{ form.parts_required.id_for_label }}" class="form-label">{{ form.parts_required.label }}</label>
+                            {{ form.parts_required }}
+                            {% if form.parts_required.errors %}
+                                <div class="text-danger">{{ form.parts_required.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="{{ form.safety_notes.id_for_label }}" class="form-label">{{ form.safety_notes.label }}</label>
+                            {{ form.safety_notes }}
+                            {% if form.safety_notes.errors %}
+                                <div class="text-danger">{{ form.safety_notes.errors }}</div>
+                            {% endif %}
                         </div>
 
                         <div class="d-flex justify-content-between">

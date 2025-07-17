@@ -618,9 +618,15 @@ def add_activity_type(request):
             activity_type = form.save(commit=False)
             activity_type.created_by = request.user
             activity_type.save()
+            form.save_m2m()  # Save many-to-many relationships
             
             messages.success(request, f'Activity type "{activity_type.name}" created successfully!')
             return redirect('maintenance:activity_type_list')
+        else:
+            # Debug: Log form errors
+            print(f"Form errors: {form.errors}")
+            print(f"Form data: {request.POST}")
+            messages.error(request, f'Error creating activity type. Please check the form.')
     else:
         form = MaintenanceActivityTypeForm()
     
@@ -639,9 +645,15 @@ def edit_activity_type(request, activity_type_id):
             activity_type = form.save(commit=False)
             activity_type.updated_by = request.user
             activity_type.save()
+            form.save_m2m()  # Save many-to-many relationships
             
             messages.success(request, f'Activity type "{activity_type.name}" updated successfully!')
             return redirect('maintenance:activity_type_list')
+        else:
+            # Debug: Log form errors
+            print(f"Form errors: {form.errors}")
+            print(f"Form data: {request.POST}")
+            messages.error(request, f'Error updating activity type. Please check the form.')
     else:
         form = MaintenanceActivityTypeForm(instance=activity_type)
     
