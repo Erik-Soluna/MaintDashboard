@@ -31,11 +31,39 @@ class EquipmentForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        # Extract request from kwargs to access session data
+        self.request = kwargs.pop('request', None)
         super().__init__(*args, **kwargs)
         
-        # Filter active categories and locations
-        self.fields['category'].queryset = EquipmentCategory.objects.filter(is_active=True)
-        self.fields['location'].queryset = Location.objects.filter(is_active=True)
+        # Filter active categories
+        self.fields['category'].queryset = EquipmentCategory.objects.filter(is_active=True)  # type: ignore
+        
+        # Get selected site for location filtering
+        selected_site = None
+        if self.request and hasattr(self.request, 'session'):
+            selected_site_id = self.request.GET.get('site_id')
+            if selected_site_id is None:
+                selected_site_id = self.request.session.get('selected_site_id')
+            
+            if selected_site_id:
+                try:
+                    selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                except Location.DoesNotExist:
+                    pass
+        
+        # Filter locations based on selected site
+        if selected_site:
+            # Only show locations under the selected site
+            self.fields['location'].queryset = Location.objects.filter(
+                parent_location=selected_site,
+                is_active=True
+            ).order_by('name')  # type: ignore
+        else:
+            # Show all non-site locations
+            self.fields['location'].queryset = Location.objects.filter(
+                is_site=False,
+                is_active=True
+            ).order_by('name')  # type: ignore
         
         # Setup crispy forms helper
         self.helper = FormHelper()

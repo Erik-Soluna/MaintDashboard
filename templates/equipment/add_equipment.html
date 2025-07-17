@@ -51,8 +51,314 @@
                         </div>
                     {% endif %}
                     
-                    <!-- Use crispy forms to render the form -->
-                    {% crispy form %}
+                    <!-- Render form fields manually to use custom location template -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">
+                                    {{ form.name.label }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.category.id_for_label }}" class="form-label">
+                                    {{ form.category.label }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                {{ form.category }}
+                                {% if form.category.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.category.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.status.id_for_label }}" class="form-label">
+                                    {{ form.status.label }}
+                                </label>
+                                {{ form.status }}
+                                {% if form.status.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.status.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.is_active.id_for_label }}" class="form-label">
+                                    {{ form.is_active.label }}
+                                </label>
+                                {{ form.is_active }}
+                                {% if form.is_active.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.is_active.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.manufacturer_serial.id_for_label }}" class="form-label">
+                                    {{ form.manufacturer_serial.label }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                {{ form.manufacturer_serial }}
+                                {% if form.manufacturer_serial.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.manufacturer_serial.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.asset_tag.id_for_label }}" class="form-label">
+                                    {{ form.asset_tag.label }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                {{ form.asset_tag }}
+                                {% if form.asset_tag.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.asset_tag.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.manufacturer.id_for_label }}" class="form-label">
+                                    {{ form.manufacturer.label }}
+                                </label>
+                                {{ form.manufacturer }}
+                                {% if form.manufacturer.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.manufacturer.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.model_number.id_for_label }}" class="form-label">
+                                    {{ form.model_number.label }}
+                                </label>
+                                {{ form.model_number }}
+                                {% if form.model_number.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.model_number.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Custom location selection -->
+                    {% include 'equipment/location_select.html' with field=form.location %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.power_ratings.id_for_label }}" class="form-label">
+                                    {{ form.power_ratings.label }}
+                                </label>
+                                {{ form.power_ratings }}
+                                {% if form.power_ratings.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.power_ratings.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.trip_setpoints.id_for_label }}" class="form-label">
+                                    {{ form.trip_setpoints.label }}
+                                </label>
+                                {{ form.trip_setpoints }}
+                                {% if form.trip_setpoints.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.trip_setpoints.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.installed_upgrades.id_for_label }}" class="form-label">
+                            {{ form.installed_upgrades.label }}
+                        </label>
+                        {{ form.installed_upgrades }}
+                        {% if form.installed_upgrades.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.installed_upgrades.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.datasheet.id_for_label }}" class="form-label">
+                                    {{ form.datasheet.label }}
+                                </label>
+                                {{ form.datasheet }}
+                                {% if form.datasheet.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.datasheet.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.schematics.id_for_label }}" class="form-label">
+                                    {{ form.schematics.label }}
+                                </label>
+                                {{ form.schematics }}
+                                {% if form.schematics.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.schematics.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.warranty_details.id_for_label }}" class="form-label">
+                            {{ form.warranty_details.label }}
+                        </label>
+                        {{ form.warranty_details }}
+                        {% if form.warranty_details.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.warranty_details.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.dga_due_date.id_for_label }}" class="form-label">
+                                    {{ form.dga_due_date.label }}
+                                </label>
+                                {{ form.dga_due_date }}
+                                {% if form.dga_due_date.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.dga_due_date.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.next_maintenance_date.id_for_label }}" class="form-label">
+                                    {{ form.next_maintenance_date.label }}
+                                </label>
+                                {{ form.next_maintenance_date }}
+                                {% if form.next_maintenance_date.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.next_maintenance_date.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.commissioning_date.id_for_label }}" class="form-label">
+                                    {{ form.commissioning_date.label }}
+                                </label>
+                                {{ form.commissioning_date }}
+                                {% if form.commissioning_date.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.commissioning_date.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.warranty_expiry_date.id_for_label }}" class="form-label">
+                                    {{ form.warranty_expiry_date.label }}
+                                </label>
+                                {{ form.warranty_expiry_date }}
+                                {% if form.warranty_expiry_date.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.warranty_expiry_date.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Equipment
+                        </button>
+                        <a href="{% url 'equipment:equipment_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                    </div>
                 </form>
             </div>
         </div>

@@ -296,7 +296,7 @@ def equipment_detail(request, equipment_id):
 def add_equipment(request):
     """Add new equipment (improved from original web2py version)."""
     if request.method == 'POST':
-        form = EquipmentForm(request.POST, request.FILES)
+        form = EquipmentForm(request.POST, request.FILES, request=request)
         if form.is_valid():
             equipment = form.save(commit=False)
             equipment.created_by = request.user
@@ -306,12 +306,33 @@ def add_equipment(request):
             messages.success(request, f'Equipment "{equipment.name}" added successfully!')
             return redirect('equipment:equipment_detail', equipment_id=equipment.id)
     else:
-        form = EquipmentForm()
+        form = EquipmentForm(request=request)
+    
+    # Get selected site and locations for template
+    selected_site = None
+    if request.session.get('selected_site_id'):
+        try:
+            selected_site = Location.objects.get(id=request.session['selected_site_id'], is_site=True)
+        except Location.DoesNotExist:
+            pass
+    
+    # Get locations for the template
+    if selected_site:
+        locations = Location.objects.filter(
+            parent_location=selected_site,
+            is_active=True
+        ).select_related('parent_location').prefetch_related('child_locations').order_by('name')
+    else:
+        locations = Location.objects.filter(
+            is_site=False,
+            is_active=True
+        ).select_related('parent_location').prefetch_related('child_locations').order_by('name')
     
     context = {
         'form': form,
         'categories': EquipmentCategory.objects.filter(is_active=True),
-        'locations': Location.objects.filter(is_active=True),
+        'locations': locations,
+        'selected_site': selected_site,
     }
     
     return render(request, 'equipment/add_equipment.html', context)
@@ -323,7 +344,7 @@ def edit_equipment(request, equipment_id):
     equipment = get_object_or_404(Equipment, id=equipment_id)
     
     if request.method == 'POST':
-        form = EquipmentForm(request.POST, request.FILES, instance=equipment)
+        form = EquipmentForm(request.POST, request.FILES, instance=equipment, request=request)
         if form.is_valid():
             equipment = form.save(commit=False)
             equipment.updated_by = request.user
@@ -332,13 +353,34 @@ def edit_equipment(request, equipment_id):
             messages.success(request, f'Equipment "{equipment.name}" updated successfully!')
             return redirect('equipment:equipment_detail', equipment_id=equipment.id)
     else:
-        form = EquipmentForm(instance=equipment)
+        form = EquipmentForm(instance=equipment, request=request)
+    
+    # Get selected site and locations for template
+    selected_site = None
+    if request.session.get('selected_site_id'):
+        try:
+            selected_site = Location.objects.get(id=request.session['selected_site_id'], is_site=True)
+        except Location.DoesNotExist:
+            pass
+    
+    # Get locations for the template
+    if selected_site:
+        locations = Location.objects.filter(
+            parent_location=selected_site,
+            is_active=True
+        ).select_related('parent_location').prefetch_related('child_locations').order_by('name')
+    else:
+        locations = Location.objects.filter(
+            is_site=False,
+            is_active=True
+        ).select_related('parent_location').prefetch_related('child_locations').order_by('name')
     
     context = {
         'form': form,
         'equipment': equipment,
         'categories': EquipmentCategory.objects.filter(is_active=True),
-        'locations': Location.objects.filter(is_active=True),
+        'locations': locations,
+        'selected_site': selected_site,
     }
     
     return render(request, 'equipment/edit_equipment.html', context)

@@ -1,0 +1,67 @@
+{% load static %}
+
+<div class="form-group">
+    <label for="{{ field.id_for_label }}" class="form-label">
+        {{ field.label }}
+        {% if field.field.required %}
+            <span class="text-danger">*</span>
+        {% endif %}
+    </label>
+    
+    <select name="{{ field.name }}" id="{{ field.id_for_label }}" class="form-control" {% if field.field.required %}required{% endif %}>
+        <option value="">Select a location...</option>
+        
+        {% if selected_site %}
+            <!-- Show locations for selected site only -->
+            <optgroup label="🏢 {{ selected_site.name }}">
+                {% for location in locations %}
+                    {% if location.parent_location == selected_site %}
+                        <option value="{{ location.id }}" {% if field.value == location.id %}selected{% endif %}>
+                            📦 {{ location.name }}
+                        </option>
+                        {% for child in location.child_locations.all %}
+                            {% if child.is_active %}
+                                <option value="{{ child.id }}" {% if field.value == child.id %}selected{% endif %}>
+                                    &nbsp;&nbsp;&nbsp;&nbsp;🔧 {{ child.name }}
+                                </option>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+            </optgroup>
+        {% else %}
+            <!-- Show all locations grouped by site -->
+            {% regroup locations by parent_location as site_list %}
+            {% for site in site_list %}
+                {% if site.grouper %}
+                    <optgroup label="🏢 {{ site.grouper.name }}">
+                        {% for location in site.list %}
+                            <option value="{{ location.id }}" {% if field.value == location.id %}selected{% endif %}>
+                                📦 {{ location.name }}
+                            </option>
+                            {% for child in location.child_locations.all %}
+                                {% if child.is_active %}
+                                    <option value="{{ child.id }}" {% if field.value == child.id %}selected{% endif %}>
+                                        &nbsp;&nbsp;&nbsp;&nbsp;🔧 {{ child.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    </optgroup>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+    </select>
+    
+    {% if field.help_text %}
+        <small class="form-text text-muted">{{ field.help_text }}</small>
+    {% endif %}
+    
+    {% if field.errors %}
+        <div class="invalid-feedback d-block">
+            {% for error in field.errors %}
+                {{ error }}
+            {% endfor %}
+        </div>
+    {% endif %}
+</div> 

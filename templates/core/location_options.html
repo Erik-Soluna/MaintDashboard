@@ -1,4 +1,16 @@
-<option value="{{ location.id }}">{{ prefix }}{{ location.name }}</option>
-{% for child in location.child_locations.all %}
-    {% include 'core/location_options.html' with location=child prefix=prefix|add:"  " %}
-{% endfor %}
+<option value="{{ location.id }}" {% if location.is_site %}disabled{% endif %}>
+    {% if location.is_site %}
+        🏢 {{ location.name }}
+    {% else %}
+        {% if location.parent_location.is_site %}
+            📦 {{ location.name }}
+        {% else %}
+            🔧 {{ location.name }}
+        {% endif %}
+    {% endif %}
+</option>
+{% if not location.is_site %}
+    {% for child in location.child_locations.all %}
+        {% include 'core/location_options.html' with location=child %}
+    {% endfor %}
+{% endif %}
