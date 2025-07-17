@@ -21,19 +21,30 @@
             <label for="id_location" class="form-label">Equipment Location:</label>
             <select name="location" id="id_location" class="form-control location-select" required>
                 <option value="">Select a location...</option>
-                {% for location in locations %}
-                    <option value="{{ location.id }}" 
-                            data-site="{{ location.get_site_location.id|default:'' }}"
-                            data-level="{{ location.get_level }}"
-                            {% if location.id == selected_location %}selected{% endif %}>
-                        {% if location.is_site %}
-                            🏢 {{ location.name }}
-                        {% elif location.parent_location.is_site %}
-                            &nbsp;&nbsp;&nbsp;&nbsp;🏗️ {{ location.name }}
-                        {% else %}
-                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📍 {{ location.name }}
-                        {% endif %}
+                {% for site in sites %}
+                    <option value="{{ site.id }}" 
+                            data-site="{{ site.id }}"
+                            data-level="0"
+                            {% if site.id == selected_location %}selected{% endif %}
+                            disabled>
+                        🏢 {{ site.name }}
                     </option>
+                    {% for building in site.child_locations.all %}
+                        <option value="{{ building.id }}" 
+                                data-site="{{ site.id }}"
+                                data-level="1"
+                                {% if building.id == selected_location %}selected{% endif %}>
+                            &nbsp;&nbsp;&nbsp;&nbsp;🏗️ {{ building.name }}
+                        </option>
+                        {% for mdc in building.child_locations.all %}
+                            <option value="{{ mdc.id }}" 
+                                    data-site="{{ site.id }}"
+                                    data-level="2"
+                                    {% if mdc.id == selected_location %}selected{% endif %}>
+                                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;📍 {{ mdc.name }}
+                            </option>
+                        {% endfor %}
+                    {% endfor %}
                 {% endfor %}
             </select>
             <div class="form-text">Choose the location where this equipment is installed</div>

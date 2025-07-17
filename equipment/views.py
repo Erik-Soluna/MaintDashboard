@@ -308,8 +308,8 @@ def add_equipment(request):
     else:
         form = EquipmentForm(request=request)
     
-    # Get all sites and locations for the enhanced template
-    sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
+    # Get all sites and locations for the enhanced template with hierarchical structure
+    sites = Location.objects.filter(is_site=True, is_active=True).prefetch_related('child_locations__child_locations').order_by('name')
     locations = Location.objects.filter(is_active=True).order_by('name')
     
     context = {
@@ -340,8 +340,8 @@ def edit_equipment(request, equipment_id):
     else:
         form = EquipmentForm(instance=equipment, request=request)
     
-    # Get all sites and locations for the enhanced template
-    sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
+    # Get all sites and locations for the enhanced template with hierarchical structure
+    sites = Location.objects.filter(is_site=True, is_active=True).prefetch_related('child_locations__child_locations').order_by('name')
     locations = Location.objects.filter(is_active=True).order_by('name')
     
     context = {
