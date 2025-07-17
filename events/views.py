@@ -26,7 +26,7 @@ def create_maintenance_activity_for_event(event):
         return None
         
     try:
-        from maintenance.models import MaintenanceActivity, MaintenanceActivityType
+        from maintenance.models import MaintenanceActivity, MaintenanceActivityType, ActivityTypeCategory
         from django.utils import timezone as django_timezone
         from datetime import datetime, time
         
@@ -54,10 +54,22 @@ def create_maintenance_activity_for_event(event):
             logger.info(f"Updated maintenance activity for calendar event: {event.title}")
             return existing_activity
         else:
-            # Get or create default activity type
+            # Get or create default activity type with category
+            default_category = ActivityTypeCategory.objects.filter(is_active=True).first()
+            if not default_category:
+                default_category = ActivityTypeCategory.objects.create(
+                    name='General',
+                    description='Default category for calendar events',
+                    color='#007bff',
+                    icon='fas fa-wrench',
+                    is_active=True,
+                    created_by=event.created_by
+                )
+            
             activity_type, created = MaintenanceActivityType.objects.get_or_create(
                 name='General Maintenance',
                 defaults={
+                    'category': default_category,
                     'description': 'General maintenance activity created from calendar event',
                     'estimated_duration_hours': 2,
                     'frequency_days': 365,

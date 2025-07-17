@@ -685,9 +685,22 @@ def import_activity_types_csv(request):
                 if not name:
                     continue
                     
+                # Get or create a default category if none exists
+                default_category = ActivityTypeCategory.objects.filter(is_active=True).first()
+                if not default_category:
+                    default_category = ActivityTypeCategory.objects.create(
+                        name='General',
+                        description='Default category for imported activity types',
+                        color='#007bff',
+                        icon='fas fa-wrench',
+                        is_active=True,
+                        created_by=request.user
+                    )
+                
                 activity_type, created = MaintenanceActivityType.objects.get_or_create(
                     name=name,
                     defaults={
+                        'category': default_category,
                         'description': description,
                         'estimated_duration_hours': float(estimated_duration_hours) if estimated_duration_hours else 1.0,
                         'frequency_days': int(frequency_days) if frequency_days else 30,
@@ -870,10 +883,23 @@ def import_maintenance_csv(request):
                     error_count += 1
                     continue
                 
+                # Get or create a default category if none exists
+                default_category = ActivityTypeCategory.objects.filter(is_active=True).first()
+                if not default_category:
+                    default_category = ActivityTypeCategory.objects.create(
+                        name='General',
+                        description='Default category for imported activity types',
+                        color='#007bff',
+                        icon='fas fa-wrench',
+                        is_active=True,
+                        created_by=request.user
+                    )
+                
                 # Find or create activity type
                 activity_type, created = MaintenanceActivityType.objects.get_or_create(
                     name=activity_type_name,
                     defaults={
+                        'category': default_category,
                         'description': f'Imported activity type: {activity_type_name}',
                         'estimated_duration_hours': 1,
                         'frequency_days': 365,

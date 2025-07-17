@@ -8,7 +8,7 @@ from django.contrib.auth.models import User
 from .models import UserProfile
 import logging
 from events.models import CalendarEvent
-from maintenance.models import MaintenanceActivity, MaintenanceActivityType
+from maintenance.models import MaintenanceActivity, MaintenanceActivityType, ActivityTypeCategory
 from django.db import transaction
 from datetime import datetime
 from django.utils import timezone
@@ -60,9 +60,20 @@ def sync_maintenance_activity_from_event(sender, instance, created, **kwargs):
         # Find a default activity type (or create one if needed)
         activity_type = MaintenanceActivityType.objects.filter(is_active=True).first()
         if not activity_type:
+            # Get or create a default category
+            default_category = ActivityTypeCategory.objects.filter(is_active=True).first()
+            if not default_category:
+                default_category = ActivityTypeCategory.objects.create(
+                    name='General',
+                    description='Default category for system-generated activity types',
+                    color='#007bff',
+                    icon='fas fa-wrench',
+                    is_active=True
+                )
+            
             activity_type = MaintenanceActivityType.objects.create(
                 name='Default',
-                category=MaintenanceActivityType._meta.get_field('category').related_model.objects.first(),
+                category=default_category,
                 description='Default maintenance activity type',
                 frequency_days=365,
             )
