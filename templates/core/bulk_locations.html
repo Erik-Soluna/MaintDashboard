@@ -464,6 +464,61 @@
         </div>
     </div>
 
+    <!-- Filter Bar -->
+    <div class="filter-bar mb-3 p-3 rounded bg-dark border border-secondary d-flex flex-wrap align-items-center gap-3">
+        <div>
+            <label for="filter-site" class="form-label mb-0 me-2">Site</label>
+            <select id="filter-site" class="form-select form-select-sm bg-dark text-light border-secondary" style="min-width: 140px;">
+                <option value="">All Sites</option>
+                {% for site in sites %}
+                <option value="{{ site.id }}">{{ site.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="filter-pod" class="form-label mb-0 me-2">POD</label>
+            <select id="filter-pod" class="form-select form-select-sm bg-dark text-light border-secondary" style="min-width: 120px;" disabled>
+                <option value="">All PODs</option>
+            </select>
+        </div>
+        <div>
+            <label for="filter-type" class="form-label mb-0 me-2">Type</label>
+            <select id="filter-type" class="form-select form-select-sm bg-dark text-light border-secondary" style="min-width: 110px;">
+                <option value="">All Types</option>
+                <option value="MDC">MDC</option>
+                <option value="POD">POD</option>
+                <option value="Location">Location</option>
+            </select>
+        </div>
+        <div>
+            <label for="filter-customer" class="form-label mb-0 me-2">Customer</label>
+            <select id="filter-customer" class="form-select form-select-sm bg-dark text-light border-secondary" style="min-width: 140px;">
+                <option value="">All Customers</option>
+                {% for customer in customers %}
+                <option value="{{ customer.name }}">{{ customer.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="filter-status" class="form-label mb-0 me-2">Status</label>
+            <select id="filter-status" class="form-select form-select-sm bg-dark text-light border-secondary" style="min-width: 110px;">
+                <option value="">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+            </select>
+        </div>
+        <div class="flex-grow-1">
+            <label for="filter-name" class="form-label mb-0 me-2">Name</label>
+            <input type="text" id="filter-name" class="form-control form-control-sm bg-dark text-light border-secondary" placeholder="Search by name..." style="min-width: 180px;">
+        </div>
+        <div>
+            <button id="clear-filters" class="btn btn-outline-secondary btn-sm ms-2" type="button">
+                <i class="fas fa-times me-1"></i>Clear Filters
+            </button>
+        </div>
+    </div>
+    <!-- End Filter Bar -->
+
     <!-- Sub-Locations Section -->
     <div class="locations-section">
         <div class="locations-header">
@@ -885,5 +940,97 @@ window.onclick = function(event) {
         }
     });
 }
+
+// --- Filtering Logic ---
+const allRows = Array.from(document.querySelectorAll('#sub-locations-table tbody tr'));
+const siteSelect = document.getElementById('filter-site');
+const podSelect = document.getElementById('filter-pod');
+const typeSelect = document.getElementById('filter-type');
+const customerSelect = document.getElementById('filter-customer');
+const statusSelect = document.getElementById('filter-status');
+const nameInput = document.getElementById('filter-name');
+const clearBtn = document.getElementById('clear-filters');
+
+// Build a map of siteId -> PODs for dynamic POD dropdown
+const podMap = {};
+allRows.forEach(row => {
+    const fullPath = row.querySelector('.location-path').textContent.trim();
+    const type = row.querySelector('.location-type').textContent.trim();
+    if (type === 'POD' || type === 'MDC') {
+        const pathParts = fullPath.split('>');
+        if (pathParts.length >= 2) {
+            const siteName = pathParts[0].trim();
+            const podName = pathParts[1].trim();
+            if (!podMap[siteName]) podMap[siteName] = new Set();
+            podMap[siteName].add(podName);
+        }
+    }
+});
+
+function updatePodDropdown() {
+    const selectedSite = siteSelect.options[siteSelect.selectedIndex].text;
+    podSelect.innerHTML = '<option value="">All PODs</option>';
+    podSelect.disabled = true;
+    if (selectedSite && podMap[selectedSite]) {
+        Array.from(podMap[selectedSite]).sort().forEach(pod => {
+            const opt = document.createElement('option');
+            opt.value = pod;
+            opt.textContent = pod;
+            podSelect.appendChild(opt);
+        });
+        podSelect.disabled = false;
+    }
+}
+
+function filterTable() {
+    const siteVal = siteSelect.value;
+    const podVal = podSelect.value;
+    const typeVal = typeSelect.value;
+    const customerVal = customerSelect.value;
+    const statusVal = statusSelect.value;
+    const nameVal = nameInput.value.toLowerCase();
+    
+    allRows.forEach(row => {
+        let show = true;
+        const fullPath = row.querySelector('.location-path').textContent.trim();
+        const type = row.querySelector('.location-type').textContent.trim();
+        const customer = row.querySelector('.location-customer').textContent.trim();
+        const status = row.querySelector('.location-status').textContent.trim();
+        const name = row.querySelector('.location-name').textContent.trim().toLowerCase();
+        const parentSite = fullPath.split('>')[0].trim();
+        const pod = fullPath.split('>').length > 1 ? fullPath.split('>')[1].trim() : '';
+        
+        if (siteVal && parentSite !== siteSelect.options[siteSelect.selectedIndex].text) show = false;
+        if (podVal && pod !== podVal) show = false;
+        if (typeVal && type !== typeVal) show = false;
+        if (customerVal && customer !== customerVal) show = false;
+        if (statusVal && status !== statusVal) show = false;
+        if (nameVal && !name.includes(nameVal)) show = false;
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+siteSelect.addEventListener('change', () => {
+    updatePodDropdown();
+    filterTable();
+});
+podSelect.addEventListener('change', filterTable);
+typeSelect.addEventListener('change', filterTable);
+customerSelect.addEventListener('change', filterTable);
+statusSelect.addEventListener('change', filterTable);
+nameInput.addEventListener('input', filterTable);
+clearBtn.addEventListener('click', () => {
+    siteSelect.value = '';
+    podSelect.innerHTML = '<option value="">All PODs</option>';
+    podSelect.disabled = true;
+    typeSelect.value = '';
+    customerSelect.value = '';
+    statusSelect.value = '';
+    nameInput.value = '';
+    filterTable();
+});
+
+// Initial filter
+filterTable();
 </script>
 {% endblock %} 
