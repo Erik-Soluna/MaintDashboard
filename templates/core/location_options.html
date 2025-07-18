@@ -10,7 +10,7 @@
     {% endif %}
 </option>
 {% if not location.is_site %}
-    {% for child in location.child_locations.all %}
+    {% for child in location.child_locations_sorted %}
         {% include 'core/location_options.html' with location=child %}
     {% endfor %}
 {% endif %}

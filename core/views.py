@@ -582,8 +582,21 @@ def settings_view(request):
 @user_passes_test(is_staff_or_superuser)
 def locations_settings(request):
     """Locations management view."""
-    locations = Location.objects.all().order_by('name')
-    sites = Location.objects.filter(is_site=True, is_active=True).prefetch_related('child_locations__child_locations').order_by('name')
+    # Get all locations and apply natural sorting
+    locations = list(Location.objects.all())
+    locations.sort(key=lambda loc: natural_sort_key(loc.name))
+    
+    # Get sites with natural sorting
+    sites = list(Location.objects.filter(is_site=True, is_active=True).prefetch_related('child_locations__child_locations'))
+    sites.sort(key=lambda site: natural_sort_key(site.name))
+    
+    # Apply natural sorting to child locations for each site
+    for site in sites:
+        site.child_locations_sorted = sorted(site.child_locations.all(), key=lambda loc: natural_sort_key(loc.name))
+        # Also sort nested child locations
+        for child in site.child_locations_sorted:
+            child.child_locations_sorted = sorted(child.child_locations.all(), key=lambda loc: natural_sort_key(loc.name))
+    
     customers = Customer.objects.filter(is_active=True).order_by('name')
     
     context = {

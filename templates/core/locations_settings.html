@@ -377,7 +377,7 @@
         </div>
         
         <div class="site-locations" id="site-locations-{{ site.id }}">
-            {% for location in site.child_locations.all %}
+            {% for location in site.child_locations_sorted %}
                 {% include 'core/location_tree_item.html' with location=location depth=1 %}
             {% empty %}
                 <div class="empty-locations">

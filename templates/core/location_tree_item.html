@@ -10,7 +10,7 @@
             {% if depth > 0 %}
                 <span class="hierarchy-branch">├─</span>
             {% endif %}
-            {% if location.child_locations.all %}
+            {% if location.child_locations_sorted %}
                 <button class="btn btn-link btn-xs p-0 me-1 toggle-location-children" data-location-id="{{ location.id }}" aria-label="Toggle Children" style="color: #e2e8f0; vertical-align: middle;">
                     <i class="fas fa-chevron-down" id="chevron-location-{{ location.id }}"></i>
                 </button>
@@ -65,9 +65,9 @@
     </div>
 </div>
 
-{% if location.child_locations.all %}
+{% if location.child_locations_sorted %}
 <div class="location-children" id="location-children-{{ location.id }}">
-    {% for child in location.child_locations.all %}
+    {% for child in location.child_locations_sorted %}
         {% include 'core/location_tree_item.html' with location=child depth=depth|add:1 %}
     {% endfor %}
 </div>
