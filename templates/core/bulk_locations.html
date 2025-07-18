@@ -785,8 +785,9 @@ function toggleSubLocationSelection(checkbox) {
 }
 
 function selectAll() {
-    const allCheckboxes = document.querySelectorAll('.location-checkbox');
-    allCheckboxes.forEach(cb => {
+    // Only select visible checkboxes (respecting filters)
+    const visibleCheckboxes = document.querySelectorAll('#sub-locations-table tbody tr:not([style*="display: none"]) .location-checkbox');
+    visibleCheckboxes.forEach(cb => {
         cb.checked = true;
         selectedLocations.add(cb.value);
     });
@@ -795,8 +796,9 @@ function selectAll() {
 }
 
 function deselectAll() {
-    const allCheckboxes = document.querySelectorAll('.location-checkbox');
-    allCheckboxes.forEach(cb => {
+    // Only deselect visible checkboxes (respecting filters)
+    const visibleCheckboxes = document.querySelectorAll('#sub-locations-table tbody tr:not([style*="display: none"]) .location-checkbox');
+    visibleCheckboxes.forEach(cb => {
         cb.checked = false;
         selectedLocations.delete(cb.value);
     });
