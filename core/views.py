@@ -1622,6 +1622,47 @@ def add_customer(request):
 
 @login_required
 @user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
+def add_customer_ajax(request):
+    """Add new customer via AJAX for modal form."""
+    try:
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+            customer = form.save(commit=False)
+            customer.created_by = request.user
+            customer.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Customer "{customer.name}" has been created successfully.',
+                'customer': {
+                    'id': customer.id,
+                    'name': customer.name,
+                    'code': customer.code
+                }
+            })
+        else:
+            # Return form errors
+            errors = {}
+            for field, field_errors in form.errors.items():
+                errors[field] = field_errors[0] if field_errors else 'Invalid input'
+            
+            return JsonResponse({
+                'success': False,
+                'error': 'Please correct the errors below.',
+                'field_errors': errors
+            }, status=400)
+            
+    except Exception as e:
+        logger.error(f"Error creating customer via AJAX: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'An error occurred while creating the customer.'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
 def edit_customer(request, customer_id):
     """Edit existing customer."""
     customer = get_object_or_404(Customer, id=customer_id)

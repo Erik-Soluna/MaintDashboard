@@ -48,6 +48,7 @@ urlpatterns = [
     
     # Customer management
     path('customers/add/', views.add_customer, name='add_customer'),
+    path('customers/add/ajax/', views.add_customer_ajax, name='add_customer_ajax'),
     path('customers/<int:customer_id>/edit/', views.edit_customer, name='edit_customer'),
     path('customers/<int:customer_id>/delete/', views.delete_customer, name='delete_customer'),
     
