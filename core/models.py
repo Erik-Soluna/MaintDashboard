@@ -552,6 +552,11 @@ class PortainerConfig(models.Model):
         help_text="How often to automatically check for and pull the newest version"
     )
     
+    # Git tracking for change detection
+    last_commit_hash = models.CharField(max_length=100, blank=True, help_text="Last known git commit hash")
+    last_commit_date = models.DateTimeField(null=True, blank=True, help_text="Last known git commit date")
+    last_check_date = models.DateTimeField(null=True, blank=True, help_text="Last time we checked for changes")
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

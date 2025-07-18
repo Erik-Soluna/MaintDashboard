@@ -3,6 +3,8 @@ import logging
 import asyncio
 import json
 import requests
+import subprocess
+import os
 from .models import PlaywrightDebugLog, PortainerConfig
 from django.utils import timezone
 from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite
@@ -117,10 +119,68 @@ def run_natural_language_test_task(prompt: str, user_role: str = "admin",
         logger.error(f"Natural language test failed: {e}")
         return {'error': str(e)}
 
+def get_git_info():
+    """
+    Get current git commit hash and date.
+    """
+    try:
+        # Get current commit hash
+        commit_hash = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'], 
+            cwd=os.getcwd(), 
+            stderr=subprocess.PIPE,
+            text=True
+        ).strip()
+        
+        # Get commit date
+        commit_date = subprocess.check_output(
+            ['git', 'log', '-1', '--format=%cd', '--date=iso'], 
+            cwd=os.getcwd(), 
+            stderr=subprocess.PIPE,
+            text=True
+        ).strip()
+        
+        return commit_hash, commit_date
+    except subprocess.CalledProcessError as e:
+        logger.warning(f"Git command failed: {e}")
+        return None, None
+    except Exception as e:
+        logger.warning(f"Error getting git info: {e}")
+        return None, None
+
+def check_for_changes(config):
+    """
+    Check if there are new commits since last update.
+    """
+    try:
+        current_hash, current_date = get_git_info()
+        
+        if not current_hash:
+            logger.warning("Could not get current git info, proceeding with update")
+            return True, current_hash, current_date
+        
+        # If we don't have a previous hash, this is the first run
+        if not config.last_commit_hash:
+            logger.info(f"First run - setting initial commit hash: {current_hash[:8] if current_hash else 'unknown'}")
+            return True, current_hash, current_date
+        
+        # Check if hash has changed
+        if current_hash != config.last_commit_hash:
+            logger.info(f"New commit detected: {current_hash[:8] if current_hash else 'unknown'} (was: {config.last_commit_hash[:8] if config.last_commit_hash else 'unknown'})")
+            return True, current_hash, current_date
+        else:
+            logger.info(f"No new commits since last update (current: {current_hash[:8] if current_hash else 'unknown'})")
+            return False, current_hash, current_date
+            
+    except Exception as e:
+        logger.error(f"Error checking for changes: {e}")
+        return True, None, None  # Proceed with update if we can't check
+
 @shared_task
 def auto_update_portainer_stack():
     """
     Automatically check for and pull the newest version based on polling frequency.
+    Only updates if there are new commits.
     """
     try:
         config = PortainerConfig.get_config()
@@ -135,6 +195,19 @@ def auto_update_portainer_stack():
             logger.warning("Auto-update failed: No webhook URL configured")
             return {'status': 'error', 'message': 'No webhook URL configured'}
         
+        # Check for changes first
+        has_changes, current_hash, current_date = check_for_changes(config)
+        
+        if not has_changes:
+            # Update last check date even if no changes
+            config.last_check_date = timezone.now()
+            config.save(update_fields=['last_check_date'])
+            return {
+                'status': 'no_changes', 
+                'message': 'No new commits detected, skipping update',
+                'commit_hash': current_hash[:8] if current_hash else None
+            }
+        
         # Get image tag (default to 'latest')
         image_tag = config.image_tag or 'latest'
         
@@ -146,13 +219,18 @@ def auto_update_portainer_stack():
         if config.webhook_secret:
             headers['X-Webhook-Secret'] = config.webhook_secret
         
-        logger.info(f"Auto-updating stack with tag '{image_tag}' via webhook")
+        logger.info(f"Changes detected - auto-updating stack with tag '{image_tag}' via webhook")
         
         # Call the webhook URL to trigger stack update
         webhook_response = requests.post(
             webhook_url_with_tag,
             headers=headers,
-            json={'action': 'auto_update', 'timestamp': timezone.now().isoformat()},
+            json={
+                'action': 'auto_update', 
+                'timestamp': timezone.now().isoformat(),
+                'commit_hash': current_hash,
+                'commit_date': current_date
+            },
             timeout=30
         )
         
@@ -160,10 +238,18 @@ def auto_update_portainer_stack():
         
         if webhook_response.status_code in [200, 202, 204]:
             logger.info("Auto-update successful")
+            
+            # Update our tracking info
+            config.last_commit_hash = current_hash
+            config.last_commit_date = timezone.now()  # Use current time as commit date
+            config.last_check_date = timezone.now()
+            config.save(update_fields=['last_commit_hash', 'last_commit_date', 'last_check_date'])
+            
             return {
                 'status': 'success', 
-                'message': f'Auto-update triggered successfully with tag {image_tag}',
-                'response_code': webhook_response.status_code
+                'message': f'Auto-update triggered successfully with tag {image_tag} (commit: {current_hash[:8] if current_hash else "unknown"})',
+                'response_code': webhook_response.status_code,
+                'commit_hash': current_hash[:8] if current_hash else None
             }
         else:
             logger.error(f"Auto-update failed with status: {webhook_response.status_code}")

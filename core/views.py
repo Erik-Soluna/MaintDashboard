@@ -3830,6 +3830,9 @@ def webhook_settings(request):
             'user_exists': bool(config.portainer_user),
             'password_exists': bool(config.portainer_password),
             'secret_exists': bool(config.webhook_secret),
+            'last_commit_hash': config.last_commit_hash[:8] if config.last_commit_hash else None,
+            'last_update_date': config.last_commit_date.strftime('%Y-%m-%d %H:%M:%S') if config.last_commit_date else None,
+            'last_check_date': config.last_check_date.strftime('%Y-%m-%d %H:%M:%S') if config.last_check_date else None,
         }
     }
     
