@@ -517,6 +517,11 @@ def profile_view(request):
             if theme_preference in ['dark', 'light']:
                 profile.theme_preference = theme_preference
             
+            # Handle timezone preference
+            timezone = request.POST.get('timezone', 'America/Chicago')
+            if timezone in [choice[0] for choice in profile.TIMEZONE_CHOICES]:
+                profile.timezone = timezone
+            
             # Handle notification preferences
             profile.notifications_enabled = 'notifications_enabled' in request.POST
             profile.email_notifications = 'email_notifications' in request.POST
@@ -550,6 +555,7 @@ def profile_view(request):
         'user': request.user,
         'sites': sites,
         'locations': locations,
+        'timezone_choices': profile.TIMEZONE_CHOICES,
     }
     return render(request, 'core/profile.html', context)
 

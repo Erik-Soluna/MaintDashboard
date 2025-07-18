@@ -345,8 +345,29 @@ class UserProfile(models.Model):
     theme_preference = models.CharField(
         max_length=10,
         choices=THEME_CHOICES,
-        default='dark',
+        default='light',
         help_text="User interface theme preference"
+    )
+    
+    # Timezone preference
+    TIMEZONE_CHOICES = [
+        ('America/Chicago', 'Central Time (CT)'),
+        ('America/New_York', 'Eastern Time (ET)'),
+        ('America/Denver', 'Mountain Time (MT)'),
+        ('America/Los_Angeles', 'Pacific Time (PT)'),
+        ('America/Anchorage', 'Alaska Time (AKT)'),
+        ('Pacific/Honolulu', 'Hawaii Time (HST)'),
+        ('UTC', 'UTC'),
+        ('Europe/London', 'London (GMT)'),
+        ('Europe/Paris', 'Paris (CET)'),
+        ('Asia/Tokyo', 'Tokyo (JST)'),
+        ('Australia/Sydney', 'Sydney (AEST)'),
+    ]
+    timezone = models.CharField(
+        max_length=50,
+        choices=TIMEZONE_CHOICES,
+        default='America/Chicago',
+        help_text="User's preferred timezone for displaying dates and times"
     )
 
     def __str__(self):
@@ -416,6 +437,26 @@ class UserProfile(models.Model):
     def can_manage_settings(self):
         """Check if user can manage settings."""
         return self.has_permission('settings.manage') or self.is_admin()
+    
+    def get_user_timezone(self):
+        """Get the user's preferred timezone."""
+        return self.timezone or 'America/Chicago'
+    
+    def convert_to_user_timezone(self, datetime_obj):
+        """Convert a datetime object to the user's preferred timezone."""
+        from django.utils import timezone
+        import pytz
+        
+        if not datetime_obj:
+            return None
+        
+        # If the datetime is naive (no timezone), assume it's in UTC
+        if timezone.is_naive(datetime_obj):
+            datetime_obj = timezone.make_aware(datetime_obj, pytz.UTC)
+        
+        # Convert to user's timezone
+        user_tz = pytz.timezone(self.get_user_timezone())
+        return datetime_obj.astimezone(user_tz)
 
     class Meta:
         verbose_name = "User Profile"

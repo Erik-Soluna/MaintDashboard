@@ -391,6 +391,18 @@
                         </div>
 
                         <div class="form-group">
+                            <label class="form-label">Timezone</label>
+                            <select name="timezone" class="form-select">
+                                {% for value, label in timezone_choices %}
+                                    <option value="{{ value }}" {% if user.userprofile.timezone == value %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Timezone for displaying dates and times</small>
+                        </div>
+
+                        <div class="form-group">
                             <label class="form-label">Notification Settings</label>
                             
                             <div class="form-check">
