@@ -295,6 +295,9 @@
                 <form method="post" id="webhook-config-form">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="save_config">
+                    <!-- Fake fields to prevent autofill -->
+                    <input type="text" name="fake_username" style="display:none;" autocomplete="username">
+                    <input type="password" name="fake_password" style="display:none;" autocomplete="current-password">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
@@ -315,21 +318,21 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label class="form-label">Portainer Username (Optional)</label>
-                                <input type="text" name="portainer_user" class="form-control" value="{{ portainer_user }}" placeholder="your-username">
+                                <input type="text" name="portainer_user" class="form-control" value="{{ portainer_user }}" placeholder="your-username" autocomplete="off" data-form-type="other">
                                 <div class="info-text">Only needed for API testing and manual updates</div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label class="form-label">Portainer Password (Optional)</label>
-                                <input type="password" name="portainer_password" class="form-control" value="{{ portainer_password }}" placeholder="your-password">
+                                <input type="password" name="portainer_password" class="form-control" value="{{ portainer_password }}" placeholder="your-password" autocomplete="new-password" data-form-type="other">
                                 <div class="info-text">Only needed for API testing and manual updates</div>
                             </div>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Webhook Secret (Optional)</label>
-                        <input type="password" name="webhook_secret" class="form-control" value="{{ webhook_secret }}" placeholder="your-webhook-secret">
+                        <input type="password" name="webhook_secret" class="form-control" value="{{ webhook_secret }}" placeholder="your-webhook-secret" autocomplete="new-password" data-form-type="other">
                         <div class="info-text">Optional secret for additional webhook security (not required by Portainer)</div>
                     </div>
                     <div class="settings-actions">
@@ -423,7 +426,7 @@ curl -X POST {{ webhook_url }} \<br>
 
 {% block extra_js %}
 <script>
-// Ensure form fields are editable
+// Ensure form fields are editable and prevent autofill
 document.addEventListener('DOMContentLoaded', function() {
     const formFields = document.querySelectorAll('#webhook-config-form input[type="text"], #webhook-config-form input[type="password"]');
     formFields.forEach(field => {
@@ -435,7 +438,16 @@ document.addEventListener('DOMContentLoaded', function() {
         field.style.pointerEvents = 'auto';
         field.style.userSelect = 'auto';
         
-        console.log('Field enabled:', field.name, field.type);
+        // Additional autofill prevention
+        field.setAttribute('autocomplete', 'off');
+        field.setAttribute('data-form-type', 'other');
+        
+        // For password fields, use new-password to prevent autofill
+        if (field.type === 'password') {
+            field.setAttribute('autocomplete', 'new-password');
+        }
+        
+        console.log('Field enabled:', field.name, field.type, 'autocomplete:', field.getAttribute('autocomplete'));
     });
     
     // Add form submission debugging
