@@ -3780,6 +3780,7 @@ def webhook_settings(request):
 
 def trigger_portainer_stack_update():
     """Trigger a stack update via Portainer API."""
+    logger.info("=== TRIGGER PORTAINER STACK UPDATE STARTED ===")
     try:
         from .models import PortainerConfig
         config = PortainerConfig.get_config()
@@ -3789,43 +3790,60 @@ def trigger_portainer_stack_update():
         portainer_pass = config.portainer_password
         stack_name = config.stack_name
         
+        logger.info(f"Config loaded - URL: '{portainer_url}', User: '{portainer_user}', Stack: '{stack_name}'")
+        logger.info(f"Password exists: {bool(portainer_pass)}")
+        
         if not all([portainer_url, portainer_user, portainer_pass, stack_name]):
+            logger.error("Configuration incomplete - missing required fields")
             return 'Configuration incomplete'
         
         # Get authentication token
+        logger.info(f"Attempting authentication to: {portainer_url}/api/auth")
         auth_response = requests.post(
             f"{portainer_url}/api/auth",
             json={'Username': portainer_user, 'Password': portainer_pass},
             timeout=10
         )
         
+        logger.info(f"Auth response status: {auth_response.status_code}")
         if auth_response.status_code != 200:
+            logger.error(f"Authentication failed with status: {auth_response.status_code}")
             return f'Authentication failed: {auth_response.status_code}'
         
         token = auth_response.json().get('jwt')
         if not token:
+            logger.error("No authentication token received in response")
             return 'No authentication token received'
+        
+        logger.info("Authentication successful, token received")
         
         # Get stack ID
         headers = {'Authorization': f'Bearer {token}'}
+        logger.info(f"Fetching stacks from: {portainer_url}/api/stacks")
         stacks_response = requests.get(
             f"{portainer_url}/api/stacks",
             headers=headers,
             timeout=10
         )
         
+        logger.info(f"Stacks response status: {stacks_response.status_code}")
         if stacks_response.status_code != 200:
+            logger.error(f"Failed to get stacks with status: {stacks_response.status_code}")
             return f'Failed to get stacks: {stacks_response.status_code}'
         
         stacks = stacks_response.json()
+        logger.info(f"Found {len(stacks)} stacks")
         stack_id = None
         
         for stack in stacks:
+            logger.info(f"Checking stack: {stack.get('Name')} vs {stack_name}")
             if stack.get('Name') == stack_name:
                 stack_id = stack.get('Id')
+                logger.info(f"Found matching stack with ID: {stack_id}")
                 break
         
         if not stack_id:
+            logger.error(f"Stack '{stack_name}' not found in available stacks")
             return f'Stack "{stack_name}" not found'
         
         # Update the stack
@@ -3836,19 +3854,27 @@ def trigger_portainer_stack_update():
             timeout=30
         )
         
+        logger.info(f"Update response status: {update_response.status_code}")
         if update_response.status_code == 200:
+            logger.info("Stack update successful")
             return 'Stack updated successfully'
         else:
+            logger.error(f"Stack update failed with status: {update_response.status_code}")
             return f'Update failed: {update_response.status_code}'
             
     except requests.exceptions.RequestException as e:
+        logger.error(f"Network error in stack update: {str(e)}")
         return f'Network error: {str(e)}'
     except Exception as e:
+        logger.error(f"Unexpected error in stack update: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return f'Error: {str(e)}'
 
 
 def test_portainer_connection():
     """Test connection to Portainer API."""
+    logger.info("=== TEST PORTAINER CONNECTION STARTED ===")
     try:
         from .models import PortainerConfig
         config = PortainerConfig.get_config()
@@ -3857,22 +3883,34 @@ def test_portainer_connection():
         portainer_user = config.portainer_user
         portainer_pass = config.portainer_password
         
+        logger.info(f"Config loaded - URL: '{portainer_url}', User: '{portainer_user}'")
+        logger.info(f"Password exists: {bool(portainer_pass)}")
+        
         if not all([portainer_url, portainer_user, portainer_pass]):
+            logger.error("Configuration incomplete - missing required fields")
             return 'Configuration incomplete'
         
         # Test authentication
+        logger.info(f"Attempting authentication to: {portainer_url}/api/auth")
         auth_response = requests.post(
             f"{portainer_url}/api/auth",
             json={'Username': portainer_user, 'Password': portainer_pass},
             timeout=10
         )
         
+        logger.info(f"Auth response status: {auth_response.status_code}")
         if auth_response.status_code == 200:
+            logger.info("Connection test successful")
             return 'Connection successful'
         else:
+            logger.error(f"Authentication failed with status: {auth_response.status_code}")
             return f'Authentication failed: {auth_response.status_code}'
             
     except requests.exceptions.RequestException as e:
+        logger.error(f"Network error in test connection: {str(e)}")
         return f'Network error: {str(e)}'
     except Exception as e:
+        logger.error(f"Unexpected error in test connection: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return f'Error: {str(e)}'
