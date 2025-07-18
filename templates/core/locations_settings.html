@@ -71,6 +71,7 @@
 .site-locations {
     padding: 0;
     max-height: none;
+    display: none;
 }
 
 .empty-locations {
@@ -323,7 +324,7 @@
             <div class="site-info">
                 <h4>
                     <button class="btn btn-link btn-sm p-0 me-2 toggle-site-locations" data-site-id="{{ site.id }}" aria-label="Toggle Locations" style="color: #e2e8f0; vertical-align: middle;">
-                        <i class="fas fa-chevron-down" id="chevron-site-{{ site.id }}"></i>
+                        <i class="fas fa-chevron-right" id="chevron-site-{{ site.id }}"></i>
                     </button>
                     <i class="fas fa-building me-2"></i>
                     {{ site.name }}
