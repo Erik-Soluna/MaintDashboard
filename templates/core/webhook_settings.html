@@ -302,14 +302,14 @@
                         <div class="col-md-6">
                                             <div class="form-group">
                     <label class="form-label">Portainer Webhook URL</label>
-                    <input type="text" name="portainer_url" class="form-control {% if portainer_url %}has-value{% endif %}" value="{{ portainer_url }}" placeholder="https://portainer.errorlog.app/api/stacks/webhooks/...">
+                    <input type="text" name="portainer_url" class="form-control {% if portainer_url %}has-value{% endif %}" value="{{ portainer_url }}" placeholder="https://portainer.errorlog.app/api/stacks/webhooks/..." autocomplete="off" data-form-type="other">
                     <div class="info-text">The webhook URL provided by Portainer (e.g., https://portainer.errorlog.app/api/stacks/webhooks/904dc369-2641-4e74-8fe5-d1df2f6f4088)</div>
                 </div>
                         </div>
                         <div class="col-md-6">
                                             <div class="form-group">
                     <label class="form-label">Stack Name (Optional)</label>
-                    <input type="text" name="stack_name" class="form-control {% if stack_name %}has-value{% endif %}" value="{{ stack_name }}" placeholder="your-stack-name">
+                    <input type="text" name="stack_name" class="form-control {% if stack_name %}has-value{% endif %}" value="{{ stack_name }}" placeholder="your-stack-name" autocomplete="off" data-form-type="other">
                     <div class="info-text">The name of your Docker stack (for reference only, not used for webhook calls)</div>
                 </div>
                         </div>
