@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Webhook Settings - Maintenance Dashboard{% endblock %}
+{% block title %}Portainer Integration - Maintenance Dashboard{% endblock %}
 
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{% url 'core:settings' %}">Settings</a></li>
-<li class="breadcrumb-item active">Webhooks</li>
+<li class="breadcrumb-item active">Portainer Integration</li>
 {% endblock %}
 
 {% block extra_css %}
@@ -231,47 +231,20 @@
 <div class="webhook-container">
     <div class="page-header mb-4">
         <h2 class="mb-0">
-            <i class="fas fa-link me-2"></i>
-            Webhook Settings
+            <i class="fas fa-sync-alt me-2"></i>
+            Portainer Integration
         </h2>
         <p class="text-muted mb-0">Configure your Django app to connect to Portainer and trigger stack updates</p>
     </div>
 
-    <!-- Webhook URL Card -->
-    <div class="webhook-card">
-        <div class="webhook-card-header">
-            <h5>
-                <i class="fas fa-globe me-2"></i>
-                Webhook URL
-            </h5>
-        </div>
-        <div class="webhook-card-body">
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>
-                This is your Django app's webhook endpoint. Portainer will call this URL to trigger updates in your Django app.
-            </div>
-            
-            <div class="webhook-url-display">
-                {{ webhook_url }}
-                <button class="copy-btn" onclick="copyToClipboard('{{ webhook_url }}')">
-                    <i class="fas fa-copy"></i> Copy
-                </button>
-            </div>
-            
-            <div class="alert alert-warning">
-                <i class="fas fa-shield-alt me-2"></i>
-                <strong>Security:</strong> This webhook is protected with HMAC signature verification. 
-                Make sure to configure the same secret in your Portainer webhook settings.
-            </div>
-        </div>
-    </div>
+
 
     <!-- Configuration Card -->
     <div class="webhook-card">
         <div class="webhook-card-header">
             <h5>
                 <i class="fas fa-cog me-2"></i>
-                Portainer Configuration
+                Portainer Connection Settings
             </h5>
         </div>
         <div class="webhook-card-body">

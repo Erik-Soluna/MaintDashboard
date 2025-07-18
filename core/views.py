@@ -3582,37 +3582,7 @@ def reset_rbac(request):
             'details': error_details
         }, status=500)
 
-@csrf_exempt
-@require_http_methods(["POST"])
-def webhook_handler(request):
-    """Handle incoming webhook requests for stack updates."""
-    try:
-        # Validate the signature
-        signature = request.headers.get('X-Portainer-Signature')
-        if not signature:
-            return JsonResponse({'error': 'Signature missing'}, status=400)
-        
-        # Verify the signature
-        secret = getattr(settings, 'PORTAINER_WEBHOOK_SECRET', 'default-secret')
-        hmac_object = hmac.new(secret.encode(), request.body, hashlib.sha256)
-        if not hmac.compare_digest(signature, hmac_object.hexdigest()):
-            return JsonResponse({'error': 'Invalid signature'}, status=400)
-        
-        # Process the webhook
-        data = json.loads(request.body)
-        logger.info(f"Received webhook: {data}")
-        
-        # Trigger stack update
-        update_result = trigger_portainer_stack_update()
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Stack update triggered',
-            'update_result': update_result
-        })
-    except Exception as e:
-        logger.error(f"Error handling webhook: {str(e)}")
-        return JsonResponse({'error': 'An error occurred while processing the webhook'}, status=500)
+
 
 
 @login_required
@@ -3678,9 +3648,6 @@ def webhook_settings(request):
         
         return redirect('core:webhook_settings')
     
-    # Get current webhook configuration
-    webhook_url = request.build_absolute_uri(reverse('core:webhook_handler'))
-    
     # Mask sensitive data for display
     portainer_user = getattr(settings, 'PORTAINER_USER', '')
     portainer_password = getattr(settings, 'PORTAINER_PASSWORD', '')
@@ -3695,7 +3662,6 @@ def webhook_settings(request):
         webhook_secret = webhook_secret[:4] + '*' * (len(webhook_secret) - 4) if len(webhook_secret) > 4 else '****'
     
     context = {
-        'webhook_url': webhook_url,
         'portainer_url': getattr(settings, 'PORTAINER_URL', ''),
         'portainer_user': portainer_user,
         'portainer_password': portainer_password,
