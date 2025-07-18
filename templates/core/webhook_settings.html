@@ -294,6 +294,7 @@
                 
                 <form method="post" id="webhook-config-form">
                     {% csrf_token %}
+                    <input type="hidden" name="action" value="save_config">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
@@ -332,7 +333,7 @@
                         <div class="info-text">Optional secret for additional webhook security (not required by Portainer)</div>
                     </div>
                     <div class="settings-actions">
-                        <button type="submit" name="action" value="save_config" class="btn-webhook primary">
+                        <button type="submit" class="btn-webhook primary">
                             <i class="fas fa-save"></i>
                             Save Configuration
                         </button>
@@ -436,6 +437,48 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log('Field enabled:', field.name, field.type);
     });
+    
+    // Add form submission debugging
+    const form = document.getElementById('webhook-config-form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            console.log('=== FORM SUBMISSION DEBUG ===');
+            console.log('Form submitted!');
+            console.log('Form action:', form.action);
+            console.log('Form method:', form.method);
+            
+            // Log all form data
+            const formData = new FormData(form);
+            console.log('Form data:');
+            for (let [key, value] of formData.entries()) {
+                console.log(`  ${key}: ${value}`);
+            }
+            
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                submitBtn.disabled = true;
+                
+                // Re-enable after 5 seconds in case of issues
+                setTimeout(() => {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }, 5000);
+            }
+        });
+    }
+    
+    // Add button click debugging
+    const saveBtn = document.querySelector('#webhook-config-form button[type="submit"]');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function(e) {
+            console.log('Save button clicked!');
+            console.log('Button type:', this.type);
+            console.log('Form action field value:', form.querySelector('input[name="action"]').value);
+        });
+    }
 });
 
 function copyToClipboard(text) {

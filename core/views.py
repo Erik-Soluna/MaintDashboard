@@ -3584,58 +3584,88 @@ def reset_rbac(request):
         }, status=500)
 
 
-
-
 @login_required
 @user_passes_test(is_staff_or_superuser)
 def webhook_settings(request):
     """Webhook management settings page."""
     from .models import PortainerConfig
     
+    # Add comprehensive debugging
+    logger.info(f"=== WEBHOOK SETTINGS DEBUG ===")
+    logger.info(f"Request method: {request.method}")
+    logger.info(f"Request POST data: {dict(request.POST)}")
+    
     if request.method == 'POST':
         action = request.POST.get('action')
+        logger.info(f"Action received: {action}")
         
         if action == 'save_config':
+            logger.info("=== SAVE CONFIG ACTION STARTED ===")
             # Save configuration to database
             try:
                 config = PortainerConfig.get_config()
+                logger.info(f"Retrieved config object: {config}")
+                logger.info(f"Current config - URL: '{config.portainer_url}', Stack: '{config.stack_name}'")
                 
                 # Handle sensitive fields - only update if user provides new values
                 portainer_user = request.POST.get('portainer_user', '')
                 portainer_password = request.POST.get('portainer_password', '')
                 webhook_secret = request.POST.get('webhook_secret', '')
+                portainer_url = request.POST.get('portainer_url', '')
+                stack_name = request.POST.get('stack_name', '')
+                
+                logger.info(f"Form data received:")
+                logger.info(f"  URL: '{portainer_url}'")
+                logger.info(f"  Stack: '{stack_name}'")
+                logger.info(f"  User: '{portainer_user[:3]}***' if exists")
+                logger.info(f"  Password: '***' if exists")
+                logger.info(f"  Secret: '{webhook_secret[:4]}***' if exists")
                 
                 # If user enters masked values (like "***"), keep current values
                 if portainer_user and not portainer_user.startswith('***'):
                     config.portainer_user = portainer_user
+                    logger.info("Updated portainer_user")
                 elif not portainer_user:
                     config.portainer_user = ''  # Allow clearing
+                    logger.info("Cleared portainer_user")
                     
                 if portainer_password and not portainer_password.startswith('*'):
                     config.portainer_password = portainer_password
+                    logger.info("Updated portainer_password")
                 elif not portainer_password:
                     config.portainer_password = ''  # Allow clearing
+                    logger.info("Cleared portainer_password")
                     
                 if webhook_secret and not webhook_secret.startswith('****'):
                     config.webhook_secret = webhook_secret
+                    logger.info("Updated webhook_secret")
                 elif not webhook_secret:
                     config.webhook_secret = ''  # Allow clearing
+                    logger.info("Cleared webhook_secret")
                 
                 # Update non-sensitive fields
-                config.portainer_url = request.POST.get('portainer_url', '')
-                config.stack_name = request.POST.get('stack_name', '')
+                config.portainer_url = portainer_url
+                config.stack_name = stack_name
+                logger.info(f"Updated URL to: '{config.portainer_url}'")
+                logger.info(f"Updated Stack to: '{config.stack_name}'")
                 
                 # Validate required fields
                 if not config.portainer_url:
+                    logger.error("Validation failed: Portainer URL is required")
                     messages.error(request, 'Portainer URL is required. Please enter a valid URL.')
                     return redirect('core:webhook_settings')
                 
                 if not config.stack_name:
+                    logger.error("Validation failed: Stack Name is required")
                     messages.error(request, 'Stack Name is required. Please enter your stack name.')
                     return redirect('core:webhook_settings')
                 
+                logger.info("Validation passed, attempting to save...")
+                
                 # Save to database
                 config.save()
+                logger.info(f"=== SAVE SUCCESSFUL ===")
+                logger.info(f"Saved config - URL: '{config.portainer_url}', Stack: '{config.stack_name}'")
                 
                 # Show what was saved
                 saved_items = []
@@ -3650,13 +3680,20 @@ def webhook_settings(request):
                 if config.webhook_secret:
                     saved_items.append(f"Secret: {config.webhook_secret[:4]}****")
                 
-                messages.success(request, f'Configuration saved successfully! Saved: {", ".join(saved_items)}')
+                success_message = f'Configuration saved successfully! Saved: {", ".join(saved_items)}'
+                logger.info(f"Success message: {success_message}")
+                messages.success(request, success_message)
                     
             except Exception as e:
+                logger.error(f"=== SAVE ERROR ===")
                 logger.error(f"Error saving webhook config: {str(e)}")
+                logger.error(f"Exception type: {type(e).__name__}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
                 messages.error(request, f'Error saving configuration: {str(e)}')
                 
         elif action == 'test_webhook':
+            logger.info("=== TEST WEBHOOK ACTION ===")
             # Test the webhook configuration
             try:
                 config = PortainerConfig.get_config()
@@ -3676,6 +3713,7 @@ def webhook_settings(request):
                 messages.error(request, f'❌ Connection test error: {str(e)}')
                 
         elif action == 'update_stack':
+            logger.info("=== UPDATE STACK ACTION ===")
             # Manually trigger stack update
             try:
                 config = PortainerConfig.get_config()
@@ -3698,6 +3736,10 @@ def webhook_settings(request):
     
     # Get configuration from database
     config = PortainerConfig.get_config()
+    logger.info(f"=== LOADING CONFIG FOR DISPLAY ===")
+    logger.info(f"Config object: {config}")
+    logger.info(f"Config URL: '{config.portainer_url}'")
+    logger.info(f"Config Stack: '{config.stack_name}'")
     
     # Mask sensitive data for display
     portainer_user = config.portainer_user
@@ -3729,6 +3771,9 @@ def webhook_settings(request):
             'secret_exists': bool(config.webhook_secret),
         }
     }
+    
+    logger.info(f"=== RENDERING TEMPLATE ===")
+    logger.info(f"Context debug_info: {context['debug_info']}")
     
     return render(request, 'core/webhook_settings.html', context)
 
@@ -3800,9 +3845,6 @@ def trigger_portainer_stack_update():
         return f'Network error: {str(e)}'
     except Exception as e:
         return f'Error: {str(e)}'
-
-
-
 
 
 def test_portainer_connection():
