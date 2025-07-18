@@ -603,7 +603,11 @@ def import_equipment_csv(request):
                     # Get or create location
                     location, created = Location.objects.get_or_create(
                         name=location_name,
-                        defaults={'created_by': request.user}
+                        defaults={
+                            'created_by': request.user,
+                            'is_active': True,
+                            'is_site': False
+                        }
                     )
                     
                     # Check if equipment already exists

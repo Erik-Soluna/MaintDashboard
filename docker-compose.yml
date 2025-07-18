@@ -114,7 +114,8 @@ services:
   celery:
     build: .
     container_name: maintenance_celery
-    entrypoint: ["./scripts/celery/start_celery.sh"]
+    entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
+    command: ["celery"]
     volumes:
       - .:/app
       - media_volume:/app/media
@@ -154,7 +155,7 @@ services:
   celery-beat:
     build: .
     container_name: maintenance_celery_beat
-    entrypoint: ["./scripts/celery/start_celery_beat.sh"]
+    entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["celery-beat"]
     volumes:
       - .:/app

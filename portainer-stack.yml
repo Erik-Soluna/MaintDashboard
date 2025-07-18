@@ -55,11 +55,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: maintenance_web_prod
-    command: >
-      sh -c "/app/scripts/database/ensure-database.sh &&
-             python manage.py init_database --admin-username ${ADMIN_USERNAME:-admin} --admin-email ${ADMIN_EMAIL:-admin@maintenance.errorlog.app} --admin-password ${ADMIN_PASSWORD:-SecureAdminPassword2024!} &&
-             python manage.py collectstatic --noinput &&
-             gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 --max-requests 1000 --max-requests-jitter 100 maintenance_dashboard.wsgi:application"
+    entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
+    command: ["web"]
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
@@ -143,8 +140,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: maintenance_celery_prod
-    command: >
-      sh -c "/app/scripts/celery/start_celery_prod.sh"
+    entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
+    command: ["celery"]
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY:-django-production-secret-key-change-this-immediately-2024}
@@ -188,8 +185,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: maintenance_celery_beat_prod
-    command: >
-      sh -c "/app/scripts/celery/start_celery_beat_prod.sh"
+    entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
+    command: ["celery-beat"]
     environment:
       - DEBUG=${DEBUG:-False}
       - SECRET_KEY=${SECRET_KEY:-django-production-secret-key-change-this-immediately-2024}

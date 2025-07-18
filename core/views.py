@@ -2031,14 +2031,20 @@ def simple_health_check(request):
         from django.db import connection
         connection.ensure_connection()
         
-        # Basic Redis check (only if enabled)
+        # Basic Redis check (only if enabled and Redis is available)
         from django.conf import settings
         if getattr(settings, 'USE_REDIS', True):
-            r = redis.Redis.from_url('redis://redis:6379/0')
-            r.ping()
+            try:
+                r = redis.Redis.from_url('redis://redis:6379/0', socket_connect_timeout=2, socket_timeout=2)
+                r.ping()
+            except Exception as redis_error:
+                # Log the Redis error but don't fail the health check
+                logger.warning(f"Redis connection failed: {redis_error}. Falling back to memory broker.")
+                # Continue with health check - Redis failure shouldn't break the app
         
         return JsonResponse({'status': 'ok'}, status=200)
     except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
         return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 

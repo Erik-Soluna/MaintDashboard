@@ -211,7 +211,7 @@ if not DEBUG:
     X_FRAME_OPTIONS = 'DENY'
 
 # Celery Configuration
-# Try to use Redis, fall back to database if Redis is not available
+# Redis configuration for Docker environment
 REDIS_HOST = config('REDIS_HOST', default='redis')
 REDIS_PORT = config('REDIS_PORT', default='6379')
 REDIS_PASSWORD = config('REDIS_PASSWORD', default='')
