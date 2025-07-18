@@ -198,7 +198,8 @@ run_database_initialization() {
         if python manage.py init_database \
             --admin-username "${ADMIN_USERNAME:-admin}" \
             --admin-email "${ADMIN_EMAIL:-admin@maintenance.local}" \
-            --admin-password "${ADMIN_PASSWORD:-temppass123}"; then
+            --admin-password "${ADMIN_PASSWORD:-temppass123}" \
+            ${FORCE_INIT_DATA:+--force}; then
             print_success "Database initialization completed successfully!"
             return 0
         else

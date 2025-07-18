@@ -23,21 +23,23 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             '--admin-username',
-            type=str,
             default='admin',
-            help='Username for the admin user (default: admin)'
+            help='Admin username (default: admin)'
         )
         parser.add_argument(
             '--admin-email',
-            type=str,
             default='admin@maintenance.local',
-            help='Email for the admin user (default: admin@maintenance.local)'
+            help='Admin email (default: admin@maintenance.local)'
         )
         parser.add_argument(
             '--admin-password',
-            type=str,
             default='temppass123',
-            help='Temporary password for admin user (default: temppass123)'
+            help='Admin password (default: temppass123)'
+        )
+        parser.add_argument(
+            '--force',
+            action='store_true',
+            help='Force recreation of initial data even if it already exists'
         )
         parser.add_argument(
             '--skip-migrations',
@@ -75,9 +77,8 @@ class Command(BaseCommand):
                         password=options['admin_password']
                     )
 
-                # Step 3: Create initial data
-                if not options['skip_sample_data']:
-                    self._create_initial_data()
+                # Create initial data
+                self._create_initial_data(options.get('force', False))
 
             self.stdout.write(
                 self.style.SUCCESS('\n✅ Database initialization completed successfully!')
@@ -200,96 +201,114 @@ class Command(BaseCommand):
         except Exception as e:
             raise CommandError(f'Admin user creation failed: {str(e)}')
 
-    def _create_initial_data(self):
+    def _create_initial_data(self, force=False):
         """Create initial data like categories and locations."""
         self.stdout.write('🏗️  Creating initial data...')
         
         try:
-            # Create default equipment categories
-            categories = [
-                {
-                    'name': 'Transformers',
-                    'description': 'Power transformers and distribution transformers'
-                },
-                {
-                    'name': 'Switchgear',
-                    'description': 'Circuit breakers, switches, and protective devices'
-                },
-                {
-                    'name': 'Motors',
-                    'description': 'Electric motors and drives'
-                },
-                {
-                    'name': 'Generators',
-                    'description': 'Emergency generators and backup power systems'
-                },
-                {
-                    'name': 'HVAC',
-                    'description': 'Heating, ventilation, and air conditioning systems'
-                },
-            ]
-
-            for cat_data in categories:
-                category, created = EquipmentCategory.objects.get_or_create(
-                    name=cat_data['name'],
-                    defaults={'description': cat_data['description']}
+            # Check if data already exists
+            existing_categories = EquipmentCategory.objects.count()
+            existing_locations = Location.objects.count()
+            
+            if existing_categories > 0 and existing_locations > 0 and not force:
+                self.stdout.write(
+                    self.style.WARNING(f'   ⚠️  Data already exists ({existing_categories} categories, {existing_locations} locations), skipping creation')
                 )
-                if created:
-                    self.stdout.write(f'     Created category: {category.name}')
+                return
+            
+            # Create default equipment categories only if none exist
+            if existing_categories == 0:
+                self.stdout.write('   Creating default equipment categories...')
+                categories = [
+                    {
+                        'name': 'Transformers',
+                        'description': 'Power transformers and distribution transformers'
+                    },
+                    {
+                        'name': 'Switchgear',
+                        'description': 'Circuit breakers, switches, and protective devices'
+                    },
+                    {
+                        'name': 'Motors',
+                        'description': 'Electric motors and drives'
+                    },
+                    {
+                        'name': 'Generators',
+                        'description': 'Emergency generators and backup power systems'
+                    },
+                    {
+                        'name': 'HVAC',
+                        'description': 'Heating, ventilation, and air conditioning systems'
+                    },
+                ]
 
-            # Create default locations
-            locations = [
-                {
-                    'name': 'Main Site',
-                    'is_site': True,
-                    'address': 'Main facility location',
-                    'parent_location': None
-                },
-                {
-                    'name': 'Building A',
-                    'is_site': False,
-                    'address': 'Main building',
-                    'parent_name': 'Main Site'
-                },
-                {
-                    'name': 'Building B',
-                    'is_site': False,
-                    'address': 'Secondary building',
-                    'parent_name': 'Main Site'
-                },
-                {
-                    'name': 'Electrical Room',
-                    'is_site': False,
-                    'address': 'Main electrical distribution room',
-                    'parent_name': 'Building A'
-                },
-            ]
+                for cat_data in categories:
+                    category, created = EquipmentCategory.objects.get_or_create(
+                        name=cat_data['name'],
+                        defaults={'description': cat_data['description']}
+                    )
+                    if created:
+                        self.stdout.write(f'     Created category: {category.name}')
+            else:
+                self.stdout.write('   ⚠️  Equipment categories already exist, skipping...')
 
-            created_locations = {}
-            for loc_data in locations:
-                parent_location = None
-                if loc_data.get('parent_name'):
-                    parent_location = created_locations.get(loc_data['parent_name'])
-                    if not parent_location:
-                        parent_location = Location.objects.filter(
-                            name=loc_data['parent_name']
-                        ).first()
+            # Create default locations only if none exist
+            if existing_locations == 0:
+                self.stdout.write('   Creating default locations...')
+                locations = [
+                    {
+                        'name': 'Main Site',
+                        'is_site': True,
+                        'address': 'Main facility location',
+                        'parent_location': None
+                    },
+                    {
+                        'name': 'Building A',
+                        'is_site': False,
+                        'address': 'Main building',
+                        'parent_name': 'Main Site'
+                    },
+                    {
+                        'name': 'Building B',
+                        'is_site': False,
+                        'address': 'Secondary building',
+                        'parent_name': 'Main Site'
+                    },
+                    {
+                        'name': 'Electrical Room',
+                        'is_site': False,
+                        'address': 'Main electrical distribution room',
+                        'parent_name': 'Building A'
+                    },
+                ]
 
-                location, created = Location.objects.get_or_create(
-                    name=loc_data['name'],
-                    defaults={
-                        'is_site': loc_data['is_site'],
-                        'address': loc_data['address'],
-                        'parent_location': parent_location
-                    }
-                )
-                created_locations[location.name] = location
-                
-                if created:
-                    self.stdout.write(f'     Created location: {location.get_full_path()}')
+                created_locations = {}
+                for loc_data in locations:
+                    parent_location = None
+                    if loc_data.get('parent_name'):
+                        parent_location = created_locations.get(loc_data['parent_name'])
+                        if not parent_location:
+                            parent_location = Location.objects.filter(
+                                name=loc_data['parent_name']
+                            ).first()
+
+                    location, created = Location.objects.get_or_create(
+                        name=loc_data['name'],
+                        defaults={
+                            'is_site': loc_data['is_site'],
+                            'address': loc_data['address'],
+                            'parent_location': parent_location
+                        }
+                    )
+                    created_locations[location.name] = location
+                    
+                    if created:
+                        self.stdout.write(f'     Created location: {location.get_full_path()}')
+            else:
+                self.stdout.write('   ⚠️  Locations already exist, skipping...')
 
             self.stdout.write(
-                self.style.SUCCESS('   ✅ Initial data created successfully')
+                self.style.SUCCESS('   ✅ Initial data creation completed')
             )
 
         except Exception as e:
