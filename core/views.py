@@ -3613,10 +3613,12 @@ def webhook_settings(request):
                 webhook_secret = request.POST.get('webhook_secret', '')
                 portainer_url = request.POST.get('portainer_url', '')
                 stack_name = request.POST.get('stack_name', '')
+                image_tag = request.POST.get('image_tag', 'latest')
                 
                 logger.info(f"Form data received:")
                 logger.info(f"  URL: '{portainer_url}'")
                 logger.info(f"  Stack: '{stack_name}'")
+                logger.info(f"  Image Tag: '{image_tag}'")
                 logger.info(f"  User: '{portainer_user[:3]}***' if exists")
                 logger.info(f"  Password: '***' if exists")
                 logger.info(f"  Secret: '{webhook_secret[:4]}***' if exists")
@@ -3646,8 +3648,10 @@ def webhook_settings(request):
                 # Update non-sensitive fields
                 config.portainer_url = portainer_url
                 config.stack_name = stack_name
+                config.image_tag = image_tag
                 logger.info(f"Updated URL to: '{config.portainer_url}'")
                 logger.info(f"Updated Stack to: '{config.stack_name}'")
+                logger.info(f"Updated Image Tag to: '{config.image_tag}'")
                 
                 # Validate required fields
                 if not config.portainer_url:
@@ -3674,6 +3678,8 @@ def webhook_settings(request):
                     saved_items.append(f"Portainer URL: {config.portainer_url}")
                 if config.stack_name:
                     saved_items.append(f"Stack Name: {config.stack_name}")
+                if config.image_tag:
+                    saved_items.append(f"Image Tag: {config.image_tag}")
                 if config.portainer_user:
                     saved_items.append(f"Username: {config.portainer_user[:3]}***")
                 if config.portainer_password:
@@ -3806,10 +3812,12 @@ def webhook_settings(request):
         'portainer_user': portainer_user,
         'portainer_password': portainer_password,
         'stack_name': config.stack_name,
+        'image_tag': config.image_tag,
         'webhook_secret': webhook_secret,
         'debug_info': {
             'url_exists': bool(config.portainer_url),
             'stack_exists': bool(config.stack_name),
+            'tag_exists': bool(config.image_tag),
             'user_exists': bool(config.portainer_user),
             'password_exists': bool(config.portainer_password),
             'secret_exists': bool(config.webhook_secret),
@@ -3831,9 +3839,11 @@ def trigger_portainer_stack_update():
         
         webhook_url = config.portainer_url
         webhook_secret = config.webhook_secret
+        image_tag = config.image_tag or 'latest'  # Default to 'latest' if not specified
         
         logger.info(f"Config loaded - Webhook URL: '{webhook_url}'")
         logger.info(f"Webhook secret exists: {bool(webhook_secret)}")
+        logger.info(f"Image tag: '{image_tag}'")
         
         if not webhook_url:
             logger.error("Configuration incomplete - missing webhook URL")
@@ -3845,10 +3855,12 @@ def trigger_portainer_stack_update():
             headers['X-Webhook-Secret'] = webhook_secret
             logger.info("Added webhook secret to headers")
         
-        # Call the webhook URL to trigger stack update
-        logger.info(f"Calling webhook URL: {webhook_url}")
+        # Build webhook URL with tag parameter
+        webhook_url_with_tag = f"{webhook_url}?tag={image_tag}"
+        logger.info(f"Calling webhook URL with tag: {webhook_url_with_tag}")
+        
         webhook_response = requests.post(
-            webhook_url,
+            webhook_url_with_tag,
             headers=headers,
             json={'action': 'update_stack', 'timestamp': time.time()},
             timeout=30

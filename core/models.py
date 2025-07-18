@@ -527,11 +527,12 @@ class PlaywrightDebugLog(models.Model):
 
 class PortainerConfig(models.Model):
     """Configuration for Portainer integration."""
-    portainer_url = models.URLField(max_length=500, blank=True, help_text="Portainer instance URL (e.g., http://portainer:9000)")
+    portainer_url = models.URLField(max_length=500, blank=True, help_text="Portainer webhook URL (e.g., https://portainer:9000/api/stacks/webhooks/...)")
     portainer_user = models.CharField(max_length=100, blank=True, help_text="Portainer username for API access")
     portainer_password = models.CharField(max_length=255, blank=True, help_text="Portainer password for API access")
     stack_name = models.CharField(max_length=100, blank=True, help_text="Docker stack name in Portainer")
     webhook_secret = models.CharField(max_length=255, blank=True, help_text="Optional webhook secret for security")
+    image_tag = models.CharField(max_length=50, blank=True, default='latest', help_text="Docker image tag to use for updates (e.g., latest, main, v1.0)")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
