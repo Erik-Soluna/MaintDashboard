@@ -209,6 +209,21 @@
 .copy-btn:hover {
     background: var(--bs-primary);
 }
+
+.settings-actions {
+    padding: 15px 0;
+    border-top: 1px solid var(--bs-secondary);
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.info-text {
+    color: var(--bs-secondary);
+    font-size: 12px;
+    margin-top: 5px;
+    font-style: italic;
+}
 </style>
 {% endblock %}
 
@@ -261,21 +276,53 @@
         </div>
         <div class="webhook-card-body">
             <div class="webhook-config-section">
-                <h6>Current Settings</h6>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label">Portainer URL</label>
-                            <input type="text" class="form-control" value="{{ portainer_url }}" readonly>
+                <h6>Configuration Settings</h6>
+                <form method="post" id="webhook-config-form">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Portainer URL</label>
+                                <input type="text" name="portainer_url" class="form-control" value="{{ portainer_url }}" placeholder="http://your-portainer:9000">
+                                <div class="info-text">The URL of your Portainer instance</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Stack Name</label>
+                                <input type="text" name="stack_name" class="form-control" value="{{ stack_name }}" placeholder="your-stack-name">
+                                <div class="info-text">The name of the stack to update</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label class="form-label">Stack Name</label>
-                            <input type="text" class="form-control" value="{{ stack_name }}" readonly>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Portainer Username</label>
+                                <input type="text" name="portainer_user" class="form-control" value="{{ portainer_user }}" placeholder="your-username">
+                                <div class="info-text">Username for Portainer authentication</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label">Portainer Password</label>
+                                <input type="password" name="portainer_password" class="form-control" value="{{ portainer_password }}" placeholder="your-password">
+                                <div class="info-text">Password for Portainer authentication</div>
+                            </div>
                         </div>
                     </div>
-                </div>
+                    <div class="form-group">
+                        <label class="form-label">Webhook Secret</label>
+                        <input type="text" name="webhook_secret" class="form-control" value="{{ webhook_secret }}" placeholder="your-webhook-secret">
+                        <div class="info-text">Secret key for webhook signature verification</div>
+                    </div>
+                    <div class="settings-actions">
+                        <button type="submit" name="action" value="save_config" class="btn-webhook primary">
+                            <i class="fas fa-save"></i>
+                            Save Configuration
+                        </button>
+                    </div>
+                </form>
             </div>
 
             <div class="webhook-config-section">

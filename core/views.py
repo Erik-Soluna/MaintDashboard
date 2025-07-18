@@ -45,6 +45,7 @@ import asyncio
 from django.contrib.admin.views.decorators import staff_member_required
 import hmac
 import hashlib
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -3621,7 +3622,26 @@ def webhook_settings(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         
-        if action == 'test_webhook':
+        if action == 'save_config':
+            # Save configuration to environment file
+            try:
+                config_data = {
+                    'PORTAINER_URL': request.POST.get('portainer_url', ''),
+                    'PORTAINER_USER': request.POST.get('portainer_user', ''),
+                    'PORTAINER_PASSWORD': request.POST.get('portainer_password', ''),
+                    'PORTAINER_STACK_NAME': request.POST.get('stack_name', ''),
+                    'PORTAINER_WEBHOOK_SECRET': request.POST.get('webhook_secret', ''),
+                }
+                
+                # Save to environment file
+                env_file_path = os.path.join(settings.BASE_DIR, 'deployment', 'env.development')
+                save_webhook_config(env_file_path, config_data)
+                
+                messages.success(request, 'Webhook configuration saved successfully!')
+            except Exception as e:
+                messages.error(request, f'Error saving configuration: {str(e)}')
+                
+        elif action == 'test_webhook':
             # Test the webhook configuration
             result = test_portainer_connection()
             messages.success(request, f'Connection test: {result}')
@@ -3638,7 +3658,10 @@ def webhook_settings(request):
     context = {
         'webhook_url': webhook_url,
         'portainer_url': getattr(settings, 'PORTAINER_URL', ''),
+        'portainer_user': getattr(settings, 'PORTAINER_USER', ''),
+        'portainer_password': getattr(settings, 'PORTAINER_PASSWORD', ''),
         'stack_name': getattr(settings, 'PORTAINER_STACK_NAME', ''),
+        'webhook_secret': getattr(settings, 'PORTAINER_WEBHOOK_SECRET', ''),
     }
     
     return render(request, 'core/webhook_settings.html', context)
@@ -3708,6 +3731,53 @@ def trigger_portainer_stack_update():
         return f'Network error: {str(e)}'
     except Exception as e:
         return f'Error: {str(e)}'
+
+
+def save_webhook_config(env_file_path, config_data):
+    """Save webhook configuration to environment file."""
+    try:
+        # Read existing file
+        existing_lines = []
+        if os.path.exists(env_file_path):
+            with open(env_file_path, 'r') as f:
+                existing_lines = f.readlines()
+        
+        # Update or add configuration lines
+        config_keys = list(config_data.keys())
+        updated_lines = []
+        keys_to_add = config_keys.copy()
+        
+        for line in existing_lines:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                updated_lines.append(line)
+                continue
+                
+            if '=' in line:
+                key = line.split('=')[0].strip()
+                if key in config_keys:
+                    # Update existing line
+                    updated_lines.append(f"{key}={config_data[key]}")
+                    keys_to_add.remove(key)
+                else:
+                    # Keep existing line
+                    updated_lines.append(line)
+            else:
+                updated_lines.append(line)
+        
+        # Add new configuration lines
+        for key in keys_to_add:
+            if config_data[key]:  # Only add non-empty values
+                updated_lines.append(f"{key}={config_data[key]}")
+        
+        # Write back to file
+        with open(env_file_path, 'w') as f:
+            f.write('\n'.join(updated_lines) + '\n')
+            
+        return True
+    except Exception as e:
+        logger.error(f"Error saving webhook config: {str(e)}")
+        raise e
 
 
 def test_portainer_connection():
