@@ -3652,13 +3652,14 @@ def webhook_settings(request):
                 # Validate required fields
                 if not config.portainer_url:
                     logger.error("Validation failed: Portainer URL is required")
-                    messages.error(request, 'Portainer URL is required. Please enter a valid URL.')
-                    return redirect('core:webhook_settings')
+                    error_message = 'Portainer URL is required. Please enter a valid URL.'
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'error', 'message': error_message})
+                    else:
+                        messages.error(request, error_message)
+                        return redirect('core:webhook_settings')
                 
-                if not config.stack_name:
-                    logger.error("Validation failed: Stack Name is required")
-                    messages.error(request, 'Stack Name is required. Please enter your stack name.')
-                    return redirect('core:webhook_settings')
+                # Stack name is optional, so no validation needed
                 
                 logger.info("Validation passed, attempting to save...")
                 
@@ -3682,7 +3683,11 @@ def webhook_settings(request):
                 
                 success_message = f'Configuration saved successfully! Saved: {", ".join(saved_items)}'
                 logger.info(f"Success message: {success_message}")
-                messages.success(request, success_message)
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'success', 'message': success_message})
+                else:
+                    messages.success(request, success_message)
                     
             except Exception as e:
                 logger.error(f"=== SAVE ERROR ===")
@@ -3690,7 +3695,12 @@ def webhook_settings(request):
                 logger.error(f"Exception type: {type(e).__name__}")
                 import traceback
                 logger.error(f"Traceback: {traceback.format_exc()}")
-                messages.error(request, f'Error saving configuration: {str(e)}')
+                error_message = f'Error saving configuration: {str(e)}'
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': error_message})
+                else:
+                    messages.error(request, error_message)
                 
         elif action == 'test_webhook':
             logger.info("=== TEST WEBHOOK ACTION ===")
