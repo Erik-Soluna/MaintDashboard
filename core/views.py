@@ -3857,7 +3857,7 @@ def trigger_portainer_stack_update():
         logger.info(f"Webhook response status: {webhook_response.status_code}")
         logger.info(f"Webhook response content: {webhook_response.text[:200]}...")
         
-        if webhook_response.status_code in [200, 202]:
+        if webhook_response.status_code in [200, 202, 204]:
             logger.info("Webhook call successful")
             return 'Stack update triggered successfully via webhook'
         else:
