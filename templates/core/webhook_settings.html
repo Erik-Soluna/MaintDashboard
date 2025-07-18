@@ -279,6 +279,19 @@
                 </div>
                 {% endif %}
                 
+                <!-- Debug Information (only show if no config detected) -->
+                {% if not portainer_url and not stack_name %}
+                <div class="alert alert-info mb-3">
+                    <i class="fas fa-bug me-2"></i>
+                    <strong>Debug Info:</strong> 
+                    URL exists: {{ debug_info.url_exists|yesno:"Yes,No" }} | 
+                    Stack exists: {{ debug_info.stack_exists|yesno:"Yes,No" }} | 
+                    User exists: {{ debug_info.user_exists|yesno:"Yes,No" }} | 
+                    Password exists: {{ debug_info.password_exists|yesno:"Yes,No" }} | 
+                    Secret exists: {{ debug_info.secret_exists|yesno:"Yes,No" }}
+                </div>
+                {% endif %}
+                
                 <form method="post" id="webhook-config-form">
                     {% csrf_token %}
                     <div class="row">

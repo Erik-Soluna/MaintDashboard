@@ -46,6 +46,7 @@ from django.contrib.admin.views.decorators import staff_member_required
 import hmac
 import hashlib
 import os
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -3657,6 +3658,9 @@ def webhook_settings(request):
                         saved_items.append(f"Secret: {config_data['PORTAINER_WEBHOOK_SECRET'][:4]}****")
                     
                     messages.success(request, f'Configuration saved successfully! Saved: {", ".join(saved_items)}')
+                    
+                    # Add a small delay to ensure file is written before redirect
+                    time.sleep(0.5)
                 else:
                     messages.error(request, 'Failed to save configuration. Please check file permissions.')
                     
@@ -3727,12 +3731,22 @@ def webhook_settings(request):
     if webhook_secret:
         webhook_secret = webhook_secret[:4] + '*' * (len(webhook_secret) - 4) if len(webhook_secret) > 4 else '****'
     
+    # Debug logging
+    logger.info(f"Portainer config loaded - URL: {portainer_url}, Stack: {stack_name}, User: {portainer_user[:3] if portainer_user else 'None'}***")
+    
     context = {
         'portainer_url': portainer_url,
         'portainer_user': portainer_user,
         'portainer_password': portainer_password,
         'stack_name': stack_name,
         'webhook_secret': webhook_secret,
+        'debug_info': {
+            'url_exists': bool(portainer_url),
+            'stack_exists': bool(stack_name),
+            'user_exists': bool(portainer_user),
+            'password_exists': bool(portainer_password),
+            'secret_exists': bool(webhook_secret),
+        }
     }
     
     return render(request, 'core/webhook_settings.html', context)
