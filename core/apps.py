@@ -60,12 +60,15 @@ class CoreConfig(AppConfig):
             # If using database cache, ensure cache table exists
             if 'django.core.cache.backends.db.DatabaseCache' in cache_backend:
                 try:
-                    # Test cache functionality
+                    # Test cache functionality (silent test)
                     test_key = 'startup_cache_test'
                     cache.set(test_key, 'test', 10)
                     cache.get(test_key)
                     cache.delete(test_key)
-                    logger.info("Cache functionality verified on startup")
+                    # Only log once per process to avoid repetition
+                    if not hasattr(self, '_startup_checks_done'):
+                        logger.debug("Cache functionality verified on startup")
+                        self._startup_checks_done = True
                 except Exception as e:
                     logger.warning(f"Cache table may be missing, attempting to create: {e}")
                     try:
@@ -74,7 +77,10 @@ class CoreConfig(AppConfig):
                     except Exception as create_error:
                         logger.error(f"Failed to create cache table on startup: {create_error}")
             
-            logger.info("Database tables check completed on startup")
+            # Only log once per process to avoid repetition
+            if not hasattr(self, '_startup_checks_done'):
+                logger.debug("Database tables check completed on startup")
+                self._startup_checks_done = True
             
         except Exception as e:
             # Don't fail the app startup if database check fails
