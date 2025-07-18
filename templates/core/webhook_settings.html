@@ -298,23 +298,23 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label class="form-label">Portainer Username</label>
+                                <label class="form-label">Portainer Username (Optional)</label>
                                 <input type="text" name="portainer_user" class="form-control" value="{{ portainer_user }}" placeholder="your-username">
-                                <div class="info-text">Username for Portainer authentication</div>
+                                <div class="info-text">Only needed for API testing and manual updates</div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label class="form-label">Portainer Password</label>
+                                <label class="form-label">Portainer Password (Optional)</label>
                                 <input type="password" name="portainer_password" class="form-control" value="{{ portainer_password }}" placeholder="your-password">
-                                <div class="info-text">Password for Portainer authentication</div>
+                                <div class="info-text">Only needed for API testing and manual updates</div>
                             </div>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Webhook Secret</label>
-                        <input type="text" name="webhook_secret" class="form-control" value="{{ webhook_secret }}" placeholder="your-webhook-secret">
-                        <div class="info-text">Secret key for webhook signature verification</div>
+                        <label class="form-label">Webhook Secret (Optional)</label>
+                        <input type="password" name="webhook_secret" class="form-control" value="{{ webhook_secret }}" placeholder="your-webhook-secret">
+                        <div class="info-text">Optional secret for additional webhook security (not required by Portainer)</div>
                     </div>
                     <div class="settings-actions">
                         <button type="submit" name="action" value="save_config" class="btn-webhook primary">
@@ -356,20 +356,25 @@
         </div>
         <div class="webhook-card-body">
             <div class="webhook-config-section">
-                <h6>Portainer Webhook Configuration</h6>
+                <h6>How Webhooks Work</h6>
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Important:</strong> Portainer provides webhook URLs that external systems can call to trigger updates. 
+                    Your Django app can call these URLs to update your stack.
+                </div>
+                
+                <h6>Using Portainer's Webhook URL</h6>
                 <ol>
-                    <li>Log into your Portainer instance</li>
-                    <li>Go to <strong>Settings > Webhooks</strong></li>
-                    <li>Click <strong>Add Webhook</strong></li>
-                    <li>Configure the webhook with these settings:</li>
+                    <li>In Portainer, go to your stack details</li>
+                    <li>Copy the webhook URL (like: <code>https://portainer.errorlo[...]1b-4be5-ac30-2a172d332b80</code>)</li>
+                    <li>Use this URL in your Django app to trigger stack updates</li>
                 </ol>
                 
                 <div class="code-block">
-                    <strong>Webhook URL:</strong> {{ webhook_url }}<br>
-                    <strong>HTTP Method:</strong> POST<br>
-                    <strong>Content Type:</strong> application/json<br>
-                    <strong>Secret:</strong> [Your configured secret]<br>
-                    <strong>Events:</strong> Stack Update, Image Update
+                    <strong>Example:</strong> Call Portainer's webhook URL to update your stack<br>
+                    <strong>URL:</strong> [Portainer's webhook URL]<br>
+                    <strong>Method:</strong> POST<br>
+                    <strong>No authentication required</strong> - Portainer webhook URLs are public endpoints
                 </div>
             </div>
 

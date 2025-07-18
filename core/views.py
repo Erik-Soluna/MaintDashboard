@@ -3625,12 +3625,38 @@ def webhook_settings(request):
         if action == 'save_config':
             # Save configuration to environment file
             try:
+                # Get current values to preserve if not changed
+                current_user = getattr(settings, 'PORTAINER_USER', '')
+                current_password = getattr(settings, 'PORTAINER_PASSWORD', '')
+                current_secret = getattr(settings, 'PORTAINER_WEBHOOK_SECRET', '')
+                
+                # Handle sensitive fields - only update if user provides new values
+                portainer_user = request.POST.get('portainer_user', '')
+                portainer_password = request.POST.get('portainer_password', '')
+                webhook_secret = request.POST.get('webhook_secret', '')
+                
+                # If user enters masked values (like "***"), keep current values
+                if portainer_user and not portainer_user.startswith('***'):
+                    current_user = portainer_user
+                elif not portainer_user:
+                    current_user = ''  # Allow clearing
+                    
+                if portainer_password and not portainer_password.startswith('*'):
+                    current_password = portainer_password
+                elif not portainer_password:
+                    current_password = ''  # Allow clearing
+                    
+                if webhook_secret and not webhook_secret.startswith('****'):
+                    current_secret = webhook_secret
+                elif not webhook_secret:
+                    current_secret = ''  # Allow clearing
+                
                 config_data = {
                     'PORTAINER_URL': request.POST.get('portainer_url', ''),
-                    'PORTAINER_USER': request.POST.get('portainer_user', ''),
-                    'PORTAINER_PASSWORD': request.POST.get('portainer_password', ''),
+                    'PORTAINER_USER': current_user,
+                    'PORTAINER_PASSWORD': current_password,
                     'PORTAINER_STACK_NAME': request.POST.get('stack_name', ''),
-                    'PORTAINER_WEBHOOK_SECRET': request.POST.get('webhook_secret', ''),
+                    'PORTAINER_WEBHOOK_SECRET': current_secret,
                 }
                 
                 # Save to environment file
@@ -3655,13 +3681,26 @@ def webhook_settings(request):
     # Get current webhook configuration
     webhook_url = request.build_absolute_uri(reverse('core:webhook_handler'))
     
+    # Mask sensitive data for display
+    portainer_user = getattr(settings, 'PORTAINER_USER', '')
+    portainer_password = getattr(settings, 'PORTAINER_PASSWORD', '')
+    webhook_secret = getattr(settings, 'PORTAINER_WEBHOOK_SECRET', '')
+    
+    # Show masked values if they exist
+    if portainer_user:
+        portainer_user = portainer_user[:3] + '*' * (len(portainer_user) - 3) if len(portainer_user) > 3 else '***'
+    if portainer_password:
+        portainer_password = '*' * 8  # Show 8 asterisks for password
+    if webhook_secret:
+        webhook_secret = webhook_secret[:4] + '*' * (len(webhook_secret) - 4) if len(webhook_secret) > 4 else '****'
+    
     context = {
         'webhook_url': webhook_url,
         'portainer_url': getattr(settings, 'PORTAINER_URL', ''),
-        'portainer_user': getattr(settings, 'PORTAINER_USER', ''),
-        'portainer_password': getattr(settings, 'PORTAINER_PASSWORD', ''),
+        'portainer_user': portainer_user,
+        'portainer_password': portainer_password,
         'stack_name': getattr(settings, 'PORTAINER_STACK_NAME', ''),
-        'webhook_secret': getattr(settings, 'PORTAINER_WEBHOOK_SECRET', ''),
+        'webhook_secret': webhook_secret,
     }
     
     return render(request, 'core/webhook_settings.html', context)
