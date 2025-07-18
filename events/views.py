@@ -285,18 +285,33 @@ def calendar_view(request):
             Q(location__parent_location=selected_site) | Q(location=selected_site)
         )
 
-    # Get combined event types (both calendar events and maintenance activity types)
-    event_types = list(CalendarEvent.EVENT_TYPES)
-    
-    # Add maintenance activity types
+    # Get activity types for the dropdown (replacing event types)
     try:
         from maintenance.models import MaintenanceActivityType
-        maintenance_types = MaintenanceActivityType.objects.all()
-        for activity_type in maintenance_types:
-            event_types.append((f'maintenance_{activity_type.id}', f'Maintenance: {activity_type.name}'))
+        activity_types = MaintenanceActivityType.objects.filter(is_active=True).order_by('category__sort_order', 'category__name', 'name')
+        event_types = []
+        
+        # Group by category
+        current_category = None
+        for activity_type in activity_types:
+            if current_category != activity_type.category:
+                current_category = activity_type.category
+                # Add category header
+                event_types.append(('', f'--- {activity_type.category.name} ---'))
+            
+            # Add activity type
+            event_types.append((f'activity_{activity_type.id}', activity_type.name))
+        
+        # Add other event types at the end
+        event_types.append(('', '--- Other Events ---'))
+        for event_type in CalendarEvent.EVENT_TYPES:
+            if event_type[0] != 'maintenance':  # Skip maintenance since we're using activity types
+                event_types.append(event_type)
+                
     except Exception as e:
-        # If maintenance app is not available, continue without it
-        pass
+        # Fallback to original event types if maintenance app is not available
+        event_types = list(CalendarEvent.EVENT_TYPES)
+        logger.warning(f"Could not load activity types: {str(e)}")
 
     # Default context - unified calendar
     context = {

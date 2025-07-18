@@ -299,7 +299,7 @@
     <div class="filter-section">
         <div class="filter-controls">
             <div class="filter-item">
-                <label>Event Type:</label>
+                                        <label>Activity Type:</label>
                 <select id="eventTypeFilter" onchange="updateCalendar()">
                     <option value="">All Types</option>
                     {% for value, label in event_types %}
@@ -384,7 +384,7 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="eventType" class="form-label text-white">Event Type</label>
+                                    <label for="eventType" class="form-label text-white">Activity Type</label>
                                     <select class="form-control" id="eventType" name="event_type" style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
                                         {% for value, label in event_types %}
                                             <option value="{{ value }}">{{ label }}</option>
@@ -683,7 +683,7 @@ function updateActiveFilters() {
     const equipment = document.getElementById('equipmentFilter');
     
     if (eventType.value) {
-        const tag = createFilterTag('Event Type', eventType.options[eventType.selectedIndex].text, () => {
+        const tag = createFilterTag('Activity Type', eventType.options[eventType.selectedIndex].text, () => {
             eventType.value = '';
             updateCalendar();
         });
