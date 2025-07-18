@@ -3,7 +3,7 @@ Admin interface for equipment models.
 """
 
 from django.contrib import admin
-from .models import Equipment, EquipmentDocument, EquipmentComponent
+from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentCustomValue
 
 
 class EquipmentDocumentInline(admin.TabularInline):
@@ -16,6 +16,13 @@ class EquipmentComponentInline(admin.TabularInline):
     model = EquipmentComponent
     extra = 0
     readonly_fields = ['created_at', 'created_by']
+
+
+class EquipmentCustomValueInline(admin.TabularInline):
+    model = EquipmentCustomValue
+    extra = 0
+    readonly_fields = ['created_at', 'created_by']
+    fields = ['field', 'value', 'values_json']
 
 
 @admin.register(Equipment)
@@ -35,7 +42,7 @@ class EquipmentAdmin(admin.ModelAdmin):
     readonly_fields = [
         'created_at', 'updated_at', 'created_by', 'updated_by'
     ]
-    inlines = [EquipmentDocumentInline, EquipmentComponentInline]
+    inlines = [EquipmentDocumentInline, EquipmentComponentInline, EquipmentCustomValueInline]
     
     def get_site(self, obj):
         """Get the site location for this equipment."""
@@ -114,6 +121,70 @@ class EquipmentComponentAdmin(admin.ModelAdmin):
     list_filter = ['is_critical', 'equipment__category', 'created_at']
     search_fields = ['name', 'equipment__name', 'part_number']
     readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(EquipmentCategoryField)
+class EquipmentCategoryFieldAdmin(admin.ModelAdmin):
+    list_display = [
+        'label', 'category', 'field_type', 'required', 
+        'field_group', 'sort_order', 'is_active'
+    ]
+    list_filter = [
+        'field_type', 'required', 'field_group', 'is_active', 
+        'category', 'created_at'
+    ]
+    search_fields = ['name', 'label', 'category__name', 'help_text']
+    readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+    
+    fieldsets = (
+        ('Field Information', {
+            'fields': ('category', 'name', 'label', 'field_type', 'required')
+        }),
+        ('Field Configuration', {
+            'fields': ('help_text', 'default_value', 'choices', 'field_group', 'sort_order')
+        }),
+        ('Validation', {
+            'fields': ('min_value', 'max_value', 'max_length'),
+            'classes': ('collapse',)
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Audit Information', {
+            'fields': ('created_at', 'updated_at', 'created_by', 'updated_by'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(EquipmentCustomValue)
+class EquipmentCustomValueAdmin(admin.ModelAdmin):
+    list_display = [
+        'equipment', 'field', 'get_display_value', 'created_at'
+    ]
+    list_filter = [
+        'field__category', 'field__field_type', 'created_at'
+    ]
+    search_fields = [
+        'equipment__name', 'field__label', 'value'
+    ]
+    readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+    
+    def get_display_value(self, obj):
+        return obj.get_display_value()
+    get_display_value.short_description = 'Value'
     
     def save_model(self, request, obj, form, change):
         if not change:

@@ -7,6 +7,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from core.models import TimeStampedModel, EquipmentCategory, Location, NaturalSortManager
+import json
 
 
 class Equipment(TimeStampedModel):
@@ -298,6 +299,52 @@ class Equipment(TimeStampedModel):
         if self.location:
             return self.location.get_site_location()
         return None
+    
+    def get_custom_fields(self):
+        """Get all custom fields for this equipment's category."""
+        if not self.category:
+            return EquipmentCategoryField.objects.none()
+        return self.category.custom_fields.filter(is_active=True).order_by('sort_order')
+    
+    def get_custom_value(self, field_name):
+        """Get the value of a custom field by name."""
+        try:
+            field = self.category.custom_fields.get(name=field_name, is_active=True)
+            value_obj = self.custom_values.filter(field=field).first()
+            if value_obj:
+                return value_obj.get_display_value()
+            return field.default_value
+        except EquipmentCategoryField.DoesNotExist:
+            return None
+    
+    def set_custom_value(self, field_name, value):
+        """Set the value of a custom field by name."""
+        try:
+            field = self.category.custom_fields.get(name=field_name, is_active=True)
+            value_obj, created = self.custom_values.get_or_create(field=field)
+            value_obj.set_value(value)
+            value_obj.save()
+            return value_obj
+        except EquipmentCategoryField.DoesNotExist:
+            return None
+    
+    def get_custom_values_dict(self):
+        """Get all custom values as a dictionary."""
+        result = {}
+        for field in self.get_custom_fields():
+            result[field.name] = self.get_custom_value(field.name)
+        return result
+    
+    def get_custom_fields_by_group(self):
+        """Get custom fields grouped by field_group."""
+        fields = self.get_custom_fields()
+        groups = {}
+        for field in fields:
+            group = field.field_group or 'General'
+            if group not in groups:
+                groups[group] = []
+            groups[group].append(field)
+        return groups
 
 
 class EquipmentDocument(TimeStampedModel):
@@ -409,3 +456,274 @@ class EquipmentComponent(TimeStampedModel):
             
         if self.quantity < 1:
             raise ValidationError("Quantity must be at least 1.")
+
+
+class EquipmentCategoryField(TimeStampedModel):
+    """
+    Custom fields for equipment categories.
+    This allows each category to have its own specific fields.
+    """
+    
+    FIELD_TYPE_CHOICES = [
+        ('text', 'Text'),
+        ('textarea', 'Long Text'),
+        ('number', 'Number'),
+        ('decimal', 'Decimal'),
+        ('date', 'Date'),
+        ('datetime', 'Date & Time'),
+        ('boolean', 'Yes/No'),
+        ('select', 'Dropdown'),
+        ('multiselect', 'Multiple Choice'),
+        ('url', 'URL'),
+        ('email', 'Email'),
+        ('phone', 'Phone Number'),
+    ]
+    
+    category = models.ForeignKey(
+        EquipmentCategory,
+        on_delete=models.CASCADE,
+        related_name='custom_fields',
+        help_text="Equipment category this field belongs to"
+    )
+    
+    name = models.CharField(
+        max_length=100,
+        help_text="Field name (internal use)"
+    )
+    
+    label = models.CharField(
+        max_length=200,
+        help_text="Display label for the field"
+    )
+    
+    field_type = models.CharField(
+        max_length=20,
+        choices=FIELD_TYPE_CHOICES,
+        default='text',
+        help_text="Type of field"
+    )
+    
+    required = models.BooleanField(
+        default=False,
+        help_text="Is this field required?"
+    )
+    
+    help_text = models.TextField(
+        blank=True,
+        help_text="Help text to display with the field"
+    )
+    
+    default_value = models.TextField(
+        blank=True,
+        help_text="Default value for the field"
+    )
+    
+    # For select/multiselect fields
+    choices = models.TextField(
+        blank=True,
+        help_text="Comma-separated choices for select fields"
+    )
+    
+    # Validation
+    min_value = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Minimum value for number fields"
+    )
+    
+    max_value = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Maximum value for number fields"
+    )
+    
+    max_length = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Maximum length for text fields"
+    )
+    
+    # Display options
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        help_text="Order for displaying fields"
+    )
+    
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Is this field active?"
+    )
+    
+    # Grouping
+    field_group = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Group name for organizing fields (e.g., 'Electrical', 'Mechanical')"
+    )
+
+    class Meta:
+        verbose_name = "Equipment Category Field"
+        verbose_name_plural = "Equipment Category Fields"
+        ordering = ['category', 'sort_order', 'name']
+        unique_together = ['category', 'name']
+
+    def __str__(self):
+        return f"{self.category.name} - {self.label}"
+
+    def clean(self):
+        """Validate field configuration."""
+        if self.name:
+            self.name = self.name.strip().lower().replace(' ', '_')
+        if not self.name:
+            raise ValidationError("Field name cannot be empty.")
+        
+        if self.label:
+            self.label = self.label.strip()
+        if not self.label:
+            raise ValidationError("Field label cannot be empty.")
+        
+        # Validate choices for select fields
+        if self.field_type in ['select', 'multiselect'] and not self.choices:
+            raise ValidationError("Select fields must have choices defined.")
+        
+        # Validate numeric constraints
+        if self.min_value and self.max_value and self.min_value > self.max_value:
+            raise ValidationError("Minimum value cannot be greater than maximum value.")
+
+    def get_choices_list(self):
+        """Get choices as a list of tuples."""
+        if not self.choices:
+            return []
+        return [(choice.strip(), choice.strip()) for choice in self.choices.split(',') if choice.strip()]
+
+
+class EquipmentCustomValue(TimeStampedModel):
+    """
+    Values for custom fields on equipment.
+    This stores the actual values for each equipment's custom fields.
+    """
+    
+    equipment = models.ForeignKey(
+        Equipment,
+        on_delete=models.CASCADE,
+        related_name='custom_values',
+        help_text="Equipment this value belongs to"
+    )
+    
+    field = models.ForeignKey(
+        EquipmentCategoryField,
+        on_delete=models.CASCADE,
+        related_name='values',
+        help_text="Custom field this value belongs to"
+    )
+    
+    value = models.TextField(
+        blank=True,
+        help_text="Value for the custom field"
+    )
+    
+    # For multiselect fields, store as JSON array
+    values_json = models.TextField(
+        blank=True,
+        help_text="JSON array for multiselect values"
+    )
+
+    class Meta:
+        verbose_name = "Equipment Custom Value"
+        verbose_name_plural = "Equipment Custom Values"
+        ordering = ['equipment', 'field__sort_order']
+        unique_together = ['equipment', 'field']
+
+    def __str__(self):
+        return f"{self.equipment.name} - {self.field.label}: {self.value}"
+
+    def clean(self):
+        """Validate custom value."""
+        # Validate based on field type
+        if self.field.field_type == 'number':
+            try:
+                float(self.value)
+            except (ValueError, TypeError):
+                if self.value:  # Only validate if not empty
+                    raise ValidationError("Value must be a number.")
+        
+        elif self.field.field_type == 'decimal':
+            try:
+                float(self.value)
+            except (ValueError, TypeError):
+                if self.value:  # Only validate if not empty
+                    raise ValidationError("Value must be a decimal number.")
+        
+        elif self.field.field_type == 'date':
+            from django.utils.dateparse import parse_date
+            if self.value and not parse_date(self.value):
+                raise ValidationError("Value must be a valid date (YYYY-MM-DD).")
+        
+        elif self.field.field_type == 'datetime':
+            from django.utils.dateparse import parse_datetime
+            if self.value and not parse_datetime(self.value):
+                raise ValidationError("Value must be a valid date and time.")
+        
+        elif self.field.field_type == 'email':
+            from django.core.validators import validate_email
+            if self.value:
+                try:
+                    validate_email(self.value)
+                except ValidationError:
+                    raise ValidationError("Value must be a valid email address.")
+        
+        elif self.field.field_type == 'url':
+            from django.core.validators import URLValidator
+            if self.value:
+                try:
+                    URLValidator()(self.value)
+                except ValidationError:
+                    raise ValidationError("Value must be a valid URL.")
+        
+        elif self.field.field_type == 'multiselect':
+            if self.values_json:
+                try:
+                    json.loads(self.values_json)
+                except json.JSONDecodeError:
+                    raise ValidationError("Multiselect values must be valid JSON.")
+
+    def get_display_value(self):
+        """Get the display value based on field type."""
+        if self.field.field_type == 'boolean':
+            return "Yes" if self.value.lower() in ['true', '1', 'yes', 'on'] else "No"
+        
+        elif self.field.field_type == 'multiselect':
+            if self.values_json:
+                try:
+                    values = json.loads(self.values_json)
+                    return ", ".join(values)
+                except json.JSONDecodeError:
+                    return self.values_json
+            return self.value
+        
+        elif self.field.field_type == 'select':
+            # Return the choice label if it exists
+            choices = self.field.get_choices_list()
+            for choice_value, choice_label in choices:
+                if choice_value == self.value:
+                    return choice_label
+            return self.value
+        
+        return self.value
+
+    def set_value(self, value):
+        """Set the value based on field type."""
+        if self.field.field_type == 'multiselect':
+            if isinstance(value, list):
+                self.values_json = json.dumps(value)
+                self.value = ", ".join(value)
+            else:
+                self.value = str(value)
+                self.values_json = json.dumps([str(value)])
+        else:
+            self.value = str(value) if value is not None else ""
+            self.values_json = ""

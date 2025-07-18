@@ -200,6 +200,43 @@
                         </div>
                         {% endif %}
                         
+                        <!-- Custom Fields -->
+                        {% if custom_fields_by_group %}
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h6 class="mb-3">Category-Specific Information</h6>
+                                {% for group_name, fields in custom_fields_by_group.items %}
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">{{ group_name }}</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            {% for field in fields %}
+                                            <div class="col-md-6 mb-2">
+                                                <strong>{{ field.label }}:</strong>
+                                                {% with value=equipment.get_custom_value field.name %}
+                                                    {% if field.field_type == 'boolean' %}
+                                                        {% if value == 'Yes' %}
+                                                            <span class="badge badge-success">Yes</span>
+                                                        {% else %}
+                                                            <span class="badge badge-secondary">No</span>
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <span>{{ value|default:"Not specified" }}</span>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        
                         {% if equipment.warranty_details %}
                         <div class="row mt-4">
                             <div class="col-12">

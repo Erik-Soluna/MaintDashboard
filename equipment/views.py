@@ -30,7 +30,7 @@ except ImportError:
 from .models import Equipment, EquipmentDocument, EquipmentComponent
 from core.models import EquipmentCategory, Location
 from maintenance.models import MaintenanceReport
-from .forms import EquipmentForm, EquipmentComponentForm, EquipmentDocumentForm
+from .forms import EquipmentForm, DynamicEquipmentForm, EquipmentComponentForm, EquipmentDocumentForm
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +279,9 @@ def equipment_detail(request, equipment_id):
     overdue_count = equipment.maintenance_activities.filter(status='overdue').count()
     maintenance_docs_count = equipment.documents.filter(document_type='maintenance').count()
     
+    # Get custom fields grouped by field group
+    custom_fields_by_group = equipment.get_custom_fields_by_group()
+    
     context = {
         'equipment': equipment,
         'maintenance_status': maintenance_status,
@@ -287,6 +290,7 @@ def equipment_detail(request, equipment_id):
         'pending_count': pending_count,
         'overdue_count': overdue_count,
         'maintenance_docs_count': maintenance_docs_count,
+        'custom_fields_by_group': custom_fields_by_group,
     }
     
     return render(request, 'equipment/equipment_detail.html', context)
@@ -296,17 +300,23 @@ def equipment_detail(request, equipment_id):
 def add_equipment(request):
     """Add new equipment (improved from original web2py version)."""
     if request.method == 'POST':
-        form = EquipmentForm(request.POST, request.FILES, request=request)
+        form = DynamicEquipmentForm(request.POST, request.FILES, request=request)
         if form.is_valid():
             equipment = form.save(commit=False)
             equipment.created_by = request.user
             equipment.updated_by = request.user
             equipment.save()
             
+            # Save custom field values
+            for field_name, value in form.cleaned_data.items():
+                if field_name.startswith('custom_'):
+                    custom_field_name = field_name[7:]  # Remove 'custom_' prefix
+                    equipment.set_custom_value(custom_field_name, value)
+            
             messages.success(request, f'Equipment "{equipment.name}" added successfully!')
             return redirect('equipment:equipment_detail', equipment_id=equipment.id)
     else:
-        form = EquipmentForm(request=request)
+        form = DynamicEquipmentForm(request=request)
     
     # Get all sites and locations for the enhanced template with hierarchical structure
     sites = Location.objects.filter(is_site=True, is_active=True).prefetch_related('child_locations__child_locations').order_by('name')
@@ -329,16 +339,22 @@ def edit_equipment(request, equipment_id):
     equipment = get_object_or_404(Equipment, id=equipment_id)
     
     if request.method == 'POST':
-        form = EquipmentForm(request.POST, request.FILES, instance=equipment, request=request)
+        form = DynamicEquipmentForm(request.POST, request.FILES, instance=equipment, request=request)
         if form.is_valid():
             equipment = form.save(commit=False)
             equipment.updated_by = request.user
             equipment.save()
             
+            # Save custom field values
+            for field_name, value in form.cleaned_data.items():
+                if field_name.startswith('custom_'):
+                    custom_field_name = field_name[7:]  # Remove 'custom_' prefix
+                    equipment.set_custom_value(custom_field_name, value)
+            
             messages.success(request, f'Equipment "{equipment.name}" updated successfully!')
             return redirect('equipment:equipment_detail', equipment_id=equipment.id)
     else:
-        form = EquipmentForm(instance=equipment, request=request)
+        form = DynamicEquipmentForm(instance=equipment, request=request)
     
     # Get all sites and locations for the enhanced template with hierarchical structure
     sites = Location.objects.filter(is_site=True, is_active=True).prefetch_related('child_locations__child_locations').order_by('name')

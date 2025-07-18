@@ -5,7 +5,7 @@ Forms for equipment management.
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Row, Column, Submit
-from .models import Equipment, EquipmentComponent, EquipmentDocument
+from .models import Equipment, EquipmentComponent, EquipmentDocument, EquipmentCategoryField, EquipmentCustomValue
 from core.models import EquipmentCategory, Location
 
 
@@ -123,6 +123,125 @@ class EquipmentForm(forms.ModelForm):
             ),
             Submit('submit', 'Save Equipment', css_class='btn btn-primary')
         )
+
+
+class DynamicEquipmentForm(EquipmentForm):
+    """Dynamic form that includes custom fields based on equipment category."""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Add custom fields based on the selected category
+        if self.instance and self.instance.pk:
+            # Editing existing equipment
+            self.add_custom_fields(self.instance.category)
+        elif 'category' in self.data:
+            # New equipment with category selected
+            try:
+                category_id = self.data.get('category')
+                if category_id:
+                    category = EquipmentCategory.objects.get(id=category_id)
+                    self.add_custom_fields(category)
+            except EquipmentCategory.DoesNotExist:
+                pass
+    
+    def add_custom_fields(self, category):
+        """Add custom fields for the given category."""
+        if not category:
+            return
+        
+        custom_fields = EquipmentCategoryField.objects.filter(
+            category=category,
+            is_active=True
+        ).order_by('sort_order')
+        
+        # Group fields by field_group
+        field_groups = {}
+        for field in custom_fields:
+            group = field.field_group or 'General'
+            if group not in field_groups:
+                field_groups[group] = []
+            field_groups[group].append(field)
+        
+        # Create form fields for each custom field
+        for group, fields in field_groups.items():
+            for field in fields:
+                form_field = self.create_form_field(field)
+                if form_field:
+                    self.fields[f'custom_{field.name}'] = form_field
+                    
+                    # Set initial value if editing
+                    if self.instance and self.instance.pk:
+                        initial_value = self.instance.get_custom_value(field.name)
+                        if initial_value:
+                            self.fields[f'custom_{field.name}'].initial = initial_value
+    
+    def create_form_field(self, field):
+        """Create a form field based on the custom field definition."""
+        field_kwargs = {
+            'label': field.label,
+            'required': field.required,
+            'help_text': field.help_text,
+        }
+        
+        if field.field_type == 'text':
+            return forms.CharField(max_length=255, **field_kwargs)
+        
+        elif field.field_type == 'textarea':
+            return forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), **field_kwargs)
+        
+        elif field.field_type == 'number':
+            return forms.IntegerField(**field_kwargs)
+        
+        elif field.field_type == 'decimal':
+            return forms.DecimalField(**field_kwargs)
+        
+        elif field.field_type == 'date':
+            return forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), **field_kwargs)
+        
+        elif field.field_type == 'datetime':
+            return forms.DateTimeField(widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}), **field_kwargs)
+        
+        elif field.field_type == 'boolean':
+            return forms.BooleanField(**field_kwargs)
+        
+        elif field.field_type == 'select':
+            choices = field.get_choices_list()
+            return forms.ChoiceField(choices=choices, **field_kwargs)
+        
+        elif field.field_type == 'multiselect':
+            choices = field.get_choices_list()
+            return forms.MultipleChoiceField(
+                choices=choices,
+                widget=forms.CheckboxSelectMultiple,
+                **field_kwargs
+            )
+        
+        elif field.field_type == 'url':
+            return forms.URLField(**field_kwargs)
+        
+        elif field.field_type == 'email':
+            return forms.EmailField(**field_kwargs)
+        
+        elif field.field_type == 'phone':
+            return forms.CharField(max_length=20, **field_kwargs)
+        
+        return None
+    
+    def save(self, commit=True):
+        """Save the equipment and its custom field values."""
+        equipment = super().save(commit=False)
+        
+        if commit:
+            equipment.save()
+            
+            # Save custom field values
+            for field_name, value in self.cleaned_data.items():
+                if field_name.startswith('custom_'):
+                    custom_field_name = field_name[7:]  # Remove 'custom_' prefix
+                    equipment.set_custom_value(custom_field_name, value)
+        
+        return equipment
 
 
 class EquipmentComponentForm(forms.ModelForm):
