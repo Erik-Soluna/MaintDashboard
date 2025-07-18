@@ -8,10 +8,11 @@ from django.contrib.auth.models import User
 from .models import UserProfile
 import logging
 from events.models import CalendarEvent
-from maintenance.models import MaintenanceActivity, MaintenanceActivityType, ActivityTypeCategory
-from django.db import transaction
-from datetime import datetime
-from django.utils import timezone
+# REMOVED: maintenance imports since we've unified the system
+# from maintenance.models import MaintenanceActivity, MaintenanceActivityType, ActivityTypeCategory
+# from django.db import transaction
+# from datetime import datetime
+# from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -33,69 +34,6 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
         logger.error(f"Error creating/updating UserProfile for user {instance.username}: {str(e)}")
 
 
-@receiver(post_save, sender=CalendarEvent)
-def sync_maintenance_activity_from_event(sender, instance, created, **kwargs):
-    """Ensure every CalendarEvent of type 'maintenance' has a linked MaintenanceActivity."""
-    if instance.event_type != 'maintenance':
-        return
-    # Avoid recursion: if already linked, update the activity
-    if instance.maintenance_activity:
-        activity = instance.maintenance_activity
-        activity.title = instance.title
-        activity.description = instance.description
-        activity.equipment = instance.equipment
-        activity.scheduled_start = (
-            instance.event_date if instance.start_time is None else
-            timezone.make_aware(datetime.combine(instance.event_date, instance.start_time))
-        )
-        activity.scheduled_end = (
-            instance.event_date if instance.end_time is None else
-            timezone.make_aware(datetime.combine(instance.event_date, instance.end_time))
-        )
-        activity.priority = instance.priority
-        activity.assigned_to = instance.assigned_to
-        activity.status = 'completed' if instance.is_completed else 'scheduled'
-        activity.save()
-    else:
-        # Find a default activity type (or create one if needed)
-        activity_type = MaintenanceActivityType.objects.filter(is_active=True).first()
-        if not activity_type:
-            # Get or create a default category
-            default_category = ActivityTypeCategory.objects.filter(is_active=True).first()
-            if not default_category:
-                default_category = ActivityTypeCategory.objects.create(
-                    name='General',
-                    description='Default category for system-generated activity types',
-                    color='#007bff',
-                    icon='fas fa-wrench',
-                    is_active=True
-                )
-            
-            activity_type = MaintenanceActivityType.objects.create(
-                name='Default',
-                category=default_category,
-                description='Default maintenance activity type',
-                frequency_days=365,
-            )
-        activity = MaintenanceActivity.objects.create(
-            title=instance.title,
-            description=instance.description,
-            equipment=instance.equipment,
-            activity_type=activity_type,
-            scheduled_start=(
-                instance.event_date if instance.start_time is None else
-                timezone.make_aware(datetime.combine(instance.event_date, instance.start_time))
-            ),
-            scheduled_end=(
-                instance.event_date if instance.end_time is None else
-                timezone.make_aware(datetime.combine(instance.event_date, instance.end_time))
-            ),
-            priority=instance.priority,
-            assigned_to=instance.assigned_to,
-            status='completed' if instance.is_completed else 'scheduled',
-            created_by=instance.created_by if hasattr(instance, 'created_by') else None,
-        )
-        # Link the event to the activity
-        with transaction.atomic():
-            instance.maintenance_activity = activity
-            instance.save(update_fields=['maintenance_activity'])
+# REMOVED: sync_maintenance_activity_from_event signal
+# This signal is no longer needed since we've unified the calendar/maintenance system.
+# Calendar events with event_type='maintenance' are now the maintenance activities themselves.

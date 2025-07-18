@@ -1,0 +1,21 @@
+FROM python:3.11-slim
+
+# Set work directory
+WORKDIR /app
+
+# Copy the entrypoint script first
+COPY docker-entrypoint.sh /app/
+
+# Make it executable
+RUN chmod +x /app/docker-entrypoint.sh
+
+# Test if it exists and is executable
+RUN ls -la /app/docker-entrypoint.sh
+RUN head -1 /app/docker-entrypoint.sh
+RUN cat /app/docker-entrypoint.sh | wc -l
+
+# Set the entrypoint
+ENTRYPOINT ["./docker-entrypoint.sh"]
+
+# Default command
+CMD ["web"] 

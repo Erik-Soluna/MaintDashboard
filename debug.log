@@ -9537,3 +9537,33 @@ Cache functionality verified on startup
 Database tables check completed on startup
 Cache functionality verified on startup
 Database tables check completed on startup
+Cache table may be missing, attempting to create: relation "cache_table" does not exist
+LINE 1: SELECT COUNT(*) FROM "cache_table"
+                             ^
+
+Cache table created successfully on startup
+Database tables check completed on startup
+Cache functionality verified on startup
+Database tables check completed on startup
+Cache functionality verified on startup
+Database tables check completed on startup
+Cache functionality verified on startup
+Database tables check completed on startup
+Cache functionality verified on startup
+Database tables check completed on startup
+Cache functionality verified on startup
+Database tables check completed on startup
+Cache functionality verified on startup
+Database tables check completed on startup
+Cache functionality verified on startup
+Database tables check completed on startup
+Cache functionality verified on startup
+Database tables check completed on startup
+Cache functionality verified on startup
+Database tables check completed on startup
+Cache functionality verified on startup
+Database tables check completed on startup
+Cache functionality verified on startup
+Database tables check completed on startup
+Cache functionality verified on startup
+Database tables check completed on startup
