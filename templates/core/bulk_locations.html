@@ -473,17 +473,30 @@
             </h5>
         </div>
         <div class="table-responsive">
-            <table class="locations-table">
+            <table class="locations-table" id="sub-locations-table">
                 <thead>
                     <tr>
                         <th class="checkbox-cell">
                             <input type="checkbox" id="select-all-sub-locations" onchange="toggleSubLocationSelection(this)">
                         </th>
-                        <th>Name</th>
-                        <th>Parent Site</th>
-                        <th>Customer</th>
-                        <th>Status</th>
-                        <th>Created</th>
+                        <th onclick="sortTable('sub-locations-table', 1)" style="cursor: pointer;">
+                            Name <i class="fas fa-sort"></i>
+                        </th>
+                        <th onclick="sortTable('sub-locations-table', 2)" style="cursor: pointer;">
+                            Full Path <i class="fas fa-sort"></i>
+                        </th>
+                        <th onclick="sortTable('sub-locations-table', 3)" style="cursor: pointer;">
+                            Parent Site <i class="fas fa-sort"></i>
+                        </th>
+                        <th onclick="sortTable('sub-locations-table', 4)" style="cursor: pointer;">
+                            Customer <i class="fas fa-sort"></i>
+                        </th>
+                        <th onclick="sortTable('sub-locations-table', 5)" style="cursor: pointer;">
+                            Status <i class="fas fa-sort"></i>
+                        </th>
+                        <th onclick="sortTable('sub-locations-table', 6)" style="cursor: pointer;">
+                            Created <i class="fas fa-sort"></i>
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -495,7 +508,12 @@
                         </td>
                         <td>
                             <div class="location-name">{{ location.name }}</div>
-                            <div class="location-type pod">Pod</div>
+                            <div class="location-type pod">{{ location.location_type }}</div>
+                        </td>
+                        <td>
+                            <div class="location-path">
+                                {{ location.full_path }}
+                            </div>
                         </td>
                         <td>
                             <div class="location-path">
@@ -516,7 +534,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
+                        <td colspan="7" class="text-center text-muted py-4">
                             No sub-locations found
                         </td>
                     </tr>

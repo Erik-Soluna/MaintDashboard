@@ -3211,12 +3211,27 @@ def bulk_edit_locations(request):
 @user_passes_test(is_staff_or_superuser)
 def bulk_locations_view(request):
     """View for bulk location management interface."""
-    # Get all locations for the bulk management interface
-    locations = Location.objects.all().order_by('name')
+    # Get all locations with natural sorting
+    locations = list(Location.objects.all().select_related('parent_location', 'customer'))
+    locations.sort(key=lambda loc: natural_sort_key(loc.name))
     
-    # Separate sites and sub-locations
-    sites = locations.filter(is_site=True)
-    sub_locations = locations.filter(is_site=False)
+    # Separate sites and sub-locations with natural sorting
+    sites = [loc for loc in locations if loc.is_site]
+    sites.sort(key=lambda site: natural_sort_key(site.name))
+    
+    sub_locations = [loc for loc in locations if not loc.is_site]
+    sub_locations.sort(key=lambda loc: natural_sort_key(loc.name))
+    
+    # Add full path information to sub-locations
+    for location in sub_locations:
+        location.full_path = location.get_full_path()
+        # Determine location type based on hierarchy
+        if location.parent_location and location.parent_location.is_site:
+            location.location_type = "POD"
+        elif location.parent_location and location.parent_location.parent_location and location.parent_location.parent_location.is_site:
+            location.location_type = "MDC"
+        else:
+            location.location_type = "Location"
     
     # Get customers for dropdowns
     customers = Customer.objects.filter(is_active=True).order_by('name')
@@ -3225,9 +3240,9 @@ def bulk_locations_view(request):
         'sites': sites,
         'sub_locations': sub_locations,
         'customers': customers,
-        'total_locations': locations.count(),
-        'total_sites': sites.count(),
-        'total_sub_locations': sub_locations.count(),
+        'total_locations': len(locations),
+        'total_sites': len(sites),
+        'total_sub_locations': len(sub_locations),
     }
     
     return render(request, 'core/bulk_locations.html', context)
