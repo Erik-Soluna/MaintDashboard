@@ -736,10 +736,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Selection management
 function updateSelectionInfo() {
-    const selectedCount = selectedLocations.size;
+    // Count only visible selected items
+    const visibleSelectedCount = document.querySelectorAll('#sub-locations-table tbody tr:not([style*="display: none"]) .location-checkbox:checked').length;
     const visibleCount = document.querySelectorAll('#sub-locations-table tbody tr:not([style*="display: none"])').length;
     
-    document.getElementById('selected-count').textContent = selectedCount;
+    document.getElementById('selected-count').textContent = visibleSelectedCount;
     document.getElementById('visible-count').textContent = visibleCount;
     document.getElementById('filtered-count').textContent = visibleCount;
 }
@@ -772,8 +773,9 @@ function toggleSiteSelection(checkbox) {
 }
 
 function toggleSubLocationSelection(checkbox) {
-    const subLocationCheckboxes = document.querySelectorAll('.sub-location-checkbox');
-    subLocationCheckboxes.forEach(cb => {
+    // Only affect visible checkboxes (respecting filters)
+    const visibleCheckboxes = document.querySelectorAll('#sub-locations-table tbody tr:not([style*="display: none"]) .sub-location-checkbox');
+    visibleCheckboxes.forEach(cb => {
         cb.checked = checkbox.checked;
         if (checkbox.checked) {
             selectedLocations.add(cb.value);
@@ -1009,11 +1011,22 @@ function filterTable() {
         if (customerVal && customer !== customerVal) show = false;
         if (statusVal && status !== statusVal) show = false;
         if (nameVal && !name.includes(nameVal)) show = false;
+        
+        // If hiding a row, uncheck its checkbox and remove from selection
+        if (!show) {
+            const checkbox = row.querySelector('.location-checkbox');
+            if (checkbox && checkbox.checked) {
+                checkbox.checked = false;
+                selectedLocations.delete(checkbox.value);
+            }
+        }
+        
         row.style.display = show ? '' : 'none';
     });
     
     // Update counters after filtering
     updateSelectionInfo();
+    updateBulkActionButtons();
 }
 
 siteSelect.addEventListener('change', () => {
