@@ -80,6 +80,10 @@ urlpatterns = [
     path('settings/populate-sample-data/', views.populate_sample_data, name='populate_sample_data'),
     path('settings/reset-rbac/', views.reset_rbac, name='reset_rbac'),
     
+    # Webhook Management
+    path('settings/webhooks/', views.webhook_settings, name='webhook_settings'),
+    path('webhook/update/', views.webhook_handler, name='webhook_handler'),
+    
     # Bulk Location Management
     path('settings/locations/bulk/', views.bulk_locations_view, name='bulk_locations'),
     path('api/locations/bulk-edit/', views.bulk_edit_locations, name='bulk_edit_locations'),

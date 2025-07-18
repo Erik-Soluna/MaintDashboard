@@ -43,6 +43,8 @@ from .playwright_orchestrator import run_natural_language_test, run_rbac_test_su
 from .tasks import run_natural_language_test_task, run_rbac_test_suite_task
 import asyncio
 from django.contrib.admin.views.decorators import staff_member_required
+import hmac
+import hashlib
 
 logger = logging.getLogger(__name__)
 
@@ -3578,3 +3580,159 @@ def reset_rbac(request):
             'error': f'Error resetting RBAC: {str(e)}',
             'details': error_details
         }, status=500)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def webhook_handler(request):
+    """Handle incoming webhook requests for stack updates."""
+    try:
+        # Validate the signature
+        signature = request.headers.get('X-Portainer-Signature')
+        if not signature:
+            return JsonResponse({'error': 'Signature missing'}, status=400)
+        
+        # Verify the signature
+        secret = getattr(settings, 'PORTAINER_WEBHOOK_SECRET', 'default-secret')
+        hmac_object = hmac.new(secret.encode(), request.body, hashlib.sha256)
+        if not hmac.compare_digest(signature, hmac_object.hexdigest()):
+            return JsonResponse({'error': 'Invalid signature'}, status=400)
+        
+        # Process the webhook
+        data = json.loads(request.body)
+        logger.info(f"Received webhook: {data}")
+        
+        # Trigger stack update
+        update_result = trigger_portainer_stack_update()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Stack update triggered',
+            'update_result': update_result
+        })
+    except Exception as e:
+        logger.error(f"Error handling webhook: {str(e)}")
+        return JsonResponse({'error': 'An error occurred while processing the webhook'}, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def webhook_settings(request):
+    """Webhook management settings page."""
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'test_webhook':
+            # Test the webhook configuration
+            result = test_portainer_connection()
+            messages.success(request, f'Connection test: {result}')
+        elif action == 'update_stack':
+            # Manually trigger stack update
+            result = trigger_portainer_stack_update()
+            messages.success(request, f'Stack update: {result}')
+        
+        return redirect('core:webhook_settings')
+    
+    # Get current webhook configuration
+    webhook_url = request.build_absolute_uri(reverse('core:webhook_handler'))
+    
+    context = {
+        'webhook_url': webhook_url,
+        'portainer_url': getattr(settings, 'PORTAINER_URL', ''),
+        'stack_name': getattr(settings, 'PORTAINER_STACK_NAME', ''),
+    }
+    
+    return render(request, 'core/webhook_settings.html', context)
+
+
+def trigger_portainer_stack_update():
+    """Trigger a stack update via Portainer API."""
+    try:
+        portainer_url = getattr(settings, 'PORTAINER_URL', '')
+        portainer_user = getattr(settings, 'PORTAINER_USER', '')
+        portainer_pass = getattr(settings, 'PORTAINER_PASSWORD', '')
+        stack_name = getattr(settings, 'PORTAINER_STACK_NAME', '')
+        
+        if not all([portainer_url, portainer_user, portainer_pass, stack_name]):
+            return 'Configuration incomplete'
+        
+        # Get authentication token
+        auth_response = requests.post(
+            f"{portainer_url}/api/auth",
+            json={'Username': portainer_user, 'Password': portainer_pass},
+            timeout=10
+        )
+        
+        if auth_response.status_code != 200:
+            return f'Authentication failed: {auth_response.status_code}'
+        
+        token = auth_response.json().get('jwt')
+        if not token:
+            return 'No authentication token received'
+        
+        # Get stack ID
+        headers = {'Authorization': f'Bearer {token}'}
+        stacks_response = requests.get(
+            f"{portainer_url}/api/stacks",
+            headers=headers,
+            timeout=10
+        )
+        
+        if stacks_response.status_code != 200:
+            return f'Failed to get stacks: {stacks_response.status_code}'
+        
+        stacks = stacks_response.json()
+        stack_id = None
+        
+        for stack in stacks:
+            if stack.get('Name') == stack_name:
+                stack_id = stack.get('Id')
+                break
+        
+        if not stack_id:
+            return f'Stack "{stack_name}" not found'
+        
+        # Update the stack
+        update_response = requests.put(
+            f"{portainer_url}/api/stacks/{stack_id}",
+            headers=headers,
+            json={'prune': True, 'pullImage': True},
+            timeout=30
+        )
+        
+        if update_response.status_code == 200:
+            return 'Stack updated successfully'
+        else:
+            return f'Update failed: {update_response.status_code}'
+            
+    except requests.exceptions.RequestException as e:
+        return f'Network error: {str(e)}'
+    except Exception as e:
+        return f'Error: {str(e)}'
+
+
+def test_portainer_connection():
+    """Test connection to Portainer API."""
+    try:
+        portainer_url = getattr(settings, 'PORTAINER_URL', '')
+        portainer_user = getattr(settings, 'PORTAINER_USER', '')
+        portainer_pass = getattr(settings, 'PORTAINER_PASSWORD', '')
+        
+        if not all([portainer_url, portainer_user, portainer_pass]):
+            return 'Configuration incomplete'
+        
+        # Test authentication
+        auth_response = requests.post(
+            f"{portainer_url}/api/auth",
+            json={'Username': portainer_user, 'Password': portainer_pass},
+            timeout=10
+        )
+        
+        if auth_response.status_code == 200:
+            return 'Connection successful'
+        else:
+            return f'Authentication failed: {auth_response.status_code}'
+            
+    except requests.exceptions.RequestException as e:
+        return f'Network error: {str(e)}'
+    except Exception as e:
+        return f'Error: {str(e)}'

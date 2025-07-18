@@ -1,0 +1,376 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Webhook Settings - Maintenance Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'core:settings' %}">Settings</a></li>
+<li class="breadcrumb-item active">Webhooks</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.webhook-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.webhook-card {
+    background: var(--bs-dark);
+    border: 1px solid var(--bs-secondary);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.webhook-card-header {
+    background: var(--bs-secondary);
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--bs-secondary);
+}
+
+.webhook-card-header h5 {
+    margin: 0;
+    color: var(--bs-light);
+    display: flex;
+    align-items: center;
+}
+
+.webhook-card-body {
+    padding: 20px;
+}
+
+.webhook-url-display {
+    background: var(--bs-darker);
+    border: 1px solid var(--bs-secondary);
+    border-radius: 4px;
+    padding: 12px;
+    font-family: monospace;
+    color: var(--bs-info);
+    word-break: break-all;
+    margin-bottom: 15px;
+}
+
+.webhook-config-section {
+    margin-bottom: 25px;
+}
+
+.webhook-config-section h6 {
+    color: var(--bs-light);
+    margin-bottom: 15px;
+    border-bottom: 1px solid var(--bs-secondary);
+    padding-bottom: 8px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    color: var(--bs-light);
+    font-weight: 500;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.form-control {
+    background: var(--bs-darker);
+    color: var(--bs-light);
+    border: 1px solid var(--bs-secondary);
+    border-radius: 4px;
+    padding: 10px 12px;
+}
+
+.form-control:focus {
+    background: var(--bs-darker);
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    color: var(--bs-light);
+}
+
+.btn-webhook {
+    padding: 10px 20px;
+    border: 2px solid var(--bs-secondary);
+    background: var(--bs-dark);
+    color: var(--bs-light);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+.btn-webhook:hover {
+    background: var(--bs-secondary);
+    color: var(--bs-light);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.btn-webhook.primary {
+    background: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: white;
+}
+
+.btn-webhook.primary:hover {
+    background: #0056b3;
+    border-color: #0056b3;
+    color: white;
+}
+
+.btn-webhook.success {
+    background: var(--bs-success);
+    border-color: var(--bs-success);
+    color: white;
+}
+
+.btn-webhook.success:hover {
+    background: #198754;
+    border-color: #198754;
+    color: white;
+}
+
+.btn-webhook.warning {
+    background: var(--bs-warning);
+    border-color: var(--bs-warning);
+    color: var(--bs-dark);
+}
+
+.btn-webhook.warning:hover {
+    background: #ffc107;
+    border-color: #ffc107;
+    color: var(--bs-dark);
+}
+
+.alert {
+    background: rgba(13, 110, 253, 0.1);
+    border: 1px solid rgba(13, 110, 253, 0.3);
+    color: var(--bs-info);
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+
+.alert-info {
+    background: rgba(13, 202, 240, 0.1);
+    border-color: rgba(13, 202, 240, 0.3);
+    color: var(--bs-info);
+}
+
+.alert-success {
+    background: rgba(25, 135, 84, 0.1);
+    border-color: rgba(25, 135, 84, 0.3);
+    color: var(--bs-success);
+}
+
+.alert-warning {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: rgba(255, 193, 7, 0.3);
+    color: var(--bs-warning);
+}
+
+.alert-danger {
+    background: rgba(220, 53, 69, 0.1);
+    border-color: rgba(220, 53, 69, 0.3);
+    color: var(--bs-danger);
+}
+
+.code-block {
+    background: var(--bs-darker);
+    border: 1px solid var(--bs-secondary);
+    border-radius: 4px;
+    padding: 15px;
+    font-family: monospace;
+    color: var(--bs-light);
+    font-size: 13px;
+    overflow-x: auto;
+    margin-bottom: 15px;
+}
+
+.copy-btn {
+    background: var(--bs-secondary);
+    border: none;
+    color: var(--bs-light);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-left: 10px;
+}
+
+.copy-btn:hover {
+    background: var(--bs-primary);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="webhook-container">
+    <div class="page-header mb-4">
+        <h2 class="mb-0">
+            <i class="fas fa-link me-2"></i>
+            Webhook Settings
+        </h2>
+        <p class="text-muted mb-0">Configure webhook integration with Portainer for automated stack updates</p>
+    </div>
+
+    <!-- Webhook URL Card -->
+    <div class="webhook-card">
+        <div class="webhook-card-header">
+            <h5>
+                <i class="fas fa-globe me-2"></i>
+                Webhook URL
+            </h5>
+        </div>
+        <div class="webhook-card-body">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Use this URL in your Portainer webhook configuration to trigger stack updates automatically.
+            </div>
+            
+            <div class="webhook-url-display">
+                {{ webhook_url }}
+                <button class="copy-btn" onclick="copyToClipboard('{{ webhook_url }}')">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+            </div>
+            
+            <div class="alert alert-warning">
+                <i class="fas fa-shield-alt me-2"></i>
+                <strong>Security:</strong> This webhook is protected with HMAC signature verification. 
+                Make sure to configure the same secret in your Portainer webhook settings.
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Card -->
+    <div class="webhook-card">
+        <div class="webhook-card-header">
+            <h5>
+                <i class="fas fa-cog me-2"></i>
+                Portainer Configuration
+            </h5>
+        </div>
+        <div class="webhook-card-body">
+            <div class="webhook-config-section">
+                <h6>Current Settings</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Portainer URL</label>
+                            <input type="text" class="form-control" value="{{ portainer_url }}" readonly>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label class="form-label">Stack Name</label>
+                            <input type="text" class="form-control" value="{{ stack_name }}" readonly>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="webhook-config-section">
+                <h6>Actions</h6>
+                <form method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" name="action" value="test_webhook" class="btn-webhook success">
+                        <i class="fas fa-plug"></i>
+                        Test Connection
+                    </button>
+                </form>
+                
+                <form method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" name="action" value="update_stack" class="btn-webhook primary">
+                        <i class="fas fa-sync-alt"></i>
+                        Update Stack Now
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Setup Instructions Card -->
+    <div class="webhook-card">
+        <div class="webhook-card-header">
+            <h5>
+                <i class="fas fa-book me-2"></i>
+                Setup Instructions
+            </h5>
+        </div>
+        <div class="webhook-card-body">
+            <div class="webhook-config-section">
+                <h6>Portainer Webhook Configuration</h6>
+                <ol>
+                    <li>Log into your Portainer instance</li>
+                    <li>Go to <strong>Settings > Webhooks</strong></li>
+                    <li>Click <strong>Add Webhook</strong></li>
+                    <li>Configure the webhook with these settings:</li>
+                </ol>
+                
+                <div class="code-block">
+                    <strong>Webhook URL:</strong> {{ webhook_url }}<br>
+                    <strong>HTTP Method:</strong> POST<br>
+                    <strong>Content Type:</strong> application/json<br>
+                    <strong>Secret:</strong> [Your configured secret]<br>
+                    <strong>Events:</strong> Stack Update, Image Update
+                </div>
+            </div>
+
+            <div class="webhook-config-section">
+                <h6>Environment Variables</h6>
+                <p>Add these environment variables to your Django settings:</p>
+                <div class="code-block">
+PORTAINER_URL=http://your-portainer:9000<br>
+PORTAINER_USER=your-username<br>
+PORTAINER_PASSWORD=your-password<br>
+PORTAINER_STACK_NAME=your-stack-name<br>
+PORTAINER_WEBHOOK_SECRET=your-webhook-secret
+                </div>
+            </div>
+
+            <div class="webhook-config-section">
+                <h6>Testing the Webhook</h6>
+                <p>You can test the webhook manually using curl:</p>
+                <div class="code-block">
+curl -X POST {{ webhook_url }} \<br>
+&nbsp;&nbsp;-H "Content-Type: application/json" \<br>
+&nbsp;&nbsp;-H "X-Portainer-Signature: [your-signature]" \<br>
+&nbsp;&nbsp;-d '{"event": "stack_update", "stack": "{{ stack_name }}"}'
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Show success message
+        const btn = event.target.closest('.copy-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        btn.style.background = 'var(--bs-success)';
+        
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.style.background = 'var(--bs-secondary)';
+        }, 2000);
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+        alert('Failed to copy to clipboard');
+    });
+}
+</script>
+{% endblock %} 
