@@ -24,6 +24,7 @@ class ActivityTypeCategory(TimeStampedModel):
     icon = models.CharField(max_length=50, default='fas fa-wrench', help_text="FontAwesome icon class")
     is_active = models.BooleanField(default=True)
     sort_order = models.PositiveIntegerField(default=0, help_text="Order for display")
+    is_global = models.BooleanField(default=False, help_text="Global category for general-purpose activities")
 
     class Meta:
         verbose_name = "Activity Type Category"

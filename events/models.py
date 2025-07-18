@@ -52,14 +52,6 @@ class CalendarEvent(TimeStampedModel):
         related_name='calendar_events',
         help_text="Equipment this event relates to"
     )
-    maintenance_activity = models.ForeignKey(
-        'maintenance.MaintenanceActivity',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name='calendar_events',
-        help_text="Associated maintenance activity (if any)"
-    )
     
     # Timing
     event_date = models.DateField(help_text="Event date")
@@ -98,6 +90,70 @@ class CalendarEvent(TimeStampedModel):
     # Status
     is_completed = models.BooleanField(default=False)
     completion_notes = models.TextField(blank=True)
+    
+    # Maintenance-specific fields (for maintenance events)
+    activity_type = models.ForeignKey(
+        'maintenance.MaintenanceActivityType',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='calendar_events',
+        help_text="Maintenance activity type (for maintenance events)"
+    )
+    maintenance_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('scheduled', 'Scheduled'),
+            ('pending', 'Pending'),
+            ('in_progress', 'In Progress'),
+            ('completed', 'Completed'),
+            ('cancelled', 'Cancelled'),
+            ('overdue', 'Overdue'),
+        ],
+        default='scheduled',
+        help_text="Maintenance status (for maintenance events)"
+    )
+    actual_start = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Actual start time (for maintenance events)"
+    )
+    actual_end = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Actual end time (for maintenance events)"
+    )
+    tools_required = models.TextField(
+        blank=True,
+        help_text="Tools required (for maintenance events)"
+    )
+    parts_required = models.TextField(
+        blank=True,
+        help_text="Parts required (for maintenance events)"
+    )
+    safety_notes = models.TextField(
+        blank=True,
+        help_text="Safety considerations (for maintenance events)"
+    )
+    
+    # Additional maintenance fields
+    estimated_duration_hours = models.PositiveIntegerField(
+        default=2,
+        help_text="Estimated duration in hours (for maintenance events)"
+    )
+    frequency_days = models.PositiveIntegerField(
+        default=365,
+        help_text="Frequency in days (for maintenance events)"
+    )
+    is_mandatory = models.BooleanField(
+        default=False,
+        help_text="Is this maintenance activity mandatory?"
+    )
+    next_due_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Next due date for recurring maintenance"
+    )
 
     class Meta:
         verbose_name = "Calendar Event"
@@ -122,6 +178,47 @@ class CalendarEvent(TimeStampedModel):
             self.start_time = None
             self.end_time = None
 
+    def is_past_due(self):
+        """Check if event is past due."""
+        from django.utils import timezone
+        today = timezone.now().date()
+        return self.event_date < today and not self.is_completed
+    
+    # Maintenance activity compatibility methods
+    @property
+    def scheduled_start(self):
+        """Get scheduled start as datetime for maintenance compatibility."""
+        from django.utils import timezone
+        from datetime import datetime, time
+        if self.start_time:
+            return timezone.make_aware(datetime.combine(self.event_date, self.start_time))
+        return timezone.make_aware(datetime.combine(self.event_date, time(9, 0)))
+    
+    @property
+    def scheduled_end(self):
+        """Get scheduled end as datetime for maintenance compatibility."""
+        from django.utils import timezone
+        from datetime import datetime, time, timedelta
+        if self.end_time:
+            return timezone.make_aware(datetime.combine(self.event_date, self.end_time))
+        # Default to 2 hours after start
+        return self.scheduled_start + timedelta(hours=2)
+    
+    @property
+    def status(self):
+        """Get status for maintenance compatibility."""
+        if self.event_type == 'maintenance':
+            return self.maintenance_status
+        return 'scheduled' if not self.is_completed else 'completed'
+    
+    @status.setter
+    def status(self, value):
+        """Set status for maintenance compatibility."""
+        if self.event_type == 'maintenance':
+            self.maintenance_status = value
+            if value == 'completed':
+                self.is_completed = True
+    
     def get_duration(self):
         """Get event duration in hours."""
         if self.start_time and self.end_time:
@@ -129,12 +226,35 @@ class CalendarEvent(TimeStampedModel):
             end_minutes = self.end_time.hour * 60 + self.end_time.minute
             return (end_minutes - start_minutes) / 60
         return None
-
-    def is_past_due(self):
-        """Check if event is past due."""
+    
+    def is_overdue(self):
+        """Check if maintenance activity is overdue."""
         from django.utils import timezone
-        today = timezone.now().date()
-        return self.event_date < today and not self.is_completed
+        if self.event_type == 'maintenance' and self.status in ['scheduled', 'pending']:
+            return self.scheduled_end < timezone.now()
+        return False
+    
+    def get_priority_display(self):
+        """Get priority display name."""
+        return dict(self.PRIORITY_CHOICES).get(self.priority, self.priority)
+    
+    def get_status_display(self):
+        """Get status display name."""
+        if self.event_type == 'maintenance':
+            status_choices = [
+                ('scheduled', 'Scheduled'),
+                ('pending', 'Pending'),
+                ('in_progress', 'In Progress'),
+                ('completed', 'Completed'),
+                ('cancelled', 'Cancelled'),
+                ('overdue', 'Overdue'),
+            ]
+            return dict(status_choices).get(self.maintenance_status, self.maintenance_status)
+        return 'Completed' if self.is_completed else 'Scheduled'
+    
+    def get_event_type_display(self):
+        """Get event type display name."""
+        return dict(self.EVENT_TYPES).get(self.event_type, self.event_type)
 
 
 class EventComment(TimeStampedModel):

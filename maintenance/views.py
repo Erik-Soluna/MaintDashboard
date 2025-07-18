@@ -36,45 +36,7 @@ from events.models import CalendarEvent
 logger = logging.getLogger(__name__)
 
 
-def create_calendar_event_for_maintenance(activity):
-    """Create or update a calendar event for a maintenance activity."""
-    try:
-        # Check if a calendar event already exists for this maintenance activity
-        existing_event = CalendarEvent.objects.filter(maintenance_activity=activity).first()
-        
-        if existing_event:
-            # Update existing event
-            existing_event.title = f"Maintenance: {activity.title}"
-            existing_event.description = activity.description
-            existing_event.event_date = activity.scheduled_start.date()
-            existing_event.start_time = activity.scheduled_start.time()
-            existing_event.end_time = activity.scheduled_end.time() if activity.scheduled_end else None
-            existing_event.assigned_to = activity.assigned_to
-            existing_event.priority = activity.priority
-            existing_event.updated_by = activity.updated_by or activity.created_by
-            existing_event.save()
-            logger.info(f"Updated calendar event for maintenance activity: {activity.title}")
-            return existing_event
-        else:
-            # Create new event
-            event = CalendarEvent.objects.create(
-                title=f"Maintenance: {activity.title}",
-                description=activity.description,
-                event_type='maintenance',
-                equipment=activity.equipment,
-                maintenance_activity=activity,
-                event_date=activity.scheduled_start.date(),
-                start_time=activity.scheduled_start.time(),
-                end_time=activity.scheduled_end.time() if activity.scheduled_end else None,
-                assigned_to=activity.assigned_to,
-                priority=activity.priority,
-                created_by=activity.created_by
-            )
-            logger.info(f"Created calendar event for maintenance activity: {activity.title}")
-            return event
-    except Exception as e:
-        logger.error(f"Error creating/updating calendar event for activity {activity.id}: {str(e)}")
-        return None
+
 
 
 @login_required
@@ -318,13 +280,7 @@ def add_activity(request):
                 activity.created_by = request.user
                 activity.save()
                 
-                # Create corresponding calendar event
-                calendar_event = create_calendar_event_for_maintenance(activity)
-                if calendar_event:
-                    messages.success(request, f'Maintenance activity "{activity.title}" created successfully and added to calendar!')
-                else:
-                    messages.success(request, f'Maintenance activity "{activity.title}" created successfully!')
-                    messages.warning(request, 'Could not create calendar event. Please check logs.')
+                messages.success(request, f'Maintenance activity "{activity.title}" created successfully!')
                 
                 return redirect('maintenance:activity_detail', activity_id=activity.id)
         else:
@@ -395,13 +351,7 @@ def edit_activity(request, activity_id):
             activity.updated_by = request.user
             activity.save()
             
-            # Update corresponding calendar event
-            calendar_event = create_calendar_event_for_maintenance(activity)
-            if calendar_event:
-                messages.success(request, f'Maintenance activity "{activity.title}" updated successfully! Calendar event synchronized.')
-            else:
-                messages.success(request, f'Maintenance activity "{activity.title}" updated successfully!')
-                messages.warning(request, 'Could not synchronize calendar event. Please check logs.')
+            messages.success(request, f'Maintenance activity "{activity.title}" updated successfully!')
             
             return redirect('maintenance:activity_detail', activity_id=activity.id)
     else:
@@ -429,16 +379,7 @@ def complete_activity(request, activity_id):
         activity.updated_by = request.user
         activity.save()
         
-        # Update corresponding calendar event to completed status
-        calendar_event = create_calendar_event_for_maintenance(activity)
-        if calendar_event:
-            calendar_event.is_completed = True
-            calendar_event.completion_notes = activity.completion_notes
-            calendar_event.save()
-            messages.success(request, f'Maintenance activity "{activity.title}" marked as completed! Calendar event updated.')
-        else:
-            messages.success(request, f'Maintenance activity "{activity.title}" marked as completed!')
-            messages.warning(request, 'Could not update calendar event. Please check logs.')
+        messages.success(request, f'Maintenance activity "{activity.title}" marked as completed!')
         
         return redirect('maintenance:activity_detail', activity_id=activity.id)
     
@@ -1019,10 +960,7 @@ def import_maintenance_csv(request):
                 
                 activity = MaintenanceActivity.objects.create(**activity_data)
                 
-                # Create corresponding calendar event for imported maintenance activity
-                calendar_event = create_calendar_event_for_maintenance(activity)
-                if calendar_event:
-                    logger.info(f"Created calendar event for imported maintenance activity: {activity.title}")
+                logger.info(f"Imported maintenance activity: {activity.title}")
                 
                 imported_count += 1
                 
@@ -1149,18 +1087,8 @@ def delete_activity(request, activity_id):
     if request.method == 'POST':
         activity_title = activity.title
         
-        # Delete associated calendar event first
-        from events.models import CalendarEvent
-        calendar_events = CalendarEvent.objects.filter(maintenance_activity=activity)
-        calendar_events_count = calendar_events.count()
-        calendar_events.delete()
-        
         activity.delete()
-        
-        if calendar_events_count > 0:
-            messages.success(request, f'Maintenance activity "{activity_title}" and {calendar_events_count} associated calendar event(s) deleted successfully!')
-        else:
-            messages.success(request, f'Maintenance activity "{activity_title}" deleted successfully!')
+        messages.success(request, f'Maintenance activity "{activity_title}" deleted successfully!')
         
         return redirect('maintenance:maintenance_list')
     
@@ -1261,8 +1189,14 @@ def add_activity_type_category(request):
 
 @login_required
 def edit_activity_type_category(request, category_id):
-    """Edit activity type category."""
+    """Edit activity type category and manage its activity types."""
     category = get_object_or_404(ActivityTypeCategory, id=category_id)
+    
+    # Get activity types for this category
+    activity_types = MaintenanceActivityType.objects.filter(
+        category=category,
+        is_active=True
+    ).order_by('name')
     
     if request.method == 'POST':
         form = ActivityTypeCategoryForm(request.POST, instance=category)
@@ -1278,6 +1212,7 @@ def edit_activity_type_category(request, category_id):
     context = {
         'form': form,
         'category': category,
+        'activity_types': activity_types,
         'page_title': 'Edit Activity Type Category'
     }
     return render(request, 'maintenance/edit_activity_type_category.html', context)
@@ -1386,6 +1321,17 @@ def enhanced_activity_type_list(request):
 @login_required
 def enhanced_add_activity_type(request):
     """Enhanced add activity type with template support."""
+    # Check if category is pre-selected
+    category_id = request.GET.get('category')
+    initial_data = {}
+    
+    if category_id:
+        try:
+            category = ActivityTypeCategory.objects.get(id=category_id)
+            initial_data['category'] = category
+        except ActivityTypeCategory.DoesNotExist:
+            pass
+    
     if request.method == 'POST':
         form = EnhancedMaintenanceActivityTypeForm(request.POST)
         if form.is_valid():
@@ -1394,13 +1340,18 @@ def enhanced_add_activity_type(request):
             activity_type.save()
             form.save_m2m()  # Save many-to-many relationships
             messages.success(request, f'Activity type "{activity_type.name}" created successfully!')
+            
+            # Redirect back to category if specified
+            if category_id:
+                return redirect('maintenance:category_activity_types', category_id=category_id)
             return redirect('maintenance:enhanced_activity_type_list')
     else:
-        form = EnhancedMaintenanceActivityTypeForm()
+        form = EnhancedMaintenanceActivityTypeForm(initial=initial_data)
     
     context = {
         'form': form,
-        'page_title': 'Add Activity Type'
+        'page_title': 'Add Activity Type',
+        'selected_category_id': category_id
     }
     return render(request, 'maintenance/enhanced_add_activity_type.html', context)
 
@@ -1428,6 +1379,34 @@ def enhanced_edit_activity_type(request, activity_type_id):
         'page_title': 'Edit Activity Type'
     }
     return render(request, 'maintenance/enhanced_edit_activity_type.html', context)
+
+
+@login_required
+def category_activity_types(request, category_id):
+    """Manage activity types within a specific category."""
+    category = get_object_or_404(ActivityTypeCategory, id=category_id)
+    
+    # Get activity types for this category
+    activity_types = MaintenanceActivityType.objects.filter(
+        category=category,
+        is_active=True
+    ).prefetch_related('applicable_equipment_categories').order_by('name')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        activity_types = activity_types.filter(
+            Q(name__icontains=search_query) |
+            Q(description__icontains=search_query)
+        )
+    
+    context = {
+        'category': category,
+        'activity_types': activity_types,
+        'search_query': search_query,
+        'page_title': f'Activity Types - {category.name}'
+    }
+    return render(request, 'maintenance/category_activity_types.html', context)
 
 
 # AJAX endpoints for dynamic form updates

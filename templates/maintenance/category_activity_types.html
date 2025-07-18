@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="{{ category.icon }}" style="color: {{ category.color }}"></i>
+                        {{ category.name }} Activity Types
+                    </h1>
+                    {% if category.is_global %}
+                        <span class="badge bg-warning text-dark">
+                            <i class="fas fa-globe"></i> Global Category
+                        </span>
+                    {% endif %}
+                </div>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'maintenance:edit_activity_type_category' category.id %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-edit"></i> Edit Category
+                    </a>
+                    <a href="{% url 'maintenance:enhanced_add_activity_type' %}?category={{ category.id }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Activity Type
+                    </a>
+                    <a href="{% url 'maintenance:activity_type_categories' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Categories
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Info -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h5 class="card-title">{{ category.name }}</h5>
+                            {% if category.description %}
+                                <p class="card-text">{{ category.description }}</p>
+                            {% else %}
+                                <p class="card-text text-muted">No description provided</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="d-flex flex-column align-items-end">
+                                <span class="badge mb-2" style="background-color: {{ category.color }}">
+                                    <i class="{{ category.icon }}"></i> {{ category.name }}
+                                </span>
+                                <small class="text-muted">
+                                    <i class="fas fa-sort-numeric-down"></i> Sort Order: {{ category.sort_order }}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-10">
+                            <input type="text" name="search" class="form-control" 
+                                   value="{{ search_query }}" placeholder="Search activity types in this category...">
+                        </div>
+                        <div class="col-md-2">
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Types Grid -->
+    <div class="row">
+        {% for activity_type in activity_types %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <i class="{{ category.icon }} me-2" style="color: {{ category.color }}"></i>
+                        <h6 class="mb-0">{{ activity_type.name }}</h6>
+                    </div>
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'maintenance:enhanced_edit_activity_type' activity_type.id %}" 
+                           class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        {% if activity_type.is_mandatory %}
+                            <span class="badge bg-danger">Required</span>
+                        {% endif %}
+                        {% if activity_type.template %}
+                            <span class="badge bg-info">Template-based</span>
+                        {% endif %}
+                    </div>
+                    
+                    <p class="card-text">{{ activity_type.description|truncatewords:15 }}</p>
+                    
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="border-end">
+                                <h6 class="mb-0 text-primary">{{ activity_type.estimated_duration_hours }}</h6>
+                                <small class="text-muted">Hours</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="border-end">
+                                <h6 class="mb-0 text-success">{{ activity_type.frequency_days }}</h6>
+                                <small class="text-muted">Days</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <h6 class="mb-0 text-info">{{ activity_type.applicable_equipment_categories.count }}</h6>
+                            <small class="text-muted">Categories</small>
+                        </div>
+                    </div>
+                    
+                    {% if activity_type.applicable_equipment_categories.exists %}
+                        <div class="mb-2">
+                            <small class="text-muted">Equipment Categories:</small>
+                            <div class="mt-1">
+                                {% for eq_cat in activity_type.applicable_equipment_categories.all %}
+                                    <span class="badge bg-secondary me-1">{{ eq_cat.name }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <div class="row">
+                        <div class="col-6">
+                            <small class="text-muted">
+                                {% if activity_type.tools_required %}
+                                    <i class="fas fa-tools"></i> Tools Required
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="col-6 text-end">
+                            <small class="text-muted">
+                                {% if activity_type.safety_notes %}
+                                    <i class="fas fa-exclamation-triangle text-warning"></i> Safety Notes
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-list-ul fa-3x text-muted mb-3"></i>
+                    <h5>No Activity Types Found</h5>
+                    <p class="text-muted">
+                        {% if search_query %}
+                            No activity types match your search in this category.
+                        {% else %}
+                            This category doesn't have any activity types yet.
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'maintenance:enhanced_add_activity_type' %}?category={{ category.id }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Activity Type
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Category Statistics</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="border-end">
+                                <h4 class="mb-0 text-primary">{{ activity_types.count }}</h4>
+                                <small class="text-muted">Total Activity Types</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border-end">
+                                <h4 class="mb-0 text-success">
+                                    {% for activity_type in activity_types %}
+                                        {% if activity_type.is_mandatory %}{{ forloop.counter }}{% endif %}
+                                    {% endfor %}
+                                </h4>
+                                <small class="text-muted">Required Types</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="border-end">
+                                <h4 class="mb-0 text-info">
+                                    {% for activity_type in activity_types %}
+                                        {% if activity_type.template %}{{ forloop.counter }}{% endif %}
+                                    {% endfor %}
+                                </h4>
+                                <small class="text-muted">Template-based</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="mb-0 text-warning">{{ category.sort_order }}</h4>
+                            <small class="text-muted">Category Sort Order</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Category Info -->
+    {% if category.is_global %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-globe"></i> Global Category Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">
+                        <strong>Global categories</strong> contain activity types that can be applied to any equipment category. 
+                        These are general-purpose activities like "Physical Inspection", "General Cleaning", or "Safety Check" 
+                        that don't belong to a specific maintenance category but are applicable across all equipment types.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.form-control, .form-select {
+    border-radius: 0.375rem;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.card {
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.btn-group .btn {
+    border-radius: 0.375rem;
+}
+</style>
+{% endblock %} 

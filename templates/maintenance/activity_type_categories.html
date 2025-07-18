@@ -44,12 +44,16 @@
                         <i class="{{ category.icon }} me-2" style="color: {{ category.color }}"></i>
                         <h6 class="mb-0">{{ category.name }}</h6>
                     </div>
-                    <div class="btn-group" role="group">
-                        <a href="{% url 'maintenance:edit_activity_type_category' category.id %}" 
-                           class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-edit"></i>
-                        </a>
-                    </div>
+                                            <div class="btn-group" role="group">
+                            <a href="{% url 'maintenance:edit_activity_type_category' category.id %}" 
+                               class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{% url 'maintenance:category_activity_types' category.id %}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-list"></i> Manage Types
+                            </a>
+                        </div>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">

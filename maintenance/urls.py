@@ -43,6 +43,7 @@ urlpatterns = [
     path('activity-type-categories/', views.activity_type_categories, name='activity_type_categories'),
     path('activity-type-categories/add/', views.add_activity_type_category, name='add_activity_type_category'),
     path('activity-type-categories/<int:category_id>/edit/', views.edit_activity_type_category, name='edit_activity_type_category'),
+    path('activity-type-categories/<int:category_id>/activity-types/', views.category_activity_types, name='category_activity_types'),
     
     # Activity type templates
     path('activity-type-templates/', views.activity_type_templates, name='activity_type_templates'),
