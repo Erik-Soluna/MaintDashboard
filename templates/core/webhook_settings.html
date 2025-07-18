@@ -89,6 +89,18 @@
     color: var(--bs-light);
 }
 
+.form-control.has-value {
+    border-color: var(--bs-success);
+    background: rgba(25, 135, 84, 0.1);
+    color: var(--bs-success);
+    font-weight: 500;
+}
+
+.form-control.has-value:focus {
+    border-color: var(--bs-success);
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
 .btn-webhook {
     padding: 10px 20px;
     border: 2px solid var(--bs-secondary);
@@ -250,20 +262,37 @@
         <div class="webhook-card-body">
             <div class="webhook-config-section">
                 <h6>Portainer Connection Settings</h6>
+                
+                <!-- Configuration Status -->
+                {% if portainer_url or stack_name %}
+                <div class="alert alert-success mb-3">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong>Configuration Saved:</strong> 
+                    {% if portainer_url %}Portainer URL: <code>{{ portainer_url }}</code>{% endif %}
+                    {% if portainer_url and stack_name %} | {% endif %}
+                    {% if stack_name %}Stack: <code>{{ stack_name }}</code>{% endif %}
+                </div>
+                {% else %}
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>No Configuration:</strong> Please enter your Portainer URL and Stack Name below.
+                </div>
+                {% endif %}
+                
                 <form method="post" id="webhook-config-form">
                     {% csrf_token %}
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label class="form-label">Portainer URL</label>
-                                <input type="text" name="portainer_url" class="form-control" value="{{ portainer_url }}" placeholder="http://your-portainer:9000">
+                                <input type="text" name="portainer_url" class="form-control {% if portainer_url %}has-value{% endif %}" value="{{ portainer_url }}" placeholder="http://your-portainer:9000">
                                 <div class="info-text">The URL where your Portainer instance is running (e.g., http://portainer:9000)</div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label class="form-label">Stack Name</label>
-                                <input type="text" name="stack_name" class="form-control" value="{{ stack_name }}" placeholder="your-stack-name">
+                                <input type="text" name="stack_name" class="form-control {% if stack_name %}has-value{% endif %}" value="{{ stack_name }}" placeholder="your-stack-name">
                                 <div class="info-text">The name of your Docker stack in Portainer (e.g., dev_maintdashboard)</div>
                             </div>
                         </div>

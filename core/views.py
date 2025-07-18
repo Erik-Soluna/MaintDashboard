@@ -3648,6 +3648,10 @@ def webhook_settings(request):
         
         return redirect('core:webhook_settings')
     
+    # Get non-sensitive data (show full values)
+    portainer_url = getattr(settings, 'PORTAINER_URL', '')
+    stack_name = getattr(settings, 'PORTAINER_STACK_NAME', '')
+    
     # Mask sensitive data for display
     portainer_user = getattr(settings, 'PORTAINER_USER', '')
     portainer_password = getattr(settings, 'PORTAINER_PASSWORD', '')
@@ -3662,10 +3666,10 @@ def webhook_settings(request):
         webhook_secret = webhook_secret[:4] + '*' * (len(webhook_secret) - 4) if len(webhook_secret) > 4 else '****'
     
     context = {
-        'portainer_url': getattr(settings, 'PORTAINER_URL', ''),
+        'portainer_url': portainer_url,
         'portainer_user': portainer_user,
         'portainer_password': portainer_password,
-        'stack_name': getattr(settings, 'PORTAINER_STACK_NAME', ''),
+        'stack_name': stack_name,
         'webhook_secret': webhook_secret,
     }
     
