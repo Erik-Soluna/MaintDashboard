@@ -12,7 +12,7 @@ from django.utils.timezone import now
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
-from .models import EquipmentCategory, Location, UserProfile, Customer, Role, Permission
+from .models import EquipmentCategory, Location, UserProfile, Customer, Role, Permission, PortainerConfig
 
 
 # Custom Password Change View for Admin
@@ -175,3 +175,17 @@ class PermissionAdmin(admin.ModelAdmin):
     list_display = ('name', 'codename', 'module', 'is_active')
     search_fields = ('name', 'codename', 'module')
     list_filter = ('is_active', 'module')
+
+@admin.register(PortainerConfig)
+class PortainerConfigAdmin(admin.ModelAdmin):
+    """Admin for Portainer configuration."""
+    list_display = ('portainer_url', 'stack_name', 'updated_at')
+    readonly_fields = ('created_at', 'updated_at')
+    
+    def has_add_permission(self, request):
+        """Only allow one configuration instance."""
+        return not PortainerConfig.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of the configuration."""
+        return False

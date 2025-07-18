@@ -523,3 +523,32 @@ class PlaywrightDebugLog(models.Model):
     
     def __str__(self):
         return f"[{self.timestamp}] {self.prompt[:40]}... ({self.status})"
+
+
+class PortainerConfig(models.Model):
+    """Configuration for Portainer integration."""
+    portainer_url = models.URLField(max_length=500, blank=True, help_text="Portainer instance URL (e.g., http://portainer:9000)")
+    portainer_user = models.CharField(max_length=100, blank=True, help_text="Portainer username for API access")
+    portainer_password = models.CharField(max_length=255, blank=True, help_text="Portainer password for API access")
+    stack_name = models.CharField(max_length=100, blank=True, help_text="Docker stack name in Portainer")
+    webhook_secret = models.CharField(max_length=255, blank=True, help_text="Optional webhook secret for security")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Portainer Configuration"
+        verbose_name_plural = "Portainer Configuration"
+    
+    def __str__(self):
+        return f"Portainer Config - {self.portainer_url or 'Not configured'}"
+    
+    @classmethod
+    def get_config(cls):
+        """Get the current Portainer configuration, creating one if it doesn't exist."""
+        config, created = cls.objects.get_or_create(pk=1)
+        return config
+    
+    def save(self, *args, **kwargs):
+        """Ensure only one configuration exists."""
+        self.pk = 1
+        super().save(*args, **kwargs)
