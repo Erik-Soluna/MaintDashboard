@@ -2318,3 +2318,50 @@ def apply_schedules_to_equipment(request, equipment_id):
     }
     
     return render(request, 'maintenance/apply_schedules_preview.html', context)
+
+# Add this debug view at the end of the file
+
+@login_required
+def debug_equipment_filtering(request):
+    """Debug view to help troubleshoot equipment filtering issues."""
+    from core.models import Location
+    from equipment.models import Equipment
+    from django.db.models import Q
+    
+    # Get current site selection
+    selected_site_id = request.GET.get('site_id')
+    if selected_site_id is None:
+        selected_site_id = request.session.get('selected_site_id')
+    
+    # Get all equipment
+    all_equipment = Equipment.objects.filter(is_active=True).select_related('category', 'location')
+    
+    # Get site info
+    selected_site = None
+    if selected_site_id:
+        try:
+            selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+        except Location.DoesNotExist:
+            pass
+    
+    # Filter equipment by site
+    filtered_equipment = all_equipment
+    if selected_site:
+        filtered_equipment = all_equipment.filter(
+            Q(location__parent_location=selected_site) | Q(location=selected_site)
+        )
+    
+    # Get all sites
+    all_sites = Location.objects.filter(is_site=True)
+    
+    context = {
+        'all_equipment': all_equipment,
+        'filtered_equipment': filtered_equipment,
+        'selected_site': selected_site,
+        'all_sites': all_sites,
+        'selected_site_id': selected_site_id,
+        'total_equipment': all_equipment.count(),
+        'filtered_count': filtered_equipment.count(),
+    }
+    
+    return render(request, 'maintenance/debug_equipment_filtering.html', context)

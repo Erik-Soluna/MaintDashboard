@@ -100,4 +100,7 @@ urlpatterns = [
     
     # Apply Schedules
     path('apply-schedules/<int:equipment_id>/', views.apply_schedules_to_equipment, name='apply_schedules_to_equipment'),
+    
+    # Debug
+    path('debug/equipment-filtering/', views.debug_equipment_filtering, name='debug_equipment_filtering'),
 ]

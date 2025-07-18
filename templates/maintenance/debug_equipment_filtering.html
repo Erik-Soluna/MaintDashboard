@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Debug Equipment Filtering{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Debug Equipment Filtering</h1>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'maintenance:maintenance_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Maintenance
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Equipment Filtering Debug Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Current Site Selection</h6>
+                            {% if selected_site %}
+                                <p><strong>Selected Site:</strong> {{ selected_site.name }} (ID: {{ selected_site.id }})</p>
+                            {% else %}
+                                <p><strong>Selected Site:</strong> None</p>
+                            {% endif %}
+                            <p><strong>Session Site ID:</strong> {{ selected_site_id|default:"None" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Equipment Counts</h6>
+                            <p><strong>Total Equipment:</strong> {{ total_equipment }}</p>
+                            <p><strong>Filtered Equipment:</strong> {{ filtered_count }}</p>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <h6>All Sites</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Site Name</th>
+                                    <th>ID</th>
+                                    <th>Equipment Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for site in all_sites %}
+                                <tr>
+                                    <td>{{ site.name }}</td>
+                                    <td>{{ site.id }}</td>
+                                    <td>
+                                        {% for equipment in all_equipment %}
+                                            {% if equipment.location == site or equipment.location.parent_location == site %}
+                                                {% if forloop.first %}{% endif %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        {{ all_equipment|length }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <hr>
+
+                    <h6>All Equipment</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Equipment Name</th>
+                                    <th>Category</th>
+                                    <th>Location</th>
+                                    <th>Site</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for equipment in all_equipment %}
+                                <tr>
+                                    <td>{{ equipment.name }}</td>
+                                    <td>{{ equipment.category.name }}</td>
+                                    <td>{{ equipment.location.name }}</td>
+                                    <td>
+                                        {% if equipment.location.is_site %}
+                                            {{ equipment.location.name }}
+                                        {% elif equipment.location.parent_location %}
+                                            {{ equipment.location.parent_location.name }}
+                                        {% else %}
+                                            <span class="text-muted">No site</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {% if selected_site %}
+                    <hr>
+
+                    <h6>Filtered Equipment (for selected site)</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Equipment Name</th>
+                                    <th>Category</th>
+                                    <th>Location</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for equipment in filtered_equipment %}
+                                <tr>
+                                    <td>{{ equipment.name }}</td>
+                                    <td>{{ equipment.category.name }}</td>
+                                    <td>{{ equipment.location.name }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">No equipment found for this site</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

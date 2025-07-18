@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Schedule Overrides{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Schedule Overrides</h1>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'maintenance:add_schedule_override' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Schedule Override
+                    </a>
+                    <a href="{% url 'maintenance:category_schedule_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-tags"></i> Category Schedules
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Schedule Override List</h5>
+                </div>
+                <div class="card-body">
+                    {% if database_error %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ error_message }}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Equipment</th>
+                                    <th>Category</th>
+                                    <th>Activity Type</th>
+                                    <th>Custom Frequency</th>
+                                    <th>Priority</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for override in overrides %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'maintenance:schedule_override_detail' override.id %}">
+                                            {{ override.equipment.name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ override.equipment.category.name }}</td>
+                                    <td>{{ override.activity_type.name }}</td>
+                                    <td>
+                                        {% if override.custom_frequency %}
+                                            {{ override.get_custom_frequency_display }}
+                                        {% else %}
+                                            <span class="text-muted">Default</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge {% if override.default_priority == 'critical' %}bg-danger{% elif override.default_priority == 'high' %}bg-warning{% elif override.default_priority == 'medium' %}bg-info{% else %}bg-secondary{% endif %}">
+                                            {{ override.get_default_priority_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ override.default_duration_hours }}h</td>
+                                    <td>
+                                        {% if override.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{% url 'maintenance:schedule_override_detail' override.id %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'maintenance:edit_schedule_override' override.id %}" class="btn btn-sm btn-outline-secondary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center">
+                                        <div class="py-4">
+                                            <i class="fas fa-sliders-h fa-2x text-muted mb-3"></i>
+                                            <p class="text-muted">No schedule overrides found</p>
+                                            <a href="{% url 'maintenance:add_schedule_override' %}" class="btn btn-primary">
+                                                <i class="fas fa-plus"></i> Create First Override
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
