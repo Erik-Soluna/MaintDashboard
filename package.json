@@ -1,0 +1,16 @@
+{
+  "name": "maintdashboard",
+  "version": "1.0.0",
+  "description": "A comprehensive Django-based maintenance management system with unified calendar and maintenance functionality.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
