@@ -2052,6 +2052,36 @@ def get_reports_for_equipment(request, equipment_id):
 # Add these new views at the end of the file
 
 @login_required
+def schedules_view(request):
+    """Combined view for both global and category schedules."""
+    try:
+        # Get category schedules
+        category_schedules = EquipmentCategorySchedule.objects.select_related(
+            'equipment_category', 'activity_type', 'activity_type__category'
+        ).order_by('equipment_category__name', 'activity_type__name')
+        
+        # Get global schedules
+        global_schedules = GlobalSchedule.objects.select_related(
+            'activity_type', 'activity_type__category'
+        ).order_by('name')
+        
+        context = {
+            'category_schedules': category_schedules,
+            'global_schedules': global_schedules,
+        }
+        return render(request, 'maintenance/schedules.html', context)
+        
+    except Exception as e:
+        logger.error(f"Database error in schedules_view: {str(e)}")
+        context = {
+            'category_schedules': [],
+            'global_schedules': [],
+            'database_error': True,
+            'error_message': 'Database schema issue detected. Some functionality may be limited.'
+        }
+        return render(request, 'maintenance/schedules.html', context)
+
+@login_required
 def category_schedule_list(request):
     """List equipment category schedules."""
     try:

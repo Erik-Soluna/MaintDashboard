@@ -80,6 +80,9 @@ urlpatterns = [
     path('reports/<int:report_id>/analyze/', views.analyze_report, name='analyze_report'),
     path('api/reports/equipment/<int:equipment_id>/', views.get_reports_for_equipment, name='get_reports_for_equipment'),
 
+    # Combined Schedules View
+    path('schedules/', views.schedules_view, name='schedules'),
+    
     # Category Schedules
     path('category-schedules/', views.category_schedule_list, name='category_schedule_list'),
     path('category-schedules/add/', views.add_category_schedule, name='add_category_schedule'),
