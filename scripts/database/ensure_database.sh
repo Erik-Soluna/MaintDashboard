@@ -86,7 +86,7 @@ check_required_tables() {
         "equipment_equipmentdocument"
         "maintenance_maintenanceactivity"
         "maintenance_maintenanceactivitytype"
-        "maintenance_maintenanceactivitytypecategory"
+        "maintenance_activitytypecategory"
         "maintenance_maintenanceschedule"
         "maintenance_maintenancereport"
         "events_calendarevent"
