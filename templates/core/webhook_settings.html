@@ -300,34 +300,34 @@
                     <input type="password" name="fake_password" style="display:none;" autocomplete="current-password">
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="form-label">Portainer URL</label>
-                                <input type="text" name="portainer_url" class="form-control {% if portainer_url %}has-value{% endif %}" value="{{ portainer_url }}" placeholder="http://your-portainer:9000">
-                                <div class="info-text">The URL where your Portainer instance is running (e.g., http://portainer:9000)</div>
-                            </div>
+                                            <div class="form-group">
+                    <label class="form-label">Portainer Webhook URL</label>
+                    <input type="text" name="portainer_url" class="form-control {% if portainer_url %}has-value{% endif %}" value="{{ portainer_url }}" placeholder="https://portainer.errorlog.app/api/stacks/webhooks/...">
+                    <div class="info-text">The webhook URL provided by Portainer (e.g., https://portainer.errorlog.app/api/stacks/webhooks/904dc369-2641-4e74-8fe5-d1df2f6f4088)</div>
+                </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="form-label">Stack Name</label>
-                                <input type="text" name="stack_name" class="form-control {% if stack_name %}has-value{% endif %}" value="{{ stack_name }}" placeholder="your-stack-name">
-                                <div class="info-text">The name of your Docker stack in Portainer (e.g., dev_maintdashboard)</div>
-                            </div>
+                                            <div class="form-group">
+                    <label class="form-label">Stack Name (Optional)</label>
+                    <input type="text" name="stack_name" class="form-control {% if stack_name %}has-value{% endif %}" value="{{ stack_name }}" placeholder="your-stack-name">
+                    <div class="info-text">The name of your Docker stack (for reference only, not used for webhook calls)</div>
+                </div>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="form-label">Portainer Username (Optional)</label>
-                                <input type="text" name="portainer_user" class="form-control" value="{{ portainer_user }}" placeholder="your-username" autocomplete="off" data-form-type="other">
-                                <div class="info-text">Only needed for API testing and manual updates</div>
-                            </div>
+                                            <div class="form-group">
+                    <label class="form-label">Portainer Username (Optional)</label>
+                    <input type="text" name="portainer_user" class="form-control" value="{{ portainer_user }}" placeholder="your-username" autocomplete="off" data-form-type="other">
+                    <div class="info-text">Not used for webhook calls (kept for future API features)</div>
+                </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label class="form-label">Portainer Password (Optional)</label>
-                                <input type="password" name="portainer_password" class="form-control" value="{{ portainer_password }}" placeholder="your-password" autocomplete="new-password" data-form-type="other">
-                                <div class="info-text">Only needed for API testing and manual updates</div>
-                            </div>
+                                            <div class="form-group">
+                    <label class="form-label">Portainer Password (Optional)</label>
+                    <input type="password" name="portainer_password" class="form-control" value="{{ portainer_password }}" placeholder="your-password" autocomplete="new-password" data-form-type="other">
+                    <div class="info-text">Not used for webhook calls (kept for future API features)</div>
+                </div>
                         </div>
                     </div>
                     <div class="form-group">
@@ -350,7 +350,7 @@
                     {% csrf_token %}
                     <button type="submit" name="action" value="test_webhook" class="btn-webhook success">
                         <i class="fas fa-plug"></i>
-                        Test Connection
+                        Test Webhook
                     </button>
                 </form>
                 
@@ -358,7 +358,7 @@
                     {% csrf_token %}
                     <button type="submit" name="action" value="update_stack" class="btn-webhook primary">
                         <i class="fas fa-sync-alt"></i>
-                        Update Stack Now
+                        Trigger Stack Update
                     </button>
                 </form>
             </div>

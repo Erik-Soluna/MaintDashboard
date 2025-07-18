@@ -3698,32 +3698,32 @@ def webhook_settings(request):
             try:
                 config = PortainerConfig.get_config()
                 if not config.portainer_url:
-                    messages.error(request, 'Cannot test connection: Portainer URL not configured. Please save your configuration first.')
+                    messages.error(request, 'Cannot test webhook: Webhook URL not configured. Please save your configuration first.')
                     return redirect('core:webhook_settings')
                 
                 result = test_portainer_connection()
-                if 'successful' in result.lower():
-                    messages.success(request, f'✅ Connection test successful: {result}')
+                if 'reachable' in result.lower() or 'successful' in result.lower():
+                    messages.success(request, f'✅ Webhook test successful: {result}')
                 elif 'failed' in result.lower() or 'error' in result.lower():
-                    messages.error(request, f'❌ Connection test failed: {result}')
+                    messages.error(request, f'❌ Webhook test failed: {result}')
                 else:
-                    messages.warning(request, f'⚠️ Connection test result: {result}')
+                    messages.warning(request, f'⚠️ Webhook test result: {result}')
             except Exception as e:
-                logger.error(f"Error testing connection: {str(e)}")
-                messages.error(request, f'❌ Connection test error: {str(e)}')
+                logger.error(f"Error testing webhook: {str(e)}")
+                messages.error(request, f'❌ Webhook test error: {str(e)}')
                 
         elif action == 'update_stack':
             logger.info("=== UPDATE STACK ACTION ===")
-            # Manually trigger stack update
+            # Manually trigger stack update via webhook
             try:
                 config = PortainerConfig.get_config()
-                if not config.portainer_url or not config.stack_name:
-                    messages.error(request, 'Cannot update stack: Portainer URL or Stack Name not configured. Please save your configuration first.')
+                if not config.portainer_url:
+                    messages.error(request, 'Cannot update stack: Webhook URL not configured. Please save your configuration first.')
                     return redirect('core:webhook_settings')
                 
                 result = trigger_portainer_stack_update()
-                if 'successfully' in result.lower():
-                    messages.success(request, f'✅ Stack update successful: {result}')
+                if 'successfully' in result.lower() or 'triggered' in result.lower():
+                    messages.success(request, f'✅ Stack update triggered: {result}')
                 elif 'failed' in result.lower() or 'error' in result.lower():
                     messages.error(request, f'❌ Stack update failed: {result}')
                 else:
@@ -3779,138 +3779,97 @@ def webhook_settings(request):
 
 
 def trigger_portainer_stack_update():
-    """Trigger a stack update via Portainer API."""
+    """Trigger a stack update by calling the webhook URL."""
     logger.info("=== TRIGGER PORTAINER STACK UPDATE STARTED ===")
     try:
         from .models import PortainerConfig
         config = PortainerConfig.get_config()
         
-        portainer_url = config.portainer_url
-        portainer_user = config.portainer_user
-        portainer_pass = config.portainer_password
-        stack_name = config.stack_name
+        webhook_url = config.portainer_url
+        webhook_secret = config.webhook_secret
         
-        logger.info(f"Config loaded - URL: '{portainer_url}', User: '{portainer_user}', Stack: '{stack_name}'")
-        logger.info(f"Password exists: {bool(portainer_pass)}")
+        logger.info(f"Config loaded - Webhook URL: '{webhook_url}'")
+        logger.info(f"Webhook secret exists: {bool(webhook_secret)}")
         
-        if not all([portainer_url, portainer_user, portainer_pass, stack_name]):
-            logger.error("Configuration incomplete - missing required fields")
-            return 'Configuration incomplete'
+        if not webhook_url:
+            logger.error("Configuration incomplete - missing webhook URL")
+            return 'Configuration incomplete - missing webhook URL'
         
-        # Get authentication token
-        logger.info(f"Attempting authentication to: {portainer_url}/api/auth")
-        auth_response = requests.post(
-            f"{portainer_url}/api/auth",
-            json={'Username': portainer_user, 'Password': portainer_pass},
-            timeout=10
-        )
+        # Prepare headers with webhook secret if available
+        headers = {}
+        if webhook_secret:
+            headers['X-Webhook-Secret'] = webhook_secret
+            logger.info("Added webhook secret to headers")
         
-        logger.info(f"Auth response status: {auth_response.status_code}")
-        if auth_response.status_code != 200:
-            logger.error(f"Authentication failed with status: {auth_response.status_code}")
-            return f'Authentication failed: {auth_response.status_code}'
-        
-        token = auth_response.json().get('jwt')
-        if not token:
-            logger.error("No authentication token received in response")
-            return 'No authentication token received'
-        
-        logger.info("Authentication successful, token received")
-        
-        # Get stack ID
-        headers = {'Authorization': f'Bearer {token}'}
-        logger.info(f"Fetching stacks from: {portainer_url}/api/stacks")
-        stacks_response = requests.get(
-            f"{portainer_url}/api/stacks",
+        # Call the webhook URL to trigger stack update
+        logger.info(f"Calling webhook URL: {webhook_url}")
+        webhook_response = requests.post(
+            webhook_url,
             headers=headers,
-            timeout=10
-        )
-        
-        logger.info(f"Stacks response status: {stacks_response.status_code}")
-        if stacks_response.status_code != 200:
-            logger.error(f"Failed to get stacks with status: {stacks_response.status_code}")
-            return f'Failed to get stacks: {stacks_response.status_code}'
-        
-        stacks = stacks_response.json()
-        logger.info(f"Found {len(stacks)} stacks")
-        stack_id = None
-        
-        for stack in stacks:
-            logger.info(f"Checking stack: {stack.get('Name')} vs {stack_name}")
-            if stack.get('Name') == stack_name:
-                stack_id = stack.get('Id')
-                logger.info(f"Found matching stack with ID: {stack_id}")
-                break
-        
-        if not stack_id:
-            logger.error(f"Stack '{stack_name}' not found in available stacks")
-            return f'Stack "{stack_name}" not found'
-        
-        # Update the stack
-        update_response = requests.put(
-            f"{portainer_url}/api/stacks/{stack_id}",
-            headers=headers,
-            json={'prune': True, 'pullImage': True},
+            json={'action': 'update_stack', 'timestamp': time.time()},
             timeout=30
         )
         
-        logger.info(f"Update response status: {update_response.status_code}")
-        if update_response.status_code == 200:
-            logger.info("Stack update successful")
-            return 'Stack updated successfully'
+        logger.info(f"Webhook response status: {webhook_response.status_code}")
+        logger.info(f"Webhook response content: {webhook_response.text[:200]}...")
+        
+        if webhook_response.status_code in [200, 202]:
+            logger.info("Webhook call successful")
+            return 'Stack update triggered successfully via webhook'
         else:
-            logger.error(f"Stack update failed with status: {update_response.status_code}")
-            return f'Update failed: {update_response.status_code}'
+            logger.error(f"Webhook call failed with status: {webhook_response.status_code}")
+            return f'Webhook call failed: {webhook_response.status_code}'
             
     except requests.exceptions.RequestException as e:
-        logger.error(f"Network error in stack update: {str(e)}")
+        logger.error(f"Network error in webhook call: {str(e)}")
         return f'Network error: {str(e)}'
     except Exception as e:
-        logger.error(f"Unexpected error in stack update: {str(e)}")
+        logger.error(f"Unexpected error in webhook call: {str(e)}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
         return f'Error: {str(e)}'
 
 
 def test_portainer_connection():
-    """Test connection to Portainer API."""
-    logger.info("=== TEST PORTAINER CONNECTION STARTED ===")
+    """Test connection to webhook URL."""
+    logger.info("=== TEST WEBHOOK CONNECTION STARTED ===")
     try:
         from .models import PortainerConfig
         config = PortainerConfig.get_config()
         
-        portainer_url = config.portainer_url
-        portainer_user = config.portainer_user
-        portainer_pass = config.portainer_password
+        webhook_url = config.portainer_url
+        webhook_secret = config.webhook_secret
         
-        logger.info(f"Config loaded - URL: '{portainer_url}', User: '{portainer_user}'")
-        logger.info(f"Password exists: {bool(portainer_pass)}")
+        logger.info(f"Config loaded - Webhook URL: '{webhook_url}'")
+        logger.info(f"Webhook secret exists: {bool(webhook_secret)}")
         
-        if not all([portainer_url, portainer_user, portainer_pass]):
-            logger.error("Configuration incomplete - missing required fields")
-            return 'Configuration incomplete'
+        if not webhook_url:
+            logger.error("Configuration incomplete - missing webhook URL")
+            return 'Configuration incomplete - missing webhook URL'
         
-        # Test authentication
-        logger.info(f"Attempting authentication to: {portainer_url}/api/auth")
-        auth_response = requests.post(
-            f"{portainer_url}/api/auth",
-            json={'Username': portainer_user, 'Password': portainer_pass},
+        # Test webhook URL with a simple GET request
+        logger.info(f"Testing webhook URL: {webhook_url}")
+        test_response = requests.get(
+            webhook_url,
             timeout=10
         )
         
-        logger.info(f"Auth response status: {auth_response.status_code}")
-        if auth_response.status_code == 200:
-            logger.info("Connection test successful")
-            return 'Connection successful'
+        logger.info(f"Test response status: {test_response.status_code}")
+        logger.info(f"Test response content: {test_response.text[:200]}...")
+        
+        if test_response.status_code in [200, 202, 404, 405]:
+            # 404/405 are expected for GET requests to webhook endpoints
+            logger.info("Webhook URL is reachable")
+            return 'Webhook URL is reachable and responding'
         else:
-            logger.error(f"Authentication failed with status: {auth_response.status_code}")
-            return f'Authentication failed: {auth_response.status_code}'
+            logger.error(f"Webhook test failed with status: {test_response.status_code}")
+            return f'Webhook test failed: {test_response.status_code}'
             
     except requests.exceptions.RequestException as e:
-        logger.error(f"Network error in test connection: {str(e)}")
+        logger.error(f"Network error in webhook test: {str(e)}")
         return f'Network error: {str(e)}'
     except Exception as e:
-        logger.error(f"Unexpected error in test connection: {str(e)}")
+        logger.error(f"Unexpected error in webhook test: {str(e)}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
         return f'Error: {str(e)}'
