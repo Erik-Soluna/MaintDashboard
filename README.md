@@ -38,13 +38,16 @@ MaintDashboard/
 ├── 📂 static/                  # Static files (CSS, JS, images)
 ├── 📂 media/                   # User-uploaded files
 ├── 📂 scripts/                 # Utility scripts and automation
+│   ├── 📂 database/            # Database scripts
+│   ├── 📂 deployment/          # Deployment scripts
+│   ├── 📂 celery/              # Celery management scripts
+│   └── 📂 utilities/           # Utility scripts
 ├── 📂 tests/                   # Test files and test suites
 ├── 📂 docs/                    # Documentation and guides
 ├── 📂 deployment/              # Deployment configurations
 ├── 📂 debug/                   # Debug files and logs
 ├── 📂 images/                  # Screenshots and images
 ├── 📂 playwright/              # Playwright testing
-├── 🐳 docker-entrypoint.sh    # Docker entrypoint script
 ├── 🐳 Dockerfile               # Main Docker configuration
 ├── 🐳 docker-compose.yml       # Docker Compose configuration
 ├── 📄 manage.py                # Django management script
@@ -101,10 +104,12 @@ docker compose exec web python tests/test_web_interface.py
 ## 🛠️ Development
 
 ### Scripts Directory
-- `scripts/setup-env.sh` - Environment setup
-- `scripts/ensure_database.sh` - Database initialization
-- `scripts/fix-database-user.sh` - Database user fixes
-- `scripts/start_celery.sh` - Celery worker startup
+- **Database**: `scripts/database/ensure_database.sh` - Comprehensive database initialization
+- **Deployment**: `scripts/deployment/setup-env.sh` - Environment setup
+- **Celery**: `scripts/celery/start_celery.sh` - Celery worker startup
+- **Utilities**: `scripts/utilities/` - Various utility scripts
+
+See `scripts/README.md` for complete documentation.
 
 ### Debug Directory
 - Debug scripts and utilities

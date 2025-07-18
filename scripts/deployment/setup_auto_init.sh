@@ -78,9 +78,9 @@ setup_permissions() {
     print_status "Setting up file permissions..."
     
     # Make scripts executable
-    chmod +x auto_init_database.py
-    chmod +x docker-entrypoint.sh
-    chmod +x init_database.sh
+    chmod +x scripts/database/auto_init_database.py
+    chmod +x scripts/deployment/docker-entrypoint.sh
+    chmod +x scripts/database/init_database.sh
     
     # Create necessary directories
     mkdir -p logs

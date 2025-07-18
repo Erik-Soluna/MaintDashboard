@@ -57,7 +57,7 @@ services:
   web:
     build: .
     container_name: maintenance_web
-    entrypoint: ["./docker-entrypoint.sh"]
+    entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["web"]
     volumes:
       - .:/app
@@ -114,7 +114,7 @@ services:
   celery:
     build: .
     container_name: maintenance_celery
-    entrypoint: ["./start_celery.sh"]
+    entrypoint: ["./scripts/celery/start_celery.sh"]
     volumes:
       - .:/app
       - media_volume:/app/media
@@ -154,7 +154,7 @@ services:
   celery-beat:
     build: .
     container_name: maintenance_celery_beat
-    entrypoint: ["./start_celery_beat.sh"]
+    entrypoint: ["./scripts/celery/start_celery_beat.sh"]
     command: ["celery-beat"]
     volumes:
       - .:/app

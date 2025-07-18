@@ -51,20 +51,20 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app/
 
 # Copy entrypoint script and make it executable
-RUN chmod +x /app/docker-entrypoint.sh
-RUN chmod +x /app/start_celery_beat.sh
-RUN chmod +x /app/start_celery.sh
-RUN chmod +x /app/start_celery_beat_prod.sh
-RUN chmod +x /app/start_celery_prod.sh
+RUN chmod +x /app/scripts/deployment/docker-entrypoint.sh
+RUN chmod +x /app/scripts/celery/start_celery_beat.sh
+RUN chmod +x /app/scripts/celery/start_celery.sh
+RUN chmod +x /app/scripts/celery/start_celery_beat_prod.sh
+RUN chmod +x /app/scripts/celery/start_celery_prod.sh
 
 # Create directories for static and media files
 RUN mkdir -p /app/staticfiles /app/media
 
 # Copy and make executable the database initialization scripts
-RUN chmod +x /app/init_database.sh
-RUN chmod +x /app/auto_init_database.py
-RUN chmod +x /app/ensure-database.sh
-RUN chmod +x /app/ensure_database.sh
+RUN chmod +x /app/scripts/database/init_database.sh
+RUN chmod +x /app/scripts/database/auto_init_database.py
+RUN chmod +x /app/scripts/database/ensure-database.sh
+RUN chmod +x /app/scripts/database/ensure_database.sh
 
 # Collect static files (but allow override via environment variable)
 RUN python manage.py collectstatic --noinput || echo "Static files collection failed, will retry at runtime"
@@ -84,7 +84,7 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health/ || python manage.py check --database default || exit 1
 
 # Set the entrypoint
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["./scripts/deployment/docker-entrypoint.sh"]
 
 # Default command
 CMD ["web"]
