@@ -346,21 +346,23 @@
 
             <div class="webhook-config-section">
                 <h6>Actions</h6>
-                <form method="post" style="display: inline;">
-                    {% csrf_token %}
-                    <button type="submit" name="action" value="test_webhook" class="btn-webhook success">
-                        <i class="fas fa-plug"></i>
-                        Test Webhook
-                    </button>
-                </form>
+                <button type="button" id="test-webhook-btn" class="btn-webhook success">
+                    <i class="fas fa-plug"></i>
+                    Test Webhook
+                </button>
                 
-                <form method="post" style="display: inline;">
-                    {% csrf_token %}
-                    <button type="submit" name="action" value="update_stack" class="btn-webhook primary">
-                        <i class="fas fa-sync-alt"></i>
-                        Trigger Stack Update
-                    </button>
-                </form>
+                <button type="button" id="update-stack-btn" class="btn-webhook primary">
+                    <i class="fas fa-sync-alt"></i>
+                    Trigger Stack Update
+                </button>
+                
+                <!-- Status display -->
+                <div id="webhook-status" class="mt-3" style="display: none;">
+                    <div class="alert" id="webhook-status-alert">
+                        <i class="fas fa-spinner fa-spin me-2"></i>
+                        <span id="webhook-status-text">Processing...</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -489,6 +491,99 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Save button clicked!');
             console.log('Button type:', this.type);
             console.log('Form action field value:', form.querySelector('input[name="action"]').value);
+        });
+    }
+});
+
+// Webhook action handlers
+function showWebhookStatus(message, type = 'info') {
+    const statusDiv = document.getElementById('webhook-status');
+    const statusAlert = document.getElementById('webhook-status-alert');
+    const statusText = document.getElementById('webhook-status-text');
+    
+    statusText.textContent = message;
+    statusAlert.className = `alert alert-${type}`;
+    statusDiv.style.display = 'block';
+}
+
+function hideWebhookStatus() {
+    document.getElementById('webhook-status').style.display = 'none';
+}
+
+function performWebhookAction(action) {
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    const originalDisabled = button.disabled;
+    
+    // Show loading state
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    button.disabled = true;
+    
+    // Show status
+    showWebhookStatus('Processing webhook request...', 'info');
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    // Make AJAX request
+    fetch('{% url "core:webhook_settings" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: `action=${action}&csrfmiddlewaretoken=${csrfToken}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Webhook response:', data);
+        
+        // Show appropriate status based on response
+        if (data.status === 'success') {
+            showWebhookStatus(data.message, 'success');
+        } else if (data.status === 'error') {
+            showWebhookStatus(data.message, 'danger');
+        } else if (data.status === 'warning') {
+            showWebhookStatus(data.message, 'warning');
+        } else {
+            showWebhookStatus('Webhook action completed. Check console for details.', 'info');
+        }
+        
+        // Re-enable button
+        button.innerHTML = originalText;
+        button.disabled = originalDisabled;
+        
+        // Hide status after 8 seconds for better visibility
+        setTimeout(hideWebhookStatus, 8000);
+    })
+    .catch(error => {
+        console.error('Webhook action error:', error);
+        showWebhookStatus('Network error occurred. Check console for details.', 'danger');
+        
+        // Re-enable button
+        button.innerHTML = originalText;
+        button.disabled = originalDisabled;
+        
+        // Hide status after 5 seconds
+        setTimeout(hideWebhookStatus, 5000);
+    });
+}
+
+// Add event listeners for webhook buttons
+document.addEventListener('DOMContentLoaded', function() {
+    const testBtn = document.getElementById('test-webhook-btn');
+    const updateBtn = document.getElementById('update-stack-btn');
+    
+    if (testBtn) {
+        testBtn.addEventListener('click', function() {
+            performWebhookAction('test_webhook');
+        });
+    }
+    
+    if (updateBtn) {
+        updateBtn.addEventListener('click', function() {
+            performWebhookAction('update_stack');
         });
     }
 });

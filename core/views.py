@@ -3698,19 +3698,34 @@ def webhook_settings(request):
             try:
                 config = PortainerConfig.get_config()
                 if not config.portainer_url:
-                    messages.error(request, 'Cannot test webhook: Webhook URL not configured. Please save your configuration first.')
-                    return redirect('core:webhook_settings')
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'error', 'message': 'Cannot test webhook: Webhook URL not configured. Please save your configuration first.'})
+                    else:
+                        messages.error(request, 'Cannot test webhook: Webhook URL not configured. Please save your configuration first.')
+                        return redirect('core:webhook_settings')
                 
                 result = test_portainer_connection()
                 if 'reachable' in result.lower() or 'successful' in result.lower():
-                    messages.success(request, f'✅ Webhook test successful: {result}')
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'success', 'message': f'✅ Webhook test successful: {result}'})
+                    else:
+                        messages.success(request, f'✅ Webhook test successful: {result}')
                 elif 'failed' in result.lower() or 'error' in result.lower():
-                    messages.error(request, f'❌ Webhook test failed: {result}')
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'error', 'message': f'❌ Webhook test failed: {result}'})
+                    else:
+                        messages.error(request, f'❌ Webhook test failed: {result}')
                 else:
-                    messages.warning(request, f'⚠️ Webhook test result: {result}')
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'warning', 'message': f'⚠️ Webhook test result: {result}'})
+                    else:
+                        messages.warning(request, f'⚠️ Webhook test result: {result}')
             except Exception as e:
                 logger.error(f"Error testing webhook: {str(e)}")
-                messages.error(request, f'❌ Webhook test error: {str(e)}')
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': f'❌ Webhook test error: {str(e)}'})
+                else:
+                    messages.error(request, f'❌ Webhook test error: {str(e)}')
                 
         elif action == 'update_stack':
             logger.info("=== UPDATE STACK ACTION ===")
@@ -3718,21 +3733,40 @@ def webhook_settings(request):
             try:
                 config = PortainerConfig.get_config()
                 if not config.portainer_url:
-                    messages.error(request, 'Cannot update stack: Webhook URL not configured. Please save your configuration first.')
-                    return redirect('core:webhook_settings')
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'error', 'message': 'Cannot update stack: Webhook URL not configured. Please save your configuration first.'})
+                    else:
+                        messages.error(request, 'Cannot update stack: Webhook URL not configured. Please save your configuration first.')
+                        return redirect('core:webhook_settings')
                 
                 result = trigger_portainer_stack_update()
                 if 'successfully' in result.lower() or 'triggered' in result.lower():
-                    messages.success(request, f'✅ Stack update triggered: {result}')
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'success', 'message': f'✅ Stack update triggered: {result}'})
+                    else:
+                        messages.success(request, f'✅ Stack update triggered: {result}')
                 elif 'failed' in result.lower() or 'error' in result.lower():
-                    messages.error(request, f'❌ Stack update failed: {result}')
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'error', 'message': f'❌ Stack update failed: {result}'})
+                    else:
+                        messages.error(request, f'❌ Stack update failed: {result}')
                 else:
-                    messages.warning(request, f'⚠️ Stack update result: {result}')
+                    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                        return JsonResponse({'status': 'warning', 'message': f'⚠️ Stack update result: {result}'})
+                    else:
+                        messages.warning(request, f'⚠️ Stack update result: {result}')
             except Exception as e:
                 logger.error(f"Error updating stack: {str(e)}")
-                messages.error(request, f'❌ Stack update error: {str(e)}')
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': f'❌ Stack update error: {str(e)}'})
+                else:
+                    messages.error(request, f'❌ Stack update error: {str(e)}')
         
-        return redirect('core:webhook_settings')
+        # Only redirect for non-AJAX requests
+        if not request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return redirect('core:webhook_settings')
+        else:
+            return JsonResponse({'status': 'success', 'message': 'Action completed'})
     
     # Get configuration from database
     config = PortainerConfig.get_config()
