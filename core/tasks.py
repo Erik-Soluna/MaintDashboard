@@ -2,7 +2,8 @@ from celery import shared_task
 import logging
 import asyncio
 import json
-from .models import PlaywrightDebugLog
+import requests
+from .models import PlaywrightDebugLog, PortainerConfig
 from django.utils import timezone
 from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite
 
@@ -114,4 +115,67 @@ def run_natural_language_test_task(prompt: str, user_role: str = "admin",
             
     except Exception as e:
         logger.error(f"Natural language test failed: {e}")
-        return {'error': str(e)} 
+        return {'error': str(e)}
+
+@shared_task
+def auto_update_portainer_stack():
+    """
+    Automatically check for and pull the newest version based on polling frequency.
+    """
+    try:
+        config = PortainerConfig.get_config()
+        
+        # Check if polling is enabled
+        if not config.polling_frequency or config.polling_frequency == 'disabled':
+            logger.info("Auto-update polling is disabled")
+            return {'status': 'disabled'}
+        
+        # Check if webhook URL is configured
+        if not config.portainer_url:
+            logger.warning("Auto-update failed: No webhook URL configured")
+            return {'status': 'error', 'message': 'No webhook URL configured'}
+        
+        # Get image tag (default to 'latest')
+        image_tag = config.image_tag or 'latest'
+        
+        # Build webhook URL with tag parameter
+        webhook_url_with_tag = f"{config.portainer_url}?tag={image_tag}"
+        
+        # Prepare headers with webhook secret if available
+        headers = {}
+        if config.webhook_secret:
+            headers['X-Webhook-Secret'] = config.webhook_secret
+        
+        logger.info(f"Auto-updating stack with tag '{image_tag}' via webhook")
+        
+        # Call the webhook URL to trigger stack update
+        webhook_response = requests.post(
+            webhook_url_with_tag,
+            headers=headers,
+            json={'action': 'auto_update', 'timestamp': timezone.now().isoformat()},
+            timeout=30
+        )
+        
+        logger.info(f"Auto-update webhook response status: {webhook_response.status_code}")
+        
+        if webhook_response.status_code in [200, 202, 204]:
+            logger.info("Auto-update successful")
+            return {
+                'status': 'success', 
+                'message': f'Auto-update triggered successfully with tag {image_tag}',
+                'response_code': webhook_response.status_code
+            }
+        else:
+            logger.error(f"Auto-update failed with status: {webhook_response.status_code}")
+            return {
+                'status': 'error', 
+                'message': f'Auto-update failed: {webhook_response.status_code}',
+                'response_code': webhook_response.status_code
+            }
+            
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error in auto-update: {str(e)}")
+        return {'status': 'error', 'message': f'Network error: {str(e)}'}
+    except Exception as e:
+        logger.error(f"Unexpected error in auto-update: {str(e)}")
+        return {'status': 'error', 'message': f'Error: {str(e)}'}

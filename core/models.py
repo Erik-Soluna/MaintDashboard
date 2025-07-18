@@ -533,6 +533,25 @@ class PortainerConfig(models.Model):
     stack_name = models.CharField(max_length=100, blank=True, help_text="Docker stack name in Portainer")
     webhook_secret = models.CharField(max_length=255, blank=True, help_text="Optional webhook secret for security")
     image_tag = models.CharField(max_length=50, blank=True, default='latest', help_text="Docker image tag to use for updates (e.g., latest, main, v1.0)")
+    
+    # Polling frequency options
+    POLLING_CHOICES = [
+        ('disabled', 'Disabled - Manual updates only'),
+        ('5min', 'Every 5 minutes'),
+        ('15min', 'Every 15 minutes'),
+        ('30min', 'Every 30 minutes'),
+        ('1hour', 'Every hour'),
+        ('6hours', 'Every 6 hours'),
+        ('12hours', 'Every 12 hours'),
+        ('daily', 'Once per day'),
+    ]
+    polling_frequency = models.CharField(
+        max_length=20, 
+        choices=POLLING_CHOICES, 
+        default='disabled',
+        help_text="How often to automatically check for and pull the newest version"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

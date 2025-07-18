@@ -3614,11 +3614,13 @@ def webhook_settings(request):
                 portainer_url = request.POST.get('portainer_url', '')
                 stack_name = request.POST.get('stack_name', '')
                 image_tag = request.POST.get('image_tag', 'latest')
+                polling_frequency = request.POST.get('polling_frequency', 'disabled')
                 
                 logger.info(f"Form data received:")
                 logger.info(f"  URL: '{portainer_url}'")
                 logger.info(f"  Stack: '{stack_name}'")
                 logger.info(f"  Image Tag: '{image_tag}'")
+                logger.info(f"  Polling Frequency: '{polling_frequency}'")
                 logger.info(f"  User: '{portainer_user[:3]}***' if exists")
                 logger.info(f"  Password: '***' if exists")
                 logger.info(f"  Secret: '{webhook_secret[:4]}***' if exists")
@@ -3649,9 +3651,11 @@ def webhook_settings(request):
                 config.portainer_url = portainer_url
                 config.stack_name = stack_name
                 config.image_tag = image_tag
+                config.polling_frequency = polling_frequency
                 logger.info(f"Updated URL to: '{config.portainer_url}'")
                 logger.info(f"Updated Stack to: '{config.stack_name}'")
                 logger.info(f"Updated Image Tag to: '{config.image_tag}'")
+                logger.info(f"Updated Polling Frequency to: '{config.polling_frequency}'")
                 
                 # Validate required fields
                 if not config.portainer_url:
@@ -3680,6 +3684,8 @@ def webhook_settings(request):
                     saved_items.append(f"Stack Name: {config.stack_name}")
                 if config.image_tag:
                     saved_items.append(f"Image Tag: {config.image_tag}")
+                if config.polling_frequency:
+                    saved_items.append(f"Polling Frequency: {config.get_polling_frequency_display()}")
                 if config.portainer_user:
                     saved_items.append(f"Username: {config.portainer_user[:3]}***")
                 if config.portainer_password:
@@ -3813,11 +3819,14 @@ def webhook_settings(request):
         'portainer_password': portainer_password,
         'stack_name': config.stack_name,
         'image_tag': config.image_tag,
+        'polling_frequency': config.polling_frequency,
+        'polling_choices': config.POLLING_CHOICES,
         'webhook_secret': webhook_secret,
         'debug_info': {
             'url_exists': bool(config.portainer_url),
             'stack_exists': bool(config.stack_name),
             'tag_exists': bool(config.image_tag),
+            'polling_exists': bool(config.polling_frequency),
             'user_exists': bool(config.portainer_user),
             'password_exists': bool(config.portainer_password),
             'secret_exists': bool(config.webhook_secret),
