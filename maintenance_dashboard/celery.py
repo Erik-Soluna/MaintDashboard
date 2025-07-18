@@ -22,7 +22,11 @@ app.autodiscover_tasks()
 # Configure Celery to handle Redis connection failures gracefully
 def configure_celery_broker():
     """Configure Celery broker with fallback options."""
-    broker_url = getattr(settings, 'CELERY_BROKER_URL', 'redis://redis:6379/0')
+    broker_url = getattr(settings, 'CELERY_BROKER_URL', None)
+    if not broker_url:
+        # Build Redis URL from settings
+        redis_url = getattr(settings, 'REDIS_URL', 'redis://redis:6379/0')
+        broker_url = f'{redis_url}/0'
     
     # If Redis is disabled or we're in development without Redis
     if broker_url.startswith('memory://') or broker_url.startswith('rpc://'):

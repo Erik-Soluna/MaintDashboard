@@ -1959,7 +1959,7 @@ def health_check(request):
     try:
         from django.conf import settings
         if getattr(settings, 'USE_REDIS', True):
-            r = redis.Redis.from_url('redis://redis:6379/0')
+            r = redis.Redis.from_url(settings.REDIS_URL)
             r.ping()
             checks.append({'name': 'Redis', 'status': 'ok', 'message': 'Connected'})
         else:
@@ -2035,7 +2035,7 @@ def simple_health_check(request):
         from django.conf import settings
         if getattr(settings, 'USE_REDIS', True):
             try:
-                r = redis.Redis.from_url('redis://redis:6379/0', socket_connect_timeout=2, socket_timeout=2)
+                r = redis.Redis.from_url(settings.REDIS_URL, socket_connect_timeout=2, socket_timeout=2)
                 r.ping()
             except Exception as redis_error:
                 # Log the Redis error but don't fail the health check

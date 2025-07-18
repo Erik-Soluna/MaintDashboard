@@ -212,15 +212,18 @@ if not DEBUG:
 
 # Celery Configuration
 # Redis configuration for Docker environment
-REDIS_HOST = config('REDIS_HOST', default='redis')
-REDIS_PORT = config('REDIS_PORT', default='6379')
-REDIS_PASSWORD = config('REDIS_PASSWORD', default='')
-
-# Build Redis URLs with fallback options
-if REDIS_PASSWORD:
-    REDIS_URL = f'redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}'
-else:
-    REDIS_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}'
+# Use REDIS_URL if provided, otherwise build from components
+REDIS_URL = config('REDIS_URL', default=None)
+if not REDIS_URL:
+    # Fallback to building URL from components
+    REDIS_HOST = config('REDIS_HOST', default='redis')
+    REDIS_PORT = config('REDIS_PORT', default='6379')
+    REDIS_PASSWORD = config('REDIS_PASSWORD', default='')
+    
+    if REDIS_PASSWORD:
+        REDIS_URL = f'redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}'
+    else:
+        REDIS_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}'
 
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default=f'{REDIS_URL}/0')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default=f'{REDIS_URL}/0')
