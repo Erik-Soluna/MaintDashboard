@@ -381,7 +381,7 @@
     <div class="bulk-actions-bar">
         <div class="bulk-actions-left">
             <div class="selection-info">
-                <span id="selected-count">0</span> of <span id="total-count">{{ total_locations }}</span> selected
+                <span id="selected-count">0</span> of <span id="visible-count">{{ total_sub_locations }}</span> selected
             </div>
             <button class="bulk-action-btn" onclick="selectAll()">
                 <i class="fas fa-check-square"></i> Select All
@@ -524,7 +524,7 @@
         <div class="locations-header">
             <h5>
                 <i class="fas fa-map-marker-alt me-2"></i>
-                Sub-Locations ({{ total_sub_locations }})
+                Sub-Locations (<span id="filtered-count">{{ total_sub_locations }}</span>)
             </h5>
         </div>
         <div class="table-responsive">
@@ -737,10 +737,11 @@ document.addEventListener('DOMContentLoaded', function() {
 // Selection management
 function updateSelectionInfo() {
     const selectedCount = selectedLocations.size;
-    const totalCount = document.querySelectorAll('.location-checkbox').length;
+    const visibleCount = document.querySelectorAll('#sub-locations-table tbody tr:not([style*="display: none"])').length;
     
     document.getElementById('selected-count').textContent = selectedCount;
-    document.getElementById('total-count').textContent = totalCount;
+    document.getElementById('visible-count').textContent = visibleCount;
+    document.getElementById('filtered-count').textContent = visibleCount;
 }
 
 function updateBulkActionButtons() {
@@ -1010,6 +1011,9 @@ function filterTable() {
         if (nameVal && !name.includes(nameVal)) show = false;
         row.style.display = show ? '' : 'none';
     });
+    
+    // Update counters after filtering
+    updateSelectionInfo();
 }
 
 siteSelect.addEventListener('change', () => {
