@@ -9,7 +9,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Row, Column, Submit, HTML, Field
 from .models import (
     MaintenanceActivity, MaintenanceSchedule, MaintenanceActivityType,
-    ActivityTypeCategory, ActivityTypeTemplate
+    ActivityTypeCategory, ActivityTypeTemplate, EquipmentCategorySchedule, GlobalSchedule, ScheduleOverride
 )
 from equipment.models import Equipment
 from core.models import EquipmentCategory
@@ -381,3 +381,236 @@ class MaintenanceScheduleForm(forms.ModelForm):
 class MaintenanceActivityTypeForm(EnhancedMaintenanceActivityTypeForm):
     """Legacy form - use EnhancedMaintenanceActivityTypeForm instead."""
     pass
+
+
+class EquipmentCategoryScheduleForm(forms.ModelForm):
+    """Form for equipment category schedules."""
+    
+    class Meta:
+        model = EquipmentCategorySchedule
+        fields = [
+            'equipment_category', 'activity_type', 'frequency', 'frequency_days',
+            'auto_generate', 'advance_notice_days', 'is_mandatory', 'is_active',
+            'allow_override', 'default_priority', 'default_duration_hours'
+        ]
+        widgets = {
+            'frequency_days': forms.NumberInput(attrs={'min': 1}),
+            'advance_notice_days': forms.NumberInput(attrs={'min': 0}),
+            'default_duration_hours': forms.NumberInput(attrs={'min': 0.5, 'step': 0.5}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Filter active options
+        self.fields['equipment_category'].queryset = EquipmentCategory.objects.filter(is_active=True)
+        self.fields['activity_type'].queryset = MaintenanceActivityType.objects.filter(is_active=True).select_related('category')
+        
+        # Setup crispy forms helper
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.form_class = 'form-horizontal'
+        self.helper.label_class = 'col-lg-2'
+        self.helper.field_class = 'col-lg-8'
+        
+        self.helper.layout = Layout(
+            Row(
+                Column('equipment_category', css_class='form-group col-md-6 mb-0'),
+                Column('activity_type', css_class='form-group col-md-6 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('frequency', css_class='form-group col-md-6 mb-0'),
+                Column('frequency_days', css_class='form-group col-md-6 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('auto_generate', css_class='form-group col-md-4 mb-0'),
+                Column('advance_notice_days', css_class='form-group col-md-4 mb-0'),
+                Column('is_mandatory', css_class='form-group col-md-4 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('is_active', css_class='form-group col-md-4 mb-0'),
+                Column('allow_override', css_class='form-group col-md-4 mb-0'),
+                Column('default_priority', css_class='form-group col-md-4 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('default_duration_hours', css_class='form-group col-md-6 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column(
+                    Submit('save', 'Save Schedule', css_class='btn btn-primary'),
+                    css_class='form-group col-md-6 mb-0'
+                ),
+                Column(
+                    HTML('<a href="{% url "maintenance:category_schedule_list" %}" class="btn btn-secondary">Cancel</a>'),
+                    css_class='form-group col-md-6 mb-0'
+                ),
+                css_class='form-row'
+            )
+        )
+
+
+class GlobalScheduleForm(forms.ModelForm):
+    """Form for global schedules."""
+    
+    class Meta:
+        model = GlobalSchedule
+        fields = [
+            'name', 'activity_type', 'frequency', 'frequency_days',
+            'auto_generate', 'advance_notice_days', 'is_mandatory', 'is_active',
+            'allow_override', 'default_priority', 'default_duration_hours', 'description'
+        ]
+        widgets = {
+            'frequency_days': forms.NumberInput(attrs={'min': 1}),
+            'advance_notice_days': forms.NumberInput(attrs={'min': 0}),
+            'default_duration_hours': forms.NumberInput(attrs={'min': 0.5, 'step': 0.5}),
+            'description': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Filter active options
+        self.fields['activity_type'].queryset = MaintenanceActivityType.objects.filter(is_active=True).select_related('category')
+        
+        # Setup crispy forms helper
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.form_class = 'form-horizontal'
+        self.helper.label_class = 'col-lg-2'
+        self.helper.field_class = 'col-lg-8'
+        
+        self.helper.layout = Layout(
+            Row(
+                Column('name', css_class='form-group col-md-6 mb-0'),
+                Column('activity_type', css_class='form-group col-md-6 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('frequency', css_class='form-group col-md-6 mb-0'),
+                Column('frequency_days', css_class='form-group col-md-6 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('auto_generate', css_class='form-group col-md-4 mb-0'),
+                Column('advance_notice_days', css_class='form-group col-md-4 mb-0'),
+                Column('is_mandatory', css_class='form-group col-md-4 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('is_active', css_class='form-group col-md-4 mb-0'),
+                Column('allow_override', css_class='form-group col-md-4 mb-0'),
+                Column('default_priority', css_class='form-group col-md-4 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('default_duration_hours', css_class='form-group col-md-6 mb-0'),
+                css_class='form-row'
+            ),
+            'description',
+            Row(
+                Column(
+                    Submit('save', 'Save Global Schedule', css_class='btn btn-primary'),
+                    css_class='form-group col-md-6 mb-0'
+                ),
+                Column(
+                    HTML('<a href="{% url "maintenance:global_schedule_list" %}" class="btn btn-secondary">Cancel</a>'),
+                    css_class='form-group col-md-6 mb-0'
+                ),
+                css_class='form-row'
+            )
+        )
+
+
+class ScheduleOverrideForm(forms.ModelForm):
+    """Form for schedule overrides."""
+    
+    class Meta:
+        model = ScheduleOverride
+        fields = [
+            'equipment', 'activity_type', 'is_active', 'auto_generate',
+            'advance_notice_days', 'custom_frequency', 'custom_frequency_days',
+            'default_priority', 'default_duration_hours', 'notes'
+        ]
+        widgets = {
+            'advance_notice_days': forms.NumberInput(attrs={'min': 0}),
+            'custom_frequency_days': forms.NumberInput(attrs={'min': 1}),
+            'default_duration_hours': forms.NumberInput(attrs={'min': 0.5, 'step': 0.5}),
+            'notes': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        # Extract request from kwargs to access session data
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+        
+        # Filter active options
+        equipment_queryset = Equipment.objects.filter(is_active=True)
+        
+        # Apply site filtering if a site is selected
+        if self.request and hasattr(self.request, 'session'):
+            from core.models import Location
+            from django.db.models import Q
+            
+            selected_site_id = self.request.GET.get('site_id')
+            if selected_site_id is None:
+                selected_site_id = self.request.session.get('selected_site_id')
+            
+            if selected_site_id:
+                try:
+                    selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                    equipment_queryset = equipment_queryset.filter(
+                        Q(location__parent_location=selected_site) | Q(location=selected_site)
+                    )
+                except Location.DoesNotExist:
+                    pass
+        
+        self.fields['equipment'].queryset = equipment_queryset.select_related('category')
+        self.fields['activity_type'].queryset = MaintenanceActivityType.objects.filter(is_active=True).select_related('category')
+        
+        # Setup crispy forms helper
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.form_class = 'form-horizontal'
+        self.helper.label_class = 'col-lg-2'
+        self.helper.field_class = 'col-lg-8'
+        
+        self.helper.layout = Layout(
+            Row(
+                Column('equipment', css_class='form-group col-md-6 mb-0'),
+                Column('activity_type', css_class='form-group col-md-6 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('is_active', css_class='form-group col-md-4 mb-0'),
+                Column('auto_generate', css_class='form-group col-md-4 mb-0'),
+                Column('advance_notice_days', css_class='form-group col-md-4 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('custom_frequency', css_class='form-group col-md-6 mb-0'),
+                Column('custom_frequency_days', css_class='form-group col-md-6 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('default_priority', css_class='form-group col-md-6 mb-0'),
+                Column('default_duration_hours', css_class='form-group col-md-6 mb-0'),
+                css_class='form-row'
+            ),
+            'notes',
+            Row(
+                Column(
+                    Submit('save', 'Save Override', css_class='btn btn-primary'),
+                    css_class='form-group col-md-6 mb-0'
+                ),
+                Column(
+                    HTML('<a href="{% url "maintenance:schedule_override_list" %}" class="btn btn-secondary">Cancel</a>'),
+                    css_class='form-group col-md-6 mb-0'
+                ),
+                css_class='form-row'
+            )
+        )

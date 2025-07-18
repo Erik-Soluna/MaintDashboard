@@ -32,6 +32,8 @@ from .forms import (
     ActivityTypeCategoryForm, ActivityTypeTemplateForm
 )
 from events.models import CalendarEvent
+from maintenance.models import EquipmentCategorySchedule, GlobalSchedule, ScheduleOverride
+from maintenance.forms import EquipmentCategoryScheduleForm, GlobalScheduleForm, ScheduleOverrideForm
 
 logger = logging.getLogger(__name__)
 
@@ -1999,3 +2001,320 @@ def get_reports_for_equipment(request, equipment_id):
     except Exception as e:
         logger.error(f"Error getting reports for equipment: {str(e)}")
         return JsonResponse({'error': 'Failed to get reports'}, status=500)
+
+# Add these new views at the end of the file
+
+@login_required
+def category_schedule_list(request):
+    """List equipment category schedules."""
+    try:
+        schedules = EquipmentCategorySchedule.objects.select_related(
+            'equipment_category', 'activity_type', 'activity_type__category'
+        ).order_by('equipment_category__name', 'activity_type__name')
+        
+        context = {
+            'schedules': schedules,
+        }
+        return render(request, 'maintenance/category_schedule_list.html', context)
+        
+    except Exception as e:
+        logger.error(f"Database error in category_schedule_list: {str(e)}")
+        context = {
+            'schedules': [],
+            'database_error': True,
+            'error_message': 'Database schema issue detected. Some functionality may be limited.'
+        }
+        return render(request, 'maintenance/category_schedule_list.html', context)
+
+
+@login_required
+def add_category_schedule(request):
+    """Add new equipment category schedule."""
+    if request.method == 'POST':
+        form = EquipmentCategoryScheduleForm(request.POST)
+        if form.is_valid():
+            schedule = form.save(commit=False)
+            schedule.created_by = request.user
+            schedule.save()
+            
+            messages.success(request, 'Category schedule created successfully!')
+            return redirect('maintenance:category_schedule_list')
+    else:
+        form = EquipmentCategoryScheduleForm()
+    
+    context = {
+        'form': form,
+        'title': 'Add Category Schedule'
+    }
+    return render(request, 'maintenance/category_schedule_form.html', context)
+
+
+@login_required
+def edit_category_schedule(request, schedule_id):
+    """Edit equipment category schedule."""
+    schedule = get_object_or_404(EquipmentCategorySchedule, id=schedule_id)
+    
+    if request.method == 'POST':
+        form = EquipmentCategoryScheduleForm(request.POST, instance=schedule)
+        if form.is_valid():
+            schedule = form.save(commit=False)
+            schedule.updated_by = request.user
+            schedule.save()
+            
+            messages.success(request, 'Category schedule updated successfully!')
+            return redirect('maintenance:category_schedule_list')
+    else:
+        form = EquipmentCategoryScheduleForm(instance=schedule)
+    
+    context = {
+        'form': form,
+        'schedule': schedule,
+        'title': 'Edit Category Schedule'
+    }
+    return render(request, 'maintenance/category_schedule_form.html', context)
+
+
+@login_required
+def category_schedule_detail(request, schedule_id):
+    """View equipment category schedule details."""
+    schedule = get_object_or_404(EquipmentCategorySchedule, id=schedule_id)
+    
+    # Get equipment that uses this category
+    equipment_list = Equipment.objects.filter(
+        category=schedule.equipment_category,
+        is_active=True
+    ).order_by('name')
+    
+    # Get recent activities for this schedule
+    recent_activities = MaintenanceActivity.objects.filter(
+        equipment__category=schedule.equipment_category,
+        activity_type=schedule.activity_type
+    ).order_by('-scheduled_start')[:10]
+    
+    context = {
+        'schedule': schedule,
+        'equipment_list': equipment_list,
+        'recent_activities': recent_activities,
+    }
+    
+    return render(request, 'maintenance/category_schedule_detail.html', context)
+
+
+@login_required
+def global_schedule_list(request):
+    """List global schedules."""
+    try:
+        schedules = GlobalSchedule.objects.select_related(
+            'activity_type', 'activity_type__category'
+        ).order_by('name')
+        
+        context = {
+            'schedules': schedules,
+        }
+        return render(request, 'maintenance/global_schedule_list.html', context)
+        
+    except Exception as e:
+        logger.error(f"Database error in global_schedule_list: {str(e)}")
+        context = {
+            'schedules': [],
+            'database_error': True,
+            'error_message': 'Database schema issue detected. Some functionality may be limited.'
+        }
+        return render(request, 'maintenance/global_schedule_list.html', context)
+
+
+@login_required
+def add_global_schedule(request):
+    """Add new global schedule."""
+    if request.method == 'POST':
+        form = GlobalScheduleForm(request.POST)
+        if form.is_valid():
+            schedule = form.save(commit=False)
+            schedule.created_by = request.user
+            schedule.save()
+            
+            messages.success(request, 'Global schedule created successfully!')
+            return redirect('maintenance:global_schedule_list')
+    else:
+        form = GlobalScheduleForm()
+    
+    context = {
+        'form': form,
+        'title': 'Add Global Schedule'
+    }
+    return render(request, 'maintenance/global_schedule_form.html', context)
+
+
+@login_required
+def edit_global_schedule(request, schedule_id):
+    """Edit global schedule."""
+    schedule = get_object_or_404(GlobalSchedule, id=schedule_id)
+    
+    if request.method == 'POST':
+        form = GlobalScheduleForm(request.POST, instance=schedule)
+        if form.is_valid():
+            schedule = form.save(commit=False)
+            schedule.updated_by = request.user
+            schedule.save()
+            
+            messages.success(request, 'Global schedule updated successfully!')
+            return redirect('maintenance:global_schedule_list')
+    else:
+        form = GlobalScheduleForm(instance=schedule)
+    
+    context = {
+        'form': form,
+        'schedule': schedule,
+        'title': 'Edit Global Schedule'
+    }
+    return render(request, 'maintenance/global_schedule_form.html', context)
+
+
+@login_required
+def global_schedule_detail(request, schedule_id):
+    """View global schedule details."""
+    schedule = get_object_or_404(GlobalSchedule, id=schedule_id)
+    
+    # Get all equipment that could be affected by this global schedule
+    equipment_list = Equipment.objects.filter(is_active=True).order_by('name')
+    
+    # Get recent activities for this schedule
+    recent_activities = MaintenanceActivity.objects.filter(
+        activity_type=schedule.activity_type
+    ).order_by('-scheduled_start')[:10]
+    
+    context = {
+        'schedule': schedule,
+        'equipment_list': equipment_list,
+        'recent_activities': recent_activities,
+    }
+    
+    return render(request, 'maintenance/global_schedule_detail.html', context)
+
+
+@login_required
+def schedule_override_list(request):
+    """List schedule overrides."""
+    try:
+        overrides = ScheduleOverride.objects.select_related(
+            'equipment', 'equipment__category', 'activity_type', 'activity_type__category'
+        ).order_by('equipment__name', 'activity_type__name')
+        
+        context = {
+            'overrides': overrides,
+        }
+        return render(request, 'maintenance/schedule_override_list.html', context)
+        
+    except Exception as e:
+        logger.error(f"Database error in schedule_override_list: {str(e)}")
+        context = {
+            'overrides': [],
+            'database_error': True,
+            'error_message': 'Database schema issue detected. Some functionality may be limited.'
+        }
+        return render(request, 'maintenance/schedule_override_list.html', context)
+
+
+@login_required
+def add_schedule_override(request):
+    """Add new schedule override."""
+    if request.method == 'POST':
+        form = ScheduleOverrideForm(request.POST, request=request)
+        if form.is_valid():
+            override = form.save(commit=False)
+            override.created_by = request.user
+            override.save()
+            
+            messages.success(request, 'Schedule override created successfully!')
+            return redirect('maintenance:schedule_override_list')
+    else:
+        form = ScheduleOverrideForm(request=request)
+    
+    context = {
+        'form': form,
+        'title': 'Add Schedule Override'
+    }
+    return render(request, 'maintenance/schedule_override_form.html', context)
+
+
+@login_required
+def edit_schedule_override(request, override_id):
+    """Edit schedule override."""
+    override = get_object_or_404(ScheduleOverride, id=override_id)
+    
+    if request.method == 'POST':
+        form = ScheduleOverrideForm(request.POST, instance=override, request=request)
+        if form.is_valid():
+            override = form.save(commit=False)
+            override.updated_by = request.user
+            override.save()
+            
+            messages.success(request, 'Schedule override updated successfully!')
+            return redirect('maintenance:schedule_override_list')
+    else:
+        form = ScheduleOverrideForm(instance=override, request=request)
+    
+    context = {
+        'form': form,
+        'override': override,
+        'title': 'Edit Schedule Override'
+    }
+    return render(request, 'maintenance/schedule_override_form.html', context)
+
+
+@login_required
+def schedule_override_detail(request, override_id):
+    """View schedule override details."""
+    override = get_object_or_404(ScheduleOverride, id=override_id)
+    
+    # Get the effective schedule for comparison
+    effective_schedule = override.equipment.get_effective_schedule(override.activity_type)
+    
+    # Get recent activities for this override
+    recent_activities = MaintenanceActivity.objects.filter(
+        equipment=override.equipment,
+        activity_type=override.activity_type
+    ).order_by('-scheduled_start')[:10]
+    
+    context = {
+        'override': override,
+        'effective_schedule': effective_schedule,
+        'recent_activities': recent_activities,
+    }
+    
+    return render(request, 'maintenance/schedule_override_detail.html', context)
+
+
+@login_required
+def apply_schedules_to_equipment(request, equipment_id):
+    """Apply category and global schedules to specific equipment."""
+    equipment = get_object_or_404(Equipment, id=equipment_id)
+    
+    if request.method == 'POST':
+        try:
+            equipment.apply_category_schedules(request.user)
+            messages.success(request, f'Schedules applied to {equipment.name} successfully!')
+        except Exception as e:
+            logger.error(f"Error applying schedules to equipment {equipment.id}: {str(e)}")
+            messages.error(request, f'Error applying schedules: {str(e)}')
+        
+        return redirect('equipment:equipment_detail', equipment_id=equipment.id)
+    
+    # Show preview of what would be applied
+    category_schedules = EquipmentCategorySchedule.objects.filter(
+        equipment_category=equipment.category,
+        is_active=True
+    ) if equipment.category else []
+    
+    global_schedules = GlobalSchedule.objects.filter(is_active=True)
+    
+    existing_overrides = ScheduleOverride.objects.filter(equipment=equipment)
+    
+    context = {
+        'equipment': equipment,
+        'category_schedules': category_schedules,
+        'global_schedules': global_schedules,
+        'existing_overrides': existing_overrides,
+    }
+    
+    return render(request, 'maintenance/apply_schedules_preview.html', context)

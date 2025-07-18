@@ -116,6 +116,138 @@ class Equipment(TimeStampedModel):
 
     def __str__(self):
         return f"{self.name} ({self.get_status_display()})"
+    
+    def apply_category_schedules(self, user=None):
+        """
+        Apply category-based schedules to this equipment.
+        Called automatically when equipment is created.
+        """
+        from maintenance.models import EquipmentCategorySchedule, GlobalSchedule, ScheduleOverride
+        
+        if not self.category:
+            return
+        
+        # Apply category schedules
+        category_schedules = EquipmentCategorySchedule.objects.filter(
+            equipment_category=self.category,
+            is_active=True
+        )
+        
+        for category_schedule in category_schedules:
+            # Check if there's already an override for this activity type
+            override = ScheduleOverride.objects.filter(
+                equipment=self,
+                activity_type=category_schedule.activity_type
+            ).first()
+            
+            if not override and category_schedule.allow_override:
+                # Create a default override based on category schedule
+                ScheduleOverride.objects.create(
+                    equipment=self,
+                    activity_type=category_schedule.activity_type,
+                    auto_generate=category_schedule.auto_generate,
+                    advance_notice_days=category_schedule.advance_notice_days,
+                    default_priority=category_schedule.default_priority,
+                    default_duration_hours=category_schedule.default_duration_hours,
+                    created_by=user
+                )
+        
+        # Apply global schedules
+        global_schedules = GlobalSchedule.objects.filter(is_active=True)
+        
+        for global_schedule in global_schedules:
+            # Check if there's already an override for this activity type
+            override = ScheduleOverride.objects.filter(
+                equipment=self,
+                activity_type=global_schedule.activity_type
+            ).first()
+            
+            if not override and global_schedule.allow_override:
+                # Create a default override based on global schedule
+                ScheduleOverride.objects.create(
+                    equipment=self,
+                    activity_type=global_schedule.activity_type,
+                    auto_generate=global_schedule.auto_generate,
+                    advance_notice_days=global_schedule.advance_notice_days,
+                    default_priority=global_schedule.default_priority,
+                    default_duration_hours=global_schedule.default_duration_hours,
+                    created_by=user
+                )
+    
+    def get_effective_schedule(self, activity_type):
+        """
+        Get the effective schedule for a specific activity type.
+        Returns the override if it exists, otherwise returns category/global schedule.
+        """
+        from maintenance.models import ScheduleOverride, EquipmentCategorySchedule, GlobalSchedule
+        
+        # Check for override first
+        override = ScheduleOverride.objects.filter(
+            equipment=self,
+            activity_type=activity_type,
+            is_active=True
+        ).first()
+        
+        if override:
+            return {
+                'type': 'override',
+                'object': override,
+                'frequency': override.get_effective_frequency(),
+                'frequency_days': override.get_effective_frequency_days(),
+                'auto_generate': override.auto_generate,
+                'advance_notice_days': override.advance_notice_days,
+                'priority': override.default_priority,
+                'duration_hours': override.default_duration_hours,
+            }
+        
+        # Check for category schedule
+        if self.category:
+            category_schedule = EquipmentCategorySchedule.objects.filter(
+                equipment_category=self.category,
+                activity_type=activity_type,
+                is_active=True
+            ).first()
+            
+            if category_schedule:
+                return {
+                    'type': 'category',
+                    'object': category_schedule,
+                    'frequency': category_schedule.frequency,
+                    'frequency_days': category_schedule.get_frequency_in_days(),
+                    'auto_generate': category_schedule.auto_generate,
+                    'advance_notice_days': category_schedule.advance_notice_days,
+                    'priority': category_schedule.default_priority,
+                    'duration_hours': category_schedule.default_duration_hours,
+                }
+        
+        # Check for global schedule
+        global_schedule = GlobalSchedule.objects.filter(
+            activity_type=activity_type,
+            is_active=True
+        ).first()
+        
+        if global_schedule:
+            return {
+                'type': 'global',
+                'object': global_schedule,
+                'frequency': global_schedule.frequency,
+                'frequency_days': global_schedule.get_frequency_in_days(),
+                'auto_generate': global_schedule.auto_generate,
+                'advance_notice_days': global_schedule.advance_notice_days,
+                'priority': global_schedule.default_priority,
+                'duration_hours': global_schedule.default_duration_hours,
+            }
+        
+        return None
+    
+    def save(self, *args, **kwargs):
+        """Override save to automatically apply category schedules."""
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+        
+        # Apply category schedules for new equipment
+        if is_new:
+            self.apply_category_schedules()
 
     def clean(self):
         """Custom validation for equipment."""

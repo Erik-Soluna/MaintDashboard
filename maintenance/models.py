@@ -771,3 +771,295 @@ class MaintenanceReport(TimeStampedModel):
                 score += 1
         
         return score
+
+# Add these new models after the existing MaintenanceSchedule model
+
+class EquipmentCategorySchedule(TimeStampedModel):
+    """
+    Default maintenance schedules defined at the equipment category level.
+    These schedules automatically apply to all equipment in the category.
+    """
+    
+    FREQUENCY_CHOICES = [
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('semi_annual', 'Semi-Annual'),
+        ('annual', 'Annual'),
+        ('custom', 'Custom'),
+    ]
+    
+    equipment_category = models.ForeignKey(
+        EquipmentCategory,
+        on_delete=models.CASCADE,
+        related_name='category_schedules',
+        help_text="Equipment category this schedule applies to"
+    )
+    activity_type = models.ForeignKey(
+        MaintenanceActivityType,
+        on_delete=models.CASCADE,
+        related_name='category_schedules',
+        help_text="Type of maintenance activity"
+    )
+    
+    # Scheduling
+    frequency = models.CharField(max_length=20, choices=FREQUENCY_CHOICES)
+    frequency_days = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Custom frequency in days (for custom frequency type)"
+    )
+    
+    # Settings
+    auto_generate = models.BooleanField(
+        default=True,
+        help_text="Automatically generate maintenance activities"
+    )
+    advance_notice_days = models.PositiveIntegerField(
+        default=7,
+        help_text="Days in advance to generate activities"
+    )
+    is_mandatory = models.BooleanField(
+        default=True,
+        help_text="Is this schedule mandatory for all equipment in this category?"
+    )
+    is_active = models.BooleanField(default=True)
+    
+    # Override settings
+    allow_override = models.BooleanField(
+        default=True,
+        help_text="Allow individual equipment to override this schedule"
+    )
+    
+    # Default values for generated activities
+    default_priority = models.CharField(
+        max_length=10,
+        choices=MaintenanceActivity.PRIORITY_CHOICES,
+        default='medium',
+        help_text="Default priority for activities generated from this schedule"
+    )
+    default_duration_hours = models.PositiveIntegerField(
+        default=2,
+        help_text="Default duration in hours for activities generated from this schedule"
+    )
+
+    class Meta:
+        verbose_name = "Equipment Category Schedule"
+        verbose_name_plural = "Equipment Category Schedules"
+        ordering = ['equipment_category', 'activity_type']
+        unique_together = ['equipment_category', 'activity_type']
+
+    def __str__(self):
+        return f"{self.equipment_category.name} - {self.activity_type.name} ({self.get_frequency_display()})"
+
+    def get_frequency_in_days(self):
+        """Convert frequency to days."""
+        frequency_map = {
+            'daily': 1,
+            'weekly': 7,
+            'monthly': 30,
+            'quarterly': 90,
+            'semi_annual': 180,
+            'annual': 365,
+        }
+        
+        if self.frequency == 'custom':
+            return self.frequency_days or 365
+        return frequency_map.get(self.frequency, 365)
+
+
+class GlobalSchedule(TimeStampedModel):
+    """
+    Global maintenance schedules that apply to all equipment regardless of category.
+    These are system-wide maintenance requirements.
+    """
+    
+    FREQUENCY_CHOICES = [
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('semi_annual', 'Semi-Annual'),
+        ('annual', 'Annual'),
+        ('custom', 'Custom'),
+    ]
+    
+    name = models.CharField(
+        max_length=200,
+        unique=True,
+        help_text="Global schedule name"
+    )
+    activity_type = models.ForeignKey(
+        MaintenanceActivityType,
+        on_delete=models.CASCADE,
+        related_name='global_schedules',
+        help_text="Type of maintenance activity"
+    )
+    
+    # Scheduling
+    frequency = models.CharField(max_length=20, choices=FREQUENCY_CHOICES)
+    frequency_days = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Custom frequency in days (for custom frequency type)"
+    )
+    
+    # Settings
+    auto_generate = models.BooleanField(
+        default=True,
+        help_text="Automatically generate maintenance activities"
+    )
+    advance_notice_days = models.PositiveIntegerField(
+        default=7,
+        help_text="Days in advance to generate activities"
+    )
+    is_mandatory = models.BooleanField(
+        default=True,
+        help_text="Is this schedule mandatory for all equipment?"
+    )
+    is_active = models.BooleanField(default=True)
+    
+    # Override settings
+    allow_override = models.BooleanField(
+        default=True,
+        help_text="Allow individual equipment to override this schedule"
+    )
+    
+    # Default values for generated activities
+    default_priority = models.CharField(
+        max_length=10,
+        choices=MaintenanceActivity.PRIORITY_CHOICES,
+        default='medium',
+        help_text="Default priority for activities generated from this schedule"
+    )
+    default_duration_hours = models.PositiveIntegerField(
+        default=2,
+        help_text="Default duration in hours for activities generated from this schedule"
+    )
+    
+    # Description
+    description = models.TextField(
+        blank=True,
+        help_text="Description of this global schedule"
+    )
+
+    class Meta:
+        verbose_name = "Global Schedule"
+        verbose_name_plural = "Global Schedules"
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.get_frequency_display()})"
+
+    def get_frequency_in_days(self):
+        """Convert frequency to days."""
+        frequency_map = {
+            'daily': 1,
+            'weekly': 7,
+            'monthly': 30,
+            'quarterly': 90,
+            'semi_annual': 180,
+            'annual': 365,
+        }
+        
+        if self.frequency == 'custom':
+            return self.frequency_days or 365
+        return frequency_map.get(self.frequency, 365)
+
+
+class ScheduleOverride(TimeStampedModel):
+    """
+    Individual equipment schedule overrides.
+    Allows users to customize schedules for specific equipment.
+    """
+    
+    FREQUENCY_CHOICES = [
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('semi_annual', 'Semi-Annual'),
+        ('annual', 'Annual'),
+        ('custom', 'Custom'),
+    ]
+    
+    equipment = models.ForeignKey(
+        Equipment,
+        on_delete=models.CASCADE,
+        related_name='schedule_overrides',
+        help_text="Equipment this override applies to"
+    )
+    activity_type = models.ForeignKey(
+        MaintenanceActivityType,
+        on_delete=models.CASCADE,
+        related_name='schedule_overrides',
+        help_text="Type of maintenance activity"
+    )
+    
+    # Override settings
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Is this override active?"
+    )
+    auto_generate = models.BooleanField(
+        default=True,
+        help_text="Automatically generate maintenance activities"
+    )
+    advance_notice_days = models.PositiveIntegerField(
+        default=7,
+        help_text="Days in advance to generate activities"
+    )
+    
+    # Custom frequency (optional override)
+    custom_frequency = models.CharField(
+        max_length=20,
+        choices=FREQUENCY_CHOICES,
+        null=True,
+        blank=True,
+        help_text="Custom frequency for this equipment (overrides category/global)"
+    )
+    custom_frequency_days = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Custom frequency in days (for custom frequency type)"
+    )
+    
+    # Default values for generated activities
+    default_priority = models.CharField(
+        max_length=10,
+        choices=MaintenanceActivity.PRIORITY_CHOICES,
+        default='medium',
+        help_text="Default priority for activities generated from this override"
+    )
+    default_duration_hours = models.PositiveIntegerField(
+        default=2,
+        help_text="Default duration in hours for activities generated from this override"
+    )
+    
+    # Notes
+    notes = models.TextField(
+        blank=True,
+        help_text="Notes about this override"
+    )
+
+    class Meta:
+        verbose_name = "Schedule Override"
+        verbose_name_plural = "Schedule Overrides"
+        ordering = ['equipment', 'activity_type']
+        unique_together = ['equipment', 'activity_type']
+
+    def __str__(self):
+        return f"{self.equipment.name} - {self.activity_type.name} (Override)"
+
+    def get_effective_frequency(self):
+        """Get the effective frequency for this equipment."""
+        if self.custom_frequency:
+            return self.custom_frequency
+        return self.activity_type.frequency
+
+    def get_effective_frequency_days(self):
+        """Get the effective frequency in days for this equipment."""
+        if self.custom_frequency_days:
+            return self.custom_frequency_days
+        return self.activity_type.frequency_days

@@ -79,4 +79,25 @@ urlpatterns = [
     path('reports/upload/', views.upload_report, name='upload_report'),
     path('reports/<int:report_id>/analyze/', views.analyze_report, name='analyze_report'),
     path('api/reports/equipment/<int:equipment_id>/', views.get_reports_for_equipment, name='get_reports_for_equipment'),
+
+    # Category Schedules
+    path('category-schedules/', views.category_schedule_list, name='category_schedule_list'),
+    path('category-schedules/add/', views.add_category_schedule, name='add_category_schedule'),
+    path('category-schedules/<int:schedule_id>/', views.category_schedule_detail, name='category_schedule_detail'),
+    path('category-schedules/<int:schedule_id>/edit/', views.edit_category_schedule, name='edit_category_schedule'),
+    
+    # Global Schedules
+    path('global-schedules/', views.global_schedule_list, name='global_schedule_list'),
+    path('global-schedules/add/', views.add_global_schedule, name='add_global_schedule'),
+    path('global-schedules/<int:schedule_id>/', views.global_schedule_detail, name='global_schedule_detail'),
+    path('global-schedules/<int:schedule_id>/edit/', views.edit_global_schedule, name='edit_global_schedule'),
+    
+    # Schedule Overrides
+    path('schedule-overrides/', views.schedule_override_list, name='schedule_override_list'),
+    path('schedule-overrides/add/', views.add_schedule_override, name='add_schedule_override'),
+    path('schedule-overrides/<int:override_id>/', views.schedule_override_detail, name='schedule_override_detail'),
+    path('schedule-overrides/<int:override_id>/edit/', views.edit_schedule_override, name='edit_schedule_override'),
+    
+    # Apply Schedules
+    path('apply-schedules/<int:equipment_id>/', views.apply_schedules_to_equipment, name='apply_schedules_to_equipment'),
 ]

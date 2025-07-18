@@ -728,7 +728,10 @@
                 </a>
                 <div class="dropdown-menu">
                     <a class="dropdown-item" href="{% url 'maintenance:maintenance_list' %}">Activities</a>
-                    <a class="dropdown-item" href="{% url 'maintenance:schedule_list' %}">Schedules</a>
+                    <a class="dropdown-item" href="{% url 'maintenance:schedule_list' %}">Equipment Schedules</a>
+                    <a class="dropdown-item" href="{% url 'maintenance:category_schedule_list' %}">Category Schedules</a>
+                    <a class="dropdown-item" href="{% url 'maintenance:global_schedule_list' %}">Global Schedules</a>
+                    <a class="dropdown-item" href="{% url 'maintenance:schedule_override_list' %}">Schedule Overrides</a>
                     <a class="dropdown-item" href="{% url 'maintenance:add_activity' %}">New Activity</a>
                 </div>
             </li>
