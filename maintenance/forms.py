@@ -254,6 +254,7 @@ class MaintenanceActivityForm(forms.ModelForm):
                     pass
         
         self.fields['equipment'].queryset = equipment_queryset.select_related('category')
+        
         self.fields['activity_type'].queryset = MaintenanceActivityType.objects.filter(is_active=True).select_related('category')
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True)
         
