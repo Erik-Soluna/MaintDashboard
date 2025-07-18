@@ -779,18 +779,32 @@
     </div>
     {% endif %}
 
-    <!-- Messages -->
+    <!-- Fixed Message Container -->
+    <div id="fixed-message-container" class="fixed-message-container" style="display: none;">
+        <div class="container-fluid">
+            <div id="message-container">
+                <!-- Messages will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Legacy Messages (for backward compatibility) -->
     {% if messages %}
     <div class="container-fluid mt-3">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-            <i class="fas fa-info-circle me-2"></i>
-            {{ message }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
+        <div id="legacy-message-container">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show message-alert" 
+                 data-message-type="{{ message.tags }}" 
+                 data-message-text="{{ message|escapejs }}" 
+                 role="alert">
+                <i class="fas fa-info-circle me-2"></i>
+                {{ message }}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
     {% endif %}
 
@@ -846,10 +860,8 @@
         
         // Global JavaScript utilities
         $(document).ready(function() {
-            // Auto-dismiss alerts after 5 seconds
-            setTimeout(function() {
-                $('.alert').fadeOut('slow');
-            }, 5000);
+            // Enhanced message system
+            initializeMessageSystem();
             
             // Add loading state to buttons
             $('form').on('submit', function() {
@@ -865,6 +877,211 @@
                 }
             });
         });
+        
+        // Enhanced Message System
+        function initializeMessageSystem() {
+            // Move legacy messages to fixed container
+            moveMessagesToFixedContainer();
+            
+            // Auto-dismiss messages after 10 seconds (except error messages)
+            $('.message-alert').each(function() {
+                const $alert = $(this);
+                const messageType = $alert.data('message-type');
+                const messageText = $alert.data('message-text');
+                
+                // Don't auto-dismiss error messages
+                if (messageType === 'error') {
+                    return;
+                }
+                
+                // Auto-dismiss after 10 seconds
+                setTimeout(function() {
+                    if ($alert.is(':visible')) {
+                        $alert.fadeOut('slow', function() {
+                            $(this).remove();
+                            checkIfContainerEmpty();
+                        });
+                    }
+                }, 10000);
+            });
+            
+            // Handle form validation errors with field highlighting
+            $('.message-alert').each(function() {
+                const $alert = $(this);
+                const messageText = $alert.data('message-text');
+                
+                // Check if this is a validation error message
+                if (messageText && (
+                    messageText.includes('required') || 
+                    messageText.includes('invalid') || 
+                    messageText.includes('error') ||
+                    messageText.includes('Please enter') ||
+                    messageText.includes('Please select')
+                )) {
+                    // Flash required fields 3 times
+                    flashRequiredFields();
+                }
+            });
+        }
+        
+        // Move messages to fixed container
+        function moveMessagesToFixedContainer() {
+            const legacyContainer = $('#legacy-message-container');
+            const fixedContainer = $('#fixed-message-container .container-fluid #message-container');
+            
+            if (legacyContainer.length > 0 && fixedContainer.length > 0) {
+                const messages = legacyContainer.find('.message-alert');
+                if (messages.length > 0) {
+                    // Move messages to fixed container
+                    fixedContainer.append(messages);
+                    
+                    // Show fixed container
+                    $('#fixed-message-container').show();
+                    $('body').addClass('has-fixed-message');
+                    
+                    // Hide legacy container
+                    legacyContainer.parent().hide();
+                }
+            }
+        }
+        
+        // Check if message container is empty and hide if so
+        function checkIfContainerEmpty() {
+            const messageContainer = $('#fixed-message-container .container-fluid #message-container');
+            if (messageContainer.children().length === 0) {
+                $('#fixed-message-container').hide();
+                $('body').removeClass('has-fixed-message');
+            }
+        }
+        
+        // Global function to show messages programmatically
+        window.showMessage = function(message, type = 'info', autoDismiss = true) {
+            const messageContainer = $('#fixed-message-container .container-fluid #message-container');
+            const alertClass = type === 'error' ? 'alert-danger' : 
+                              type === 'success' ? 'alert-success' : 
+                              type === 'warning' ? 'alert-warning' : 'alert-info';
+            
+            const messageHtml = `
+                <div class="alert ${alertClass} alert-dismissible fade show message-alert" 
+                     data-message-type="${type}" 
+                     data-message-text="${message.replace(/"/g, '&quot;')}" 
+                     role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    ${message}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            `;
+            
+            messageContainer.append(messageHtml);
+            $('#fixed-message-container').show();
+            $('body').addClass('has-fixed-message');
+            
+            // Auto-dismiss if enabled and not an error
+            if (autoDismiss && type !== 'error') {
+                setTimeout(function() {
+                    const $alert = messageContainer.find('.message-alert').last();
+                    if ($alert.is(':visible')) {
+                        $alert.fadeOut('slow', function() {
+                            $(this).remove();
+                            checkIfContainerEmpty();
+                        });
+                    }
+                }, 10000);
+            }
+            
+            // Check for validation errors and flash fields
+            if (message.includes('required') || message.includes('invalid') || message.includes('error')) {
+                flashRequiredFields();
+            }
+        };
+        
+        // Flash required fields function
+        function flashRequiredFields() {
+            // Find all required fields (inputs with required attribute or validation errors)
+            const requiredFields = $('input[required], select[required], textarea[required], .is-invalid');
+            
+            if (requiredFields.length > 0) {
+                // Flash animation - 3 times
+                let flashCount = 0;
+                const maxFlashes = 3;
+                
+                function flash() {
+                    if (flashCount >= maxFlashes) return;
+                    
+                    requiredFields.addClass('flash-highlight');
+                    
+                    setTimeout(function() {
+                        requiredFields.removeClass('flash-highlight');
+                        flashCount++;
+                        
+                        if (flashCount < maxFlashes) {
+                            setTimeout(flash, 300); // Wait 300ms between flashes
+                        }
+                    }, 200); // Flash duration
+                }
+                
+                flash();
+            }
+        }
+        
+        // Add CSS for enhanced message system
+        if (!document.getElementById('flash-styles')) {
+            const style = document.createElement('style');
+            style.id = 'flash-styles';
+            style.textContent = `
+                .fixed-message-container {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    z-index: 9999;
+                    background: rgba(0, 0, 0, 0.8);
+                    backdrop-filter: blur(5px);
+                    padding: 10px 0;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+                }
+                
+                .fixed-message-container .alert {
+                    margin-bottom: 10px;
+                    border-radius: 8px;
+                    border: none;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                }
+                
+                .fixed-message-container .alert:last-child {
+                    margin-bottom: 0;
+                }
+                
+                .flash-highlight {
+                    animation: flash-animation 0.2s ease-in-out;
+                    border-color: #dc3545 !important;
+                    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+                }
+                
+                @keyframes flash-animation {
+                    0% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                    100% { opacity: 1; }
+                }
+                
+                .message-alert {
+                    transition: all 0.3s ease;
+                }
+                
+                .message-alert.fade-out {
+                    opacity: 0;
+                    transform: translateY(-10px);
+                }
+                
+                /* Adjust body padding when fixed message is shown */
+                body.has-fixed-message {
+                    padding-top: 80px;
+                }
+            `;
+            document.head.appendChild(style);
+        }
     </script>
 </body>
 </html>
