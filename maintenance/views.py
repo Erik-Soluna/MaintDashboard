@@ -229,19 +229,66 @@ def activity_list(request):
 
 @login_required
 def activity_detail(request, activity_id):
-    """Display detailed information for maintenance activity."""
+    """Display detailed maintenance activity information with comprehensive timeline."""
     activity = get_object_or_404(
         MaintenanceActivity.objects.select_related(
-            'equipment', 'activity_type', 'assigned_to'
+            'equipment', 'equipment__category', 'equipment__location',
+            'activity_type', 'activity_type__category', 'assigned_to'
         ),
         id=activity_id
     )
     
-    checklist_items = activity.checklist_items.all().order_by('order')
+    # Get timeline entries
+    timeline_entries = activity.timeline_entries.all().order_by('-created_at')
+    
+    # Get related maintenance activities for this equipment
+    related_activities = MaintenanceActivity.objects.filter(
+        equipment=activity.equipment
+    ).exclude(id=activity.id).order_by('-scheduled_start')[:5]
+    
+    # Get equipment maintenance history
+    equipment_history = MaintenanceActivity.objects.filter(
+        equipment=activity.equipment,
+        status='completed'
+    ).order_by('-actual_end')[:10]
+    
+    # Calculate maintenance statistics
+    total_maintenance_time = 0
+    completed_activities = MaintenanceActivity.objects.filter(
+        equipment=activity.equipment,
+        status='completed',
+        actual_start__isnull=False,
+        actual_end__isnull=False
+    )
+    
+    for completed_activity in completed_activities:
+        if completed_activity.actual_start and completed_activity.actual_end:
+            duration = completed_activity.actual_end - completed_activity.actual_start
+            total_maintenance_time += duration.total_seconds() / 3600  # Convert to hours
+    
+    # Get next scheduled maintenance
+    next_maintenance = MaintenanceActivity.objects.filter(
+        equipment=activity.equipment,
+        status='scheduled',
+        scheduled_start__gt=activity.scheduled_start
+    ).order_by('scheduled_start').first()
+    
+    # Get maintenance schedule for this activity type
+    maintenance_schedule = MaintenanceSchedule.objects.filter(
+        equipment=activity.equipment,
+        activity_type=activity.activity_type,
+        is_active=True
+    ).first()
     
     context = {
         'activity': activity,
-        'checklist_items': checklist_items,
+        'timeline_entries': timeline_entries,
+        'related_activities': related_activities,
+        'equipment_history': equipment_history,
+        'total_maintenance_time': round(total_maintenance_time, 2),
+        'next_maintenance': next_maintenance,
+        'maintenance_schedule': maintenance_schedule,
+        'page_title': f'Maintenance Activity: {activity.title}',
     }
     
     return render(request, 'maintenance/activity_detail.html', context)

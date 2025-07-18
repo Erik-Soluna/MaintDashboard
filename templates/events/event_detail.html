@@ -1,390 +1,210 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}{{ event.title }} - SOLUNA Events{% endblock %}
-
-{% block extra_css %}
-<style>
-.event-detail-container {
-    background-color: #1a2238;
-    min-height: 100vh;
-    color: white;
-    padding: 20px;
-}
-
-.event-header {
-    background-color: #0f1419;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.event-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin: 0;
-}
-
-.event-meta {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.meta-item {
-    background-color: #2d3748;
-    padding: 6px 12px;
-    border-radius: 15px;
-    font-size: 0.875rem;
-}
-
-.priority-badge {
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.priority-low { background-color: #38a169; }
-.priority-medium { background-color: #ffc107; color: #000; }
-.priority-high { background-color: #fd7e14; }
-.priority-critical { background-color: #dc3545; }
-
-.event-content {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 20px;
-}
-
-.main-content, .sidebar {
-    background-color: #2d3748;
-    border-radius: 8px;
-    padding: 20px;
-}
-
-.info-section {
-    margin-bottom: 25px;
-}
-
-.info-section h4 {
-    color: #4299e1;
-    margin-bottom: 15px;
-    font-size: 1.1rem;
-}
-
-.info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 15px;
-}
-
-.info-item {
-    background-color: #1a2238;
-    padding: 12px;
-    border-radius: 6px;
-}
-
-.info-label {
-    color: #a0aec0;
-    font-size: 0.875rem;
-    margin-bottom: 4px;
-}
-
-.info-value {
-    color: white;
-    font-weight: 500;
-}
-
-.equipment-link {
-    color: #4299e1;
-    text-decoration: none;
-}
-
-.equipment-link:hover {
-    color: #63b3ed;
-    text-decoration: underline;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.btn-sm {
-    padding: 8px 16px;
-    font-size: 0.875rem;
-}
-
-.comments-section {
-    margin-top: 25px;
-}
-
-.comment {
-    background-color: #1a2238;
-    padding: 15px;
-    border-radius: 6px;
-    margin-bottom: 15px;
-}
-
-.comment-header {
-    display: flex;
-    justify-content: between;
-    align-items: center;
-    margin-bottom: 8px;
-    color: #a0aec0;
-    font-size: 0.875rem;
-}
-
-.comment-form {
-    background-color: #1a2238;
-    padding: 15px;
-    border-radius: 6px;
-    margin-top: 15px;
-}
-
-.form-control {
-    background-color: #2d3748;
-    border: 1px solid #4a5568;
-    color: white;
-    border-radius: 6px;
-    padding: 10px;
-}
-
-.form-control:focus {
-    background-color: #2d3748;
-    border-color: #4299e1;
-    color: white;
-    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.2);
-}
-
-.status-indicator {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-
-.status-completed {
-    background-color: #38a169;
-    color: white;
-}
-
-.status-pending {
-    background-color: #ffc107;
-    color: #000;
-}
-
-.status-overdue {
-    background-color: #dc3545;
-    color: white;
-}
-</style>
-{% endblock %}
-
-{% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{% url 'events:calendar_view' %}">Calendar</a></li>
-<li class="breadcrumb-item active">{{ event.title }}</li>
-{% endblock %}
+{% block title %}{{ event.title }}{% endblock %}
 
 {% block content %}
-<div class="event-detail-container">
-    <!-- Event Header -->
-    <div class="event-header">
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1 class="event-title">{{ event.title }}</h1>
-            <div class="event-meta">
-                <span class="meta-item">
-                    <i class="fas fa-calendar me-1"></i>{{ event.event_date }}
-                </span>
-                {% if not event.all_day and event.start_time %}
-                    <span class="meta-item">
-                        <i class="fas fa-clock me-1"></i>{{ event.start_time }}
-                        {% if event.end_time %} - {{ event.end_time }}{% endif %}
-                    </span>
-                {% endif %}
-                <span class="priority-badge priority-{{ event.priority }}">
-                    {{ event.get_priority_display }}
-                </span>
-                <span class="status-indicator status-{% if event.is_completed %}completed{% elif event.is_past_due %}overdue{% else %}pending{% endif %}">
-                    <i class="fas fa-{% if event.is_completed %}check-circle{% elif event.is_past_due %}exclamation-triangle{% else %}clock{% endif %}"></i>
-                    {% if event.is_completed %}Completed{% elif event.is_past_due %}Overdue{% else %}Pending{% endif %}
-                </span>
-            </div>
+            <h1 class="h3 mb-0">{{ event.title }}</h1>
+            <p class="text-muted mb-0">{{ event.equipment.name }} - {{ event.get_event_type_display }}</p>
         </div>
-        
-        <div class="action-buttons">
-            {% if not event.is_completed %}
-                <form method="post" style="display: inline;">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="complete">
-                    <button type="submit" class="btn btn-success btn-sm">
-                        <i class="fas fa-check me-1"></i>Mark Complete
-                    </button>
-                </form>
-            {% endif %}
-            <a href="{% url 'events:edit_event' event.id %}" class="btn btn-primary btn-sm">
-                <i class="fas fa-edit me-1"></i>Edit
+        <div class="btn-group">
+            <a href="{% url 'events:edit_event' event.id %}" class="btn btn-primary">
+                <i class="fas fa-edit me-1"></i>Edit Event
             </a>
-            <a href="{% url 'events:calendar_view' %}" class="btn btn-secondary btn-sm">
-                <i class="fas fa-arrow-left me-1"></i>Back to Calendar
+            {% if event.maintenance_activity %}
+                <a href="{% url 'maintenance:activity_detail' event.maintenance_activity.id %}" class="btn btn-success">
+                    <i class="fas fa-wrench me-1"></i>View Maintenance Details
+                </a>
+            {% endif %}
+            <a href="{% url 'equipment:equipment_detail' event.equipment.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-cog me-1"></i>Equipment
             </a>
         </div>
     </div>
 
-    <!-- Event Content -->
-    <div class="event-content">
+    <div class="row">
         <!-- Main Content -->
-        <div class="main-content">
-            <!-- Event Details -->
-            <div class="info-section">
-                <h4><i class="fas fa-info-circle me-2"></i>Event Details</h4>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Event Type</div>
-                        <div class="info-value">{{ event.get_event_type_display }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Priority</div>
-                        <div class="info-value">{{ event.get_priority_display }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Equipment</div>
-                        <div class="info-value">
-                            <a href="{% url 'equipment:equipment_detail' event.equipment.id %}" class="equipment-link">
-                                {{ event.equipment.name }}
-                            </a>
+        <div class="col-lg-8">
+            <!-- Event Overview -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Event Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <strong>Event Type:</strong>
+                                <span class="badge bg-info ms-2">{{ event.get_event_type_display }}</span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Priority:</strong>
+                                <span class="badge {% if event.priority == 'critical' %}bg-danger{% elif event.priority == 'high' %}bg-warning{% elif event.priority == 'medium' %}bg-info{% else %}bg-secondary{% endif %} ms-2">
+                                    {{ event.get_priority_display }}
+                                </span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Status:</strong>
+                                <span class="badge {% if event.is_completed %}bg-success{% else %}bg-warning{% endif %} ms-2">
+                                    {{ event.get_status_display }}
+                                </span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Assigned To:</strong>
+                                <span class="ms-2">{{ event.assigned_to.get_full_name|default:"Unassigned" }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <strong>Date:</strong>
+                                <span class="ms-2">{{ event.event_date|date:"l, F d, Y" }}</span>
+                            </div>
+                            {% if not event.all_day %}
+                            <div class="mb-3">
+                                <strong>Time:</strong>
+                                <span class="ms-2">
+                                    {% if event.start_time %}{{ event.start_time|time:"H:i" }}{% endif %}
+                                    {% if event.end_time %} - {{ event.end_time|time:"H:i" }}{% endif %}
+                                </span>
+                            </div>
+                            {% endif %}
+                            {% if event.all_day %}
+                            <div class="mb-3">
+                                <strong>Duration:</strong>
+                                <span class="ms-2">All Day</span>
+                            </div>
+                            {% endif %}
+                            <div class="mb-3">
+                                <strong>Equipment:</strong>
+                                <span class="ms-2">{{ event.equipment.name }}</span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Location:</strong>
+                                <span class="ms-2">{{ event.equipment.location.get_full_path }}</span>
+                            </div>
                         </div>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Location</div>
-                        <div class="info-value">{{ event.equipment.location.name|default:'No location' }}</div>
+                    
+                    {% if event.description %}
+                    <hr>
+                    <div class="mb-3">
+                        <strong>Description:</strong>
+                        <p class="mb-0 mt-2">{{ event.description|linebreaks }}</p>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">Assigned To</div>
-                        <div class="info-value">{{ event.assigned_to.get_full_name|default:'Unassigned' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Created By</div>
-                        <div class="info-value">{{ event.created_by.get_full_name|default:event.created_by.username }}</div>
-                    </div>
-                </div>
-            </div>
-
-            {% if event.description %}
-            <!-- Description -->
-            <div class="info-section">
-                <h4><i class="fas fa-file-text me-2"></i>Description</h4>
-                <div class="info-item">
-                    <p style="margin: 0;">{{ event.description|linebreaks }}</p>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if event.completion_notes %}
-            <!-- Completion Notes -->
-            <div class="info-section">
-                <h4><i class="fas fa-check-circle me-2"></i>Completion Notes</h4>
-                <div class="info-item">
-                    <p style="margin: 0;">{{ event.completion_notes|linebreaks }}</p>
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Comments -->
-            <div class="comments-section">
-                <h4><i class="fas fa-comments me-2"></i>Comments ({{ comments.count }})</h4>
-                
-                {% for comment in comments %}
-                    <div class="comment">
-                        <div class="comment-header">
-                            <strong>{{ comment.created_by.get_full_name|default:comment.created_by.username }}</strong>
-                            <span>{{ comment.created_at|date:"M d, Y H:i" }}</span>
-                        </div>
-                        <p style="margin: 0;">{{ comment.comment|linebreaks }}</p>
-                    </div>
-                {% empty %}
-                    <p class="text-muted">No comments yet.</p>
-                {% endfor %}
-
-                <!-- Add Comment Form -->
-                <div class="comment-form">
-                    <h5>Add Comment</h5>
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="add_comment" value="1">
-                        <div class="form-group">
-                            <textarea name="comment" class="form-control" rows="3" placeholder="Add your comment..." required></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary btn-sm mt-2">
-                            <i class="fas fa-plus me-1"></i>Add Comment
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <!-- Quick Actions -->
-            <div class="info-section">
-                <h4><i class="fas fa-bolt me-2"></i>Quick Actions</h4>
-                <div class="d-grid gap-2">
-                    <a href="{% url 'equipment:equipment_detail' event.equipment.id %}" class="btn btn-outline-light btn-sm">
-                        <i class="fas fa-cog me-1"></i>View Equipment
-                    </a>
-                    <a href="{% url 'events:equipment_events' event.equipment.id %}" class="btn btn-outline-light btn-sm">
-                        <i class="fas fa-calendar me-1"></i>Equipment Events
-                    </a>
-                    {% if event.maintenance_activity %}
-                        <a href="{% url 'maintenance:activity_detail' event.maintenance_activity.id %}" class="btn btn-outline-light btn-sm">
-                            <i class="fas fa-wrench me-1"></i>View Maintenance
-                        </a>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Equipment Info -->
-            <div class="info-section">
-                <h4><i class="fas fa-cog me-2"></i>Equipment Info</h4>
-                <div class="info-item">
-                    <div class="info-label">Asset Tag</div>
-                    <div class="info-value">{{ event.equipment.asset_tag }}</div>
+            <!-- Maintenance Activity Link -->
+            {% if event.maintenance_activity %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-wrench me-2"></i>Linked Maintenance Activity</h5>
                 </div>
-                <div class="info-item">
-                    <div class="info-label">Category</div>
-                    <div class="info-value">{{ event.equipment.category.name|default:'No category' }}</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h6>{{ event.maintenance_activity.title }}</h6>
+                            <p class="text-muted mb-2">{{ event.maintenance_activity.activity_type.name }}</p>
+                            <div class="mb-2">
+                                <span class="badge {% if event.maintenance_activity.status == 'completed' %}bg-success{% elif event.maintenance_activity.status == 'in_progress' %}bg-warning{% elif event.maintenance_activity.status == 'overdue' %}bg-danger{% else %}bg-secondary{% endif %} me-2">
+                                    {{ event.maintenance_activity.get_status_display }}
+                                </span>
+                                <span class="badge {% if event.maintenance_activity.priority == 'critical' %}bg-danger{% elif event.maintenance_activity.priority == 'high' %}bg-warning{% elif event.maintenance_activity.priority == 'medium' %}bg-info{% else %}bg-secondary{% endif %}">
+                                    {{ event.maintenance_activity.get_priority_display }}
+                                </span>
+                            </div>
+                            {% if event.maintenance_activity.description %}
+                            <p class="mb-0">{{ event.maintenance_activity.description|truncatewords:30 }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="{% url 'maintenance:activity_detail' event.maintenance_activity.id %}" class="btn btn-primary">
+                                <i class="fas fa-external-link-alt me-1"></i>View Full Details
+                            </a>
+                        </div>
+                    </div>
                 </div>
-                <div class="info-item">
-                    <div class="info-label">Status</div>
-                    <div class="info-value">{{ event.equipment.get_status_display }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Equipment Information -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-cog me-2"></i>Equipment Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <strong>Name:</strong> {{ event.equipment.name }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Category:</strong> {{ event.equipment.category.name }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Manufacturer:</strong> {{ event.equipment.manufacturer|default:"N/A" }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Model:</strong> {{ event.equipment.model_number|default:"N/A" }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Asset Tag:</strong> {{ event.equipment.asset_tag }}
+                    </div>
                 </div>
             </div>
 
-            {% if attachments %}
-            <!-- Attachments -->
-            <div class="info-section">
-                <h4><i class="fas fa-paperclip me-2"></i>Attachments</h4>
-                {% for attachment in attachments %}
-                    <div class="info-item">
-                        <a href="{{ attachment.file.url }}" target="_blank" class="equipment-link">
-                            <i class="fas fa-file me-1"></i>{{ attachment.title }}
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'equipment:equipment_detail' event.equipment.id %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-cog me-1"></i>View Equipment Details
                         </a>
-                        {% if attachment.description %}
-                            <div class="info-label">{{ attachment.description }}</div>
+                        <a href="{% url 'events:equipment_events' event.equipment.id %}" class="btn btn-outline-info btn-sm">
+                            <i class="fas fa-calendar me-1"></i>Equipment Events
+                        </a>
+                        {% if not event.maintenance_activity and event.event_type == 'maintenance' %}
+                        <a href="{% url 'maintenance:add_activity' %}?equipment={{ event.equipment.id }}&event_type={{ event.event_type }}" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-plus me-1"></i>Create Maintenance Activity
+                        </a>
                         {% endif %}
                     </div>
-                {% endfor %}
+                </div>
             </div>
-            {% endif %}
+
+            <!-- Event History -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-history me-2"></i>Event History</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <small class="text-muted">Created:</small><br>
+                        {{ event.created_at|date:"M d, Y H:i" }}
+                        {% if event.created_by %}
+                        <br><small>by {{ event.created_by.get_full_name|default:event.created_by.username }}</small>
+                        {% endif %}
+                    </div>
+                    {% if event.updated_at != event.created_at %}
+                    <div class="mb-2">
+                        <small class="text-muted">Last Updated:</small><br>
+                        {{ event.updated_at|date:"M d, Y H:i" }}
+                        {% if event.updated_by %}
+                        <br><small>by {{ event.updated_by.get_full_name|default:event.updated_by.username }}</small>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>

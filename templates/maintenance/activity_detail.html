@@ -1,170 +1,165 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load maintenance_filters %}
 
-{% block title %}{{ activity.title }}{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3 mb-0">{{ activity.title }}</h1>
-                <div class="btn-group" role="group">
-                    <a href="{% url 'maintenance:edit_activity' activity.id %}" class="btn btn-secondary">
-                        <i class="fas fa-edit"></i> Edit
-                    </a>
-                    {% if activity.status != 'completed' %}
-                    <a href="{% url 'maintenance:complete_activity' activity.id %}" class="btn btn-success">
-                        <i class="fas fa-check"></i> Complete
-                    </a>
-                    {% endif %}
-                    <a href="{% url 'maintenance:activity_list' %}" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left"></i> Back to List
-                    </a>
-                </div>
-            </div>
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">{{ activity.title }}</h1>
+            <p class="text-muted mb-0">{{ activity.equipment.name }} - {{ activity.activity_type.name }}</p>
+        </div>
+        <div class="btn-group">
+            <a href="{% url 'maintenance:edit_activity' activity.id %}" class="btn btn-primary">
+                <i class="fas fa-edit me-1"></i>Edit
+            </a>
+            {% if activity.status != 'completed' %}
+                <a href="{% url 'maintenance:complete_activity' activity.id %}" class="btn btn-success">
+                    <i class="fas fa-check me-1"></i>Complete
+                </a>
+            {% endif %}
+            <a href="{% url 'equipment:equipment_detail' activity.equipment.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-cog me-1"></i>Equipment
+            </a>
         </div>
     </div>
 
     <div class="row">
-        <div class="col-md-8">
-            <div class="card">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Activity Overview -->
+            <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0">Activity Details</h5>
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Activity Overview</h5>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <strong>Equipment:</strong> {{ activity.equipment.name }}
+                            <div class="mb-3">
+                                <strong>Status:</strong>
+                                <span class="badge {% if activity.status == 'completed' %}bg-success{% elif activity.status == 'in_progress' %}bg-warning{% elif activity.status == 'overdue' %}bg-danger{% else %}bg-secondary{% endif %} ms-2">
+                                    {{ activity.get_status_display }}
+                                </span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Priority:</strong>
+                                <span class="badge {% if activity.priority == 'critical' %}bg-danger{% elif activity.priority == 'high' %}bg-warning{% elif activity.priority == 'medium' %}bg-info{% else %}bg-secondary{% endif %} ms-2">
+                                    {{ activity.get_priority_display }}
+                                </span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Assigned To:</strong>
+                                <span class="ms-2">{{ activity.assigned_to.get_full_name|default:"Unassigned" }}</span>
+                            </div>
                         </div>
                         <div class="col-md-6">
-                            <strong>Activity Type:</strong> {{ activity.activity_type.name }}
-                        </div>
-                    </div>
-                    <hr>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <strong>Status:</strong> 
-                            <span class="badge {% if activity.status == 'completed' %}bg-success{% elif activity.status == 'in_progress' %}bg-warning{% elif activity.status == 'overdue' %}bg-danger{% else %}bg-secondary{% endif %}">
-                                {{ activity.get_status_display }}
-                            </span>
-                        </div>
-                        <div class="col-md-6">
-                            <strong>Priority:</strong> 
-                            <span class="badge {% if activity.priority == 'critical' %}bg-danger{% elif activity.priority == 'high' %}bg-warning{% elif activity.priority == 'medium' %}bg-info{% else %}bg-secondary{% endif %}">
-                                {{ activity.get_priority_display }}
-                            </span>
-                        </div>
-                    </div>
-                    <hr>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <strong>Scheduled Start:</strong> {{ activity.scheduled_start|date:"Y-m-d H:i" }}
-                        </div>
-                        <div class="col-md-6">
-                            <strong>Scheduled End:</strong> {{ activity.scheduled_end|date:"Y-m-d H:i" }}
-                        </div>
-                    </div>
-                    <hr>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <strong>Assigned To:</strong> {{ activity.assigned_to.get_full_name|default:"Unassigned" }}
-                        </div>
-                        <div class="col-md-6">
-                            <strong>Location:</strong> {{ activity.equipment.location.get_full_path }}
+                            <div class="mb-3">
+                                <strong>Scheduled Start:</strong>
+                                <span class="ms-2">{{ activity.scheduled_start|date:"Y-m-d H:i" }}</span>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Scheduled End:</strong>
+                                <span class="ms-2">{{ activity.scheduled_end|date:"Y-m-d H:i" }}</span>
+                            </div>
+                            {% if activity.actual_start %}
+                            <div class="mb-3">
+                                <strong>Actual Start:</strong>
+                                <span class="ms-2">{{ activity.actual_start|date:"Y-m-d H:i" }}</span>
+                            </div>
+                            {% endif %}
+                            {% if activity.actual_end %}
+                            <div class="mb-3">
+                                <strong>Actual End:</strong>
+                                <span class="ms-2">{{ activity.actual_end|date:"Y-m-d H:i" }}</span>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                     
                     {% if activity.description %}
                     <hr>
-                    <div class="row">
-                        <div class="col-12">
-                            <strong>Description:</strong><br>
-                            {{ activity.description|linebreaks }}
-                        </div>
+                    <div class="mb-3">
+                        <strong>Description:</strong>
+                        <p class="mb-0 mt-2">{{ activity.description|linebreaks }}</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
 
-            {% if activity.tools_required or activity.parts_required or activity.safety_notes %}
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Requirements & Safety</h5>
-                </div>
-                <div class="card-body">
-                    {% if activity.tools_required %}
-                    <div class="mb-3">
-                        <strong>Tools Required:</strong><br>
-                        {{ activity.tools_required|linebreaks }}
-                    </div>
-                    {% endif %}
-                    
-                    {% if activity.parts_required %}
-                    <div class="mb-3">
-                        <strong>Parts Required:</strong><br>
-                        {{ activity.parts_required|linebreaks }}
-                    </div>
-                    {% endif %}
-                    
-                    {% if activity.safety_notes %}
-                    <div class="mb-3">
-                        <strong>Safety Notes:</strong><br>
-                        <div class="alert alert-warning">
-                            {{ activity.safety_notes|linebreaks }}
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
-            {% if activity.completion_notes %}
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Completion Notes</h5>
-                </div>
-                <div class="card-body">
-                    {{ activity.completion_notes|linebreaks }}
-                </div>
-            </div>
-            {% endif %}
-        </div>
-
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Activity Timeline</h5>
+            <!-- Comprehensive Timeline -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Activity Timeline</h5>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addTimelineEntryModal">
+                        <i class="fas fa-plus me-1"></i>Add Entry
+                    </button>
                 </div>
                 <div class="card-body">
                     <div class="timeline">
+                        <!-- Activity Creation -->
                         <div class="timeline-item">
-                            <div class="timeline-marker bg-primary"></div>
+                            <div class="timeline-marker bg-primary">
+                                <i class="fas fa-plus text-white"></i>
+                            </div>
                             <div class="timeline-content">
-                                <strong>Created:</strong><br>
-                                {{ activity.created_at|date:"Y-m-d H:i" }}
-                                {% if activity.created_by %}
-                                <br>by {{ activity.created_by.get_full_name }}
+                                <div class="d-flex justify-content-between">
+                                    <strong>Activity Created</strong>
+                                    <small class="text-muted">{{ activity.created_at|date:"M d, Y H:i" }}</small>
+                                </div>
+                                <p class="mb-0 text-muted">Created by {{ activity.created_by.get_full_name|default:activity.created_by.username }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Timeline Entries -->
+                        {% for entry in timeline_entries %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-{{ entry.entry_type|timeline_color }}">
+                                <i class="fas {{ entry.entry_type|timeline_icon }} text-white"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="d-flex justify-content-between">
+                                    <strong>{{ entry.title }}</strong>
+                                    <small class="text-muted">{{ entry.created_at|date:"M d, Y H:i" }}</small>
+                                </div>
+                                <p class="mb-0">{{ entry.description }}</p>
+                                {% if entry.created_by %}
+                                <small class="text-muted">by {{ entry.created_by.get_full_name|default:entry.created_by.username }}</small>
                                 {% endif %}
                             </div>
                         </div>
-                        
+                        {% endfor %}
+
+                        <!-- Status Changes -->
                         {% if activity.actual_start %}
                         <div class="timeline-item">
-                            <div class="timeline-marker bg-warning"></div>
+                            <div class="timeline-marker bg-warning">
+                                <i class="fas fa-play text-white"></i>
+                            </div>
                             <div class="timeline-content">
-                                <strong>Started:</strong><br>
-                                {{ activity.actual_start|date:"Y-m-d H:i" }}
+                                <div class="d-flex justify-content-between">
+                                    <strong>Activity Started</strong>
+                                    <small class="text-muted">{{ activity.actual_start|date:"M d, Y H:i" }}</small>
+                                </div>
                             </div>
                         </div>
                         {% endif %}
-                        
+
                         {% if activity.actual_end %}
                         <div class="timeline-item">
-                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-marker bg-success">
+                                <i class="fas fa-check text-white"></i>
+                            </div>
                             <div class="timeline-content">
-                                <strong>Completed:</strong><br>
-                                {{ activity.actual_end|date:"Y-m-d H:i" }}
+                                <div class="d-flex justify-content-between">
+                                    <strong>Activity Completed</strong>
+                                    <small class="text-muted">{{ activity.actual_end|date:"M d, Y H:i" }}</small>
+                                </div>
+                                {% if activity.completion_notes %}
+                                <p class="mb-0 mt-2">{{ activity.completion_notes }}</p>
+                                {% endif %}
                             </div>
                         </div>
                         {% endif %}
@@ -172,13 +167,80 @@
                 </div>
             </div>
 
-            <div class="card mt-4">
+            <!-- Requirements and Notes -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-tools me-2"></i>Requirements</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if activity.tools_required %}
+                            <div class="mb-3">
+                                <strong>Tools Required:</strong>
+                                <p class="mb-0">{{ activity.tools_required|linebreaks }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if activity.parts_required %}
+                            <div class="mb-3">
+                                <strong>Parts Required:</strong>
+                                <p class="mb-0">{{ activity.parts_required|linebreaks }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if activity.safety_notes %}
+                            <div class="mb-3">
+                                <strong>Safety Notes:</strong>
+                                <p class="mb-0">{{ activity.safety_notes|linebreaks }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if not activity.tools_required and not activity.parts_required and not activity.safety_notes %}
+                            <p class="text-muted mb-0">No specific requirements defined.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="fas fa-sticky-note me-2"></i>Notes</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if activity.completion_notes %}
+                            <div class="mb-3">
+                                <strong>Completion Notes:</strong>
+                                <p class="mb-0">{{ activity.completion_notes|linebreaks }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if not activity.completion_notes %}
+                            <p class="text-muted mb-0">No notes available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Equipment Information -->
+            <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0">Equipment Info</h5>
+                    <h6 class="mb-0"><i class="fas fa-cog me-2"></i>Equipment Information</h6>
                 </div>
                 <div class="card-body">
                     <div class="mb-2">
+                        <strong>Name:</strong> {{ activity.equipment.name }}
+                    </div>
+                    <div class="mb-2">
                         <strong>Category:</strong> {{ activity.equipment.category.name }}
+                    </div>
+                    <div class="mb-2">
+                        <strong>Location:</strong> {{ activity.equipment.location.get_full_path }}
                     </div>
                     <div class="mb-2">
                         <strong>Manufacturer:</strong> {{ activity.equipment.manufacturer|default:"N/A" }}
@@ -194,6 +256,106 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Maintenance Statistics -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Maintenance Statistics</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <strong>Total Maintenance Time:</strong> {{ total_maintenance_time }} hours
+                    </div>
+                    <div class="mb-2">
+                        <strong>Completed Activities:</strong> {{ equipment_history.count }}
+                    </div>
+                    {% if next_maintenance %}
+                    <div class="mb-2">
+                        <strong>Next Maintenance:</strong> {{ next_maintenance.scheduled_start|date:"M d, Y" }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Related Activities -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-link me-2"></i>Related Activities</h6>
+                </div>
+                <div class="card-body">
+                    {% for related in related_activities %}
+                    <div class="mb-2">
+                        <a href="{% url 'maintenance:activity_detail' related.id %}" class="text-decoration-none">
+                            {{ related.title }}
+                        </a>
+                        <br>
+                        <small class="text-muted">{{ related.scheduled_start|date:"M d, Y" }} - {{ related.get_status_display }}</small>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted mb-0">No related activities.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Equipment History -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-history me-2"></i>Recent History</h6>
+                </div>
+                <div class="card-body">
+                    {% for history in equipment_history %}
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between">
+                            <span>{{ history.title }}</span>
+                            <small class="text-muted">{{ history.actual_end|date:"M d" }}</small>
+                        </div>
+                        <small class="text-muted">{{ history.activity_type.name }}</small>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted mb-0">No maintenance history.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Timeline Entry Modal -->
+<div class="modal fade" id="addTimelineEntryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Timeline Entry</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="entry_type" class="form-label">Entry Type</label>
+                        <select class="form-select" id="entry_type" name="entry_type" required>
+                            <option value="note">Note Added</option>
+                            <option value="issue">Issue Reported</option>
+                            <option value="resolution">Issue Resolved</option>
+                            <option value="started">Activity Started</option>
+                            <option value="paused">Activity Paused</option>
+                            <option value="resumed">Activity Resumed</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="title" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Entry</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -228,6 +390,13 @@
     border-radius: 50%;
     border: 2px solid #fff;
     box-shadow: 0 0 0 2px #dee2e6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.timeline-marker i {
+    font-size: 8px;
 }
 
 .timeline-content {
