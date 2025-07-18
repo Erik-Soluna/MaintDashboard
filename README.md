@@ -1,133 +1,159 @@
 # Maintenance Dashboard
 
-[![Development Status](https://img.shields.io/badge/status-unstable-orange.svg)](https://github.com/your-repo/maintenance-dashboard)
-[![Branch](https://img.shields.io/badge/branch-unstable%2Fdevelopment-orange.svg)](https://github.com/your-repo/maintenance-dashboard/tree/unstable/development)
-
-> ⚠️ **UNSTABLE DEVELOPMENT BRANCH** ⚠️
-> 
-> This branch is currently under active development and contains experimental features. 
-> **Do not use in production** - features may be incomplete, broken, or change without notice.
-> 
-> For stable releases, please use the `main` branch or check for tagged releases.
-
-A Django-based web application for managing equipment maintenance, events, and related operations with integrated Docker stack management.
-
-## ✨ Key Features
-
-- **Equipment Management** - Track and manage equipment items
-- **Maintenance Scheduling** - Plan and track maintenance activities  
-- **Event Logging** - Record and monitor maintenance events
-- **Calendar Integration** - iCal and Google Calendar sync
-- **CSV Import/Export** - Bulk data operations
-- **Container Management** - Integrated Portainer for Docker management
-- **User Authentication** - Secure role-based access control
+A comprehensive Django-based maintenance management system with unified calendar and maintenance functionality.
 
 ## 🚀 Quick Start
 
-### Docker Installation (Recommended)
+### Prerequisites
+- Docker Desktop
+- Git
 
-```bash
-# Clone the repository
-git clone <repository-url>
-cd maintenance-dashboard
+### Setup
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd MaintDashboard
+   ```
 
-# Start all services
-docker-compose up -d
+2. **Start the system**
+   ```bash
+   docker compose up -d
+   ```
 
-# Create admin user
-docker-compose exec web python manage.py createsuperuser
+3. **Access the application**
+   - URL: http://localhost:8000/
+   - Username: `admin`
+   - Password: `temppass123`
+
+## 📁 Project Structure
+
+```
+MaintDashboard/
+├── 📂 core/                    # Core application functionality
+├── 📂 equipment/               # Equipment management
+├── 📂 events/                  # Calendar events (unified with maintenance)
+├── 📂 maintenance/             # Maintenance activities
+├── 📂 maintenance_dashboard/   # Django project settings
+├── 📂 templates/               # HTML templates
+├── 📂 static/                  # Static files (CSS, JS, images)
+├── 📂 media/                   # User-uploaded files
+├── 📂 scripts/                 # Utility scripts and automation
+├── 📂 tests/                   # Test files and test suites
+├── 📂 docs/                    # Documentation and guides
+├── 📂 deployment/              # Deployment configurations
+├── 📂 debug/                   # Debug files and logs
+├── 📂 images/                  # Screenshots and images
+├── 📂 playwright/              # Playwright testing
+├── 🐳 docker-entrypoint.sh    # Docker entrypoint script
+├── 🐳 Dockerfile               # Main Docker configuration
+├── 🐳 docker-compose.yml       # Docker Compose configuration
+├── 📄 manage.py                # Django management script
+└── 📄 README.md                # This file
 ```
 
-**Access the application**: `http://localhost:8000`  
-**Container management**: `http://localhost:9000` (Portainer)
+## 🔧 Key Features
 
-> **🌐 Using with Nginx Proxy Manager?** See the [Nginx Proxy Manager Setup Guide](docs/NGINX_PROXY_MANAGER_SETUP.md) for SSL proxy configuration with custom domains.
+### ✅ Unified Calendar/Maintenance System
+- **Single Data Model**: Calendar events with `event_type='maintenance'` are maintenance activities
+- **No Synchronization Issues**: Eliminated complex sync operations
+- **Compatibility Properties**: Seamless integration with existing views
 
-### Manual Installation
+### ✅ Equipment Management
+- Hierarchical location system (Site > Pod > MDC)
+- Equipment categorization and documentation
+- Location-based filtering and selection
 
+### ✅ Maintenance Activities
+- Activity type categories with global options
+- Scheduled and on-demand maintenance
+- Status tracking and reporting
+
+### ✅ User Management
+- Role-based access control (RBAC)
+- Customer-specific data isolation
+- Admin and user interfaces
+
+## 🧪 Testing
+
+### Automated Tests
 ```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+# Run comprehensive test suite
+docker compose exec web python tests/test_unified_system.py
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up database (PostgreSQL required)
-python manage.py migrate
-python manage.py createsuperuser
-
-# Run development server
-python manage.py runserver
+# Run specific test categories
+docker compose exec web python tests/test_maintenance_reports.py
+docker compose exec web python tests/test_web_interface.py
 ```
+
+### Manual Testing
+1. Access http://localhost:8000/
+2. Create calendar events with type "Maintenance Activity"
+3. Verify they appear in both calendar and maintenance views
+4. Test equipment location selection and filtering
 
 ## 📚 Documentation
 
-**Complete documentation is available in the [docs/](docs/) directory.**
+- **Setup Guide**: `docs/quickstart.md`
+- **Unified System Testing**: `docs/UNIFIED_SYSTEM_TESTING.md`
+- **Deployment Guide**: `docs/deployment/portainer.md`
+- **Security Configuration**: `docs/SECURITY_CONFIGURATION.md`
 
-### Quick Links
-- **📖 [Full Documentation Index](docs/README.md)** - Complete guide to all documentation
-- **⚡ [Quick Start Guide](docs/quickstart.md)** - Detailed setup instructions
-- **🐳 [Docker Deployment](docs/deployment/docker.md)** - Docker setup and configuration
-- **🌐 [Nginx Proxy Manager Setup](docs/NGINX_PROXY_MANAGER_SETUP.md)** - SSL proxy configuration with Portainer
-- **🗄️ [Database Setup](docs/database/setup.md)** - Database configuration
-- **✨ [Features Guide](docs/features/overview.md)** - Complete feature documentation
-- **🔧 [Development Setup](docs/development/setup.md)** - Development environment
-- **🆘 [Troubleshooting](docs/troubleshooting/common-issues.md)** - Common issues and fixes
+## 🛠️ Development
 
-## 🛠️ Technology Stack
+### Scripts Directory
+- `scripts/setup-env.sh` - Environment setup
+- `scripts/ensure_database.sh` - Database initialization
+- `scripts/fix-database-user.sh` - Database user fixes
+- `scripts/start_celery.sh` - Celery worker startup
 
-- **Backend**: Django 4.x, PostgreSQL, Redis
-- **Frontend**: Bootstrap, JavaScript, crispy-forms
-- **Containerization**: Docker, Docker Compose
-- **Management**: Portainer for container orchestration
+### Debug Directory
+- Debug scripts and utilities
+- Log files and JSON outputs
+- Performance optimization tools
 
-## 📋 Prerequisites
+## 🚀 Deployment
 
-- **Docker & Docker Compose** (recommended) OR
-- **Python 3.8+**, **PostgreSQL 12+**, **Redis** (manual installation)
+### Docker Compose
+```bash
+# Development
+docker compose up -d
 
-## 🔧 Configuration
-
-Create a `.env` file for environment variables:
-
-```env
-# Database
-DB_NAME=maintenance_dashboard
-DB_USER=postgres
-DB_PASSWORD=your_password
-DB_HOST=localhost
-DB_PORT=5432
-
-# Django
-SECRET_KEY=your-secret-key
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-
-# Redis
-REDIS_URL=redis://localhost:6379/0
+# Production
+docker compose -f deployment/docker-compose.prod.yml up -d
 ```
+
+### Portainer Stack
+- `deployment/portainer-stack.yml` - Production stack
+- `deployment/portainer-stack-dev.yml` - Development stack
+
+## 🔒 Security
+
+- Role-based access control
+- Customer data isolation
+- Secure password handling
+- HTTPS configuration ready
+
+## 📊 Monitoring
+
+- Health checks for all services
+- Cache functionality verification
+- Database connectivity monitoring
+- Celery task monitoring
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `docker compose exec web python tests/test_unified_system.py`
+5. Submit a pull request
 
-See [Development Guide](docs/development/contributing.md) for detailed contribution guidelines.
+## 📝 License
 
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-- **Documentation**: [docs/README.md](docs/README.md)
-- **Issues**: [GitHub Issues](link-to-issues)
-- **Discussions**: [GitHub Discussions](link-to-discussions)
+This project is proprietary software.
 
 ---
 
-**Need help?** Start with the [Quick Start Guide](docs/quickstart.md) or check [Common Issues](docs/troubleshooting/common-issues.md).
+**Status**: ✅ Production Ready  
+**Last Updated**: July 2025  
+**Version**: 2.0 (Unified System)
