@@ -3629,22 +3629,84 @@ def webhook_settings(request):
                     'PORTAINER_WEBHOOK_SECRET': current_secret,
                 }
                 
+                # Validate required fields
+                if not config_data['PORTAINER_URL']:
+                    messages.error(request, 'Portainer URL is required. Please enter a valid URL.')
+                    return redirect('core:webhook_settings')
+                
+                if not config_data['PORTAINER_STACK_NAME']:
+                    messages.error(request, 'Stack Name is required. Please enter your stack name.')
+                    return redirect('core:webhook_settings')
+                
                 # Save to environment file
                 env_file_path = os.path.join(settings.BASE_DIR, 'deployment', 'env.development')
-                save_webhook_config(env_file_path, config_data)
+                save_result = save_webhook_config(env_file_path, config_data)
                 
-                messages.success(request, 'Webhook configuration saved successfully!')
+                if save_result:
+                    # Show what was saved
+                    saved_items = []
+                    if config_data['PORTAINER_URL']:
+                        saved_items.append(f"Portainer URL: {config_data['PORTAINER_URL']}")
+                    if config_data['PORTAINER_STACK_NAME']:
+                        saved_items.append(f"Stack Name: {config_data['PORTAINER_STACK_NAME']}")
+                    if config_data['PORTAINER_USER']:
+                        saved_items.append(f"Username: {config_data['PORTAINER_USER'][:3]}***")
+                    if config_data['PORTAINER_PASSWORD']:
+                        saved_items.append("Password: ********")
+                    if config_data['PORTAINER_WEBHOOK_SECRET']:
+                        saved_items.append(f"Secret: {config_data['PORTAINER_WEBHOOK_SECRET'][:4]}****")
+                    
+                    messages.success(request, f'Configuration saved successfully! Saved: {", ".join(saved_items)}')
+                else:
+                    messages.error(request, 'Failed to save configuration. Please check file permissions.')
+                    
+            except FileNotFoundError:
+                messages.error(request, 'Environment file not found. Please ensure the deployment/env.development file exists.')
+            except PermissionError:
+                messages.error(request, 'Permission denied. Cannot write to environment file. Please check file permissions.')
             except Exception as e:
+                logger.error(f"Error saving webhook config: {str(e)}")
                 messages.error(request, f'Error saving configuration: {str(e)}')
                 
         elif action == 'test_webhook':
             # Test the webhook configuration
-            result = test_portainer_connection()
-            messages.success(request, f'Connection test: {result}')
+            try:
+                portainer_url = getattr(settings, 'PORTAINER_URL', '')
+                if not portainer_url:
+                    messages.error(request, 'Cannot test connection: Portainer URL not configured. Please save your configuration first.')
+                    return redirect('core:webhook_settings')
+                
+                result = test_portainer_connection()
+                if 'successful' in result.lower():
+                    messages.success(request, f'✅ Connection test successful: {result}')
+                elif 'failed' in result.lower() or 'error' in result.lower():
+                    messages.error(request, f'❌ Connection test failed: {result}')
+                else:
+                    messages.warning(request, f'⚠️ Connection test result: {result}')
+            except Exception as e:
+                logger.error(f"Error testing connection: {str(e)}")
+                messages.error(request, f'❌ Connection test error: {str(e)}')
+                
         elif action == 'update_stack':
             # Manually trigger stack update
-            result = trigger_portainer_stack_update()
-            messages.success(request, f'Stack update: {result}')
+            try:
+                portainer_url = getattr(settings, 'PORTAINER_URL', '')
+                stack_name = getattr(settings, 'PORTAINER_STACK_NAME', '')
+                
+                if not portainer_url or not stack_name:
+                    messages.error(request, 'Cannot update stack: Portainer URL or Stack Name not configured. Please save your configuration first.')
+                    return redirect('core:webhook_settings')
+                
+                result = trigger_portainer_stack_update()
+                if 'successfully' in result.lower():
+                    messages.success(request, f'✅ Stack update successful: {result}')
+                elif 'failed' in result.lower() or 'error' in result.lower():
+                    messages.error(request, f'❌ Stack update failed: {result}')
+                else:
+                    messages.warning(request, f'⚠️ Stack update result: {result}')
+            except Exception as e:
+                logger.error(f"Error updating stack: {str(e)}")
+                messages.error(request, f'❌ Stack update error: {str(e)}')
         
         return redirect('core:webhook_settings')
     
@@ -3745,11 +3807,24 @@ def trigger_portainer_stack_update():
 def save_webhook_config(env_file_path, config_data):
     """Save webhook configuration to environment file."""
     try:
+        # Check if directory exists
+        env_dir = os.path.dirname(env_file_path)
+        if not os.path.exists(env_dir):
+            logger.error(f"Directory does not exist: {env_dir}")
+            return False
+        
         # Read existing file
         existing_lines = []
         if os.path.exists(env_file_path):
-            with open(env_file_path, 'r') as f:
-                existing_lines = f.readlines()
+            try:
+                with open(env_file_path, 'r') as f:
+                    existing_lines = f.readlines()
+            except PermissionError:
+                logger.error(f"Permission denied reading file: {env_file_path}")
+                return False
+            except Exception as e:
+                logger.error(f"Error reading file {env_file_path}: {str(e)}")
+                return False
         
         # Update or add configuration lines
         config_keys = list(config_data.keys())
@@ -3780,13 +3855,21 @@ def save_webhook_config(env_file_path, config_data):
                 updated_lines.append(f"{key}={config_data[key]}")
         
         # Write back to file
-        with open(env_file_path, 'w') as f:
-            f.write('\n'.join(updated_lines) + '\n')
+        try:
+            with open(env_file_path, 'w') as f:
+                f.write('\n'.join(updated_lines) + '\n')
+            logger.info(f"Successfully saved webhook config to {env_file_path}")
+            return True
+        except PermissionError:
+            logger.error(f"Permission denied writing to file: {env_file_path}")
+            return False
+        except Exception as e:
+            logger.error(f"Error writing to file {env_file_path}: {str(e)}")
+            return False
             
-        return True
     except Exception as e:
         logger.error(f"Error saving webhook config: {str(e)}")
-        raise e
+        return False
 
 
 def test_portainer_connection():
