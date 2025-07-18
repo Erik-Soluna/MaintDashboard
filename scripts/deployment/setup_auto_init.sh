@@ -77,10 +77,13 @@ check_prerequisites() {
 setup_permissions() {
     print_status "Setting up file permissions..."
     
-    # Make scripts executable
-    chmod +x scripts/database/auto_init_database.py
-    chmod +x scripts/deployment/docker-entrypoint.sh
-    chmod +x scripts/database/init_database.sh
+    # Note: Scripts are made executable during Docker build
+    # These chmod operations are only needed for local development
+    if [[ "$ENVIRONMENT" == "local" ]]; then
+        chmod +x scripts/database/auto_init_database.py
+        chmod +x scripts/deployment/docker-entrypoint.sh
+        chmod +x scripts/database/init_database.sh
+    fi
     
     # Create necessary directories
     mkdir -p logs

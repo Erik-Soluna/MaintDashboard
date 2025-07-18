@@ -50,21 +50,19 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . /app/
 
-# Copy entrypoint script and make it executable
-RUN chmod +x /app/scripts/deployment/docker-entrypoint.sh
-RUN chmod +x /app/scripts/celery/start_celery_beat.sh
-RUN chmod +x /app/scripts/celery/start_celery.sh
-RUN chmod +x /app/scripts/celery/start_celery_beat_prod.sh
-RUN chmod +x /app/scripts/celery/start_celery_prod.sh
-
 # Create directories for static and media files
 RUN mkdir -p /app/staticfiles /app/media
 
-# Copy and make executable the database initialization scripts
-RUN chmod +x /app/scripts/database/init_database.sh
-RUN chmod +x /app/scripts/database/auto_init_database.py
-RUN chmod +x /app/scripts/database/ensure-database.sh
-RUN chmod +x /app/scripts/database/ensure_database.sh
+# Make all scripts executable in one layer
+RUN chmod +x /app/scripts/deployment/docker-entrypoint.sh \
+    && chmod +x /app/scripts/celery/start_celery_beat.sh \
+    && chmod +x /app/scripts/celery/start_celery.sh \
+    && chmod +x /app/scripts/celery/start_celery_beat_prod.sh \
+    && chmod +x /app/scripts/celery/start_celery_prod.sh \
+    && chmod +x /app/scripts/database/init_database.sh \
+    && chmod +x /app/scripts/database/auto_init_database.py \
+    && chmod +x /app/scripts/database/ensure-database.sh \
+    && chmod +x /app/scripts/database/ensure_database.sh
 
 # Collect static files (but allow override via environment variable)
 RUN python manage.py collectstatic --noinput || echo "Static files collection failed, will retry at runtime"
