@@ -44,12 +44,14 @@ MaintDashboard/
 │   └── 📂 utilities/           # Utility scripts
 ├── 📂 tests/                   # Test files and test suites
 ├── 📂 docs/                    # Documentation and guides
-├── 📂 deployment/              # Deployment configurations
+├── 📂 deployment/              # Environment configurations
 ├── 📂 debug/                   # Debug files and logs
 ├── 📂 images/                  # Screenshots and images
 ├── 📂 playwright/              # Playwright testing
 ├── 🐳 Dockerfile               # Main Docker configuration
 ├── 🐳 docker-compose.yml       # Docker Compose configuration
+├── 🐳 portainer-stack.yml      # Production Portainer stack
+├── 🐳 portainer-stack-dev.yml  # Development Portainer stack
 ├── 📄 manage.py                # Django management script
 └── 📄 README.md                # This file
 ```
@@ -128,8 +130,8 @@ docker compose -f deployment/docker-compose.prod.yml up -d
 ```
 
 ### Portainer Stack
-- `deployment/portainer-stack.yml` - Production stack
-- `deployment/portainer-stack-dev.yml` - Development stack
+- `portainer-stack.yml` - Production stack
+- `portainer-stack-dev.yml` - Development stack
 
 ## 🔒 Security
 

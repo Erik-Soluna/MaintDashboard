@@ -26,27 +26,35 @@ The system uses Docker Compose with the following services:
 - **Celery Beat**: Scheduled task management
 
 ### Environment Configuration
-Copy the appropriate environment file:
+Copy the appropriate environment file from the deployment directory:
 ```bash
 # Development
 cp deployment/env.development .env
 
 # Production
 cp deployment/env.production .env
+
+# GitHub Actions
+cp deployment/env.github.example .env.github
 ```
 
 ## 🌐 Portainer Deployment
 
+### Stack Files
+Portainer stack files are located in the root directory for easy access:
+- `portainer-stack.yml` - Production configuration
+- `portainer-stack-dev.yml` - Development configuration
+
 ### Production Stack
 Use the production Portainer stack configuration:
 ```yaml
-# deployment/portainer-stack.yml
+# portainer-stack.yml (root directory)
 ```
 
 ### Development Stack
 Use the development configuration for testing:
 ```yaml
-# deployment/portainer-stack-dev.yml
+# portainer-stack-dev.yml (root directory)
 ```
 
 ### Portainer Template
