@@ -142,7 +142,7 @@ class DockerLogsService:
     
     def get_containers(self, user: User) -> Dict[str, Any]:
         """
-        Get list of available Docker containers.
+        Get list of available Docker containers using log streaming service.
         
         Args:
             user: Django user object
@@ -164,125 +164,32 @@ class DockerLogsService:
                 'containers': []
             }
         
-        containers = []
-        warning = None
-        
         try:
-            # Get hostname for current container
-            hostname = os.environ.get('HOSTNAME', '')
+            # Use the log streaming service to get containers
+            from core.services.log_streaming_service import LogStreamingService
+            streaming_service = LogStreamingService()
             
-            # Approach 1: Try using Docker Python library
-            try:
-                import docker
-                client = docker.from_env(timeout=5)
-                docker_containers = client.containers.list()
-                
-                for container in docker_containers:
-                    try:
-                        container_info = {
-                            'name': container.name,
-                            'image': container.image.tags[0] if container.image.tags else container.image.id,
-                            'status': container.status,
-                            'ports': ', '.join([f"{k}:{v[0]['HostPort']}" for k, v in container.ports.items()]) if container.ports else 'N/A'
-                        }
-                        containers.append(container_info)
-                    except Exception as container_error:
-                        self.logger.warning(f"Error getting container info: {container_error}")
-                        continue
-                
-                # Add current container if not already present
-                if hostname and not any(c['name'] == hostname for c in containers):
-                    containers.insert(0, {
-                        'name': hostname,
-                        'image': 'Current Container',
-                        'status': 'Running',
-                        'ports': 'N/A'
-                    })
-                    
-            except ImportError:
-                warning = "Docker Python library not available"
-            except Exception as e:
-                warning = f"Docker API error: {str(e)}"
+            containers = streaming_service.get_available_containers()
             
-            # Approach 2: Fallback to docker command
-            if not containers:
-                try:
-                    docker_socket = '/var/run/docker.sock'
-                    if os.path.exists(docker_socket):
-                        cmd = ['docker', '--host', 'unix:///var/run/docker.sock', 'ps', '--format', 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}']
-                    else:
-                        cmd = ['docker', 'ps', '--format', 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}']
-                    
-                    result = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        timeout=10
-                    )
-                    
-                    if result.returncode == 0:
-                        lines = result.stdout.strip().split('\n')
-                        for line in lines[1:]:  # Skip header
-                            if line.strip():
-                                parts = line.split('\t')
-                                if len(parts) >= 4:
-                                    containers.append({
-                                        'name': parts[0],
-                                        'image': parts[1],
-                                        'status': parts[2],
-                                        'ports': parts[3]
-                                    })
-                        
-                        # Add current container if not already present
-                        if hostname and not any(c['name'] == hostname for c in containers):
-                            containers.insert(0, {
-                                'name': hostname,
-                                'image': 'Current Container',
-                                'status': 'Running',
-                                'ports': 'N/A'
-                            })
-                    else:
-                        warning = f'Docker command failed: {result.stderr}'
-                        
-                except Exception as e:
-                    warning = f"Subprocess error: {str(e)}"
-            
-            # Approach 3: Provide fallback containers
-            if not containers:
-                if hostname:
-                    containers.append({
-                        'name': hostname,
-                        'image': 'Current Container (Docker not accessible)',
-                        'status': 'Running',
-                        'ports': 'N/A'
-                    })
-                
-                # Add common container names
-                common_containers = [
-                    'maintdashboard_web_1',
-                    'maintdashboard_db_1', 
-                    'maintdashboard_redis_1',
-                    'maintdashboard_celery_1',
-                    'maintdashboard_nginx_1'
-                ]
-                
-                for container_name in common_containers:
-                    containers.append({
-                        'name': container_name,
-                        'image': 'Unknown (Docker not accessible)',
-                        'status': 'Unknown',
-                        'ports': 'N/A'
-                    })
-                
-                warning = 'Docker not accessible. Showing fallback container list.'
+            # Format containers for API response
+            formatted_containers = []
+            for container in containers:
+                formatted_containers.append({
+                    'name': container['name'],
+                    'image': container.get('image', 'Unknown'),
+                    'status': container.get('status', 'Unknown'),
+                    'ports': 'N/A',
+                    'source': container.get('source', 'unknown'),
+                    'log_file': container.get('log_file')
+                })
             
             # Log successful access
             self.log_access(user, "container_list", True, "get_containers")
             
             return {
                 'success': True,
-                'containers': containers,
-                'warning': warning
+                'containers': formatted_containers,
+                'warning': None
             }
             
         except Exception as e:
@@ -296,7 +203,7 @@ class DockerLogsService:
     
     def get_logs(self, user: User, container_name: str, lines: int = 100, follow: bool = False) -> Dict[str, Any]:
         """
-        Get logs for a specific Docker container.
+        Get logs for a specific Docker container using log streaming service.
         
         Args:
             user: Django user object
@@ -334,142 +241,35 @@ class DockerLogsService:
         if lines > max_lines:
             lines = max_lines
         
-        logs_content = None
-        error_message = None
-        method_used = "unknown"
-        
         try:
-            # Approach 1: Try using Docker Python library
-            try:
-                import docker
-                client = docker.from_env(timeout=self.config.get('timeout', 30))
-                container = client.containers.get(sanitized_container)
-                logs = container.logs(tail=lines, follow=follow, timestamps=True)
-                
-                if isinstance(logs, bytes):
-                    logs_content = logs.decode('utf-8', errors='replace')
-                else:
-                    logs_content = logs
-                
-                method_used = "docker_api"
-                
-            except ImportError:
-                error_message = "Docker Python library not available"
-            except Exception as e:
-                error_message = f"Docker API error: {str(e)}"
+            # Use the log streaming service
+            from core.services.log_streaming_service import LogStreamingService
+            streaming_service = LogStreamingService()
             
-            # Approach 2: Try docker command with socket mount
-            if not logs_content:
-                try:
-                    docker_socket = '/var/run/docker.sock'
-                    if os.path.exists(docker_socket):
-                        cmd = ['docker', '--host', 'unix:///var/run/docker.sock', 'logs', '--tail', str(lines)]
-                        if follow:
-                            cmd.append('--follow')
-                        cmd.append(sanitized_container)
-                    else:
-                        cmd = ['docker', 'logs', '--tail', str(lines)]
-                        if follow:
-                            cmd.append('--follow')
-                        cmd.append(sanitized_container)
-                    
-                    result = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        timeout=self.config.get('timeout', 30)
-                    )
-                    
-                    if result.returncode == 0:
-                        logs_content = result.stdout
-                        method_used = "docker_command"
-                    else:
-                        error_message = f"Docker command failed: {result.stderr}"
-                        
-                except Exception as e:
-                    error_message = f"Subprocess error: {str(e)}"
+            # Get logs for the container
+            logs_content = streaming_service.get_container_logs(sanitized_container, lines)
             
-            # Approach 3: Try to read logs from common log locations
-            if not logs_content:
-                try:
-                    import glob
-                    log_paths = [
-                        f'/var/log/containers/{sanitized_container}*.log',
-                        f'/var/lib/docker/containers/*/{sanitized_container}*/{sanitized_container}*-json.log',
-                        f'/var/log/docker/{sanitized_container}.log'
-                    ]
-                    
-                    for pattern in log_paths:
-                        log_files = glob.glob(pattern)
-                        if log_files:
-                            log_file = max(log_files, key=os.path.getctime)
-                            with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
-                                all_lines = f.readlines()
-                                logs_content = ''.join(all_lines[-lines:])
-                            method_used = "log_file"
-                            break
-                            
-                except Exception as e:
-                    error_message = f"Log file reading error: {str(e)}"
-            
-            # Approach 4: Try to get logs from journalctl
-            if not logs_content:
-                try:
-                    result = subprocess.run(
-                        ['journalctl', '-u', f'docker-{sanitized_container}', '--no-pager', '-n', str(lines)],
-                        capture_output=True,
-                        text=True,
-                        timeout=10
-                    )
-                    
-                    if result.returncode == 0:
-                        logs_content = result.stdout
-                        method_used = "journalctl"
-                    else:
-                        error_message = f"Journalctl error: {result.stderr}"
-                        
-                except Exception as e:
-                    error_message = f"Journalctl error: {str(e)}"
-            
-            # Return results
-            if logs_content:
-                self.log_access(user, sanitized_container, True, method_used)
+            if logs_content and not logs_content.startswith("Container '") and not logs_content.startswith("Logs for "):
+                self.log_access(user, sanitized_container, True, "log_streaming")
                 return {
                     'success': True,
                     'logs': logs_content,
                     'container': sanitized_container,
                     'lines_returned': len(logs_content.splitlines()),
-                    'method': method_used
+                    'method': 'log_streaming'
                 }
             else:
                 error_msg = f'Could not retrieve logs for container "{sanitized_container}"'
-                if error_message:
-                    error_msg += f'. Details: {error_message}'
-                
-                self.log_access(user, sanitized_container, False, method_used, error_msg)
+                self.log_access(user, sanitized_container, False, "log_streaming", error_msg)
                 return {
                     'success': False,
                     'error': error_msg,
-                    'suggestion': 'Try checking if the container is running and accessible, or check Docker permissions.'
+                    'suggestion': 'Container logs may not be accessible or the container may not exist.'
                 }
                 
-        except subprocess.TimeoutExpired:
-            error_msg = 'Docker logs command timed out'
-            self.log_access(user, sanitized_container, False, method_used, error_msg)
-            return {
-                'success': False,
-                'error': error_msg
-            }
-        except FileNotFoundError:
-            error_msg = 'Docker command not found. Make sure Docker is installed and accessible.'
-            self.log_access(user, sanitized_container, False, method_used, error_msg)
-            return {
-                'success': False,
-                'error': error_msg
-            }
         except Exception as e:
             error_msg = f'Unexpected error: {str(e)}'
-            self.log_access(user, sanitized_container, False, method_used, error_msg)
+            self.log_access(user, sanitized_container, False, "log_streaming", error_msg)
             return {
                 'success': False,
                 'error': error_msg

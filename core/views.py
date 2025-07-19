@@ -4029,3 +4029,128 @@ def get_docker_containers_api(request):
         return JsonResponse(result)
     else:
         return JsonResponse(result, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["GET"])
+def get_aggregated_logs_api(request):
+    """API endpoint to get aggregated logs from multiple containers."""
+    from core.services.log_streaming_service import LogStreamingService
+    
+    # Get parameters
+    containers = request.GET.get('containers', '').split(',') if request.GET.get('containers') else None
+    lines = int(request.GET.get('lines', 100))
+    
+    # Validate lines parameter
+    if lines > 1000:
+        lines = 1000
+    
+    try:
+        streaming_service = LogStreamingService()
+        logs_content = streaming_service.get_aggregated_logs(containers, lines)
+        
+        return JsonResponse({
+            'success': True,
+            'logs': logs_content,
+            'containers': containers or [],
+            'lines_returned': len(logs_content.splitlines())
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error getting aggregated logs: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["GET"])
+def get_system_logs_api(request):
+    """API endpoint to get system logs."""
+    from core.services.log_streaming_service import LogStreamingService
+    
+    # Get parameters
+    lines = int(request.GET.get('lines', 100))
+    
+    # Validate lines parameter
+    if lines > 1000:
+        lines = 1000
+    
+    try:
+        streaming_service = LogStreamingService()
+        logs_content = streaming_service.get_system_logs(lines)
+        
+        return JsonResponse({
+            'success': True,
+            'logs': logs_content,
+            'lines_returned': len(logs_content.splitlines())
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error getting system logs: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
+def start_log_stream_api(request):
+    """API endpoint to start a real-time log stream."""
+    from core.services.log_streaming_service import LogStreamingService
+    import json
+    
+    try:
+        data = json.loads(request.body)
+        containers = data.get('containers', [])
+        
+        streaming_service = LogStreamingService()
+        stream_id = streaming_service.start_log_stream(request.user, containers)
+        
+        return JsonResponse({
+            'success': True,
+            'stream_id': stream_id,
+            'message': 'Log stream started successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error starting log stream: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
+def stop_log_stream_api(request):
+    """API endpoint to stop a log stream."""
+    from core.services.log_streaming_service import LogStreamingService
+    import json
+    
+    try:
+        data = json.loads(request.body)
+        stream_id = data.get('stream_id')
+        
+        if not stream_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Stream ID is required'
+            }, status=400)
+        
+        streaming_service = LogStreamingService()
+        streaming_service.stop_log_stream(stream_id)
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Log stream stopped successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'Error stopping log stream: {str(e)}'
+        }, status=500)

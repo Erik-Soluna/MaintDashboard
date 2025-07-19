@@ -87,6 +87,10 @@ urlpatterns = [
     path('settings/docker-logs/', views.docker_logs_view, name='docker_logs'),
     path('api/docker/logs/', views.get_docker_logs_api, name='get_docker_logs'),
     path('api/docker/containers/', views.get_docker_containers_api, name='get_docker_containers'),
+    path('api/logs/aggregated/', views.get_aggregated_logs_api, name='get_aggregated_logs'),
+    path('api/logs/system/', views.get_system_logs_api, name='get_system_logs'),
+    path('api/logs/stream/start/', views.start_log_stream_api, name='start_log_stream'),
+    path('api/logs/stream/stop/', views.stop_log_stream_api, name='stop_log_stream'),
     
     # Bulk Location Management
     path('settings/locations/bulk/', views.bulk_locations_view, name='bulk_locations'),

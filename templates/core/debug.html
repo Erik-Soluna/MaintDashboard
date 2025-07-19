@@ -434,56 +434,150 @@
         </div>
     </div>
 
-    <!-- Docker Logs Section -->
+    <!-- Enhanced Logging Section -->
     <div class="debug-section">
-        <div class="debug-header" onclick="toggleSection('docker-logs')">
+        <div class="debug-header" onclick="toggleSection('enhanced-logs')">
             <h5>
-                <i class="fas fa-terminal me-2"></i>
-                Docker Logs
+                <i class="fas fa-stream me-2"></i>
+                Enhanced Logging
             </h5>
             <i class="fas fa-chevron-down collapse-icon"></i>
         </div>
-        <div class="debug-body" id="docker-logs-body">
-            <div class="docker-logs-form">
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="form-group">
-                            <label for="container-select" class="form-label">Container</label>
-                            <select id="container-select" class="form-control">
-                                <option value="">Select a container...</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="lines-count" class="form-label">Lines</label>
-                            <input type="number" id="lines-count" class="form-control" value="100" min="10" max="1000">
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="follow-logs" class="form-label">Follow</label>
-                            <div class="form-check">
-                                <input type="checkbox" id="follow-logs" class="form-check-input">
-                                <label class="form-check-label" for="follow-logs">Real-time</label>
+        <div class="debug-body" id="enhanced-logs-body">
+            <!-- Log Source Selection -->
+            <div class="log-source-tabs mb-3">
+                <ul class="nav nav-tabs" id="logSourceTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="docker-tab" data-bs-toggle="tab" data-bs-target="#docker-logs" type="button" role="tab">
+                            <i class="fas fa-terminal me-1"></i>Docker Logs
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="aggregated-tab" data-bs-toggle="tab" data-bs-target="#aggregated-logs" type="button" role="tab">
+                            <i class="fas fa-layer-group me-1"></i>Aggregated Logs
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system-logs" type="button" role="tab">
+                            <i class="fas fa-server me-1"></i>System Logs
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- Tab Content -->
+            <div class="tab-content" id="logSourceTabContent">
+                <!-- Docker Logs Tab -->
+                <div class="tab-pane fade show active" id="docker-logs" role="tabpanel">
+                    <div class="docker-logs-form">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="container-select" class="form-label">Container</label>
+                                    <select id="container-select" class="form-control">
+                                        <option value="">Select a container...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="lines-count" class="form-label">Lines</label>
+                                    <input type="number" id="lines-count" class="form-control" value="100" min="10" max="1000">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="follow-logs" class="form-label">Follow</label>
+                                    <div class="form-check">
+                                        <input type="checkbox" id="follow-logs" class="form-check-input">
+                                        <label class="form-check-label" for="follow-logs">Real-time</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-group">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button class="diagnostic-button primary w-100" onclick="loadDockerLogs()">
+                                        <i class="fas fa-sync-alt me-1"></i>Load Logs
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <label class="form-label">&nbsp;</label>
-                            <button class="diagnostic-button primary w-100" onclick="loadDockerLogs()">
-                                <i class="fas fa-sync-alt me-1"></i>Load Logs
-                            </button>
+                    
+                    <div id="dockerLogs" class="docker-logs-output">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Select a container and click "Load Logs" to view Docker logs...
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div id="dockerLogs" class="docker-logs-output">
-                <div class="text-center text-muted">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Select a container and click "Load Logs" to view Docker logs...
+                
+                <!-- Aggregated Logs Tab -->
+                <div class="tab-pane fade" id="aggregated-logs" role="tabpanel">
+                    <div class="aggregated-logs-form">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="container-multi-select" class="form-label">Containers</label>
+                                    <select id="container-multi-select" class="form-control" multiple>
+                                        <option value="">Loading containers...</option>
+                                    </select>
+                                    <div class="form-text">Hold Ctrl/Cmd to select multiple containers</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label for="aggregated-lines-count" class="form-label">Lines per Container</label>
+                                    <input type="number" id="aggregated-lines-count" class="form-control" value="50" min="10" max="500">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button class="diagnostic-button primary w-100" onclick="loadAggregatedLogs()">
+                                        <i class="fas fa-layer-group me-1"></i>Load All Logs
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="aggregatedLogs" class="docker-logs-output">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Select containers and click "Load All Logs" to view aggregated logs...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Logs Tab -->
+                <div class="tab-pane fade" id="system-logs" role="tabpanel">
+                    <div class="system-logs-form">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="system-lines-count" class="form-label">Lines</label>
+                                    <input type="number" id="system-lines-count" class="form-control" value="100" min="10" max="1000">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button class="diagnostic-button primary w-100" onclick="loadSystemLogs()">
+                                        <i class="fas fa-server me-1"></i>Load System Logs
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="systemLogs" class="docker-logs-output">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Click "Load System Logs" to view system-level logs...
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1184,14 +1278,150 @@ function formatDockerLogs(logs) {
         .replace(/'/g, '&#39;');
 }
 
-// Load containers when Docker logs section is opened
+// Load containers when enhanced logging section is opened
 document.addEventListener('DOMContentLoaded', function() {
-    // Add event listener for Docker logs section toggle
-    const dockerLogsHeader = document.querySelector('#docker-logs-body').previousElementSibling;
-    dockerLogsHeader.addEventListener('click', function() {
+    // Add event listener for enhanced logging section toggle
+    const enhancedLogsHeader = document.querySelector('#enhanced-logs-body').previousElementSibling;
+    enhancedLogsHeader.addEventListener('click', function() {
         // Load containers when section is opened
         setTimeout(loadDockerContainers, 100);
+        setTimeout(loadMultiSelectContainers, 100);
     });
 });
+
+// Enhanced Logging Functions
+function loadMultiSelectContainers() {
+    const containerSelect = document.getElementById('container-multi-select');
+    
+    fetch('{% url "core:get_docker_containers" %}')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Clear existing options
+            containerSelect.innerHTML = '';
+            
+            // Add container options
+            data.containers.forEach(container => {
+                const option = document.createElement('option');
+                option.value = container.name;
+                option.textContent = `${container.name} (${container.status})`;
+                containerSelect.appendChild(option);
+            });
+        } else {
+            showDebugMessage('Failed to load containers: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        showDebugMessage('Error loading containers: ' + error.message, 'error');
+    });
+}
+
+function loadAggregatedLogs() {
+    const containerSelect = document.getElementById('container-multi-select');
+    const linesCount = document.getElementById('aggregated-lines-count');
+    const logsDiv = document.getElementById('aggregatedLogs');
+    
+    const selectedContainers = Array.from(containerSelect.selectedOptions).map(option => option.value);
+    const lines = linesCount.value;
+    
+    if (selectedContainers.length === 0) {
+        showDebugMessage('Please select at least one container', 'warning');
+        return;
+    }
+    
+    // Show loading state
+    logsDiv.innerHTML = `
+        <div class="text-center text-muted">
+            <i class="fas fa-spinner fa-spin me-1"></i>
+            Loading aggregated logs for ${selectedContainers.length} containers...
+        </div>
+    `;
+    
+    // Build URL with parameters
+    const url = `{% url "core:get_aggregated_logs" %}?containers=${selectedContainers.join(',')}&lines=${lines}`;
+    
+    fetch(url)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Format logs with syntax highlighting
+            const formattedLogs = formatDockerLogs(data.logs);
+            logsDiv.innerHTML = `
+                <div class="docker-logs-header">
+                    <h6>Aggregated Logs</h6>
+                    <small class="text-muted">
+                        ${data.lines_returned} lines returned from ${data.containers.length} containers
+                    </small>
+                </div>
+                <pre class="docker-logs-content">${formattedLogs}</pre>
+            `;
+        } else {
+            logsDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Error: ${data.error}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        logsDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                Error loading aggregated logs: ${error.message}
+            </div>
+        `;
+    });
+}
+
+function loadSystemLogs() {
+    const linesCount = document.getElementById('system-lines-count');
+    const logsDiv = document.getElementById('systemLogs');
+    const lines = linesCount.value;
+    
+    // Show loading state
+    logsDiv.innerHTML = `
+        <div class="text-center text-muted">
+            <i class="fas fa-spinner fa-spin me-1"></i>
+            Loading system logs...
+        </div>
+    `;
+    
+    // Build URL with parameters
+    const url = `{% url "core:get_system_logs" %}?lines=${lines}`;
+    
+    fetch(url)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Format logs with syntax highlighting
+            const formattedLogs = formatDockerLogs(data.logs);
+            logsDiv.innerHTML = `
+                <div class="docker-logs-header">
+                    <h6>System Logs</h6>
+                    <small class="text-muted">
+                        ${data.lines_returned} lines returned
+                    </small>
+                </div>
+                <pre class="docker-logs-content">${formattedLogs}</pre>
+            `;
+        } else {
+            logsDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Error: ${data.error}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        logsDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                Error loading system logs: ${error.message}
+            </div>
+        `;
+    });
+}
 </script>
 {% endblock %} 
