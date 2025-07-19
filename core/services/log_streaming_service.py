@@ -55,14 +55,18 @@ class LogStreamingService:
             List of container information
         """
         containers = []
+        debug_info = []
+        debug_info.append("=== CONTAINER DETECTION DEBUG ===")
         
         # Try to get containers from Docker API first
         try:
             from .docker_logs_service import DockerLogsService
             docker_service = DockerLogsService()
+            debug_info.append("✓ DockerLogsService imported successfully")
             
             # Try to get containers using subprocess as fallback
             try:
+                debug_info.append("Attempting docker ps command...")
                 result = subprocess.run(
                     ['docker', 'ps', '--format', 'table {{.Names}}\t{{.ID}}\t{{.Image}}\t{{.Status}}'],
                     capture_output=True,
@@ -70,73 +74,117 @@ class LogStreamingService:
                     timeout=10
                 )
                 
+                debug_info.append(f"Docker ps return code: {result.returncode}")
+                debug_info.append(f"Docker ps stdout: {result.stdout[:200]}...")
+                debug_info.append(f"Docker ps stderr: {result.stderr[:200]}...")
+                
                 if result.returncode == 0:
                     lines = result.stdout.strip().split('\n')[1:]  # Skip header
-                    for line in lines:
+                    debug_info.append(f"Found {len(lines)} container lines")
+                    for i, line in enumerate(lines):
                         if line.strip():
                             parts = line.split('\t')
+                            debug_info.append(f"Line {i}: {line}")
                             if len(parts) >= 4:
                                 name, container_id, image, status = parts[:4]
-                                containers.append({
+                                container_info = {
                                     'name': name.strip(),
                                     'id': container_id.strip(),
                                     'image': image.strip(),
                                     'status': status.strip(),
                                     'log_file': None,  # Will be found by scanning
                                     'source': 'docker_cli'
-                                })
+                                }
+                                containers.append(container_info)
+                                debug_info.append(f"Added container: {container_info}")
+                            else:
+                                debug_info.append(f"Invalid line format: {parts}")
+                else:
+                    debug_info.append(f"Docker ps failed with return code {result.returncode}")
             except Exception as e:
+                debug_info.append(f"Error getting containers from Docker CLI: {e}")
                 self.logger.warning(f"Error getting containers from Docker CLI: {e}")
                 
         except Exception as e:
+            debug_info.append(f"Error importing DockerLogsService: {e}")
             self.logger.warning(f"Error getting containers from Docker API: {e}")
         
         # Scan Docker log directories for log files
+        debug_info.append("\n=== LOG FILE SCANNING ===")
         for pattern in self.config.get('docker_log_paths', []):
             try:
+                debug_info.append(f"Scanning pattern: {pattern}")
                 log_files = glob.glob(pattern)
+                debug_info.append(f"Found {len(log_files)} log files for pattern {pattern}")
                 for log_file in log_files:
+                    debug_info.append(f"Processing log file: {log_file}")
                     container_info = self._extract_container_info_from_log_file(log_file)
                     if container_info:
+                        debug_info.append(f"Extracted container info: {container_info}")
                         # Try to match with existing containers by ID
                         container_id = container_info['id']
+                        matched = False
                         for existing_container in containers:
                             if existing_container['id'].startswith(container_id) or container_id.startswith(existing_container['id']):
                                 existing_container['log_file'] = log_file
+                                debug_info.append(f"Matched {container_id} with existing container {existing_container['name']}")
+                                matched = True
                                 break
-                        else:
+                        if not matched:
                             # Add new container if not found
                             containers.append(container_info)
+                            debug_info.append(f"Added new container from log file: {container_info}")
+                    else:
+                        debug_info.append(f"No container info extracted from {log_file}")
             except Exception as e:
+                debug_info.append(f"Error scanning log pattern {pattern}: {e}")
                 self.logger.warning(f"Error scanning log pattern {pattern}: {e}")
         
         # Add current container info if not already present
         hostname = os.environ.get('HOSTNAME', '')
+        debug_info.append(f"\n=== HOSTNAME INFO ===")
+        debug_info.append(f"Hostname: {hostname}")
         if hostname and not any(c['name'] == hostname for c in containers):
-            containers.insert(0, {
+            current_container = {
                 'name': hostname,
                 'id': hostname,
                 'image': 'Current Container',
                 'status': 'Running',
                 'log_file': None,
                 'source': 'current'
-            })
+            }
+            containers.insert(0, current_container)
+            debug_info.append(f"Added current container: {current_container}")
+        else:
+            debug_info.append(f"Current container already exists or hostname not found")
         
         # Remove duplicates and ensure all containers have readable names
+        debug_info.append(f"\n=== DEDUPLICATION ===")
+        debug_info.append(f"Before deduplication: {len(containers)} containers")
         seen = set()
         unique_containers = []
         for container in containers:
             # Ensure container has a readable name
             if container['name'] in seen:
+                debug_info.append(f"Skipping duplicate: {container['name']}")
                 continue
                 
             # If name is just an ID, try to make it more readable
             if len(container['name']) == 12 and container['name'].isalnum():
                 # This looks like a short Docker ID, try to find a better name
+                old_name = container['name']
                 container['name'] = f"container-{container['name'][:8]}"
+                debug_info.append(f"Renamed container from {old_name} to {container['name']}")
             
             seen.add(container['name'])
             unique_containers.append(container)
+            debug_info.append(f"Added unique container: {container}")
+        
+        debug_info.append(f"After deduplication: {len(unique_containers)} containers")
+        debug_info.append("=== END CONTAINER DETECTION DEBUG ===\n")
+        
+        # Log debug info
+        self.logger.info("\n".join(debug_info))
         
         return unique_containers
     
@@ -334,17 +382,51 @@ class LogStreamingService:
         Returns:
             Aggregated log content
         """
+        debug_info = []
+        debug_info.append("=== AGGREGATED LOGS DEBUG ===")
+        debug_info.append(f"Input containers: {containers}")
+        debug_info.append(f"Lines requested: {lines}")
+        
         if not containers:
-            containers = [c['name'] for c in self.get_available_containers()]
+            available_containers = self.get_available_containers()
+            containers = [c['name'] for c in available_containers]
+            debug_info.append(f"No containers specified, using all available: {containers}")
+        else:
+            debug_info.append(f"Using specified containers: {containers}")
         
         aggregated_logs = []
+        containers_processed = 0
+        containers_with_logs = 0
         
         for container_name in containers:
-            container_logs = self.get_container_logs(container_name, lines)
-            if container_logs:
-                aggregated_logs.append(f"\n=== {container_name} ===\n{container_logs}")
+            debug_info.append(f"\nProcessing container: {container_name}")
+            containers_processed += 1
+            
+            try:
+                container_logs = self.get_container_logs(container_name, lines)
+                debug_info.append(f"Logs for {container_name}: {len(container_logs)} characters")
+                debug_info.append(f"Logs preview: {container_logs[:100]}...")
+                
+                if container_logs and container_logs.strip():
+                    aggregated_logs.append(f"\n=== {container_name} ===\n{container_logs}")
+                    containers_with_logs += 1
+                    debug_info.append(f"✓ Added logs for {container_name}")
+                else:
+                    debug_info.append(f"✗ No logs for {container_name}")
+            except Exception as e:
+                debug_info.append(f"✗ Error getting logs for {container_name}: {e}")
         
-        return '\n'.join(aggregated_logs) if aggregated_logs else "No logs available"
+        debug_info.append(f"\n=== SUMMARY ===")
+        debug_info.append(f"Containers processed: {containers_processed}")
+        debug_info.append(f"Containers with logs: {containers_with_logs}")
+        debug_info.append(f"Total log content length: {len('\n'.join(aggregated_logs))}")
+        debug_info.append("=== END AGGREGATED LOGS DEBUG ===\n")
+        
+        # Log debug info
+        self.logger.info("\n".join(debug_info))
+        
+        result = '\n'.join(aggregated_logs) if aggregated_logs else "No logs available"
+        return result
     
     def get_container_logs(self, container_name: str, lines: int = 100) -> str:
         """
@@ -357,22 +439,47 @@ class LogStreamingService:
         Returns:
             Log content for the container
         """
+        debug_info = []
+        debug_info.append(f"=== CONTAINER LOGS DEBUG for {container_name} ===")
+        debug_info.append(f"Lines requested: {lines}")
+        
         containers = self.get_available_containers()
+        debug_info.append(f"Available containers: {[c['name'] for c in containers]}")
+        
         container = next((c for c in containers if c['name'] == container_name), None)
         
         if not container:
+            debug_info.append(f"✗ Container '{container_name}' not found in available containers")
+            self.logger.warning(f"Container '{container_name}' not found")
             return f"Container '{container_name}' not found"
         
+        debug_info.append(f"✓ Found container: {container}")
+        
         log_file = container.get('log_file')
+        debug_info.append(f"Log file: {log_file}")
+        
         if log_file and os.path.exists(log_file):
+            debug_info.append(f"✓ Log file exists: {log_file}")
             # Check if it's a Docker JSON log
             if log_file.endswith('-json.log'):
-                return self.read_docker_json_logs(log_file, lines)
+                debug_info.append("Using Docker JSON log reader")
+                result = self.read_docker_json_logs(log_file, lines)
+                debug_info.append(f"JSON log result length: {len(result)}")
+                debug_info.append(f"JSON log preview: {result[:100]}...")
+                return result
             else:
-                return self.read_logs_from_file(log_file, lines)
+                debug_info.append("Using regular log file reader")
+                result = self.read_logs_from_file(log_file, lines)
+                debug_info.append(f"Regular log result length: {len(result)}")
+                debug_info.append(f"Regular log preview: {result[:100]}...")
+                return result
         else:
+            debug_info.append(f"✗ Log file not accessible: {log_file}")
+            debug_info.append("Attempting Docker CLI fallback...")
+            
             # Try to get logs directly from Docker CLI as fallback
             try:
+                debug_info.append(f"Running: docker logs --tail {lines} {container_name}")
                 result = subprocess.run(
                     ['docker', 'logs', '--tail', str(lines), container_name],
                     capture_output=True,
@@ -380,17 +487,34 @@ class LogStreamingService:
                     timeout=10
                 )
                 
+                debug_info.append(f"Docker logs return code: {result.returncode}")
+                debug_info.append(f"Docker logs stdout length: {len(result.stdout)}")
+                debug_info.append(f"Docker logs stderr: {result.stderr}")
+                
                 if result.returncode == 0:
+                    debug_info.append(f"✓ Docker CLI logs successful: {len(result.stdout)} characters")
+                    debug_info.append(f"Logs preview: {result.stdout[:100]}...")
                     return result.stdout
                 else:
-                    return f"Error getting logs for {container_name}: {result.stderr}"
+                    error_msg = f"Error getting logs for {container_name}: {result.stderr}"
+                    debug_info.append(f"✗ Docker CLI failed: {error_msg}")
+                    return error_msg
                     
             except subprocess.TimeoutExpired:
-                return f"Timeout getting logs for {container_name}"
+                error_msg = f"Timeout getting logs for {container_name}"
+                debug_info.append(f"✗ Docker CLI timeout: {error_msg}")
+                return error_msg
             except FileNotFoundError:
-                return f"Docker CLI not available for {container_name}"
+                error_msg = f"Docker CLI not available for {container_name}"
+                debug_info.append(f"✗ Docker CLI not found: {error_msg}")
+                return error_msg
             except Exception as e:
-                return f"Error getting logs for {container_name}: {str(e)}"
+                error_msg = f"Error getting logs for {container_name}: {str(e)}"
+                debug_info.append(f"✗ Docker CLI exception: {error_msg}")
+                return error_msg
+        
+        debug_info.append("=== END CONTAINER LOGS DEBUG ===\n")
+        self.logger.info("\n".join(debug_info))
     
     def start_log_stream(self, user: User, containers: List[str] = None, 
                         callback: Callable = None) -> str:
