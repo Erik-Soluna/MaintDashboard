@@ -419,7 +419,8 @@ class LogStreamingService:
         debug_info.append(f"\n=== SUMMARY ===")
         debug_info.append(f"Containers processed: {containers_processed}")
         debug_info.append(f"Containers with logs: {containers_with_logs}")
-        debug_info.append(f"Total log content length: {len('\n'.join(aggregated_logs))}")
+        total_content = '\n'.join(aggregated_logs)
+        debug_info.append(f"Total log content length: {len(total_content)}")
         debug_info.append("=== END AGGREGATED LOGS DEBUG ===\n")
         
         # Log debug info
