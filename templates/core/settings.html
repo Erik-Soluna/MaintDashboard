@@ -327,6 +327,7 @@
             <div class="quick-action-desc">Configure Portainer connection and updates</div>
         </a>
         
+        {% if docker_logs_enabled and not docker_logs_debug_only %}
         <a href="{% url 'core:docker_logs' %}" class="quick-action-card text-decoration-none">
             <div class="quick-action-icon">
                 <i class="fas fa-terminal"></i>
@@ -334,6 +335,7 @@
             <div class="quick-action-title">Docker Logs</div>
             <div class="quick-action-desc">View real-time container logs and diagnose issues</div>
         </a>
+        {% endif %}
     </div>
 
     <!-- User Preferences -->

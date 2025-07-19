@@ -323,3 +323,13 @@ MONITORING_VERY_SLOW_REQUEST_THRESHOLD = config('MONITORING_VERY_SLOW_REQUEST_TH
 MONITORING_CPU_THRESHOLD = config('MONITORING_CPU_THRESHOLD', default=80.0, cast=float)
 MONITORING_MEMORY_THRESHOLD = config('MONITORING_MEMORY_THRESHOLD', default=80.0, cast=float)
 MONITORING_DISK_THRESHOLD = config('MONITORING_DISK_THRESHOLD', default=90.0, cast=float)
+
+# Docker Logs Configuration
+DOCKER_LOGS_CONFIG = {
+    'enabled': config('DOCKER_LOGS_ENABLED', default=False, cast=bool),
+    'debug_only': config('DOCKER_LOGS_DEBUG_ONLY', default=True, cast=bool),
+    'max_lines': config('DOCKER_LOGS_MAX_LINES', default=1000, cast=int),
+    'rate_limit': config('DOCKER_LOGS_RATE_LIMIT', default=10, cast=int),
+    'timeout': config('DOCKER_LOGS_TIMEOUT', default=30, cast=int),
+    'require_superuser': config('DOCKER_LOGS_REQUIRE_SUPERUSER', default=True, cast=bool),
+}

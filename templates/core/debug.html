@@ -178,6 +178,53 @@
     margin-top: 5px;
 }
 
+/* Docker Logs Styles */
+.docker-logs-form {
+    margin-bottom: 20px;
+}
+
+.docker-logs-form .form-group {
+    margin-bottom: 15px;
+}
+
+.docker-logs-output {
+    background: var(--bs-darker);
+    border: 1px solid var(--bs-secondary);
+    border-radius: 4px;
+    padding: 15px;
+    max-height: 500px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+}
+
+.docker-logs-header {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--bs-secondary);
+}
+
+.docker-logs-header h6 {
+    margin: 0 0 5px 0;
+    color: var(--bs-primary);
+}
+
+.docker-logs-content {
+    background: var(--bs-dark);
+    border: 1px solid var(--bs-secondary);
+    border-radius: 4px;
+    padding: 15px;
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--bs-light);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .diagnostic-buttons {
@@ -187,6 +234,17 @@
     .diagnostic-button {
         width: 100%;
         justify-content: center;
+    }
+    
+    .docker-logs-form .row {
+        flex-direction: column;
+    }
+    
+    .docker-logs-form .col-md-4,
+    .docker-logs-form .col-md-3,
+    .docker-logs-form .col-md-2 {
+        width: 100%;
+        margin-bottom: 15px;
     }
 }
 </style>
@@ -371,6 +429,61 @@
                 <div class="text-center text-muted">
                     <i class="fas fa-spinner fa-spin me-1"></i>
                     Loading Playwright logs...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Docker Logs Section -->
+    <div class="debug-section">
+        <div class="debug-header" onclick="toggleSection('docker-logs')">
+            <h5>
+                <i class="fas fa-terminal me-2"></i>
+                Docker Logs
+            </h5>
+            <i class="fas fa-chevron-down collapse-icon"></i>
+        </div>
+        <div class="debug-body" id="docker-logs-body">
+            <div class="docker-logs-form">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="container-select" class="form-label">Container</label>
+                            <select id="container-select" class="form-control">
+                                <option value="">Select a container...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="lines-count" class="form-label">Lines</label>
+                            <input type="number" id="lines-count" class="form-control" value="100" min="10" max="1000">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="follow-logs" class="form-label">Follow</label>
+                            <div class="form-check">
+                                <input type="checkbox" id="follow-logs" class="form-check-input">
+                                <label class="form-check-label" for="follow-logs">Real-time</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label class="form-label">&nbsp;</label>
+                            <button class="diagnostic-button primary w-100" onclick="loadDockerLogs()">
+                                <i class="fas fa-sync-alt me-1"></i>Load Logs
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="dockerLogs" class="docker-logs-output">
+                <div class="text-center text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Select a container and click "Load Logs" to view Docker logs...
                 </div>
             </div>
         </div>
@@ -968,5 +1081,117 @@ function showDiagnosticResult(result) {
     resultsDiv.innerHTML = `<pre>${result}</pre>`;
     resultsDiv.scrollTop = resultsDiv.scrollHeight;
 }
+
+// Docker Logs Functions
+function loadDockerContainers() {
+    const containerSelect = document.getElementById('container-select');
+    
+    fetch('{% url "core:get_docker_containers" %}')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Clear existing options
+            containerSelect.innerHTML = '<option value="">Select a container...</option>';
+            
+            // Add container options
+            data.containers.forEach(container => {
+                const option = document.createElement('option');
+                option.value = container.name;
+                option.textContent = `${container.name} (${container.status})`;
+                containerSelect.appendChild(option);
+            });
+            
+            if (data.warning) {
+                showDebugMessage('Docker containers loaded with warning: ' + data.warning, 'warning');
+            }
+        } else {
+            showDebugMessage('Failed to load containers: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        showDebugMessage('Error loading containers: ' + error.message, 'error');
+    });
+}
+
+function loadDockerLogs() {
+    const containerSelect = document.getElementById('container-select');
+    const linesCount = document.getElementById('lines-count');
+    const followLogs = document.getElementById('follow-logs');
+    const logsDiv = document.getElementById('dockerLogs');
+    
+    const container = containerSelect.value;
+    const lines = linesCount.value;
+    const follow = followLogs.checked;
+    
+    if (!container) {
+        showDebugMessage('Please select a container first', 'warning');
+        return;
+    }
+    
+    // Show loading state
+    logsDiv.innerHTML = `
+        <div class="text-center text-muted">
+            <i class="fas fa-spinner fa-spin me-1"></i>
+            Loading logs for ${container}...
+        </div>
+    `;
+    
+    // Build URL with parameters
+    const url = `{% url "core:get_docker_logs" %}?container=${encodeURIComponent(container)}&lines=${lines}&follow=${follow}`;
+    
+    fetch(url)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Format logs with syntax highlighting
+            const formattedLogs = formatDockerLogs(data.logs);
+            logsDiv.innerHTML = `
+                <div class="docker-logs-header">
+                    <h6>Logs for ${data.container}</h6>
+                    <small class="text-muted">
+                        ${data.lines_returned} lines returned | Method: ${data.method}
+                    </small>
+                </div>
+                <pre class="docker-logs-content">${formattedLogs}</pre>
+            `;
+        } else {
+            logsDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-1"></i>
+                    Error: ${data.error}
+                    ${data.suggestion ? `<br><small>${data.suggestion}</small>` : ''}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        logsDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                Error loading logs: ${error.message}
+            </div>
+        `;
+    });
+}
+
+function formatDockerLogs(logs) {
+    // Basic log formatting - can be enhanced with syntax highlighting
+    return logs
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// Load containers when Docker logs section is opened
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listener for Docker logs section toggle
+    const dockerLogsHeader = document.querySelector('#docker-logs-body').previousElementSibling;
+    dockerLogsHeader.addEventListener('click', function() {
+        // Load containers when section is opened
+        setTimeout(loadDockerContainers, 100);
+    });
+});
 </script>
 {% endblock %} 

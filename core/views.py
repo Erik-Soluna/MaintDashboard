@@ -585,7 +585,17 @@ def settings_view(request):
     health_data = health_response.content.decode('utf-8')
     import json
     health = json.loads(health_data)
-    return render(request, 'core/settings.html', {'health': health})
+    
+    # Get Docker logs configuration
+    from core.services.docker_logs_service import DockerLogsService
+    docker_service = DockerLogsService()
+    
+    context = {
+        'health': health,
+        'docker_logs_enabled': docker_service.is_enabled(),
+        'docker_logs_debug_only': docker_service.is_debug_only(),
+    }
+    return render(request, 'core/settings.html', context)
 
 
 @login_required
@@ -3952,200 +3962,70 @@ def test_portainer_connection():
 @login_required
 @user_passes_test(is_staff_or_superuser)
 def docker_logs_view(request):
-    """View for displaying Docker logs within the settings page."""
-    return render(request, 'core/docker_logs.html')
+    """View for displaying Docker logs - toggle controlled."""
+    from core.services.docker_logs_service import DockerLogsService
+    
+    service = DockerLogsService()
+    if not service.can_access(request.user):
+        return redirect('core:dashboard')
+    
+    context = {
+        'docker_logs_enabled': service.is_enabled(),
+        'docker_logs_debug_only': service.is_debug_only(),
+    }
+    return render(request, 'core/docker_logs.html', context)
 
 
 @login_required
 @user_passes_test(is_staff_or_superuser)
 @require_http_methods(["GET"])
 def get_docker_logs_api(request):
-    """API endpoint to fetch Docker logs."""
-    import subprocess
-    import os
+    """API endpoint to fetch Docker logs using service layer."""
+    from core.services.docker_logs_service import DockerLogsService
     
-    try:
-        # Get parameters
-        container_name = request.GET.get('container', '')
-        lines = int(request.GET.get('lines', 100))
-        follow = request.GET.get('follow', 'false').lower() == 'true'
-        
-        # Validate lines parameter
-        if lines > 1000:
-            lines = 1000  # Limit to prevent abuse
-        
-        # Try multiple approaches to get Docker logs
-        logs_content = None
-        error_message = None
-        
-        # Approach 1: Try using Docker socket directly
-        try:
-            import docker
-            client = docker.from_env(timeout=5)  # Add timeout
-            container = client.containers.get(container_name)
-            logs = container.logs(tail=lines, follow=follow, timestamps=True)
-            if isinstance(logs, bytes):
-                logs_content = logs.decode('utf-8', errors='replace')
-            else:
-                logs_content = logs
-        except ImportError:
-            error_message = "Docker Python library not available - install with: pip install docker"
-        except Exception as e:
-            error_message = f"Docker API error: {str(e)}"
-        
-        # Approach 2: Try docker command with socket mount
-        if not logs_content:
-            try:
-                # Try to use Docker socket if available
-                docker_socket = '/var/run/docker.sock'
-                if os.path.exists(docker_socket):
-                    cmd = ['docker', '--host', 'unix:///var/run/docker.sock', 'logs', '--tail', str(lines)]
-                    if follow:
-                        cmd.append('--follow')
-                    cmd.append(container_name)
-                else:
-                    # Fallback to regular docker command
-                    cmd = ['docker', 'logs', '--tail', str(lines)]
-                    if follow:
-                        cmd.append('--follow')
-                    cmd.append(container_name)
-                
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=30
-                )
-                
-                if result.returncode == 0:
-                    logs_content = result.stdout
-                else:
-                    error_message = f"Docker command failed: {result.stderr}"
-                    
-            except Exception as e:
-                error_message = f"Subprocess error: {str(e)}"
-        
-        # Approach 3: Try to read logs from common log locations
-        if not logs_content:
-            try:
-                # Try to read from common log locations
-                log_paths = [
-                    f'/var/log/containers/{container_name}*.log',
-                    f'/var/lib/docker/containers/*/{container_name}*/{container_name}*-json.log',
-                    f'/var/log/docker/{container_name}.log'
-                ]
-                
-                import glob
-                for pattern in log_paths:
-                    log_files = glob.glob(pattern)
-                    if log_files:
-                        # Read the most recent log file
-                        log_file = max(log_files, key=os.path.getctime)
-                        with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
-                            # Get last N lines
-                            all_lines = f.readlines()
-                            logs_content = ''.join(all_lines[-lines:])
-                        break
-                        
-            except Exception as e:
-                error_message = f"Log file reading error: {str(e)}"
-        
-        # Approach 4: Try to get logs from journalctl if available
-        if not logs_content:
-            try:
-                result = subprocess.run(
-                    ['journalctl', '-u', f'docker-{container_name}', '--no-pager', '-n', str(lines)],
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
-                
-                if result.returncode == 0:
-                    logs_content = result.stdout
-                else:
-                    error_message = f"Journalctl error: {result.stderr}"
-                    
-            except Exception as e:
-                error_message = f"Journalctl error: {str(e)}"
-        
-        # Return results
-        if logs_content:
-            return JsonResponse({
-                'success': True,
-                'logs': logs_content,
-                'container': container_name,
-                'lines_returned': len(logs_content.splitlines()),
-                'method': 'docker_api' if 'docker.from_env' in str(logs_content) else 'docker_command'
-            })
-        else:
-            return JsonResponse({
-                'error': f'Could not retrieve logs for container "{container_name}"',
-                'details': error_message,
-                'suggestion': 'Try checking if the container is running and accessible, or check Docker permissions.'
-            }, status=500)
-            
-    except subprocess.TimeoutExpired:
+    service = DockerLogsService()
+    
+    # Check access permissions
+    if not service.can_access(request.user):
         return JsonResponse({
-            'error': 'Docker logs command timed out'
-        }, status=408)
-    except FileNotFoundError:
-        return JsonResponse({
-            'error': 'Docker command not found. Make sure Docker is installed and accessible.'
-        }, status=500)
-    except Exception as e:
-        return JsonResponse({
-            'error': f'Unexpected error: {str(e)}'
-        }, status=500)
+            'error': 'Access denied'
+        }, status=403)
+    
+    # Get parameters
+    container_name = request.GET.get('container', '')
+    lines = int(request.GET.get('lines', 100))
+    follow = request.GET.get('follow', 'false').lower() == 'true'
+    
+    # Get logs using service
+    result = service.get_logs(request.user, container_name, lines, follow)
+    
+    # Return appropriate response
+    if result['success']:
+        return JsonResponse(result)
+    else:
+        return JsonResponse(result, status=500)
 
 
 @login_required
 @user_passes_test(is_staff_or_superuser)
 @require_http_methods(["GET"])
 def get_docker_containers_api(request):
-    """API endpoint to get list of running Docker containers."""
-    import subprocess
-    import os
+    """API endpoint to get list of running Docker containers using service layer."""
+    from core.services.docker_logs_service import DockerLogsService
     
-    try:
-        # First, try to check if we're running in a container
-        hostname = os.environ.get('HOSTNAME', '')
-        container_id = os.environ.get('CONTAINER_ID', '')
-        
-        containers = []
-        warning = None
-        
-        # Quick test - just return basic info first
-        containers.append({
-            'name': hostname or 'unknown',
-            'image': 'Test Container',
-            'status': 'Testing',
-            'ports': 'N/A'
-        })
-        
-        # Add some common container names that might be running
-        common_containers = [
-            'maintdashboard_web_1',
-            'maintdashboard_db_1', 
-            'maintdashboard_redis_1',
-            'maintdashboard_celery_1',
-            'maintdashboard_nginx_1'
-        ]
-        
-        for container_name in common_containers:
-            containers.append({
-                'name': container_name,
-                'image': 'Unknown (Testing)',
-                'status': 'Unknown',
-                'ports': 'N/A'
-            })
-        
+    service = DockerLogsService()
+    
+    # Check access permissions
+    if not service.can_access(request.user):
         return JsonResponse({
-            'success': True,
-            'containers': containers,
-            'warning': 'Testing mode - showing basic container list'
-        })
-            
-    except Exception as e:
-        return JsonResponse({
-            'error': f'Unexpected error: {str(e)}'
-        }, status=500)
+            'error': 'Access denied'
+        }, status=403)
+    
+    # Get containers using service
+    result = service.get_containers(request.user)
+    
+    # Return appropriate response
+    if result['success']:
+        return JsonResponse(result)
+    else:
+        return JsonResponse(result, status=500)
