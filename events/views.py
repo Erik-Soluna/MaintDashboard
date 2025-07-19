@@ -420,10 +420,38 @@ def event_list(request):
     # Get equipment for filtering
     equipment_list = Equipment.objects.filter(is_active=True).order_by('name')
     
+    # Get activity types for the dropdown (replacing event types)
+    try:
+        from maintenance.models import MaintenanceActivityType
+        activity_types = MaintenanceActivityType.objects.filter(is_active=True).order_by('category__sort_order', 'category__name', 'name')
+        event_types = []
+        
+        # Group by category
+        current_category = None
+        for activity_type in activity_types:
+            if current_category != activity_type.category:
+                current_category = activity_type.category
+                # Add category header
+                event_types.append(('', f'--- {activity_type.category.name} ---'))
+            
+            # Add activity type
+            event_types.append((f'activity_{activity_type.id}', activity_type.name))
+        
+        # Add other event types at the end
+        event_types.append(('', '--- Other Events ---'))
+        for event_type in CalendarEvent.EVENT_TYPES:
+            if event_type[0] != 'maintenance':  # Skip maintenance since we're using activity types
+                event_types.append(event_type)
+                
+    except Exception as e:
+        # Fallback to original event types if maintenance app is not available
+        event_types = list(CalendarEvent.EVENT_TYPES)
+        logger.warning(f"Could not load activity types in event_list: {str(e)}")
+    
     context = {
         'page_obj': page_obj,
         'equipment_list': equipment_list,
-        'event_types': CalendarEvent.EVENT_TYPES,
+        'event_types': event_types,
         'search_query': search_query,
         'selected_event_type': event_type,
         'selected_equipment': equipment_filter,
@@ -1084,11 +1112,39 @@ def get_form_data(request):
                 'name': user.get_full_name() or user.username
             })
         
+        # Get activity types for the dropdown (replacing event types)
+        try:
+            from maintenance.models import MaintenanceActivityType
+            activity_types = MaintenanceActivityType.objects.filter(is_active=True).order_by('category__sort_order', 'category__name', 'name')
+            event_types = []
+            
+            # Group by category
+            current_category = None
+            for activity_type in activity_types:
+                if current_category != activity_type.category:
+                    current_category = activity_type.category
+                    # Add category header
+                    event_types.append(('', f'--- {activity_type.category.name} ---'))
+                
+                # Add activity type
+                event_types.append((f'activity_{activity_type.id}', activity_type.name))
+            
+            # Add other event types at the end
+            event_types.append(('', '--- Other Events ---'))
+            for event_type in CalendarEvent.EVENT_TYPES:
+                if event_type[0] != 'maintenance':  # Skip maintenance since we're using activity types
+                    event_types.append(event_type)
+                    
+        except Exception as e:
+            # Fallback to original event types if maintenance app is not available
+            event_types = list(CalendarEvent.EVENT_TYPES)
+            logger.warning(f"Could not load activity types in get_form_data: {str(e)}")
+        
         return JsonResponse({
             'success': True,
             'equipment': equipment_data,
             'users': users_data,
-            'event_types': CalendarEvent.EVENT_TYPES,
+            'event_types': event_types,
             'priority_choices': CalendarEvent.PRIORITY_CHOICES,
         })
         
