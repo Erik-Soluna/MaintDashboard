@@ -78,12 +78,14 @@ RUN chmod +x /app/scripts/deployment/docker-entrypoint.sh \
 # Collect static files (but allow override via environment variable)
 RUN python manage.py collectstatic --noinput || echo "Static files collection failed, will retry at runtime"
 
-# Create a non-root user
+# Create a non-root user and add to docker group
 RUN adduser --disabled-password --gecos '' appuser \
-    && chown -R appuser:appuser /app
+    && chown -R appuser:appuser /app \
+    && groupadd -g 999 docker || true \
+    && usermod -aG docker appuser
 
-# Switch to non-root user
-USER appuser
+# For Docker access, we'll run as root but switch to appuser for the application
+# USER appuser
 
 # Expose port
 EXPOSE 8000
