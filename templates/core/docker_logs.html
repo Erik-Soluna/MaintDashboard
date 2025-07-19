@@ -5,6 +5,7 @@
 
 {% block extra_css %}
 <style>
+    /* Dark mode styling for Docker logs viewer */
     .docker-logs-container {
         background: #1e1e1e;
         color: #ffffff;
@@ -37,15 +38,25 @@
     }
     
     .controls {
-        background: #f8f9fa;
+        background: #2d3748;
         padding: 15px;
         border-radius: 8px;
         margin-bottom: 20px;
-        border: 1px solid #dee2e6;
+        border: 1px solid #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .controls h5 {
+        color: #e2e8f0;
     }
     
     .container-selector {
         margin-bottom: 15px;
+    }
+    
+    .container-selector label {
+        color: #e2e8f0;
+        font-weight: 500;
     }
     
     .log-controls {
@@ -55,8 +66,13 @@
         flex-wrap: wrap;
     }
     
+    .log-controls label {
+        color: #e2e8f0;
+        font-weight: 500;
+    }
+    
     .btn-refresh {
-        background: #007bff;
+        background: #4299e1;
         color: white;
         border: none;
         padding: 8px 16px;
@@ -65,11 +81,11 @@
     }
     
     .btn-refresh:hover {
-        background: #0056b3;
+        background: #3182ce;
     }
     
     .btn-follow {
-        background: #28a745;
+        background: #48bb78;
         color: white;
         border: none;
         padding: 8px 16px;
@@ -78,70 +94,137 @@
     }
     
     .btn-follow:hover {
-        background: #1e7e34;
+        background: #38a169;
     }
     
     .btn-follow.active {
-        background: #dc3545;
+        background: #f56565;
     }
     
     .btn-follow.active:hover {
-        background: #c82333;
+        background: #e53e3e;
     }
     
     .loading {
         text-align: center;
         padding: 20px;
-        color: #666;
+        color: #a0aec0;
     }
     
     .error-message {
-        background: #f8d7da;
-        color: #721c24;
+        background: #742a2a;
+        color: #fed7d7;
         padding: 15px;
         border-radius: 4px;
         margin: 10px 0;
-        border: 1px solid #f5c6cb;
+        border: 1px solid #c53030;
     }
     
     .container-info {
-        background: #e9ecef;
+        background: #1a2238;
         padding: 10px;
         border-radius: 4px;
         margin-bottom: 10px;
         font-size: 14px;
+        color: #e2e8f0;
+        border: 1px solid #4a5568;
     }
     
     .container-table {
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 15px;
+        background: #1a2238;
+        border-radius: 4px;
+        overflow: hidden;
     }
     
     .container-table th,
     .container-table td {
         padding: 8px;
         text-align: left;
-        border-bottom: 1px solid #dee2e6;
+        border-bottom: 1px solid #4a5568;
+        color: #e2e8f0;
     }
     
     .container-table th {
-        background: #f8f9fa;
+        background: #2d3748;
         font-weight: bold;
+        color: #e2e8f0;
     }
     
     .container-table tr:hover {
-        background: #f8f9fa;
+        background: #2d3748;
     }
     
     .container-name {
         font-weight: bold;
-        color: #007bff;
+        color: #4299e1;
         cursor: pointer;
     }
     
     .container-name:hover {
         text-decoration: underline;
+        color: #3182ce;
+    }
+    
+    /* Dark mode form controls */
+    .form-control {
+        background: #1a2238;
+        color: #e2e8f0;
+        border: 1px solid #4a5568;
+    }
+    
+    .form-control:focus {
+        background: #1a2238;
+        color: #e2e8f0;
+        border-color: #4299e1;
+        box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+    }
+    
+    /* Dark mode buttons */
+    .btn-warning {
+        background: #ed8936;
+        border-color: #ed8936;
+        color: white;
+    }
+    
+    .btn-warning:hover {
+        background: #dd6b20;
+        border-color: #dd6b20;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background: #4a5568;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .btn-secondary:hover {
+        background: #2d3748;
+        border-color: #2d3748;
+        color: #e2e8f0;
+    }
+    
+    /* Dark mode alerts */
+    .alert {
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin-bottom: 15px;
+        border: 1px solid;
+    }
+    
+    .alert-warning {
+        background: #744210;
+        color: #fbd38d;
+        border-color: #d69e2e;
+    }
+    
+    .alert-info {
+        background: #2a4365;
+        color: #90cdf4;
+        border-color: #3182ce;
     }
 </style>
 {% endblock %}
@@ -298,6 +381,14 @@ function loadContainers() {
             loadingEl.style.display = 'none';
             
             if (data.success) {
+                // Show warning if present
+                if (data.warning) {
+                    const warningEl = document.createElement('div');
+                    warningEl.className = 'alert alert-warning';
+                    warningEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${data.warning}`;
+                    listEl.parentNode.insertBefore(warningEl, listEl);
+                }
+                
                 // Populate table
                 tbodyEl.innerHTML = '';
                 data.containers.forEach(container => {
@@ -364,7 +455,11 @@ function loadLogs() {
                 updateLogInfo(data.container, data.lines_returned);
                 infoEl.style.display = 'block';
             } else {
-                errorEl.textContent = data.error || 'Failed to load logs';
+                let errorText = data.error || 'Failed to load logs';
+                if (data.suggestion) {
+                    errorText += `<br><br><strong>Suggestion:</strong> ${data.suggestion}`;
+                }
+                errorEl.innerHTML = errorText;
                 errorEl.style.display = 'block';
             }
         })
