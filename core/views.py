@@ -3981,7 +3981,7 @@ def get_docker_logs_api(request):
         # Approach 1: Try using Docker socket directly
         try:
             import docker
-            client = docker.from_env()
+            client = docker.from_env(timeout=5)  # Add timeout
             container = client.containers.get(container_name)
             logs = container.logs(tail=lines, follow=follow, timestamps=True)
             if isinstance(logs, bytes):
@@ -3989,7 +3989,7 @@ def get_docker_logs_api(request):
             else:
                 logs_content = logs
         except ImportError:
-            error_message = "Docker Python library not available"
+            error_message = "Docker Python library not available - install with: pip install docker"
         except Exception as e:
             error_message = f"Docker API error: {str(e)}"
         
@@ -4117,18 +4117,22 @@ def get_docker_containers_api(request):
         # Approach 1: Try using Docker Python library
         try:
             import docker
-            client = docker.from_env()
+            client = docker.from_env(timeout=5)  # Add timeout
             docker_containers = client.containers.list()
             
             for container in docker_containers:
-                # Get container info
-                container_info = {
-                    'name': container.name,
-                    'image': container.image.tags[0] if container.image.tags else container.image.id,
-                    'status': container.status,
-                    'ports': ', '.join([f"{k}:{v[0]['HostPort']}" for k, v in container.ports.items()]) if container.ports else 'N/A'
-                }
-                containers.append(container_info)
+                try:
+                    # Get container info
+                    container_info = {
+                        'name': container.name,
+                        'image': container.image.tags[0] if container.image.tags else container.image.id,
+                        'status': container.status,
+                        'ports': ', '.join([f"{k}:{v[0]['HostPort']}" for k, v in container.ports.items()]) if container.ports else 'N/A'
+                    }
+                    containers.append(container_info)
+                except Exception as container_error:
+                    # Skip problematic containers
+                    continue
             
             # If we're running in a container, add it to the list if not already present
             if hostname and not any(c['name'] == hostname for c in containers):
@@ -4140,7 +4144,7 @@ def get_docker_containers_api(request):
                 })
                 
         except ImportError:
-            warning = "Docker Python library not available, using command line"
+            warning = "Docker Python library not available - install with: pip install docker"
         except Exception as e:
             warning = f"Docker API error: {str(e)}"
         
