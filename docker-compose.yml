@@ -57,13 +57,14 @@ services:
   web:
     build: .
     container_name: maintenance_web
+    user: "0:0"  # Run as root for Docker access
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["web"]
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
       - media_volume:/app/media
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/docker.sock:/var/run/docker.sock:rw
     ports:
       - "${WEB_PORT:-4405}:8000"
     environment:
