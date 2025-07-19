@@ -111,36 +111,35 @@ class LogStreamingService:
         else:
             debug_info.append("Collected logs directory does not exist")
         
-        # Fallback: Try Docker CLI if available
-        if not containers:
-            debug_info.append("No containers found in collected logs, trying Docker CLI...")
-            try:
-                result = subprocess.run(
-                    ['docker', 'ps', '--format', '{{.Names}}\t{{.ID}}\t{{.Image}}'],
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
-                
-                if result.returncode == 0:
-                    for line in result.stdout.strip().split('\n'):
-                        if line.strip():
-                            parts = line.split('\t')
-                            if len(parts) >= 3:
-                                name, container_id, image = parts[:3]
-                                containers.append({
-                                    'name': name.strip(),
-                                    'id': container_id.strip(),
-                                    'image': image.strip(),
-                                    'status': 'Running',
-                                    'log_file': None,
-                                    'source': 'docker_cli'
-                                })
-                                debug_info.append(f"Added container from Docker CLI: {name.strip()}")
-                else:
-                    debug_info.append(f"Docker CLI failed: {result.stderr}")
-            except Exception as e:
-                debug_info.append(f"Error with Docker CLI: {e}")
+        # Always try Docker CLI as primary source
+        debug_info.append("Trying Docker CLI for container list...")
+        try:
+            result = subprocess.run(
+                ['docker', 'ps', '--format', '{{.Names}}\t{{.ID}}\t{{.Image}}'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                for line in result.stdout.strip().split('\n'):
+                    if line.strip():
+                        parts = line.split('\t')
+                        if len(parts) >= 3:
+                            name, container_id, image = parts[:3]
+                            containers.append({
+                                'name': name.strip(),
+                                'id': container_id.strip(),
+                                'image': image.strip(),
+                                'status': 'Running',
+                                'log_file': None,
+                                'source': 'docker_cli'
+                            })
+                            debug_info.append(f"Added container from Docker CLI: {name.strip()}")
+            else:
+                debug_info.append(f"Docker CLI failed: {result.stderr}")
+        except Exception as e:
+            debug_info.append(f"Error with Docker CLI: {e}")
         
         # Add current container info if not already present
         hostname = os.environ.get('HOSTNAME', '')

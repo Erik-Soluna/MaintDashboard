@@ -2358,15 +2358,51 @@ def debug(request):
     try:
         # Trigger log collection if requested
         if request.GET.get('collect_logs') == 'true':
-            from .tasks import collect_docker_logs, collect_system_logs
+            # Direct log collection without Celery
+            from .services.log_streaming_service import LogStreamingService
+            log_service = LogStreamingService()
             
-            # Trigger both tasks
-            docker_task = collect_docker_logs.delay()
-            system_task = collect_system_logs.delay()
-            
-            # Wait a moment for tasks to complete
-            import time
-            time.sleep(2)
+            # Collect logs directly
+            try:
+                # Create logs directory
+                import os
+                logs_dir = '/app/logs'
+                os.makedirs(logs_dir, exist_ok=True)
+                
+                # Get containers and collect logs
+                containers = log_service.get_available_containers()
+                collected_count = 0
+                
+                for container in containers:
+                    try:
+                        # Try to get logs for this container
+                        import subprocess
+                        result = subprocess.run(
+                            ['docker', 'logs', '--tail', '100', container['name']],
+                            capture_output=True,
+                            text=True,
+                            timeout=15
+                        )
+                        
+                        if result.returncode == 0:
+                            # Write logs to file
+                            log_file = os.path.join(logs_dir, f"{container['name']}.log")
+                            with open(log_file, 'w', encoding='utf-8') as f:
+                                f.write(f"# Container: {container['name']}\n")
+                                f.write(f"# Image: {container.get('image', 'Unknown')}\n")
+                                f.write(f"# ID: {container.get('id', 'Unknown')}\n")
+                                f.write(f"# Collected at: {timezone.now().isoformat()}\n")
+                                f.write("#" * 80 + "\n")
+                                f.write(result.stdout)
+                            
+                            collected_count += 1
+                    except Exception as e:
+                        logger.warning(f"Error collecting logs for {container['name']}: {e}")
+                
+                logger.info(f"Direct log collection completed: {collected_count} containers")
+                
+            except Exception as e:
+                logger.error(f"Error in direct log collection: {e}")
         
         # Get available containers for log streaming
         from .services.log_streaming_service import LogStreamingService
