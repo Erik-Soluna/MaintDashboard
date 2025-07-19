@@ -3974,63 +3974,115 @@ def get_docker_logs_api(request):
         if lines > 1000:
             lines = 1000  # Limit to prevent abuse
         
-        # Build docker logs command
-        cmd = ['docker', 'logs']
+        # Try multiple approaches to get Docker logs
+        logs_content = None
+        error_message = None
         
-        if follow:
-            cmd.append('--follow')
-        
-        cmd.extend(['--tail', str(lines)])
-        
-        if container_name:
-            cmd.append(container_name)
-        else:
-            # If no container specified, try to get the current container
-            # This assumes the app is running in a container
-            hostname = os.environ.get('HOSTNAME', '')
-            if hostname:
-                cmd.append(hostname)
+        # Approach 1: Try using Docker socket directly
+        try:
+            import docker
+            client = docker.from_env()
+            container = client.containers.get(container_name)
+            logs = container.logs(tail=lines, follow=follow, timestamps=True)
+            if isinstance(logs, bytes):
+                logs_content = logs.decode('utf-8', errors='replace')
             else:
-                return JsonResponse({
-                    'error': 'No container specified and could not determine current container'
-                }, status=400)
+                logs_content = logs
+        except ImportError:
+            error_message = "Docker Python library not available"
+        except Exception as e:
+            error_message = f"Docker API error: {str(e)}"
         
-        # Execute the command
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=30  # 30 second timeout
-        )
+        # Approach 2: Try docker command with socket mount
+        if not logs_content:
+            try:
+                # Try to use Docker socket if available
+                docker_socket = '/var/run/docker.sock'
+                if os.path.exists(docker_socket):
+                    cmd = ['docker', '--host', 'unix:///var/run/docker.sock', 'logs', '--tail', str(lines)]
+                    if follow:
+                        cmd.append('--follow')
+                    cmd.append(container_name)
+                else:
+                    # Fallback to regular docker command
+                    cmd = ['docker', 'logs', '--tail', str(lines)]
+                    if follow:
+                        cmd.append('--follow')
+                    cmd.append(container_name)
+                
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                
+                if result.returncode == 0:
+                    logs_content = result.stdout
+                else:
+                    error_message = f"Docker command failed: {result.stderr}"
+                    
+            except Exception as e:
+                error_message = f"Subprocess error: {str(e)}"
         
-        if result.returncode == 0:
+        # Approach 3: Try to read logs from common log locations
+        if not logs_content:
+            try:
+                # Try to read from common log locations
+                log_paths = [
+                    f'/var/log/containers/{container_name}*.log',
+                    f'/var/lib/docker/containers/*/{container_name}*/{container_name}*-json.log',
+                    f'/var/log/docker/{container_name}.log'
+                ]
+                
+                import glob
+                for pattern in log_paths:
+                    log_files = glob.glob(pattern)
+                    if log_files:
+                        # Read the most recent log file
+                        log_file = max(log_files, key=os.path.getctime)
+                        with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
+                            # Get last N lines
+                            all_lines = f.readlines()
+                            logs_content = ''.join(all_lines[-lines:])
+                        break
+                        
+            except Exception as e:
+                error_message = f"Log file reading error: {str(e)}"
+        
+        # Approach 4: Try to get logs from journalctl if available
+        if not logs_content:
+            try:
+                result = subprocess.run(
+                    ['journalctl', '-u', f'docker-{container_name}', '--no-pager', '-n', str(lines)],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    logs_content = result.stdout
+                else:
+                    error_message = f"Journalctl error: {result.stderr}"
+                    
+            except Exception as e:
+                error_message = f"Journalctl error: {str(e)}"
+        
+        # Return results
+        if logs_content:
             return JsonResponse({
                 'success': True,
-                'logs': result.stdout,
-                'container': container_name or hostname,
-                'lines_returned': len(result.stdout.splitlines())
+                'logs': logs_content,
+                'container': container_name,
+                'lines_returned': len(logs_content.splitlines()),
+                'method': 'docker_api' if 'docker.from_env' in str(logs_content) else 'docker_command'
             })
         else:
-            # If Docker command fails, try to provide some helpful information
-            error_msg = result.stderr.strip()
-            
-            # Check if it's a container not found error
-            if "No such container" in error_msg:
-                return JsonResponse({
-                    'error': f'Container "{container_name}" not found. Available containers may be listed above.',
-                    'suggestion': 'Try selecting a different container from the list above.'
-                }, status=404)
-            elif "permission denied" in error_msg.lower():
-                return JsonResponse({
-                    'error': 'Permission denied accessing Docker. The application may not have sufficient privileges.',
-                    'suggestion': 'Check Docker permissions or run the application with appropriate privileges.'
-                }, status=403)
-            else:
-                return JsonResponse({
-                    'error': f'Docker command failed: {error_msg}',
-                    'return_code': result.returncode,
-                    'suggestion': 'Try refreshing the container list or selecting a different container.'
-                }, status=500)
+            return JsonResponse({
+                'error': f'Could not retrieve logs for container "{container_name}"',
+                'details': error_message,
+                'suggestion': 'Try checking if the container is running and accessible, or check Docker permissions.'
+            }, status=500)
             
     except subprocess.TimeoutExpired:
         return JsonResponse({
@@ -4059,30 +4111,24 @@ def get_docker_containers_api(request):
         hostname = os.environ.get('HOSTNAME', '')
         container_id = os.environ.get('CONTAINER_ID', '')
         
-        # Get running containers
-        result = subprocess.run(
-            ['docker', 'ps', '--format', 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        containers = []
+        warning = None
         
-        if result.returncode == 0:
-            # Parse the output
-            lines = result.stdout.strip().split('\n')
-            containers = []
+        # Approach 1: Try using Docker Python library
+        try:
+            import docker
+            client = docker.from_env()
+            docker_containers = client.containers.list()
             
-            # Skip header line
-            for line in lines[1:]:
-                if line.strip():
-                    parts = line.split('\t')
-                    if len(parts) >= 4:
-                        containers.append({
-                            'name': parts[0],
-                            'image': parts[1],
-                            'status': parts[2],
-                            'ports': parts[3]
-                        })
+            for container in docker_containers:
+                # Get container info
+                container_info = {
+                    'name': container.name,
+                    'image': container.image.tags[0] if container.image.tags else container.image.id,
+                    'status': container.status,
+                    'ports': ', '.join([f"{k}:{v[0]['HostPort']}" for k, v in container.ports.items()]) if container.ports else 'N/A'
+                }
+                containers.append(container_info)
             
             # If we're running in a container, add it to the list if not already present
             if hostname and not any(c['name'] == hostname for c in containers):
@@ -4092,18 +4138,64 @@ def get_docker_containers_api(request):
                     'status': 'Running',
                     'ports': 'N/A'
                 })
-            
-            return JsonResponse({
-                'success': True,
-                'containers': containers
-            })
-        else:
-            # If docker ps fails, try to provide some basic container info
-            fallback_containers = []
-            
+                
+        except ImportError:
+            warning = "Docker Python library not available, using command line"
+        except Exception as e:
+            warning = f"Docker API error: {str(e)}"
+        
+        # Approach 2: Fallback to docker command
+        if not containers:
+            try:
+                # Try to use Docker socket if available
+                docker_socket = '/var/run/docker.sock'
+                if os.path.exists(docker_socket):
+                    cmd = ['docker', '--host', 'unix:///var/run/docker.sock', 'ps', '--format', 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}']
+                else:
+                    cmd = ['docker', 'ps', '--format', 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}']
+                
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    # Parse the output
+                    lines = result.stdout.strip().split('\n')
+                    
+                    # Skip header line
+                    for line in lines[1:]:
+                        if line.strip():
+                            parts = line.split('\t')
+                            if len(parts) >= 4:
+                                containers.append({
+                                    'name': parts[0],
+                                    'image': parts[1],
+                                    'status': parts[2],
+                                    'ports': parts[3]
+                                })
+                    
+                    # If we're running in a container, add it to the list if not already present
+                    if hostname and not any(c['name'] == hostname for c in containers):
+                        containers.insert(0, {
+                            'name': hostname,
+                            'image': 'Current Container',
+                            'status': 'Running',
+                            'ports': 'N/A'
+                        })
+                else:
+                    warning = f'Docker command failed: {result.stderr}'
+                    
+            except Exception as e:
+                warning = f"Subprocess error: {str(e)}"
+        
+        # Approach 3: Provide fallback containers if nothing else works
+        if not containers:
             # Add current container if we can identify it
             if hostname:
-                fallback_containers.append({
+                containers.append({
                     'name': hostname,
                     'image': 'Current Container (Docker not accessible)',
                     'status': 'Running',
@@ -4120,58 +4212,21 @@ def get_docker_containers_api(request):
             ]
             
             for container_name in common_containers:
-                fallback_containers.append({
+                containers.append({
                     'name': container_name,
                     'image': 'Unknown (Docker not accessible)',
                     'status': 'Unknown',
                     'ports': 'N/A'
                 })
             
-            return JsonResponse({
-                'success': True,
-                'containers': fallback_containers,
-                'warning': f'Docker command failed: {result.stderr}. Showing fallback container list.'
-            })
-            
-    except subprocess.TimeoutExpired:
-        return JsonResponse({
-            'error': 'Docker command timed out'
-        }, status=408)
-    except FileNotFoundError:
-        # Provide fallback containers when Docker is not found
-        fallback_containers = []
-        hostname = os.environ.get('HOSTNAME', '')
-        
-        if hostname:
-            fallback_containers.append({
-                'name': hostname,
-                'image': 'Current Container (Docker not found)',
-                'status': 'Running',
-                'ports': 'N/A'
-            })
-        
-        # Add common container names
-        common_containers = [
-            'maintdashboard_web_1',
-            'maintdashboard_db_1', 
-            'maintdashboard_redis_1',
-            'maintdashboard_celery_1',
-            'maintdashboard_nginx_1'
-        ]
-        
-        for container_name in common_containers:
-            fallback_containers.append({
-                'name': container_name,
-                'image': 'Unknown (Docker not found)',
-                'status': 'Unknown',
-                'ports': 'N/A'
-            })
+            warning = 'Docker not accessible. Showing fallback container list. You can still try to view logs by selecting a container.'
         
         return JsonResponse({
             'success': True,
-            'containers': fallback_containers,
-            'warning': 'Docker command not found. Showing fallback container list. You can still try to view logs by selecting a container.'
+            'containers': containers,
+            'warning': warning
         })
+            
     except Exception as e:
         return JsonResponse({
             'error': f'Unexpected error: {str(e)}'

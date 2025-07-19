@@ -63,6 +63,7 @@ services:
       - .:/app
       - static_volume:/app/staticfiles
       - media_volume:/app/media
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
       - "${WEB_PORT:-4405}:8000"
     environment:
