@@ -4114,121 +4114,35 @@ def get_docker_containers_api(request):
         containers = []
         warning = None
         
-        # Approach 1: Try using Docker Python library
-        try:
-            import docker
-            client = docker.from_env(timeout=5)  # Add timeout
-            docker_containers = client.containers.list()
-            
-            for container in docker_containers:
-                try:
-                    # Get container info
-                    container_info = {
-                        'name': container.name,
-                        'image': container.image.tags[0] if container.image.tags else container.image.id,
-                        'status': container.status,
-                        'ports': ', '.join([f"{k}:{v[0]['HostPort']}" for k, v in container.ports.items()]) if container.ports else 'N/A'
-                    }
-                    containers.append(container_info)
-                except Exception as container_error:
-                    # Skip problematic containers
-                    continue
-            
-            # If we're running in a container, add it to the list if not already present
-            if hostname and not any(c['name'] == hostname for c in containers):
-                containers.insert(0, {
-                    'name': hostname,
-                    'image': 'Current Container',
-                    'status': 'Running',
-                    'ports': 'N/A'
-                })
-                
-        except ImportError:
-            warning = "Docker Python library not available - install with: pip install docker"
-        except Exception as e:
-            warning = f"Docker API error: {str(e)}"
+        # Quick test - just return basic info first
+        containers.append({
+            'name': hostname or 'unknown',
+            'image': 'Test Container',
+            'status': 'Testing',
+            'ports': 'N/A'
+        })
         
-        # Approach 2: Fallback to docker command
-        if not containers:
-            try:
-                # Try to use Docker socket if available
-                docker_socket = '/var/run/docker.sock'
-                if os.path.exists(docker_socket):
-                    cmd = ['docker', '--host', 'unix:///var/run/docker.sock', 'ps', '--format', 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}']
-                else:
-                    cmd = ['docker', 'ps', '--format', 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}']
-                
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
-                
-                if result.returncode == 0:
-                    # Parse the output
-                    lines = result.stdout.strip().split('\n')
-                    
-                    # Skip header line
-                    for line in lines[1:]:
-                        if line.strip():
-                            parts = line.split('\t')
-                            if len(parts) >= 4:
-                                containers.append({
-                                    'name': parts[0],
-                                    'image': parts[1],
-                                    'status': parts[2],
-                                    'ports': parts[3]
-                                })
-                    
-                    # If we're running in a container, add it to the list if not already present
-                    if hostname and not any(c['name'] == hostname for c in containers):
-                        containers.insert(0, {
-                            'name': hostname,
-                            'image': 'Current Container',
-                            'status': 'Running',
-                            'ports': 'N/A'
-                        })
-                else:
-                    warning = f'Docker command failed: {result.stderr}'
-                    
-            except Exception as e:
-                warning = f"Subprocess error: {str(e)}"
+        # Add some common container names that might be running
+        common_containers = [
+            'maintdashboard_web_1',
+            'maintdashboard_db_1', 
+            'maintdashboard_redis_1',
+            'maintdashboard_celery_1',
+            'maintdashboard_nginx_1'
+        ]
         
-        # Approach 3: Provide fallback containers if nothing else works
-        if not containers:
-            # Add current container if we can identify it
-            if hostname:
-                containers.append({
-                    'name': hostname,
-                    'image': 'Current Container (Docker not accessible)',
-                    'status': 'Running',
-                    'ports': 'N/A'
-                })
-            
-            # Add some common container names that might be running
-            common_containers = [
-                'maintdashboard_web_1',
-                'maintdashboard_db_1', 
-                'maintdashboard_redis_1',
-                'maintdashboard_celery_1',
-                'maintdashboard_nginx_1'
-            ]
-            
-            for container_name in common_containers:
-                containers.append({
-                    'name': container_name,
-                    'image': 'Unknown (Docker not accessible)',
-                    'status': 'Unknown',
-                    'ports': 'N/A'
-                })
-            
-            warning = 'Docker not accessible. Showing fallback container list. You can still try to view logs by selecting a container.'
+        for container_name in common_containers:
+            containers.append({
+                'name': container_name,
+                'image': 'Unknown (Testing)',
+                'status': 'Unknown',
+                'ports': 'N/A'
+            })
         
         return JsonResponse({
             'success': True,
             'containers': containers,
-            'warning': warning
+            'warning': 'Testing mode - showing basic container list'
         })
             
     except Exception as e:
