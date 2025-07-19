@@ -340,7 +340,8 @@ def collect_docker_logs():
                         'lines': len(log_result.stdout.split('\n')),
                         'file': log_file
                     }
-                    logger.info(f"Collected logs for {container['name']}: {len(log_result.stdout.split('\n'))} lines")
+                    lines_count = len(log_result.stdout.split('\n'))
+                    logger.info(f"Collected logs for {container['name']}: {lines_count} lines")
                 else:
                     collected_logs[container['name']] = {
                         'status': 'error',
