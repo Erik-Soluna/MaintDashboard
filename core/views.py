@@ -3947,3 +3947,141 @@ def test_portainer_connection():
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
         return f'Error: {str(e)}'
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def docker_logs_view(request):
+    """View for displaying Docker logs within the settings page."""
+    return render(request, 'core/docker_logs.html')
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["GET"])
+def get_docker_logs_api(request):
+    """API endpoint to fetch Docker logs."""
+    import subprocess
+    import os
+    
+    try:
+        # Get parameters
+        container_name = request.GET.get('container', '')
+        lines = int(request.GET.get('lines', 100))
+        follow = request.GET.get('follow', 'false').lower() == 'true'
+        
+        # Validate lines parameter
+        if lines > 1000:
+            lines = 1000  # Limit to prevent abuse
+        
+        # Build docker logs command
+        cmd = ['docker', 'logs']
+        
+        if follow:
+            cmd.append('--follow')
+        
+        cmd.extend(['--tail', str(lines)])
+        
+        if container_name:
+            cmd.append(container_name)
+        else:
+            # If no container specified, try to get the current container
+            # This assumes the app is running in a container
+            hostname = os.environ.get('HOSTNAME', '')
+            if hostname:
+                cmd.append(hostname)
+            else:
+                return JsonResponse({
+                    'error': 'No container specified and could not determine current container'
+                }, status=400)
+        
+        # Execute the command
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=30  # 30 second timeout
+        )
+        
+        if result.returncode == 0:
+            return JsonResponse({
+                'success': True,
+                'logs': result.stdout,
+                'container': container_name or hostname,
+                'lines_returned': len(result.stdout.splitlines())
+            })
+        else:
+            return JsonResponse({
+                'error': f'Docker command failed: {result.stderr}',
+                'return_code': result.returncode
+            }, status=500)
+            
+    except subprocess.TimeoutExpired:
+        return JsonResponse({
+            'error': 'Docker logs command timed out'
+        }, status=408)
+    except FileNotFoundError:
+        return JsonResponse({
+            'error': 'Docker command not found. Make sure Docker is installed and accessible.'
+        }, status=500)
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Unexpected error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["GET"])
+def get_docker_containers_api(request):
+    """API endpoint to get list of running Docker containers."""
+    import subprocess
+    
+    try:
+        # Get running containers
+        result = subprocess.run(
+            ['docker', 'ps', '--format', 'table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode == 0:
+            # Parse the output
+            lines = result.stdout.strip().split('\n')
+            containers = []
+            
+            # Skip header line
+            for line in lines[1:]:
+                if line.strip():
+                    parts = line.split('\t')
+                    if len(parts) >= 4:
+                        containers.append({
+                            'name': parts[0],
+                            'image': parts[1],
+                            'status': parts[2],
+                            'ports': parts[3]
+                        })
+            
+            return JsonResponse({
+                'success': True,
+                'containers': containers
+            })
+        else:
+            return JsonResponse({
+                'error': f'Docker command failed: {result.stderr}',
+                'return_code': result.returncode
+            }, status=500)
+            
+    except subprocess.TimeoutExpired:
+        return JsonResponse({
+            'error': 'Docker command timed out'
+        }, status=408)
+    except FileNotFoundError:
+        return JsonResponse({
+            'error': 'Docker command not found. Make sure Docker is installed and accessible.'
+        }, status=500)
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Unexpected error: {str(e)}'
+        }, status=500)

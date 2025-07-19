@@ -83,6 +83,11 @@ urlpatterns = [
     # Portainer Integration
     path('settings/webhooks/', views.webhook_settings, name='webhook_settings'),
     
+    # Docker Logs
+    path('settings/docker-logs/', views.docker_logs_view, name='docker_logs'),
+    path('api/docker/logs/', views.get_docker_logs_api, name='get_docker_logs'),
+    path('api/docker/containers/', views.get_docker_containers_api, name='get_docker_containers'),
+    
     # Bulk Location Management
     path('settings/locations/bulk/', views.bulk_locations_view, name='bulk_locations'),
     path('api/locations/bulk-edit/', views.bulk_edit_locations, name='bulk_edit_locations'),

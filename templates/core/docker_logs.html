@@ -1,0 +1,473 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Docker Logs - Settings{% endblock %}
+
+{% block extra_css %}
+<style>
+    .docker-logs-container {
+        background: #1e1e1e;
+        color: #ffffff;
+        font-family: 'Courier New', monospace;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 20px 0;
+        max-height: 600px;
+        overflow-y: auto;
+        border: 1px solid #333;
+    }
+    
+    .log-line {
+        margin: 2px 0;
+        padding: 2px 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+    
+    .log-line.error {
+        color: #ff6b6b;
+    }
+    
+    .log-line.warning {
+        color: #ffd93d;
+    }
+    
+    .log-line.info {
+        color: #6bcf7f;
+    }
+    
+    .controls {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .container-selector {
+        margin-bottom: 15px;
+    }
+    
+    .log-controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .btn-refresh {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .btn-refresh:hover {
+        background: #0056b3;
+    }
+    
+    .btn-follow {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .btn-follow:hover {
+        background: #1e7e34;
+    }
+    
+    .btn-follow.active {
+        background: #dc3545;
+    }
+    
+    .btn-follow.active:hover {
+        background: #c82333;
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 20px;
+        color: #666;
+    }
+    
+    .error-message {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 15px;
+        border-radius: 4px;
+        margin: 10px 0;
+        border: 1px solid #f5c6cb;
+    }
+    
+    .container-info {
+        background: #e9ecef;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        font-size: 14px;
+    }
+    
+    .container-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+    }
+    
+    .container-table th,
+    .container-table td {
+        padding: 8px;
+        text-align: left;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .container-table th {
+        background: #f8f9fa;
+        font-weight: bold;
+    }
+    
+    .container-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .container-name {
+        font-weight: bold;
+        color: #007bff;
+        cursor: pointer;
+    }
+    
+    .container-name:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-terminal"></i> Docker Logs Viewer</h2>
+                <a href="{% url 'core:settings' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Settings
+                </a>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <strong>Docker Logs Viewer</strong> - View real-time logs from your Docker containers without leaving the web interface.
+                This tool helps diagnose issues with your deployment stack.
+            </div>
+            
+            <!-- Container Selection -->
+            <div class="controls">
+                <h5><i class="fas fa-list"></i> Available Containers</h5>
+                <div id="containers-loading" class="loading">
+                    <i class="fas fa-spinner fa-spin"></i> Loading containers...
+                </div>
+                <div id="containers-error" class="error-message" style="display: none;"></div>
+                <div id="containers-list" style="display: none;">
+                    <table class="container-table">
+                        <thead>
+                            <tr>
+                                <th>Container Name</th>
+                                <th>Image</th>
+                                <th>Status</th>
+                                <th>Ports</th>
+                            </tr>
+                        </thead>
+                        <tbody id="containers-tbody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Log Controls -->
+            <div class="controls">
+                <h5><i class="fas fa-cogs"></i> Log Controls</h5>
+                <div class="container-selector">
+                    <label for="container-select"><strong>Select Container:</strong></label>
+                    <select id="container-select" class="form-control" style="max-width: 300px;">
+                        <option value="">-- Select a container --</option>
+                    </select>
+                </div>
+                
+                <div class="log-controls">
+                    <label for="lines-input"><strong>Lines:</strong></label>
+                    <input type="number" id="lines-input" value="100" min="10" max="1000" class="form-control" style="width: 100px;">
+                    
+                    <button id="btn-refresh" class="btn-refresh">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    
+                    <button id="btn-follow" class="btn-follow">
+                        <i class="fas fa-play"></i> Follow
+                    </button>
+                    
+                    <button id="btn-clear" class="btn btn-warning">
+                        <i class="fas fa-trash"></i> Clear
+                    </button>
+                </div>
+                
+                <div id="log-info" class="container-info" style="display: none;">
+                    <strong>Current Container:</strong> <span id="current-container">-</span> | 
+                    <strong>Lines:</strong> <span id="current-lines">-</span> | 
+                    <strong>Status:</strong> <span id="follow-status">Stopped</span>
+                </div>
+            </div>
+            
+            <!-- Log Display -->
+            <div class="docker-logs-container">
+                <div id="logs-loading" class="loading">
+                    <i class="fas fa-spinner fa-spin"></i> Loading logs...
+                </div>
+                <div id="logs-error" class="error-message" style="display: none;"></div>
+                <div id="logs-content"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let followInterval = null;
+let currentContainer = '';
+let isFollowing = false;
+
+// Initialize the page
+document.addEventListener('DOMContentLoaded', function() {
+    loadContainers();
+    setupEventListeners();
+});
+
+function setupEventListeners() {
+    // Container selection
+    document.getElementById('container-select').addEventListener('change', function() {
+        currentContainer = this.value;
+        if (currentContainer) {
+            loadLogs();
+        } else {
+            clearLogs();
+        }
+    });
+    
+    // Refresh button
+    document.getElementById('btn-refresh').addEventListener('click', function() {
+        if (currentContainer) {
+            loadLogs();
+        }
+    });
+    
+    // Follow button
+    document.getElementById('btn-follow').addEventListener('click', function() {
+        toggleFollow();
+    });
+    
+    // Clear button
+    document.getElementById('btn-clear').addEventListener('click', function() {
+        clearLogs();
+    });
+    
+    // Lines input
+    document.getElementById('lines-input').addEventListener('change', function() {
+        if (currentContainer && !isFollowing) {
+            loadLogs();
+        }
+    });
+}
+
+function loadContainers() {
+    const loadingEl = document.getElementById('containers-loading');
+    const errorEl = document.getElementById('containers-error');
+    const listEl = document.getElementById('containers-list');
+    const tbodyEl = document.getElementById('containers-tbody');
+    const selectEl = document.getElementById('container-select');
+    
+    loadingEl.style.display = 'block';
+    errorEl.style.display = 'none';
+    listEl.style.display = 'none';
+    
+    fetch('{% url "core:get_docker_containers" %}')
+        .then(response => response.json())
+        .then(data => {
+            loadingEl.style.display = 'none';
+            
+            if (data.success) {
+                // Populate table
+                tbodyEl.innerHTML = '';
+                data.containers.forEach(container => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><span class="container-name" onclick="selectContainer('${container.name}')">${container.name}</span></td>
+                        <td>${container.image}</td>
+                        <td>${container.status}</td>
+                        <td>${container.ports}</td>
+                    `;
+                    tbodyEl.appendChild(row);
+                });
+                
+                // Populate select dropdown
+                selectEl.innerHTML = '<option value="">-- Select a container --</option>';
+                data.containers.forEach(container => {
+                    const option = document.createElement('option');
+                    option.value = container.name;
+                    option.textContent = container.name;
+                    selectEl.appendChild(option);
+                });
+                
+                listEl.style.display = 'block';
+            } else {
+                errorEl.textContent = data.error || 'Failed to load containers';
+                errorEl.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            loadingEl.style.display = 'none';
+            errorEl.textContent = 'Error loading containers: ' + error.message;
+            errorEl.style.display = 'block';
+        });
+}
+
+function selectContainer(containerName) {
+    document.getElementById('container-select').value = containerName;
+    currentContainer = containerName;
+    loadLogs();
+}
+
+function loadLogs() {
+    if (!currentContainer) return;
+    
+    const lines = document.getElementById('lines-input').value;
+    const loadingEl = document.getElementById('logs-loading');
+    const errorEl = document.getElementById('logs-error');
+    const contentEl = document.getElementById('logs-content');
+    const infoEl = document.getElementById('log-info');
+    
+    loadingEl.style.display = 'block';
+    errorEl.style.display = 'none';
+    contentEl.innerHTML = '';
+    
+    const url = `{% url "core:get_docker_logs" %}?container=${encodeURIComponent(currentContainer)}&lines=${lines}`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            loadingEl.style.display = 'none';
+            
+            if (data.success) {
+                displayLogs(data.logs);
+                updateLogInfo(data.container, data.lines_returned);
+                infoEl.style.display = 'block';
+            } else {
+                errorEl.textContent = data.error || 'Failed to load logs';
+                errorEl.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            loadingEl.style.display = 'none';
+            errorEl.textContent = 'Error loading logs: ' + error.message;
+            errorEl.style.display = 'block';
+        });
+}
+
+function displayLogs(logs) {
+    const contentEl = document.getElementById('logs-content');
+    contentEl.innerHTML = '';
+    
+    if (!logs || logs.trim() === '') {
+        contentEl.innerHTML = '<div class="log-line">No logs available</div>';
+        return;
+    }
+    
+    const lines = logs.split('\n');
+    lines.forEach(line => {
+        if (line.trim()) {
+            const logLine = document.createElement('div');
+            logLine.className = 'log-line';
+            logLine.textContent = line;
+            
+            // Add color coding based on log level
+            if (line.toLowerCase().includes('error') || line.toLowerCase().includes('exception')) {
+                logLine.classList.add('error');
+            } else if (line.toLowerCase().includes('warning') || line.toLowerCase().includes('warn')) {
+                logLine.classList.add('warning');
+            } else if (line.toLowerCase().includes('info')) {
+                logLine.classList.add('info');
+            }
+            
+            contentEl.appendChild(logLine);
+        }
+    });
+    
+    // Scroll to bottom
+    contentEl.scrollTop = contentEl.scrollHeight;
+}
+
+function updateLogInfo(container, lines) {
+    document.getElementById('current-container').textContent = container;
+    document.getElementById('current-lines').textContent = lines;
+    document.getElementById('follow-status').textContent = isFollowing ? 'Following' : 'Stopped';
+}
+
+function toggleFollow() {
+    const btn = document.getElementById('btn-follow');
+    
+    if (isFollowing) {
+        stopFollow();
+    } else {
+        startFollow();
+    }
+}
+
+function startFollow() {
+    if (!currentContainer) return;
+    
+    isFollowing = true;
+    const btn = document.getElementById('btn-follow');
+    btn.innerHTML = '<i class="fas fa-stop"></i> Stop Following';
+    btn.classList.add('active');
+    
+    // Start polling for new logs
+    followInterval = setInterval(() => {
+        const lines = document.getElementById('lines-input').value;
+        const url = `{% url "core:get_docker_logs" %}?container=${encodeURIComponent(currentContainer)}&lines=${lines}`;
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayLogs(data.logs);
+                    updateLogInfo(data.container, data.lines_returned);
+                }
+            })
+            .catch(error => {
+                console.error('Error following logs:', error);
+            });
+    }, 2000); // Poll every 2 seconds
+}
+
+function stopFollow() {
+    isFollowing = false;
+    const btn = document.getElementById('btn-follow');
+    btn.innerHTML = '<i class="fas fa-play"></i> Follow';
+    btn.classList.remove('active');
+    
+    if (followInterval) {
+        clearInterval(followInterval);
+        followInterval = null;
+    }
+}
+
+function clearLogs() {
+    document.getElementById('logs-content').innerHTML = '';
+    document.getElementById('log-info').style.display = 'none';
+    document.getElementById('logs-error').style.display = 'none';
+    stopFollow();
+}
+</script>
+{% endblock %} 
