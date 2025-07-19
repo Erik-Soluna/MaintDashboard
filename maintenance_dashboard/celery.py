@@ -25,7 +25,7 @@ def configure_celery_broker():
     broker_url = getattr(settings, 'CELERY_BROKER_URL', None)
     if not broker_url:
         # Build Redis URL from settings
-        redis_url = getattr(settings, 'REDIS_URL', 'redis://redis:6379/0')
+        redis_url = getattr(settings, 'REDIS_URL', 'redis://redis:6379')
         broker_url = f'{redis_url}/0'
     
     # If Redis is disabled or we're in development without Redis

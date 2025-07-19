@@ -75,7 +75,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379
       - ALLOWED_HOSTS=localhost,127.0.0.1,0.0.0.0,maintenance.errorlog.app,10.0.0.28,web
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@maintenance.local}
@@ -135,7 +135,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379
       - SKIP_DB_INIT=true
       - SKIP_COLLECTSTATIC=true
       - C_FORCE_ROOT=1
@@ -176,7 +176,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_HOST=db
       - DB_PORT=5432
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379
       - SKIP_DB_INIT=true
       - SKIP_COLLECTSTATIC=true
     depends_on:
