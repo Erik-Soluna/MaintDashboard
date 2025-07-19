@@ -1249,8 +1249,23 @@ function showDiagnosticResult(result) {
 function loadDockerContainers() {
     const containerSelect = document.getElementById('container-select');
     
-    fetch('{% url "core:get_docker_containers" %}')
-    .then(response => response.json())
+    // Show loading state
+    containerSelect.innerHTML = '<option value="">Loading containers...</option>';
+    
+    // Add timeout to the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    fetch('{% url "core:get_docker_containers" %}', {
+        signal: controller.signal
+    })
+    .then(response => {
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             // Clear existing options
@@ -1264,15 +1279,28 @@ function loadDockerContainers() {
                 containerSelect.appendChild(option);
             });
             
+            // Show success message if no containers found
+            if (data.containers.length === 0) {
+                containerSelect.innerHTML = '<option value="">No containers found</option>';
+            }
+            
             if (data.warning) {
                 showDebugMessage('Docker containers loaded with warning: ' + data.warning, 'warning');
             }
         } else {
+            containerSelect.innerHTML = '<option value="">Error loading containers</option>';
             showDebugMessage('Failed to load containers: ' + (data.error || 'Unknown error'), 'error');
         }
     })
     .catch(error => {
-        showDebugMessage('Error loading containers: ' + error.message, 'error');
+        clearTimeout(timeoutId);
+        containerSelect.innerHTML = '<option value="">Error loading containers</option>';
+        
+        if (error.name === 'AbortError') {
+            showDebugMessage('Container loading timed out after 10 seconds', 'warning');
+        } else {
+            showDebugMessage('Error loading containers: ' + error.message, 'error');
+        }
     });
 }
 
@@ -1401,8 +1429,23 @@ document.addEventListener('DOMContentLoaded', function() {
 function loadMultiSelectContainers() {
     const containerSelect = document.getElementById('container-multi-select');
     
-    fetch('{% url "core:get_docker_containers" %}')
-    .then(response => response.json())
+    // Show loading state
+    containerSelect.innerHTML = '<option value="">Loading containers...</option>';
+    
+    // Add timeout to the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
+    fetch('{% url "core:get_docker_containers" %}', {
+        signal: controller.signal
+    })
+    .then(response => {
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             // Clear existing options
@@ -1415,12 +1458,25 @@ function loadMultiSelectContainers() {
                 option.textContent = `${container.name} (${container.status})`;
                 containerSelect.appendChild(option);
             });
+            
+            // Show success message if no containers found
+            if (data.containers.length === 0) {
+                containerSelect.innerHTML = '<option value="">No containers found</option>';
+            }
         } else {
+            containerSelect.innerHTML = '<option value="">Error loading containers</option>';
             showDebugMessage('Failed to load containers: ' + (data.error || 'Unknown error'), 'error');
         }
     })
     .catch(error => {
-        showDebugMessage('Error loading containers: ' + error.message, 'error');
+        clearTimeout(timeoutId);
+        containerSelect.innerHTML = '<option value="">Error loading containers</option>';
+        
+        if (error.name === 'AbortError') {
+            showDebugMessage('Container loading timed out after 10 seconds', 'warning');
+        } else {
+            showDebugMessage('Error loading containers: ' + error.message, 'error');
+        }
     });
 }
 

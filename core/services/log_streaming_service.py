@@ -213,7 +213,8 @@ class LogStreamingService:
     
     def get_system_logs(self, lines: int = 100) -> str:
         """
-        Get system logs using journalctl or reading log files.
+        Get system logs by reading log files directly.
+        Note: journalctl is not available in Docker containers.
         
         Args:
             lines: Number of lines to read
@@ -222,32 +223,50 @@ class LogStreamingService:
             System log content
         """
         try:
-            # Try journalctl first
-            import subprocess
-            result = subprocess.run(
-                ['journalctl', '--no-pager', '-n', str(lines), '--output=short'],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            
-            if result.returncode == 0:
-                return result.stdout
-            
-            # Fallback to reading log files
             system_logs = []
-            for pattern in self.config.get('system_log_paths', []):
-                try:
-                    log_files = glob.glob(pattern)
-                    for log_file in log_files:
-                        if os.path.exists(log_file):
-                            with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
-                                file_lines = f.readlines()
-                                system_logs.extend(file_lines[-lines//len(log_files):])
-                except Exception as e:
-                    self.logger.warning(f"Error reading system log {pattern}: {e}")
             
-            return ''.join(system_logs[-lines:]) if system_logs else "No system logs available"
+            # Common system log paths in Docker containers
+            log_paths = [
+                '/var/log/syslog',
+                '/var/log/messages',
+                '/var/log/dmesg',
+                '/proc/1/fd/1',  # Docker container stdout
+                '/proc/1/fd/2',  # Docker container stderr
+            ]
+            
+            # Add any custom paths from config
+            log_paths.extend(self.config.get('system_log_paths', []))
+            
+            for log_path in log_paths:
+                try:
+                    if os.path.exists(log_path):
+                        with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+                            file_lines = f.readlines()
+                            # Take last lines from this file
+                            lines_per_file = max(1, lines // len(log_paths))
+                            system_logs.extend(file_lines[-lines_per_file:])
+                except Exception as e:
+                    self.logger.warning(f"Error reading system log {log_path}: {e}")
+            
+            # If no system logs found, try to get container logs
+            if not system_logs:
+                containers = self.get_available_containers()
+                for container in containers[:3]:  # Limit to first 3 containers
+                    if container.get('log_file') and os.path.exists(container['log_file']):
+                        try:
+                            with open(container['log_file'], 'r', encoding='utf-8', errors='replace') as f:
+                                file_lines = f.readlines()
+                                lines_per_container = max(1, lines // 3)
+                                system_logs.extend([f"[{container['name']}] {line}" for line in file_lines[-lines_per_container:]])
+                        except Exception as e:
+                            self.logger.warning(f"Error reading container log {container['name']}: {e}")
+            
+            if system_logs:
+                return ''.join(system_logs[-lines:])
+            else:
+                return "No system logs available. This is normal in Docker containers.\n\nAvailable log sources:\n" + \
+                       "\n".join([f"- {c['name']}: {c.get('log_file', 'No log file')}" 
+                                 for c in self.get_available_containers()[:5]])
             
         except Exception as e:
             return f"Error getting system logs: {str(e)}"
