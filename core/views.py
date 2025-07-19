@@ -2369,33 +2369,32 @@ def debug(request):
                 logs_dir = '/app/logs'
                 os.makedirs(logs_dir, exist_ok=True)
                 
-                # Get containers and collect logs
+                # Get containers and collect logs from accessible sources
                 containers = log_service.get_available_containers()
                 collected_count = 0
                 
                 for container in containers:
                     try:
-                        # Try to get logs for this container
-                        import subprocess
-                        result = subprocess.run(
-                            ['docker', 'logs', '--tail', '100', container['name']],
-                            capture_output=True,
-                            text=True,
-                            timeout=15
-                        )
-                        
-                        if result.returncode == 0:
-                            # Write logs to file
-                            log_file = os.path.join(logs_dir, f"{container['name']}.log")
-                            with open(log_file, 'w', encoding='utf-8') as f:
-                                f.write(f"# Container: {container['name']}\n")
-                                f.write(f"# Image: {container.get('image', 'Unknown')}\n")
-                                f.write(f"# ID: {container.get('id', 'Unknown')}\n")
+                        log_file = container.get('log_file')
+                        if log_file and os.path.exists(log_file):
+                            # Read from accessible log file
+                            with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
+                                content = f.read()
+                            
+                            # Write to our logs directory
+                            output_file = os.path.join(logs_dir, f"{container['name']}.log")
+                            with open(output_file, 'w', encoding='utf-8') as f:
+                                f.write(f"# Source: {container['name']}\n")
+                                f.write(f"# Type: {container.get('image', 'Unknown')}\n")
+                                f.write(f"# Path: {log_file}\n")
                                 f.write(f"# Collected at: {timezone.now().isoformat()}\n")
                                 f.write("#" * 80 + "\n")
-                                f.write(result.stdout)
+                                f.write(content)
                             
                             collected_count += 1
+                            logger.info(f"Collected logs from {container['name']}: {len(content)} characters")
+                        else:
+                            logger.warning(f"No accessible log file for {container['name']}")
                     except Exception as e:
                         logger.warning(f"Error collecting logs for {container['name']}: {e}")
                 

@@ -111,35 +111,77 @@ class LogStreamingService:
         else:
             debug_info.append("Collected logs directory does not exist")
         
-        # Always try Docker CLI as primary source
-        debug_info.append("Trying Docker CLI for container list...")
-        try:
-            result = subprocess.run(
-                ['docker', 'ps', '--format', '{{.Names}}\t{{.ID}}\t{{.Image}}'],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+        # Since Docker CLI is not accessible, use alternative sources
+        debug_info.append("Docker CLI not accessible, using alternative log sources...")
+        
+        # Add current container with accessible log sources
+        hostname = os.environ.get('HOSTNAME', '')
+        if hostname:
+            # Add current container with accessible log files
+            current_container = {
+                'name': hostname,
+                'id': hostname,
+                'image': 'Current Container',
+                'status': 'Running',
+                'log_file': '/proc/1/fd/1',  # Container stdout
+                'source': 'current'
+            }
+            containers.append(current_container)
+            debug_info.append(f"Added current container with stdout: {hostname}")
             
-            if result.returncode == 0:
-                for line in result.stdout.strip().split('\n'):
-                    if line.strip():
-                        parts = line.split('\t')
-                        if len(parts) >= 3:
-                            name, container_id, image = parts[:3]
-                            containers.append({
-                                'name': name.strip(),
-                                'id': container_id.strip(),
-                                'image': image.strip(),
-                                'status': 'Running',
-                                'log_file': None,
-                                'source': 'docker_cli'
-                            })
-                            debug_info.append(f"Added container from Docker CLI: {name.strip()}")
-            else:
-                debug_info.append(f"Docker CLI failed: {result.stderr}")
-        except Exception as e:
-            debug_info.append(f"Error with Docker CLI: {e}")
+            # Also add stderr
+            stderr_container = {
+                'name': f"{hostname}_stderr",
+                'id': hostname,
+                'image': 'Current Container (stderr)',
+                'status': 'Running',
+                'log_file': '/proc/1/fd/2',  # Container stderr
+                'source': 'current_stderr'
+            }
+            containers.append(stderr_container)
+            debug_info.append(f"Added current container stderr: {hostname}_stderr")
+        
+        # Add system log sources
+        system_logs = [
+            ('/var/log/syslog', 'system_syslog'),
+            ('/var/log/messages', 'system_messages'),
+            ('/var/log/dmesg', 'system_dmesg'),
+            ('/proc/loadavg', 'system_loadavg'),
+            ('/proc/meminfo', 'system_meminfo'),
+            ('/proc/cpuinfo', 'system_cpuinfo'),
+        ]
+        
+        for log_path, name in system_logs:
+            if os.path.exists(log_path):
+                containers.append({
+                    'name': name,
+                    'id': name,
+                    'image': 'System Log',
+                    'status': 'Available',
+                    'log_file': log_path,
+                    'source': 'system'
+                })
+                debug_info.append(f"Added system log: {name} -> {log_path}")
+        
+        # Add application logs if available
+        app_logs = [
+            ('/app/debug.log', 'app_debug'),
+            ('/app/logs/app.log', 'app_logs'),
+            ('/var/log/nginx/access.log', 'nginx_access'),
+            ('/var/log/nginx/error.log', 'nginx_error'),
+        ]
+        
+        for log_path, name in app_logs:
+            if os.path.exists(log_path):
+                containers.append({
+                    'name': name,
+                    'id': name,
+                    'image': 'Application Log',
+                    'status': 'Available',
+                    'log_file': log_path,
+                    'source': 'application'
+                })
+                debug_info.append(f"Added application log: {name} -> {log_path}")
         
         # Add current container info if not already present
         hostname = os.environ.get('HOSTNAME', '')
