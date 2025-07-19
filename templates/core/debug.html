@@ -178,12 +178,81 @@
     margin-top: 5px;
 }
 
+/* Enhanced Logging Styles */
+.log-source-tabs {
+    margin-bottom: 20px;
+}
+
+.log-source-tabs .nav-tabs {
+    border-bottom: 1px solid var(--bs-secondary);
+}
+
+.log-source-tabs .nav-link {
+    color: var(--bs-light);
+    background: var(--bs-dark);
+    border: 1px solid var(--bs-secondary);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    padding: 10px 20px;
+    margin-right: 5px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.log-source-tabs .nav-link:hover {
+    background: var(--bs-secondary);
+    color: var(--bs-light);
+    border-color: var(--bs-secondary);
+}
+
+.log-source-tabs .nav-link.active {
+    background: var(--bs-primary);
+    color: white;
+    border-color: var(--bs-primary);
+}
+
+.tab-content {
+    background: var(--bs-dark);
+    border: 1px solid var(--bs-secondary);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    padding: 20px;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.show {
+    display: block;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
 /* Docker Logs Styles */
 .docker-logs-form {
     margin-bottom: 20px;
 }
 
 .docker-logs-form .form-group {
+    margin-bottom: 15px;
+}
+
+.aggregated-logs-form {
+    margin-bottom: 20px;
+}
+
+.aggregated-logs-form .form-group {
+    margin-bottom: 15px;
+}
+
+.system-logs-form {
+    margin-bottom: 20px;
+}
+
+.system-logs-form .form-group {
     margin-bottom: 15px;
 }
 
@@ -1280,13 +1349,52 @@ function formatDockerLogs(logs) {
 
 // Load containers when enhanced logging section is opened
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tabs
+    if (typeof bootstrap !== 'undefined') {
+        // Bootstrap 5
+        const tabElements = document.querySelectorAll('button[data-bs-toggle="tab"]');
+        tabElements.forEach(tab => {
+            tab.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = this.getAttribute('data-bs-target');
+                const tabContent = document.querySelector(target);
+                if (tabContent) {
+                    // Hide all tab panes
+                    document.querySelectorAll('.tab-pane').forEach(pane => {
+                        pane.classList.remove('show', 'active');
+                    });
+                    // Remove active from all tabs
+                    document.querySelectorAll('.nav-link').forEach(link => {
+                        link.classList.remove('active');
+                    });
+                    // Show target tab pane
+                    tabContent.classList.add('show', 'active');
+                    // Activate clicked tab
+                    this.classList.add('active');
+                }
+            });
+        });
+    } else {
+        // Bootstrap 4 fallback
+        $('button[data-bs-toggle="tab"]').on('click', function(e) {
+            e.preventDefault();
+            const target = $(this).data('bs-target');
+            $('.tab-pane').removeClass('show active');
+            $('.nav-link').removeClass('active');
+            $(target).addClass('show active');
+            $(this).addClass('active');
+        });
+    }
+    
     // Add event listener for enhanced logging section toggle
     const enhancedLogsHeader = document.querySelector('#enhanced-logs-body').previousElementSibling;
-    enhancedLogsHeader.addEventListener('click', function() {
-        // Load containers when section is opened
-        setTimeout(loadDockerContainers, 100);
-        setTimeout(loadMultiSelectContainers, 100);
-    });
+    if (enhancedLogsHeader) {
+        enhancedLogsHeader.addEventListener('click', function() {
+            // Load containers when section is opened
+            setTimeout(loadDockerContainers, 100);
+            setTimeout(loadMultiSelectContainers, 100);
+        });
+    }
 });
 
 // Enhanced Logging Functions
@@ -1423,5 +1531,42 @@ function loadSystemLogs() {
         `;
     });
 }
+
+// Manual tab switching function
+function switchTab(tabName) {
+    // Hide all tab panes
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('show', 'active');
+    });
+    
+    // Remove active from all tabs
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.classList.remove('active');
+    });
+    
+    // Show target tab pane
+    const targetPane = document.getElementById(tabName);
+    if (targetPane) {
+        targetPane.classList.add('show', 'active');
+    }
+    
+    // Activate clicked tab
+    const activeTab = document.querySelector(`[data-bs-target="#${tabName}"]`);
+    if (activeTab) {
+        activeTab.classList.add('active');
+    }
+}
+
+// Add click handlers for manual tab switching
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click handlers for tab buttons
+    document.querySelectorAll('[data-bs-target]').forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = this.getAttribute('data-bs-target').replace('#', '');
+            switchTab(target);
+        });
+    });
+});
 </script>
 {% endblock %} 
