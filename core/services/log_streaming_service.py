@@ -9,6 +9,7 @@ import glob
 import time
 import threading
 import asyncio
+import subprocess
 from typing import Dict, List, Any, Optional, Callable
 from datetime import datetime, timedelta
 from django.conf import settings
@@ -48,27 +49,70 @@ class LogStreamingService:
     
     def get_available_containers(self) -> List[Dict[str, Any]]:
         """
-        Get list of available containers by scanning log files.
+        Get list of available containers by scanning log files and Docker API.
         
         Returns:
             List of container information
         """
         containers = []
         
-        # Scan Docker log directories
+        # Try to get containers from Docker API first
+        try:
+            from .docker_logs_service import DockerLogsService
+            docker_service = DockerLogsService()
+            
+            # Try to get containers using subprocess as fallback
+            try:
+                result = subprocess.run(
+                    ['docker', 'ps', '--format', 'table {{.Names}}\t{{.ID}}\t{{.Image}}\t{{.Status}}'],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    lines = result.stdout.strip().split('\n')[1:]  # Skip header
+                    for line in lines:
+                        if line.strip():
+                            parts = line.split('\t')
+                            if len(parts) >= 4:
+                                name, container_id, image, status = parts[:4]
+                                containers.append({
+                                    'name': name.strip(),
+                                    'id': container_id.strip(),
+                                    'image': image.strip(),
+                                    'status': status.strip(),
+                                    'log_file': None,  # Will be found by scanning
+                                    'source': 'docker_cli'
+                                })
+            except Exception as e:
+                self.logger.warning(f"Error getting containers from Docker CLI: {e}")
+                
+        except Exception as e:
+            self.logger.warning(f"Error getting containers from Docker API: {e}")
+        
+        # Scan Docker log directories for log files
         for pattern in self.config.get('docker_log_paths', []):
             try:
                 log_files = glob.glob(pattern)
                 for log_file in log_files:
                     container_info = self._extract_container_info_from_log_file(log_file)
                     if container_info:
-                        containers.append(container_info)
+                        # Try to match with existing containers by ID
+                        container_id = container_info['id']
+                        for existing_container in containers:
+                            if existing_container['id'].startswith(container_id) or container_id.startswith(existing_container['id']):
+                                existing_container['log_file'] = log_file
+                                break
+                        else:
+                            # Add new container if not found
+                            containers.append(container_info)
             except Exception as e:
                 self.logger.warning(f"Error scanning log pattern {pattern}: {e}")
         
-        # Add current container info
+        # Add current container info if not already present
         hostname = os.environ.get('HOSTNAME', '')
-        if hostname:
+        if hostname and not any(c['name'] == hostname for c in containers):
             containers.insert(0, {
                 'name': hostname,
                 'id': hostname,
@@ -78,13 +122,21 @@ class LogStreamingService:
                 'source': 'current'
             })
         
-        # Remove duplicates
+        # Remove duplicates and ensure all containers have readable names
         seen = set()
         unique_containers = []
         for container in containers:
-            if container['name'] not in seen:
-                seen.add(container['name'])
-                unique_containers.append(container)
+            # Ensure container has a readable name
+            if container['name'] in seen:
+                continue
+                
+            # If name is just an ID, try to make it more readable
+            if len(container['name']) == 12 and container['name'].isalnum():
+                # This looks like a short Docker ID, try to find a better name
+                container['name'] = f"container-{container['name'][:8]}"
+            
+            seen.add(container['name'])
+            unique_containers.append(container)
         
         return unique_containers
     
@@ -312,15 +364,33 @@ class LogStreamingService:
             return f"Container '{container_name}' not found"
         
         log_file = container.get('log_file')
-        if log_file:
+        if log_file and os.path.exists(log_file):
             # Check if it's a Docker JSON log
             if log_file.endswith('-json.log'):
                 return self.read_docker_json_logs(log_file, lines)
             else:
                 return self.read_logs_from_file(log_file, lines)
         else:
-            # For current container or containers without log files
-            return f"Logs for {container_name} are not directly accessible"
+            # Try to get logs directly from Docker CLI as fallback
+            try:
+                result = subprocess.run(
+                    ['docker', 'logs', '--tail', str(lines), container_name],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if result.returncode == 0:
+                    return result.stdout
+                else:
+                    return f"Error getting logs for {container_name}: {result.stderr}"
+                    
+            except subprocess.TimeoutExpired:
+                return f"Timeout getting logs for {container_name}"
+            except FileNotFoundError:
+                return f"Docker CLI not available for {container_name}"
+            except Exception as e:
+                return f"Error getting logs for {container_name}: {str(e)}"
     
     def start_log_stream(self, user: User, containers: List[str] = None, 
                         callback: Callable = None) -> str:
