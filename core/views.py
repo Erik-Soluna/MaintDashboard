@@ -2356,7 +2356,29 @@ def debug(request):
         return redirect('core:dashboard')
     
     try:
-        context = {}
+        # Trigger log collection if requested
+        if request.GET.get('collect_logs') == 'true':
+            from .tasks import collect_docker_logs, collect_system_logs
+            
+            # Trigger both tasks
+            docker_task = collect_docker_logs.delay()
+            system_task = collect_system_logs.delay()
+            
+            # Wait a moment for tasks to complete
+            import time
+            time.sleep(2)
+        
+        # Get available containers for log streaming
+        from .services.log_streaming_service import LogStreamingService
+        log_service = LogStreamingService()
+        containers = log_service.get_available_containers()
+        
+        context = {
+            'containers': containers,
+            'docker_logs_enabled': getattr(settings, 'DOCKER_LOGS_ENABLED', False),
+            'docker_logs_debug_only': getattr(settings, 'DOCKER_LOGS_DEBUG_ONLY', False),
+        }
+        
         return render(request, 'core/debug.html', context)
     except Exception as e:
         import traceback

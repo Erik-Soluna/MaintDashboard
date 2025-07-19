@@ -5,6 +5,8 @@ import json
 import requests
 import subprocess
 import os
+import time
+from datetime import datetime, timedelta
 from .models import PlaywrightDebugLog, PortainerConfig
 from django.utils import timezone
 from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite
@@ -265,3 +267,202 @@ def auto_update_portainer_stack():
     except Exception as e:
         logger.error(f"Unexpected error in auto-update: {str(e)}")
         return {'status': 'error', 'message': f'Error: {str(e)}'}
+
+@shared_task
+def collect_docker_logs():
+    """
+    Collect Docker logs from all containers and write them to files.
+    This task runs periodically to maintain log files that can be read by the web interface.
+    """
+    try:
+        # Create logs directory if it doesn't exist
+        logs_dir = '/app/logs'
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        # Get list of containers using docker ps
+        try:
+            result = subprocess.run(
+                ['docker', 'ps', '--format', '{{.Names}}\t{{.ID}}\t{{.Image}}'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode != 0:
+                logger.warning(f"Docker ps failed: {result.stderr}")
+                return {'status': 'error', 'message': 'Docker ps failed'}
+            
+            containers = []
+            for line in result.stdout.strip().split('\n'):
+                if line.strip():
+                    parts = line.split('\t')
+                    if len(parts) >= 3:
+                        containers.append({
+                            'name': parts[0].strip(),
+                            'id': parts[1].strip(),
+                            'image': parts[2].strip()
+                        })
+            
+            logger.info(f"Found {len(containers)} containers")
+            
+        except subprocess.TimeoutExpired:
+            logger.error("Docker ps command timed out")
+            return {'status': 'error', 'message': 'Docker ps timed out'}
+        except FileNotFoundError:
+            logger.error("Docker CLI not available")
+            return {'status': 'error', 'message': 'Docker CLI not available'}
+        
+        # Collect logs for each container
+        collected_logs = {}
+        for container in containers:
+            try:
+                # Get logs for this container
+                log_result = subprocess.run(
+                    ['docker', 'logs', '--tail', '100', container['name']],
+                    capture_output=True,
+                    text=True,
+                    timeout=15
+                )
+                
+                if log_result.returncode == 0:
+                    # Write logs to file
+                    log_file = os.path.join(logs_dir, f"{container['name']}.log")
+                    with open(log_file, 'w', encoding='utf-8') as f:
+                        f.write(f"# Container: {container['name']}\n")
+                        f.write(f"# Image: {container['image']}\n")
+                        f.write(f"# ID: {container['id']}\n")
+                        f.write(f"# Collected at: {datetime.now().isoformat()}\n")
+                        f.write("#" * 80 + "\n")
+                        f.write(log_result.stdout)
+                    
+                    collected_logs[container['name']] = {
+                        'status': 'success',
+                        'lines': len(log_result.stdout.split('\n')),
+                        'file': log_file
+                    }
+                    logger.info(f"Collected logs for {container['name']}: {len(log_result.stdout.split('\n'))} lines")
+                else:
+                    collected_logs[container['name']] = {
+                        'status': 'error',
+                        'error': log_result.stderr
+                    }
+                    logger.warning(f"Failed to get logs for {container['name']}: {log_result.stderr}")
+                    
+            except subprocess.TimeoutExpired:
+                collected_logs[container['name']] = {
+                    'status': 'error',
+                    'error': 'Timeout getting logs'
+                }
+                logger.warning(f"Timeout getting logs for {container['name']}")
+            except Exception as e:
+                collected_logs[container['name']] = {
+                    'status': 'error',
+                    'error': str(e)
+                }
+                logger.error(f"Error getting logs for {container['name']}: {e}")
+        
+        # Write summary file
+        summary_file = os.path.join(logs_dir, 'collection_summary.json')
+        summary = {
+            'timestamp': datetime.now().isoformat(),
+            'containers_processed': len(containers),
+            'containers_successful': len([c for c in collected_logs.values() if c['status'] == 'success']),
+            'containers_failed': len([c for c in collected_logs.values() if c['status'] == 'error']),
+            'results': collected_logs
+        }
+        
+        with open(summary_file, 'w', encoding='utf-8') as f:
+            json.dump(summary, f, indent=2)
+        
+        logger.info(f"Docker logs collection completed: {summary['containers_successful']} successful, {summary['containers_failed']} failed")
+        
+        return {
+            'status': 'success',
+            'message': f'Collected logs for {summary["containers_successful"]} containers',
+            'summary': summary
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in collect_docker_logs task: {e}")
+        return {'status': 'error', 'message': str(e)}
+
+@shared_task
+def collect_system_logs():
+    """
+    Collect system logs and write them to files.
+    """
+    try:
+        logs_dir = '/app/logs'
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        system_logs = {}
+        
+        # Common system log paths
+        log_paths = [
+            '/var/log/syslog',
+            '/var/log/messages',
+            '/var/log/dmesg',
+            '/proc/1/fd/1',  # Docker container stdout
+            '/proc/1/fd/2',  # Docker container stderr
+        ]
+        
+        for log_path in log_paths:
+            try:
+                if os.path.exists(log_path):
+                    with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+                        content = f.read()
+                        
+                    # Write to our logs directory
+                    filename = os.path.basename(log_path)
+                    if filename == 'fd':
+                        filename = f"container_{log_path.split('/')[-1]}.log"
+                    
+                    log_file = os.path.join(logs_dir, f"system_{filename}")
+                    with open(log_file, 'w', encoding='utf-8') as f:
+                        f.write(f"# System Log: {log_path}\n")
+                        f.write(f"# Collected at: {datetime.now().isoformat()}\n")
+                        f.write("#" * 80 + "\n")
+                        f.write(content)
+                    
+                    system_logs[log_path] = {
+                        'status': 'success',
+                        'lines': len(content.split('\n')),
+                        'file': log_file
+                    }
+                else:
+                    system_logs[log_path] = {
+                        'status': 'not_found',
+                        'error': 'File does not exist'
+                    }
+                    
+            except Exception as e:
+                system_logs[log_path] = {
+                    'status': 'error',
+                    'error': str(e)
+                }
+                logger.warning(f"Error reading system log {log_path}: {e}")
+        
+        # Write system logs summary
+        summary_file = os.path.join(logs_dir, 'system_logs_summary.json')
+        summary = {
+            'timestamp': datetime.now().isoformat(),
+            'logs_processed': len(log_paths),
+            'logs_successful': len([l for l in system_logs.values() if l['status'] == 'success']),
+            'logs_failed': len([l for l in system_logs.values() if l['status'] == 'error']),
+            'results': system_logs
+        }
+        
+        with open(summary_file, 'w', encoding='utf-8') as f:
+            json.dump(summary, f, indent=2)
+        
+        logger.info(f"System logs collection completed: {summary['logs_successful']} successful, {summary['logs_failed']} failed")
+        
+        return {
+            'status': 'success',
+            'message': f'Collected {summary["logs_successful"]} system logs',
+            'summary': summary
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in collect_system_logs task: {e}")
+        return {'status': 'error', 'message': str(e)}
