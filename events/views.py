@@ -288,6 +288,11 @@ def calendar_view(request):
     # Get activity types for the dropdown (replacing event types)
     try:
         from maintenance.models import MaintenanceActivityType
+        from core.utils import ensure_default_activity_types
+        
+        # Ensure default activity types exist
+        ensure_default_activity_types()
+        
         activity_types = MaintenanceActivityType.objects.filter(is_active=True).order_by('category__sort_order', 'category__name', 'name')
         event_types = []
         
@@ -1115,6 +1120,11 @@ def get_form_data(request):
         # Get activity types for the dropdown (replacing event types)
         try:
             from maintenance.models import MaintenanceActivityType
+            from core.utils import ensure_default_activity_types
+            
+            # Ensure default activity types exist
+            ensure_default_activity_types()
+            
             activity_types = MaintenanceActivityType.objects.filter(is_active=True).order_by('category__sort_order', 'category__name', 'name')
             event_types = []
             
