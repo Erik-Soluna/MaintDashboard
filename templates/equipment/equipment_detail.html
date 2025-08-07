@@ -215,17 +215,15 @@
                                             {% for field in fields %}
                                             <div class="col-md-6 mb-2">
                                                 <strong>{{ field.label }}:</strong>
-                                                {% with field_name=field.name %}
                                                 {% if field.field_type == 'boolean' %}
-                                                    {% if equipment.get_custom_value field_name == 'Yes' %}
+                                                    {% if equipment.get_custom_value field.name == 'Yes' %}
                                                         <span class="badge badge-success">Yes</span>
                                                     {% else %}
                                                         <span class="badge badge-secondary">No</span>
                                                     {% endif %}
                                                 {% else %}
-                                                    <span>{{ equipment.get_custom_value field_name|default:"Not specified" }}</span>
+                                                    <span>{{ equipment.get_custom_value field.name|default:"Not specified" }}</span>
                                                 {% endif %}
-                                                {% endwith %}
                                             </div>
                                             {% endfor %}
                                         </div>
