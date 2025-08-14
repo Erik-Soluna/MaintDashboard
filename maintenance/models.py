@@ -256,16 +256,22 @@ class MaintenanceActivity(TimeStampedModel):
             self.status = 'overdue'
 
     def save(self, *args, **kwargs):
-        # Convert naive datetimes to aware before saving
-        self.scheduled_start = self._make_aware(self.scheduled_start)
-        self.scheduled_end = self._make_aware(self.scheduled_end)
-        self.actual_start = self._make_aware(self.actual_start)
-        self.actual_end = self._make_aware(self.actual_end)
-        # Auto-calculate next due date if completed
-        if self.status == 'completed' and self.actual_end and not self.next_due_date:
-            self.next_due_date = (
-                self.actual_end.date() + timedelta(days=self.activity_type.frequency_days)
-            )
+        """Override save to ensure timezone awareness."""
+        # Fix naive datetime fields before saving
+        from django.utils import timezone
+        
+        if self.scheduled_start and timezone.is_naive(self.scheduled_start):
+            self.scheduled_start = timezone.make_aware(self.scheduled_start)
+        
+        if self.scheduled_end and timezone.is_naive(self.scheduled_end):
+            self.scheduled_end = timezone.make_aware(self.scheduled_end)
+        
+        if self.actual_start and timezone.is_naive(self.actual_start):
+            self.actual_start = timezone.make_aware(self.actual_start)
+        
+        if self.actual_end and timezone.is_naive(self.actual_end):
+            self.actual_end = timezone.make_aware(self.actual_end)
+        
         super().save(*args, **kwargs)
 
     def get_duration(self):

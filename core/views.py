@@ -2101,25 +2101,60 @@ def health_check(request):
 def simple_health_check(request):
     """Simple health check endpoint for Docker health checks - returns 200 OK."""
     try:
-        # Basic database connection check
+        # Basic database connection check with timeout
         from django.db import connection
-        connection.ensure_connection()
+        from django.db.utils import OperationalError
+        import time
+        
+        start_time = time.time()
+        
+        # Quick database ping
+        try:
+            connection.ensure_connection()
+            db_time = time.time() - start_time
+            logger.debug(f"Database health check completed in {db_time:.3f}s")
+        except OperationalError as db_error:
+            logger.error(f"Database health check failed: {db_error}")
+            return JsonResponse({'status': 'error', 'message': 'Database connection failed'}, status=500)
         
         # Basic Redis check (only if enabled and Redis is available)
         from django.conf import settings
+        redis_status = "disabled"
         if getattr(settings, 'USE_REDIS', True):
             try:
-                r = redis.Redis.from_url(settings.REDIS_URL, socket_connect_timeout=2, socket_timeout=2)
+                import redis
+                r = redis.Redis.from_url(
+                    getattr(settings, 'REDIS_URL', 'redis://redis:6379'), 
+                    socket_connect_timeout=1, 
+                    socket_timeout=1
+                )
                 r.ping()
+                redis_status = "healthy"
+                logger.debug("Redis health check completed successfully")
             except Exception as redis_error:
                 # Log the Redis error but don't fail the health check
-                logger.warning(f"Redis connection failed: {redis_error}. Falling back to memory broker.")
-                # Continue with health check - Redis failure shouldn't break the app
+                logger.warning(f"Redis connection failed: {redis_error}. Health check continuing...")
+                redis_status = "unavailable"
         
-        return JsonResponse({'status': 'ok'}, status=200)
+        # Return success response
+        response_data = {
+            'status': 'ok',
+            'timestamp': time.time(),
+            'database': 'healthy',
+            'redis': redis_status,
+            'response_time': time.time() - start_time
+        }
+        
+        logger.debug(f"Health check completed successfully in {response_data['response_time']:.3f}s")
+        return JsonResponse(response_data, status=200)
+        
     except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+        logger.error(f"Health check failed: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'status': 'error', 
+            'message': str(e),
+            'timestamp': time.time()
+        }, status=500)
 
 
 @require_POST

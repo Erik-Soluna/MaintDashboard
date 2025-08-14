@@ -106,11 +106,11 @@ services:
       - "traefik.http.services.maintenance-web.loadbalancer.server.port=8000"
       - "traefik.docker.network=proxy-network"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/core/health/simple/", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "--max-time", "5", "--retry", "2", "http://localhost:8000/core/health/simple/"]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
     restart: unless-stopped
     deploy:
       resources:
