@@ -183,7 +183,7 @@ LOGGING = {
     'handlers': {
         'file': {
             'level': 'INFO',
-            'class': 'logging.FileHandler',
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': BASE_DIR / 'debug.log',
             'formatter': 'detailed',
             'maxBytes': 10485760,  # 10MB
@@ -196,7 +196,7 @@ LOGGING = {
         },
         'error_file': {
             'level': 'ERROR',
-            'class': 'logging.FileHandler',
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': BASE_DIR / 'error.log',
             'formatter': 'detailed',
             'maxBytes': 10485760,  # 10MB
@@ -204,7 +204,7 @@ LOGGING = {
         },
         'security_file': {
             'level': 'WARNING',
-            'class': 'logging.FileHandler',
+            'class': 'logging.handlers.RotatingFileHandler',
             'filename': BASE_DIR / 'security.log',
             'formatter': 'detailed',
             'maxBytes': 10485760,  # 10MB
@@ -258,6 +258,43 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# Fallback logging configuration if the main one fails
+FALLBACK_LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'formatters': {
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
+
+# Try to configure logging, fall back to simple configuration if it fails
+try:
+    import logging.config
+    logging.config.dictConfig(LOGGING)
+except Exception as e:
+    print(f"Warning: Failed to configure advanced logging: {e}")
+    print("Falling back to simple console logging...")
+    try:
+        logging.config.dictConfig(FALLBACK_LOGGING)
+    except Exception as fallback_error:
+        print(f"Warning: Failed to configure fallback logging: {fallback_error}")
+        # Use basic logging as last resort
+        logging.basicConfig(level=logging.INFO)
 
 # Nginx Proxy Manager / Reverse Proxy Settings
 USE_X_FORWARDED_HOST = config('USE_X_FORWARDED_HOST', default=True, cast=bool)
