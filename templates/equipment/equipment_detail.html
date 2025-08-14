@@ -201,6 +201,7 @@
                         {% endif %}
                         
                         <!-- Custom Fields -->
+                        {% load equipment_filters %}
                         {% if custom_fields_by_group %}
                         <div class="row mt-4">
                             <div class="col-12">
@@ -216,13 +217,13 @@
                                             <div class="col-md-6 mb-2">
                                                 <strong>{{ field.label }}:</strong>
                                                 {% if field.field_type == 'boolean' %}
-                                                    {% if equipment.get_custom_value field.name == 'Yes' %}
+                                                    {% if equipment|get_custom_value:field.name == 'Yes' %}
                                                         <span class="badge badge-success">Yes</span>
                                                     {% else %}
                                                         <span class="badge badge-secondary">No</span>
                                                     {% endif %}
                                                 {% else %}
-                                                    <span>{{ equipment.get_custom_value field.name|default:"Not specified" }}</span>
+                                                    <span>{{ equipment|get_custom_value:field.name|default:"Not specified" }}</span>
                                                 {% endif %}
                                             </div>
                                             {% endfor %}
@@ -232,7 +233,6 @@
                                 {% endfor %}
                             </div>
                         </div>
-                        {% endif %}
                         {% endif %}
                         
                         {% if equipment.warranty_details %}

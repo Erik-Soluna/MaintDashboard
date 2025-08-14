@@ -160,3 +160,5 @@ debug.log
 health_failures.log
 *.bak
 *.tmp playwright/screenshots/
+
+.config/

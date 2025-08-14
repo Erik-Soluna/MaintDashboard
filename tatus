@@ -1,0 +1,5 @@
+[33mf0d5b77[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mlatest[m[33m, [m[1;31morigin/latest[m[33m)[m feat: implement alternative log sources without Docker socket access
+[33m895df74[m feat: implement direct log collection without Celery to bypass Redis issues
+[33m29fc758[m fix: resolve Redis URL configuration to prevent double /0 suffix
+[33mbb6e34b[m fix: resolve f-string syntax error with backslash
+[33m21c26d3[m feat: implement Celery-based log collection system to bypass Docker socket issues
