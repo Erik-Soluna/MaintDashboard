@@ -67,15 +67,15 @@ def run_playwright_debug(log_id):
         try:
             log.status = 'error'
             log.error_message = str(e)
-        except:
-            pass
+        except Exception as save_error:
+            logger.error(f"Failed to update log status: {save_error}")
     
     finally:
         try:
             log.finished_at = timezone.now()
             log.save()
-        except:
-            pass
+        except Exception as save_error:
+            logger.error(f"Failed to save log finished time: {save_error}")
 
 @shared_task
 def run_rbac_test_suite_task():

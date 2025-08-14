@@ -29,6 +29,7 @@ except ImportError:
 
 from .models import Equipment, EquipmentDocument, EquipmentComponent
 from core.models import EquipmentCategory, Location
+from core.logging_utils import log_error, log_view_access, log_api_call
 from maintenance.models import MaintenanceReport
 from .forms import EquipmentForm, DynamicEquipmentForm, EquipmentComponentForm, EquipmentDocumentForm
 
@@ -122,6 +123,7 @@ def create_default_maintenance_schedules(equipment, user):
 @login_required
 def equipment_list(request):
     """List all equipment with filtering and search."""
+    log_view_access('equipment_list', request, request.user)
     queryset = Equipment.objects.select_related('category', 'location').all()
     
     # Filter by selected site (from session or URL parameter)
@@ -136,7 +138,9 @@ def equipment_list(request):
                 Q(location__parent_location=selected_site) | Q(location=selected_site)
             )
         except Location.DoesNotExist:
-            pass
+            logger.warning(f"Selected site with ID {selected_site_id} not found")
+        except Exception as e:
+            log_error(e, f"filtering equipment by site {selected_site_id}", request=request)
     
     # Search functionality
     search_term = request.GET.get('search', '')
@@ -206,7 +210,9 @@ def manage_equipment(request):
                 Q(location__parent_location=selected_site) | Q(location=selected_site)
             )
         except Location.DoesNotExist:
-            pass
+            logger.warning(f"Selected site with ID {selected_site_id} not found")
+        except Exception as e:
+            log_error(e, f"filtering equipment by site {selected_site_id}", request=request)
     
     equipment_list = equipment_queryset
     
@@ -241,6 +247,7 @@ def manage_equipment(request):
 @login_required
 def equipment_detail(request, equipment_id):
     """Display detailed information for specific equipment."""
+    log_view_access('equipment_detail', request, request.user)
     equipment = get_object_or_404(
         Equipment.objects.select_related('category', 'location'),
         id=equipment_id

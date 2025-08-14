@@ -166,19 +166,95 @@ CRISPY_TEMPLATE_PACK = "bootstrap4"
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+        'detailed': {
+            'format': '{levelname} {asctime} {name} {funcName}:{lineno} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
             'filename': BASE_DIR / 'debug.log',
+            'formatter': 'detailed',
+            'maxBytes': 10485760,  # 10MB
+            'backupCount': 5,
         },
         'console': {
             'level': 'INFO',
             'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'error_file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'error.log',
+            'formatter': 'detailed',
+            'maxBytes': 10485760,  # 10MB
+            'backupCount': 5,
+        },
+        'security_file': {
+            'level': 'WARNING',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'security.log',
+            'formatter': 'detailed',
+            'maxBytes': 10485760,  # 10MB
+            'backupCount': 5,
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['security_file', 'console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'core': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'equipment': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'maintenance': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'events': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'celery': {
+            'handlers': ['console', 'file', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
         },
     },
     'root': {
-        'handlers': ['console', 'file'],
+        'handlers': ['console', 'file', 'error_file'],
         'level': 'INFO',
     },
 }
@@ -284,7 +360,9 @@ def get_cache_config():
                 }
             }, 'django.contrib.sessions.backends.cache'
         except Exception as e:
-            print(f"Redis connection failed: {e}. Falling back to database cache.")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Redis connection failed: {e}. Falling back to database cache.")
     
     # Use database cache as fallback
     try:
@@ -296,7 +374,9 @@ def get_cache_config():
             }
         }, 'django.contrib.sessions.backends.db'
     except Exception as e:
-        print(f"Database cache failed: {e}. Falling back to dummy cache.")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Database cache failed: {e}. Falling back to dummy cache.")
         return {
             'default': {
                 'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
