@@ -491,7 +491,7 @@
         <div class="modal-dialog modal-lg">
             <div class="modal-content" style="background-color: #1a2238; border: 1px solid #2d3748;">
                 <div class="modal-header" style="border-bottom: 1px solid #2d3748;">
-                    <h5 class="modal-title text-white" id="maintenanceDetailsModalLabel">Maintenance Activity Details</h5>
+                    <h5 class="modal-title text-white" id="maintenanceDetailsModalLabel">Activity Details</h5>
                     <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
@@ -645,6 +645,11 @@ function initializeCalendar() {
                     var actualActivityId = eventId.replace('activity_', '');
                     console.log('Detected maintenance activity, opening modal for ID:', actualActivityId);
                     openMaintenanceDetailsModal(actualActivityId);
+                } else if (eventId.startsWith('event_')) {
+                    // This is a calendar event, show maintenance details if available
+                    var actualEventId = eventId.replace('event_', '');
+                    console.log('Calendar event clicked, showing maintenance details for event ID:', actualEventId);
+                    openEventMaintenanceDetails(actualEventId);
                 } else {
                     console.log('Could not determine event type, treating as calendar event');
                     openEditEventModal(eventId);
@@ -999,6 +1004,9 @@ function openMaintenanceDetailsModal(activityId) {
         </div>
     `;
     
+    // Update modal title
+    document.getElementById('maintenanceDetailsModalLabel').textContent = 'Maintenance Activity Details';
+    
     // Show modal
     $('#maintenanceDetailsModal').modal('show');
     
@@ -1161,6 +1169,118 @@ function displayMaintenanceDetails(activity) {
             </div>
         </div>
         ` : ''}
+    `;
+}
+
+// Function to display calendar event details when no maintenance activity is linked
+function displayCalendarEventDetails(event) {
+    const content = document.getElementById('maintenanceDetailsContent');
+    const viewDetailsBtn = document.getElementById('viewMaintenanceDetailsBtn');
+    const editMaintenanceBtn = document.getElementById('editMaintenanceBtn');
+    const completeMaintenanceBtn = document.getElementById('completeMaintenanceBtn');
+    
+    // Hide action buttons for calendar events
+    editMaintenanceBtn.style.display = 'none';
+    completeMaintenanceBtn.style.display = 'none';
+    
+    // Show the "View Full Details" button
+    viewDetailsBtn.style.display = 'inline-block';
+    viewDetailsBtn.onclick = function() {
+        window.open(`/events/${event.id}/`, '_blank');
+    };
+    
+    // Create the details HTML for calendar events
+    const priorityBadge = getPriorityBadge(event.priority);
+    
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-8">
+                <h6 class="text-white mb-3">${event.title}</h6>
+                <div class="mb-3">
+                    <span class="badge badge-info me-2">Calendar Event</span>
+                    <span class="badge ${priorityBadge.class}">${priorityBadge.text}</span>
+                </div>
+                ${event.description ? `<p class="text-light mb-3">${event.description}</p>` : ''}
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-dark border-secondary">
+                    <div class="card-body">
+                        <h6 class="text-white">Quick Info</h6>
+                        <div class="mb-2">
+                            <small class="text-muted">Equipment:</small><br>
+                            <span class="text-white">${event.equipment.name || 'N/A'}</span>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Location:</small><br>
+                            <span class="text-white">${event.equipment.location ? event.equipment.location.name : 'N/A'}</span>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Assigned To:</small><br>
+                            <span class="text-white">${event.assigned_to ? event.assigned_to.get_full_name() : 'Unassigned'}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <div class="card bg-dark border-secondary">
+                    <div class="card-body">
+                        <h6 class="text-white">Schedule</h6>
+                        <div class="mb-2">
+                            <small class="text-muted">Date:</small><br>
+                            <span class="text-white">${new Date(event.event_date).toLocaleDateString()}</span>
+                        </div>
+                        ${event.start_time ? `
+                        <div class="mb-2">
+                            <small class="text-muted">Start Time:</small><br>
+                            <span class="text-white">${event.start_time}</span>
+                        </div>
+                        ` : ''}
+                        ${event.end_time ? `
+                        <div class="mb-2">
+                            <small class="text-muted">End Time:</small><br>
+                            <span class="text-white">${event.end_time}</span>
+                        </div>
+                        ` : ''}
+                        <div class="mb-2">
+                            <small class="text-muted">All Day:</small><br>
+                            <span class="text-white">${event.all_day ? 'Yes' : 'No'}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-dark border-secondary">
+                    <div class="card-body">
+                        <h6 class="text-white">Event Details</h6>
+                        <div class="mb-2">
+                            <small class="text-muted">Type:</small><br>
+                            <span class="text-white">${event.get_event_type_display ? event.get_event_type_display() : event.event_type}</span>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Created:</small><br>
+                            <span class="text-white">${new Date(event.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Status:</small><br>
+                            <span class="text-white">${event.is_completed ? 'Completed' : 'Active'}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Note:</strong> This calendar event is not yet linked to a maintenance activity. 
+                    You can edit the event to create a corresponding maintenance activity.
+                </div>
+            </div>
+        </div>
     `;
 }
 
@@ -1489,6 +1609,47 @@ function toggleDebugPanel() {
 function openCreateMaintenanceModal() {
     // Redirect to the maintenance add page
     window.open('/maintenance/activities/add/', '_blank');
+}
+
+// Function to show maintenance details for calendar events
+function openEventMaintenanceDetails(eventId) {
+    // Show loading state
+    const content = document.getElementById('maintenanceDetailsContent');
+    content.innerHTML = `
+        <div class="text-center py-4">
+            <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
+            <p class="text-muted mt-2">Loading event details...</p>
+        </div>
+    `;
+    
+    // Update modal title
+    document.getElementById('maintenanceDetailsModalLabel').textContent = 'Calendar Event Details';
+    
+    // Show modal
+    $('#maintenanceDetailsModal').modal('show');
+    
+    // Load calendar event data and its linked maintenance activity
+    fetch(`{% url "events:get_event" event_id=0 %}`.replace('0', eventId))
+        .then(response => response.json())
+        .then(eventData => {
+            if (eventData.maintenance_activity) {
+                // If there's a linked maintenance activity, show its details
+                displayMaintenanceDetails(eventData.maintenance_activity);
+            } else {
+                // Show calendar event details with option to create maintenance activity
+                displayCalendarEventDetails(eventData);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading event data:', error);
+            content.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                    <p class="text-warning mt-2">Error loading event details</p>
+                    <small class="text-muted">${error.message}</small>
+                </div>
+            `;
+        });
 }
 
 // Function to complete a maintenance activity
