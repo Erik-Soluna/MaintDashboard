@@ -659,6 +659,10 @@ function initializeCalendar() {
                     site_id: document.getElementById('siteSelector').value,
                     event_type: document.getElementById('eventTypeFilter').value
                 };
+                
+                // Debug logging for filter parameters
+                console.log('Calendar filter parameters:', params);
+                
                 return params;
             },
             failure: function(errorObj) {
@@ -778,13 +782,70 @@ function initializeCalendar() {
     calendar.render();
     window.calendar = calendar;
     updateActiveFilters();
+    
+    // Apply initial filtering after a short delay to ensure events are loaded
+    setTimeout(() => {
+        applyClientSideFiltering();
+    }, 1000);
 }
 
 function updateCalendar() {
     if (window.calendar) {
+        // First try to refetch events with new filters
         window.calendar.refetchEvents();
+        
+        // Also apply client-side filtering as a fallback
+        setTimeout(() => {
+            applyClientSideFiltering();
+        }, 500); // Small delay to ensure events are loaded
     }
     updateActiveFilters();
+}
+
+function applyClientSideFiltering() {
+    if (!window.calendar) return;
+    
+    const eventTypeFilter = document.getElementById('eventTypeFilter').value;
+    const equipmentFilter = document.getElementById('equipmentFilter').value;
+    
+    console.log('Applying client-side filtering:', { eventTypeFilter, equipmentFilter });
+    
+    const events = window.calendar.getEvents();
+    events.forEach(event => {
+        let shouldShow = true;
+        
+        // Filter by event type
+        if (eventTypeFilter) {
+            if (eventTypeFilter.startsWith('activity_')) {
+                // This is a maintenance activity type filter
+                const activityTypeId = eventTypeFilter.replace('activity_', '');
+                if (event.extendedProps?.type !== 'maintenance' || 
+                    !event.extendedProps?.activity_type_id || 
+                    event.extendedProps.activity_type_id.toString() !== activityTypeId) {
+                    shouldShow = false;
+                }
+            } else {
+                // This is a regular event type filter
+                if (event.extendedProps?.type !== 'event' || 
+                    event.extendedProps?.event_type !== eventTypeFilter) {
+                    shouldShow = false;
+                }
+            }
+        }
+        
+        // Filter by equipment
+        if (equipmentFilter && event.extendedProps?.equipment_id && 
+            event.extendedProps.equipment_id.toString() !== equipmentFilter) {
+            shouldShow = false;
+        }
+        
+        // Apply visibility
+        if (shouldShow) {
+            event.setProp('display', 'auto');
+        } else {
+            event.setProp('display', 'none');
+        }
+    });
 }
 
 function handleSiteChange(siteId) {
@@ -800,6 +861,15 @@ function handleSiteChange(siteId) {
 function clearFilters() {
     document.getElementById('eventTypeFilter').value = '';
     document.getElementById('equipmentFilter').value = '';
+    
+    // Clear client-side filtering
+    if (window.calendar) {
+        const events = window.calendar.getEvents();
+        events.forEach(event => {
+            event.setProp('display', 'auto');
+        });
+    }
+    
     updateCalendar();
 }
 
