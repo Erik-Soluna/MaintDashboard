@@ -1045,7 +1045,7 @@ function displayMaintenanceDetails(activity) {
     };
     
     // Show/hide action buttons based on status
-    if (activity.status === 'scheduled' || activity.status === 'pending') {
+    if (activity.status === 'Scheduled' || activity.status === 'Pending') {
         editMaintenanceBtn.style.display = 'inline-block';
         editMaintenanceBtn.onclick = function() {
             window.open(`/maintenance/activities/${activity.id}/edit/`, '_blank');
@@ -1054,7 +1054,7 @@ function displayMaintenanceDetails(activity) {
         editMaintenanceBtn.style.display = 'none';
     }
     
-    if (activity.status === 'in_progress') {
+    if (activity.status === 'In Progress') {
         completeMaintenanceBtn.style.display = 'inline-block';
         completeMaintenanceBtn.onclick = function() {
             if (confirm('Mark this maintenance activity as complete?')) {
@@ -1085,15 +1085,15 @@ function displayMaintenanceDetails(activity) {
                         <h6 class="text-white">Quick Info</h6>
                         <div class="mb-2">
                             <small class="text-muted">Equipment:</small><br>
-                            <span class="text-white">${activity.equipment_name || 'N/A'}</span>
+                            <span class="text-white">${activity.equipment ? activity.equipment.name : 'N/A'}</span>
                         </div>
                         <div class="mb-2">
-                            <small class="text-muted">Location:</small><br>
-                            <span class="text-white">${activity.location_name || 'N/A'}</span>
+                            <small class="text-muted">Category:</small><br>
+                            <span class="text-white">${activity.equipment && activity.equipment.category ? activity.equipment.category : 'N/A'}</span>
                         </div>
                         <div class="mb-2">
                             <small class="text-muted">Assigned To:</small><br>
-                            <span class="text-white">${activity.assigned_to_name || 'Unassigned'}</span>
+                            <span class="text-white">${activity.assigned_to || 'Unassigned'}</span>
                         </div>
                     </div>
                 </div>
@@ -1134,24 +1134,12 @@ function displayMaintenanceDetails(activity) {
                         <h6 class="text-white">Activity Type</h6>
                         <div class="mb-2">
                             <small class="text-muted">Type:</small><br>
-                            <span class="text-white">${activity.activity_type_name || 'N/A'}</span>
+                            <span class="text-white">${activity.activity_type ? activity.activity_type.name : 'N/A'}</span>
                         </div>
                         <div class="mb-2">
                             <small class="text-muted">Category:</small><br>
-                            <span class="text-white">${activity.activity_type_category || 'N/A'}</span>
+                            <span class="text-white">${activity.activity_type && activity.activity_type.category ? activity.activity_type.category : 'N/A'}</span>
                         </div>
-                        ${activity.tools_required ? `
-                        <div class="mb-2">
-                            <small class="text-muted">Tools Required:</small><br>
-                            <span class="text-white">${activity.tools_required}</span>
-                        </div>
-                        ` : ''}
-                        ${activity.parts_required ? `
-                        <div class="mb-2">
-                            <small class="text-muted">Parts Required:</small><br>
-                            <span class="text-white">${activity.parts_required}</span>
-                        </div>
-                        ` : ''}
                     </div>
                 </div>
             </div>
