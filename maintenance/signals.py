@@ -42,6 +42,7 @@ def create_or_update_calendar_event(sender, instance, created, **kwargs):
                 calendar_event.event_date = instance.scheduled_start.date() if instance.scheduled_start else timezone.now().date()
                 calendar_event.start_time = instance.scheduled_start.time() if instance.scheduled_start else None
                 calendar_event.end_time = instance.scheduled_end.time() if instance.scheduled_end else None
+                calendar_event.event_type = f'activity_{instance.activity_type.id}'
                 calendar_event.equipment = instance.equipment
                 calendar_event.assigned_to = instance.assigned_to
                 calendar_event.save()

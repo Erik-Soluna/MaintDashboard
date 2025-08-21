@@ -300,10 +300,6 @@ def calendar_view(request):
     # Get activity types for the dropdown - use only maintenance activity types
     try:
         from maintenance.models import MaintenanceActivityType
-        from core.utils import ensure_default_activity_types
-        
-        # Ensure default activity types exist
-        ensure_default_activity_types()
         
         activity_types = MaintenanceActivityType.objects.filter(is_active=True).order_by('category__sort_order', 'category__name', 'name')
         event_types = []
@@ -448,15 +444,10 @@ def event_list(request):
             # Add activity type
             event_types.append((f'activity_{activity_type.id}', activity_type.name))
         
-        # Add other event types at the end
-        event_types.append(('', '--- Other Events ---'))
-        for event_type in CalendarEvent.EVENT_TYPES:
-            if event_type[0] != 'maintenance':  # Skip maintenance since we're using activity types
-                event_types.append(event_type)
                 
     except Exception as e:
-        # Fallback to original event types if maintenance app is not available
-        event_types = list(CalendarEvent.EVENT_TYPES)
+        # Fallback to empty list if maintenance app is not available
+        event_types = []
         logger.warning(f"Could not load activity types in event_list: {str(e)}")
     
     context = {
@@ -523,10 +514,31 @@ def add_event(request):
     from django.contrib.auth.models import User
     users = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
     
+    # Get activity types for the dropdown
+    try:
+        from maintenance.models import MaintenanceActivityType
+        activity_types = MaintenanceActivityType.objects.filter(is_active=True).order_by('category__sort_order', 'category__name', 'name')
+        event_types = []
+        
+        # Group by category
+        current_category = None
+        for activity_type in activity_types:
+            if current_category != activity_type.category:
+                current_category = activity_type.category
+                # Add category header
+                event_types.append(('', f'--- {activity_type.category.name} ---'))
+            
+            # Add activity type
+            event_types.append((f'activity_{activity_type.id}', activity_type.name))
+                
+    except Exception as e:
+        event_types = []
+        logger.warning(f"Could not load activity types: {str(e)}")
+    
     context = {
         'equipment_list': equipment_list,
         'users': users,
-        'event_types': CalendarEvent.EVENT_TYPES,
+        'event_types': event_types,
         'priority_choices': CalendarEvent.PRIORITY_CHOICES,
     }
     return render(request, 'events/add_event.html', context)
@@ -599,11 +611,32 @@ def edit_event(request, event_id):
     from django.contrib.auth.models import User
     users = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
     
+    # Get activity types for the dropdown
+    try:
+        from maintenance.models import MaintenanceActivityType
+        activity_types = MaintenanceActivityType.objects.filter(is_active=True).order_by('category__sort_order', 'category__name', 'name')
+        event_types = []
+        
+        # Group by category
+        current_category = None
+        for activity_type in activity_types:
+            if current_category != activity_type.category:
+                current_category = activity_type.category
+                # Add category header
+                event_types.append(('', f'--- {activity_type.category.name} ---'))
+            
+            # Add activity type
+            event_types.append((f'activity_{activity_type.id}', activity_type.name))
+                
+    except Exception as e:
+        event_types = []
+        logger.warning(f"Could not load activity types: {str(e)}")
+    
     context = {
         'event': event,
         'equipment_list': equipment_list,
         'users': users,
-        'event_types': CalendarEvent.EVENT_TYPES,
+        'event_types': event_types,
         'priority_choices': CalendarEvent.PRIORITY_CHOICES,
     }
     return render(request, 'events/edit_event.html', context)
@@ -1158,10 +1191,6 @@ def get_form_data(request):
         # Get activity types for the dropdown (replacing event types)
         try:
             from maintenance.models import MaintenanceActivityType
-            from core.utils import ensure_default_activity_types
-            
-            # Ensure default activity types exist
-            ensure_default_activity_types()
             
             activity_types = MaintenanceActivityType.objects.filter(is_active=True).order_by('category__sort_order', 'category__name', 'name')
             event_types = []
@@ -1176,16 +1205,10 @@ def get_form_data(request):
                 
                 # Add activity type
                 event_types.append((f'activity_{activity_type.id}', activity_type.name))
-            
-            # Add other event types at the end
-            event_types.append(('', '--- Other Events ---'))
-            for event_type in CalendarEvent.EVENT_TYPES:
-                if event_type[0] != 'maintenance':  # Skip maintenance since we're using activity types
-                    event_types.append(event_type)
                     
         except Exception as e:
-            # Fallback to original event types if maintenance app is not available
-            event_types = list(CalendarEvent.EVENT_TYPES)
+            # Fallback to empty list if maintenance app is not available
+            event_types = []
             logger.warning(f"Could not load activity types in get_form_data: {str(e)}")
         
         return JsonResponse({

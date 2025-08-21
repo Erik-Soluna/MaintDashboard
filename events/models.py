@@ -31,10 +31,8 @@ class CalendarEvent(TimeStampedModel):
     title = models.CharField(max_length=200, help_text="Event title")
     description = models.TextField(blank=True, help_text="Brief event description")
     event_type = models.CharField(
-        max_length=20,
-        choices=EVENT_TYPES,
-        default='other',
-        help_text="Type of event"
+        max_length=50,
+        help_text="Type of event (format: 'activity_{id}' for maintenance activities)"
     )
     
     # Equipment association
