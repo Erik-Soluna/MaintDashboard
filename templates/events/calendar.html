@@ -1049,7 +1049,7 @@ function displayMaintenanceDetails(activity) {
     // Show the "View Full Details" button
     viewDetailsBtn.style.display = 'inline-block';
     viewDetailsBtn.onclick = function() {
-        window.open(`/maintenance/activity/${activity.id}/`, '_blank');
+        window.open(`/maintenance/activities/${activity.id}/`, '_blank');
     };
     
     // Show/hide action buttons based on status
@@ -1402,7 +1402,7 @@ function displayMaintenanceList(activities) {
                     <button class="btn btn-sm btn-outline-primary" onclick="openMaintenanceDetailsModal(${activity.id})">
                         <i class="fas fa-eye"></i> View
                     </button>
-                    <a href="/maintenance/activity/${activity.id}/" class="btn btn-sm btn-outline-info" target="_blank">
+                                         <a href="/maintenance/activities/${activity.id}/" class="btn btn-sm btn-outline-info" target="_blank">
                         <i class="fas fa-external-link-alt"></i> Details
                     </a>
                 </td>
@@ -1450,7 +1450,7 @@ function displayUnifiedList(items) {
                         <button class="btn btn-sm btn-outline-primary" onclick="openMaintenanceDetailsModal(${actualId})">
                             <i class="fas fa-eye"></i> View
                         </button>
-                        <a href="/maintenance/activity/${actualId}/" class="btn btn-sm btn-outline-info" target="_blank">
+                                                 <a href="/maintenance/activities/${actualId}/" class="btn btn-sm btn-outline-info" target="_blank">
                             <i class="fas fa-external-link-alt"></i> Details
                         </a>
                     </td>
