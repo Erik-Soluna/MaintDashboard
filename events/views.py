@@ -860,6 +860,7 @@ def fetch_unified_events(request):
                         'extendedProps': {
                             'type': 'event',
                             'equipment': event.equipment.name if event.equipment else 'No equipment',
+                            'equipment_id': event.equipment.id if event.equipment else None,
                             'location': event.equipment.location.name if event.equipment and event.equipment.location else 'No location',
                             'priority': event.priority,
                             'event_type': event.event_type,
@@ -915,8 +916,8 @@ def fetch_unified_events(request):
                 activities = activities.filter(equipment_id=equipment_filter)
             
             # Activity type filtering
-            if event_type_filter and event_type_filter.startswith('maintenance_'):
-                activity_type_id = event_type_filter.replace('maintenance_', '')
+            if event_type_filter and event_type_filter.startswith('activity_'):
+                activity_type_id = event_type_filter.replace('activity_', '')
                 activities = activities.filter(activity_type_id=activity_type_id)
             
             # Convert to FullCalendar format
@@ -951,9 +952,11 @@ def fetch_unified_events(request):
                         'extendedProps': {
                             'type': 'maintenance',
                             'equipment': activity.equipment.name if activity.equipment else 'No equipment',
+                            'equipment_id': activity.equipment.id if activity.equipment else None,
                             'location': activity.equipment.location.name if activity.equipment and activity.equipment.location else 'No location',
                             'priority': activity.priority,
                             'activity_type': activity.activity_type.name if activity.activity_type else 'N/A',
+                            'activity_type_id': activity.activity_type.id if activity.activity_type else None,
                             'assigned_to': activity.assigned_to.get_full_name() if activity.assigned_to else 'Unassigned',
                             'is_completed': activity.status == 'completed',
                             'status': activity.status,
