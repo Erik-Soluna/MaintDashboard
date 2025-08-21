@@ -1015,13 +1015,18 @@ function openMaintenanceDetailsModal(activityId) {
     
     // Load maintenance activity data
     fetch(`/maintenance/api/activity/${activityId}/`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.status === 'success') {
-                displayMaintenanceDetails(data.activity);
-            } else {
-                throw new Error(data.message || 'Failed to load maintenance details');
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            // The API returns the activity data directly
+            displayMaintenanceDetails(data);
         })
         .catch(error => {
             console.error('Error loading maintenance details:', error);
@@ -1069,8 +1074,8 @@ function displayMaintenanceDetails(activity) {
     }
     
     // Create the details HTML
-    const statusBadge = getStatusBadge(activity.status);
-    const priorityBadge = getPriorityBadge(activity.priority);
+    const statusBadge = getStatusBadge(activity.status.toLowerCase());
+    const priorityBadge = getPriorityBadge(activity.priority.toLowerCase());
     
     content.innerHTML = `
         <div class="row">
