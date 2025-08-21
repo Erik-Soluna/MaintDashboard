@@ -24,7 +24,7 @@ def create_or_update_calendar_event(sender, instance, created, **kwargs):
                 event_date=instance.scheduled_start.date() if instance.scheduled_start else timezone.now().date(),
                 start_time=instance.scheduled_start.time() if instance.scheduled_start else None,
                 end_time=instance.scheduled_end.time() if instance.scheduled_end else None,
-                event_type='maintenance',
+                event_type=f'activity_{instance.activity_type.id}',
                 equipment=instance.equipment,
                 assigned_to=instance.assigned_to,
                 created_by=instance.created_by,

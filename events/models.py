@@ -16,17 +16,9 @@ class CalendarEvent(TimeStampedModel):
     Simplified: Basic event information with links to detailed maintenance activities.
     """
     
-    EVENT_TYPES = [
-        ('maintenance', 'Maintenance Activity'),
-        ('inspection', 'Inspection'),
-        ('calibration', 'Calibration'),
-        ('outage', 'Equipment Outage'),
-        ('upgrade', 'Equipment Upgrade'),
-        ('commissioning', 'Commissioning'),
-        ('decommissioning', 'Decommissioning'),
-        ('testing', 'Testing'),
-        ('other', 'Other'),
-    ]
+    # Event types are now dynamic based on maintenance activity types
+    # The format is 'activity_{id}' where id is the MaintenanceActivityType ID
+    # This ensures consistency between calendar events and maintenance activities
     
     PRIORITY_CHOICES = [
         ('low', 'Low'),
@@ -151,7 +143,16 @@ class CalendarEvent(TimeStampedModel):
     
     def get_event_type_display(self):
         """Get event type display."""
-        return dict(self.EVENT_TYPES).get(self.event_type, self.event_type)
+        if self.event_type.startswith('activity_'):
+            # Extract activity type ID and get the name from maintenance system
+            try:
+                activity_type_id = self.event_type.replace('activity_', '')
+                from maintenance.models import MaintenanceActivityType
+                activity_type = MaintenanceActivityType.objects.get(id=activity_type_id)
+                return activity_type.name
+            except (MaintenanceActivityType.DoesNotExist, ValueError):
+                return f"Activity {activity_type_id}"
+        return self.event_type
 
 
 class EventComment(TimeStampedModel):

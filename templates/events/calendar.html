@@ -388,10 +388,13 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="eventType" class="form-label text-white">Activity Type</label>
-                                    <select class="form-control" id="eventType" name="event_type" style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
+                                    <label for="eventType" class="form-label text-white">Activity Type *</label>
+                                    <select class="form-control" id="eventType" name="event_type" required style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
+                                        <option value="">Select Activity Type</option>
                                         {% for value, label in event_types %}
-                                            <option value="{{ value }}">{{ label }}</option>
+                                            {% if value %}
+                                                <option value="{{ value }}">{{ label }}</option>
+                                            {% endif %}
                                         {% endfor %}
                                     </select>
                                 </div>

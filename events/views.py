@@ -54,31 +54,41 @@ def create_maintenance_activity_for_event(event):
             logger.info(f"Updated maintenance activity for calendar event: {event.title}")
             return existing_activity
         else:
-            # Get or create activity type based on the event type
-            default_category = ActivityTypeCategory.objects.filter(is_active=True).first()
-            if not default_category:
-                default_category = ActivityTypeCategory.objects.create(
-                    name='Calendar Events',
-                    description='Activities created from calendar events',
-                    color='#007bff',
-                    icon='fas fa-calendar',
-                    is_active=True,
-                    created_by=event.created_by
+            # Get the specific activity type based on the event type
+            if event.event_type.startswith('activity_'):
+                # Extract the activity type ID from the event type
+                activity_type_id = event.event_type.replace('activity_', '')
+                try:
+                    activity_type = MaintenanceActivityType.objects.get(id=activity_type_id, is_active=True)
+                except MaintenanceActivityType.DoesNotExist:
+                    logger.error(f"Activity type {activity_type_id} not found for event {event.id}")
+                    return None
+            else:
+                # Fallback: Get or create activity type based on the event type name
+                default_category = ActivityTypeCategory.objects.filter(is_active=True).first()
+                if not default_category:
+                    default_category = ActivityTypeCategory.objects.create(
+                        name='Calendar Events',
+                        description='Activities created from calendar events',
+                        color='#007bff',
+                        icon='fas fa-calendar',
+                        is_active=True,
+                        created_by=event.created_by
+                    )
+                
+                # Create activity type name based on event type
+                activity_type_name = event.get_event_type_display()
+                activity_type, created = MaintenanceActivityType.objects.get_or_create(
+                    name=activity_type_name,
+                    defaults={
+                        'category': default_category,
+                        'description': f'{activity_type_name} activity created from calendar event',
+                        'estimated_duration_hours': 2,
+                        'frequency_days': 365,
+                        'is_mandatory': False,
+                        'created_by': event.created_by,
+                    }
                 )
-            
-            # Create activity type name based on event type
-            activity_type_name = event.get_event_type_display()
-            activity_type, created = MaintenanceActivityType.objects.get_or_create(
-                name=activity_type_name,
-                defaults={
-                    'category': default_category,
-                    'description': f'{activity_type_name} activity created from calendar event',
-                    'estimated_duration_hours': 2,
-                    'frequency_days': 365,
-                    'is_mandatory': False,
-                    'created_by': event.created_by,
-                }
-            )
             
             # Create maintenance activity
             scheduled_start = django_timezone.make_aware(
@@ -287,7 +297,7 @@ def calendar_view(request):
             Q(location__parent_location=selected_site) | Q(location=selected_site)
         )
 
-    # Get activity types for the dropdown (replacing event types)
+    # Get activity types for the dropdown - use only maintenance activity types
     try:
         from maintenance.models import MaintenanceActivityType
         from core.utils import ensure_default_activity_types
@@ -308,16 +318,10 @@ def calendar_view(request):
             
             # Add activity type
             event_types.append((f'activity_{activity_type.id}', activity_type.name))
-        
-        # Add other event types at the end
-        event_types.append(('', '--- Other Events ---'))
-        for event_type in CalendarEvent.EVENT_TYPES:
-            if event_type[0] != 'maintenance':  # Skip maintenance since we're using activity types
-                event_types.append(event_type)
                 
     except Exception as e:
-        # Fallback to original event types if maintenance app is not available
-        event_types = list(CalendarEvent.EVENT_TYPES)
+        # Fallback to empty list if maintenance app is not available
+        event_types = []
         logger.warning(f"Could not load activity types: {str(e)}")
 
     # Default context - unified calendar
