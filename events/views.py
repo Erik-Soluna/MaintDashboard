@@ -624,6 +624,42 @@ def complete_event(request, event_id):
 
 
 @login_required
+def delete_event(request, event_id):
+    """Delete a calendar event."""
+    if request.method == 'POST':
+        event = get_object_or_404(CalendarEvent, id=event_id)
+        event_title = event.title
+        event.delete()
+        
+        messages.success(request, f'Event "{event_title}" deleted successfully!')
+        return redirect('events:calendar_view')
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+@login_required
+def delete_event_ajax(request, event_id):
+    """Delete a calendar event via AJAX."""
+    if request.method == 'POST':
+        try:
+            event = get_object_or_404(CalendarEvent, id=event_id)
+            event_title = event.title
+            event.delete()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Event "{event_title}" deleted successfully!'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Failed to delete event: {str(e)}'
+            })
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+@login_required
 @require_http_methods(["GET"])
 def fetch_events(request):
     """API endpoint to fetch events for calendar display."""

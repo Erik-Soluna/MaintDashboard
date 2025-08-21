@@ -23,6 +23,7 @@ urlpatterns = [
     path('events/<int:event_id>/', views.event_detail, name='event_detail'),
     path('events/<int:event_id>/edit/', views.edit_event, name='edit_event'),
     path('events/<int:event_id>/complete/', views.complete_event, name='complete_event'),
+    path('events/<int:event_id>/delete/', views.delete_event, name='delete_event'),
     
     # AJAX endpoints (replicate original web2py functionality)
     path('api/events/', views.fetch_events, name='fetch_events'),
@@ -34,6 +35,7 @@ urlpatterns = [
     # New AJAX endpoints for popup functionality
     path('api/events/create/', views.create_event_ajax, name='create_event_ajax'),
     path('api/events/<int:event_id>/update/', views.update_event_ajax, name='update_event_ajax'),
+    path('api/events/<int:event_id>/delete/', views.delete_event_ajax, name='delete_event_ajax'),
     path('api/form-data/', views.get_form_data, name='get_form_data'),
     
     # Equipment events
