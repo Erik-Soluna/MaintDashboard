@@ -278,6 +278,10 @@
                 <i class="fas fa-plus"></i>
                 Add Event
             </button>
+            <button type="button" class="btn btn-outline-success btn-sm ms-2" onclick="openCreateMaintenanceModal()">
+                <i class="fas fa-tools"></i>
+                Add Maintenance
+            </button>
             <a href="{% url 'events:calendar_settings' %}" class="btn btn-outline-light btn-sm ms-2">
                 <i class="fas fa-cog"></i> Calendar Settings
             </a>
@@ -501,10 +505,22 @@
                     </div>
                 </div>
                 <div class="modal-footer" style="border-top: 1px solid #2d3748;">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" id="viewMaintenanceDetailsBtn" style="display: none;">
-                        <i class="fas fa-external-link-alt me-1"></i> View Full Details
-                    </button>
+                    <div class="d-flex justify-content-between w-100">
+                        <div>
+                            <button type="button" class="btn btn-outline-info" id="editMaintenanceBtn" style="display: none;">
+                                <i class="fas fa-edit me-1"></i> Edit Activity
+                            </button>
+                            <button type="button" class="btn btn-outline-success" id="completeMaintenanceBtn" style="display: none;">
+                                <i class="fas fa-check me-1"></i> Mark Complete
+                            </button>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-primary" id="viewMaintenanceDetailsBtn" style="display: none;">
+                                <i class="fas fa-external-link-alt me-1"></i> View Full Details
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -610,14 +626,29 @@ function initializeCalendar() {
             var eventId = info.event.id;
             var eventType = info.event.extendedProps.type;
             
+            console.log('Event clicked:', eventId, 'Type:', eventType);
+            
             if (eventType === 'event') {
                 // Remove 'event_' prefix for event ID
                 var actualEventId = eventId.replace('event_', '');
+                console.log('Opening event modal for ID:', actualEventId);
                 openEditEventModal(actualEventId);
             } else if (eventType === 'maintenance') {
                 // Remove 'activity_' prefix for activity ID
                 var actualActivityId = eventId.replace('activity_', '');
+                console.log('Opening maintenance modal for ID:', actualActivityId);
                 openMaintenanceDetailsModal(actualActivityId);
+            } else {
+                console.log('Unknown event type:', eventType);
+                // Try to determine if it's a maintenance activity by checking the ID format
+                if (eventId.startsWith('activity_')) {
+                    var actualActivityId = eventId.replace('activity_', '');
+                    console.log('Detected maintenance activity, opening modal for ID:', actualActivityId);
+                    openMaintenanceDetailsModal(actualActivityId);
+                } else {
+                    console.log('Could not determine event type, treating as calendar event');
+                    openEditEventModal(eventId);
+                }
             }
         },
         eventMouseEnter: function(info) {
@@ -653,6 +684,29 @@ function initializeCalendar() {
             if (info.event.extendedProps.is_completed) {
                 info.el.style.opacity = '0.6';
                 info.el.style.textDecoration = 'line-through';
+            }
+            
+            // Add visual indicators for maintenance activities
+            if (info.event.extendedProps.type === 'maintenance') {
+                // Add a small maintenance icon or indicator
+                const maintenanceIcon = document.createElement('span');
+                maintenanceIcon.innerHTML = '🔧';
+                maintenanceIcon.style.fontSize = '10px';
+                maintenanceIcon.style.marginLeft = '2px';
+                maintenanceIcon.title = 'Maintenance Activity';
+                
+                // Insert the icon after the event title
+                const eventTitle = info.el.querySelector('.fc-event-title');
+                if (eventTitle) {
+                    eventTitle.appendChild(maintenanceIcon);
+                }
+                
+                // Add hover effect to show it's clickable for details
+                info.el.style.cursor = 'pointer';
+                info.el.title = `${info.event.title} (Maintenance Activity - Click for details)`;
+            } else if (info.event.extendedProps.type === 'event') {
+                info.el.style.cursor = 'pointer';
+                info.el.title = `${info.event.title} (Calendar Event - Click to edit)`;
             }
         }
     });
@@ -973,12 +1027,35 @@ function openMaintenanceDetailsModal(activityId) {
 function displayMaintenanceDetails(activity) {
     const content = document.getElementById('maintenanceDetailsContent');
     const viewDetailsBtn = document.getElementById('viewMaintenanceDetailsBtn');
+    const editMaintenanceBtn = document.getElementById('editMaintenanceBtn');
+    const completeMaintenanceBtn = document.getElementById('completeMaintenanceBtn');
     
     // Show the "View Full Details" button
     viewDetailsBtn.style.display = 'inline-block';
     viewDetailsBtn.onclick = function() {
         window.open(`/maintenance/activity/${activity.id}/`, '_blank');
     };
+    
+    // Show/hide action buttons based on status
+    if (activity.status === 'scheduled' || activity.status === 'pending') {
+        editMaintenanceBtn.style.display = 'inline-block';
+        editMaintenanceBtn.onclick = function() {
+            window.open(`/maintenance/activities/${activity.id}/edit/`, '_blank');
+        };
+    } else {
+        editMaintenanceBtn.style.display = 'none';
+    }
+    
+    if (activity.status === 'in_progress') {
+        completeMaintenanceBtn.style.display = 'inline-block';
+        completeMaintenanceBtn.onclick = function() {
+            if (confirm('Mark this maintenance activity as complete?')) {
+                completeMaintenanceActivity(activity.id);
+            }
+        };
+    } else {
+        completeMaintenanceBtn.style.display = 'none';
+    }
     
     // Create the details HTML
     const statusBadge = getStatusBadge(activity.status);
@@ -1406,6 +1483,47 @@ function getEventTypeBreakdown(data) {
 function toggleDebugPanel() {
     const panel = document.getElementById('debugPanel');
     panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+}
+
+// Function to open maintenance creation modal
+function openCreateMaintenanceModal() {
+    // Redirect to the maintenance add page
+    window.open('/maintenance/activities/add/', '_blank');
+}
+
+// Function to complete a maintenance activity
+function completeMaintenanceActivity(activityId) {
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    
+    fetch(`/maintenance/activities/${activityId}/complete/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modal
+            $('#maintenanceDetailsModal').modal('hide');
+            
+            // Refresh calendar
+            if (window.calendar) {
+                window.calendar.refetchEvents();
+            }
+            
+            // Show success message
+            alert('Maintenance activity marked as complete!');
+        } else {
+            alert('Error: ' + (data.error || 'Failed to complete activity'));
+        }
+    })
+    .catch(error => {
+        console.error('Error completing maintenance activity:', error);
+        alert('Error completing maintenance activity: ' + error.message);
+    });
 }
 </script>
 {% endblock %}
