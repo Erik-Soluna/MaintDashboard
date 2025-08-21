@@ -365,6 +365,7 @@ class EquipmentDocument(TimeStampedModel):
         ('note', 'Equipment Note'),
         ('specification', 'Equipment Specification'),
         ('wiring', 'Equipment Wiring'),
+        ('maintenance', 'Maintenance Report'),
         ('other', 'Other Reference'),
     ]
     

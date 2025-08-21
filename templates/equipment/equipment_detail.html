@@ -9,6 +9,7 @@
 {% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="row">
     <div class="col-12">
         <div class="page-header">
@@ -256,7 +257,7 @@
                             </a>
                         </div>
                         
-                        {% if equipment.maintenance_activities.all %}
+                        {% if maintenance_activities %}
                             <div class="table-responsive">
                                 <table class="table table-hover">
                                     <thead>
@@ -270,7 +271,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for activity in equipment.maintenance_activities.all|slice:":10" %}
+                                        {% for activity in maintenance_activities %}
                                         <tr>
                                             <td>{{ activity.title }}</td>
                                             <td>{{ activity.activity_type.name }}</td>
@@ -281,6 +282,10 @@
                                                     <span class="badge badge-danger">{{ activity.get_status_display }}</span>
                                                 {% elif activity.status == 'in_progress' %}
                                                     <span class="badge badge-warning">{{ activity.get_status_display }}</span>
+                                                {% elif activity.status == 'pending' %}
+                                                    <span class="badge badge-info">{{ activity.get_status_display }}</span>
+                                                {% elif activity.status == 'scheduled' %}
+                                                    <span class="badge badge-primary">{{ activity.get_status_display }}</span>
                                                 {% else %}
                                                     <span class="badge badge-secondary">{{ activity.get_status_display }}</span>
                                                 {% endif %}
@@ -322,7 +327,7 @@
                             </a>
                         </div>
                         
-                        {% if equipment.components.all %}
+                        {% if components %}
                             <div class="table-responsive">
                                 <table class="table table-hover">
                                     <thead>
@@ -335,7 +340,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for component in equipment.components.all %}
+                                        {% for component in components %}
                                         <tr>
                                             <td>
                                                 <strong>{{ component.name }}</strong>
@@ -378,9 +383,9 @@
                             </a>
                         </div>
                         
-                        {% if equipment.documents.all %}
+                        {% if documents %}
                             <div class="row">
-                                {% for document in equipment.documents.all %}
+                                {% for document in documents %}
                                 <div class="col-md-6 col-lg-4 mb-3">
                                     <div class="card">
                                         <div class="card-body">
@@ -413,50 +418,81 @@
                         {% endif %}
                     </div>
                     
-                    <!-- Maintenance Reports Tab -->
-                    <div class="tab-pane fade" id="reports" role="tabpanel">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="mb-0">Maintenance Reports & Analytics</h6>
-                            <button class="btn btn-primary" id="analyzeReportsBtn">
-                                <i class="fas fa-magic me-1"></i> Analyze Reports
-                            </button>
-                            <button class="btn btn-outline-primary mt-2" id="scanReportsBtn">
-                                <i class="fas fa-search me-1"></i> Scan Reports
-                            </button>
-                        </div>
+                                            <!-- Maintenance Reports Tab -->
+                        <div class="tab-pane fade" id="reports" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0">Maintenance Reports & Analytics</h6>
+                                <div>
+                                    <button class="btn btn-primary me-2" id="analyzeReportsBtn">
+                                        <i class="fas fa-magic me-1"></i> Analyze Reports
+                                    </button>
+                                    <button class="btn btn-outline-primary" id="scanReportsBtn">
+                                        <i class="fas fa-search me-1"></i> Scan Reports
+                                    </button>
+                                </div>
+                            </div>
                         
                         <!-- Report Summary Cards -->
                         <div class="row mb-4">
-                            <div class="col-md-3">
-                                <div class="card bg-primary text-white">
+                            <div class="col-md-2">
+                                <div class="card bg-success text-white">
                                     <div class="card-body text-center">
                                         <h4 class="mb-0">{{ completed_count }}</h4>
-                                        <small>Completed Activities</small>
+                                        <small>Completed</small>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-3">
-                                <div class="card bg-warning text-white">
+                            <div class="col-md-2">
+                                <div class="card bg-info text-white">
                                     <div class="card-body text-center">
                                         <h4 class="mb-0">{{ pending_count }}</h4>
-                                        <small>Pending Activities</small>
+                                        <small>Pending</small>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <div class="card bg-danger text-white">
                                     <div class="card-body text-center">
                                         <h4 class="mb-0">{{ overdue_count }}</h4>
-                                        <small>Overdue Activities</small>
+                                        <small>Overdue</small>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-3">
-                                <div class="card bg-info text-white">
+                            <div class="col-md-2">
+                                <div class="card bg-primary text-white">
+                                    <div class="card-body text-center">
+                                        <h4 class="mb-0">{{ scheduled_count }}</h4>
+                                        <small>Scheduled</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="card bg-warning text-white">
+                                    <div class="card-body text-center">
+                                        <h4 class="mb-0">{{ in_progress_count }}</h4>
+                                        <small>In Progress</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="card bg-secondary text-white">
                                     <div class="card-body text-center">
                                         <h4 class="mb-0">{{ maintenance_docs_count }}</h4>
-                                        <small>Maintenance Reports</small>
+                                        <small>Reports</small>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Stats -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <strong>Quick Stats:</strong> 
+                                    {{ completed_count }} completed, {{ pending_count }} pending, {{ overdue_count }} overdue, 
+                                    {{ scheduled_count }} scheduled, {{ in_progress_count }} in progress activities. 
+                                    {{ maintenance_docs_count }} maintenance reports available for analysis.
                                 </div>
                             </div>
                         </div>
@@ -479,7 +515,7 @@
                                                 <button class="btn btn-primary" id="analyzeReportsBtn">
                                                     <i class="fas fa-magic me-1"></i> Analyze Reports
                                                 </button>
-                                                <button class="btn btn-outline-primary mt-2" id="scanReportsBtn">
+                                                <button class="btn btn-outline-primary" id="scanReportsBtn">
                                                     <i class="fas fa-search me-1"></i> Scan Reports
                                                 </button>
                                             </div>
@@ -523,6 +559,67 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Maintenance Reports List -->
+                        {% if maintenance_reports %}
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-file-alt me-2"></i>
+                                            Recent Maintenance Reports
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Report</th>
+                                                        <th>Type</th>
+                                                        <th>Status</th>
+                                                        <th>Activity</th>
+                                                        <th>Created</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for report in maintenance_reports|slice:":5" %}
+                                                    <tr>
+                                                        <td>
+                                                            <strong>{{ report.title }}</strong>
+                                                            {% if report.findings_summary %}
+                                                                <br><small class="text-muted">{{ report.findings_summary|truncatechars:100 }}</small>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>{{ report.get_report_type_display }}</td>
+                                                        <td>
+                                                            {% if report.status == 'approved' %}
+                                                                <span class="badge badge-success">{{ report.get_status_display }}</span>
+                                                            {% elif report.status == 'completed' %}
+                                                                <span class="badge badge-info">{{ report.get_status_display }}</span>
+                                                            {% else %}
+                                                                <span class="badge badge-warning">{{ report.get_status_display }}</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>{{ report.maintenance_activity.title }}</td>
+                                                        <td>{{ report.created_at|date:"M d, Y" }}</td>
+                                                        <td>
+                                                            <a href="{{ report.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                                <i class="fas fa-download"></i>
+                                                            </a>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

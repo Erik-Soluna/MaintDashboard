@@ -284,10 +284,34 @@ def equipment_detail(request, equipment_id):
     completed_count = equipment.maintenance_activities.filter(status='completed').count()
     pending_count = equipment.maintenance_activities.filter(status='pending').count()
     overdue_count = equipment.maintenance_activities.filter(status='overdue').count()
-    maintenance_docs_count = equipment.documents.filter(document_type='maintenance').count()
+    
+    # Count maintenance reports through maintenance activities
+    maintenance_reports = []
+    for activity in equipment.maintenance_activities.all():
+        maintenance_reports.extend(activity.reports.all())
+    maintenance_docs_count = len(maintenance_reports)
+    
+    # Get additional status counts for better reporting
+    scheduled_count = equipment.maintenance_activities.filter(status='scheduled').count()
+    in_progress_count = equipment.maintenance_activities.filter(status='in_progress').count()
+    cancelled_count = equipment.maintenance_activities.filter(status='cancelled').count()
     
     # Get custom fields grouped by field group
     custom_fields_by_group = equipment.get_custom_fields_by_group()
+    
+    # Get maintenance activities for the maintenance tab
+    maintenance_activities = equipment.maintenance_activities.all().order_by('-scheduled_start')[:10]
+    
+    # Get maintenance reports for the reports tab
+    maintenance_reports = []
+    for activity in equipment.maintenance_activities.all():
+        maintenance_reports.extend(activity.reports.all())
+    
+    # Get components for the components tab
+    components = equipment.components.all().order_by('name')
+    
+    # Get documents for the documents tab
+    documents = equipment.documents.all().order_by('-created_at')
     
     context = {
         'equipment': equipment,
@@ -296,8 +320,15 @@ def equipment_detail(request, equipment_id):
         'completed_count': completed_count,
         'pending_count': pending_count,
         'overdue_count': overdue_count,
+        'scheduled_count': scheduled_count,
+        'in_progress_count': in_progress_count,
+        'cancelled_count': cancelled_count,
         'maintenance_docs_count': maintenance_docs_count,
         'custom_fields_by_group': custom_fields_by_group,
+        'maintenance_activities': maintenance_activities,
+        'maintenance_reports': maintenance_reports,
+        'components': components,
+        'documents': documents,
     }
     
     return render(request, 'equipment/equipment_detail.html', context)
