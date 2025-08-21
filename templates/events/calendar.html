@@ -239,12 +239,30 @@
     flex-wrap: wrap;
 }
 
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 14px;
-}
+ .legend-item {
+     display: flex;
+     align-items: center;
+     gap: 8px;
+     font-size: 14px;
+     cursor: pointer;
+     transition: all 0.2s ease;
+     padding: 4px 8px;
+     border-radius: 4px;
+ }
+ 
+ .legend-item:hover {
+     background-color: rgba(66, 153, 225, 0.1);
+ }
+ 
+ .legend-item.disabled {
+     opacity: 0.5;
+     text-decoration: line-through;
+     color: #718096;
+ }
+ 
+ .legend-item.disabled .legend-color {
+     opacity: 0.5;
+ }
 
 .legend-color {
     width: 16px;
@@ -341,26 +359,31 @@
     <div class="legend">
         <h6>Calendar Items</h6>
         <div class="legend-items">
-            <div class="legend-item">
+            <div class="legend-item" data-type="scheduled" onclick="toggleLegendItem(this, 'scheduled')">
                 <div class="legend-color" style="background-color: #4299e1;"></div>
                 <span>Scheduled Maintenance</span>
             </div>
-            <div class="legend-item">
+            <div class="legend-item" data-type="overdue" onclick="toggleLegendItem(this, 'overdue')">
                 <div class="legend-color" style="background-color: #dc3545;"></div>
                 <span>Overdue Maintenance</span>
             </div>
-            <div class="legend-item">
+            <div class="legend-item" data-type="completed" onclick="toggleLegendItem(this, 'completed')">
                 <div class="legend-color" style="background-color: #28a745;"></div>
                 <span>Completed Maintenance</span>
             </div>
-            <div class="legend-item">
+            <div class="legend-item" data-type="in_progress" onclick="toggleLegendItem(this, 'in_progress')">
                 <div class="legend-color" style="background-color: #ffc107;"></div>
                 <span>In Progress</span>
             </div>
-            <div class="legend-item">
+            <div class="legend-item" data-type="events" onclick="toggleLegendItem(this, 'events')">
                 <div class="legend-color" style="background-color: #17a2b8;"></div>
                 <span>Events</span>
             </div>
+        </div>
+        <div class="mt-3">
+            <button type="button" class="btn btn-outline-light btn-sm" onclick="showAllLegendItems()">
+                <i class="fas fa-eye"></i> Show All
+            </button>
         </div>
     </div>
 
@@ -716,6 +739,9 @@ function initializeCalendar() {
                 info.el.style.cursor = 'pointer';
                 info.el.title = `${info.event.title} (Calendar Event - Click to edit)`;
             }
+            
+            // Apply legend visibility filtering
+            applyLegendVisibilityToEvent(info.event);
         }
     });
     calendar.render();
@@ -744,6 +770,77 @@ function clearFilters() {
     document.getElementById('eventTypeFilter').value = '';
     document.getElementById('equipmentFilter').value = '';
     updateCalendar();
+}
+
+// Legend visibility state
+let legendVisibility = {
+    scheduled: true,
+    overdue: true,
+    completed: true,
+    in_progress: true,
+    events: true
+};
+
+function toggleLegendItem(element, type) {
+    legendVisibility[type] = !legendVisibility[type];
+    
+    if (legendVisibility[type]) {
+        element.classList.remove('disabled');
+    } else {
+        element.classList.add('disabled');
+    }
+    
+    // Update calendar to reflect visibility changes
+    updateCalendarVisibility();
+}
+
+function applyLegendVisibilityToEvent(event) {
+    const eventType = event.extendedProps?.type || 'unknown';
+    const status = event.extendedProps?.status || 'unknown';
+    
+    let shouldShow = true;
+    
+    // Check if this event type should be visible
+    if (eventType === 'maintenance') {
+        if (status === 'scheduled' && !legendVisibility.scheduled) shouldShow = false;
+        else if (status === 'overdue' && !legendVisibility.overdue) shouldShow = false;
+        else if (status === 'completed' && !legendVisibility.completed) shouldShow = false;
+        else if (status === 'in_progress' && !legendVisibility.in_progress) shouldShow = false;
+    } else if (eventType === 'event' && !legendVisibility.events) {
+        shouldShow = false;
+    }
+    
+    // Show/hide event
+    if (shouldShow) {
+        event.setProp('display', 'auto');
+    } else {
+        event.setProp('display', 'none');
+    }
+}
+
+function updateCalendarVisibility() {
+    if (window.calendar) {
+        // Get all events and apply visibility
+        const events = window.calendar.getEvents();
+        events.forEach(event => {
+            applyLegendVisibilityToEvent(event);
+        });
+    }
+}
+
+function showAllLegendItems() {
+    // Reset all legend visibility to true
+    Object.keys(legendVisibility).forEach(key => {
+        legendVisibility[key] = true;
+    });
+    
+    // Remove disabled class from all legend items
+    document.querySelectorAll('.legend-item').forEach(item => {
+        item.classList.remove('disabled');
+    });
+    
+    // Update calendar visibility
+    updateCalendarVisibility();
 }
 
 function updateActiveFilters() {
