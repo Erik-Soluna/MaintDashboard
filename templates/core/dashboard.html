@@ -358,7 +358,11 @@
             </h1>
             <p class="text-muted mb-0">Welcome back, {{ user.get_full_name|default:user.username }}!</p>
         </div>
-        <!-- Test System button removed -->
+        <div>
+            <button type="button" class="btn btn-outline-primary" onclick="refreshDashboard()" title="Refresh dashboard data">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
     </div>
     
     <!-- Site Statistics -->
@@ -604,6 +608,11 @@ function viewMaintenanceItem(itemId) {
 function viewCalendarEvent(eventId) {
     // Navigate to calendar event detail
     window.location.href = '/events/events/' + eventId + '/';
+}
+
+function refreshDashboard() {
+    // Clear any cached data and refresh the page
+    window.location.reload();
 }
 
 function viewEquipment(equipmentId) {

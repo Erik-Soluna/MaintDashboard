@@ -664,6 +664,14 @@ def delete_event(request, event_id):
     if request.method == 'POST':
         event = get_object_or_404(CalendarEvent, id=event_id)
         event_title = event.title
+        
+        # Invalidate dashboard cache before deleting the event
+        try:
+            from core.views import invalidate_dashboard_cache
+            invalidate_dashboard_cache(user_id=request.user.id)
+        except Exception as cache_error:
+            print(f"Warning: Could not invalidate dashboard cache: {cache_error}")
+        
         event.delete()
         
         messages.success(request, f'Event "{event_title}" deleted successfully!')
@@ -679,6 +687,14 @@ def delete_event_ajax(request, event_id):
         try:
             event = get_object_or_404(CalendarEvent, id=event_id)
             event_title = event.title
+            
+            # Invalidate dashboard cache before deleting the event
+            try:
+                from core.views import invalidate_dashboard_cache
+                invalidate_dashboard_cache(user_id=request.user.id)
+            except Exception as cache_error:
+                print(f"Warning: Could not invalidate dashboard cache: {cache_error}")
+            
             event.delete()
             
             return JsonResponse({

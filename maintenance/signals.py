@@ -63,5 +63,13 @@ def delete_calendar_event(sender, instance, **kwargs):
         if calendar_event:
             calendar_event.delete()
             logger.info(f"Deleted calendar event {calendar_event.id} for maintenance activity {instance.id}")
+        
+        # Invalidate dashboard cache for all users since maintenance activities affect dashboard data
+        try:
+            from core.views import invalidate_dashboard_cache
+            invalidate_dashboard_cache()  # Invalidate all dashboard caches
+        except Exception as cache_error:
+            logger.warning(f"Could not invalidate dashboard cache: {cache_error}")
+            
     except Exception as e:
         logger.error(f"Error deleting calendar event for maintenance activity {instance.id}: {str(e)}")

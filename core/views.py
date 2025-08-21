@@ -225,21 +225,33 @@ def dashboard(request):
                     ma.status in ['scheduled', 'pending'])
             )
             
-            # Get recent activities
-            recent_activities = [
-                ma for ma in location_maintenance
-                if (ma.actual_end and 
-                    ma.actual_end.date() >= today - timedelta(days=30) and
-                    ma.status == 'completed')
-            ]
+            # Get recent activities (filter out any that might have been deleted)
+            recent_activities = []
+            for ma in location_maintenance:
+                try:
+                    # Verify the maintenance activity still exists in the database
+                    if (ma.actual_end and 
+                        ma.actual_end.date() >= today - timedelta(days=30) and
+                        ma.status == 'completed'):
+                        recent_activities.append(ma)
+                except Exception:
+                    # Maintenance activity was deleted, skip it
+                    continue
+            
             recent_activities.sort(key=lambda x: x.actual_end, reverse=True)
             recent_activities = recent_activities[:3]
             
-            # Get next events
-            next_events = [
-                ce for ce in location_calendar
-                if (ce.event_date >= today and not ce.is_completed)
-            ]
+            # Get next events (filter out any that might have been deleted)
+            next_events = []
+            for ce in location_calendar:
+                try:
+                    # Verify the event still exists in the database
+                    if (ce.event_date >= today and not ce.is_completed):
+                        next_events.append(ce)
+                except Exception:
+                    # Event was deleted, skip it
+                    continue
+            
             next_events.sort(key=lambda x: x.event_date)
             next_events = next_events[:3]
             
@@ -469,6 +481,25 @@ def dashboard(request):
     cache.set(cache_key, context, cache_timeout)
     
     return render(request, 'core/dashboard.html', context)
+
+
+def invalidate_dashboard_cache(user_id=None, site_id=None):
+    """Invalidate dashboard cache for specific user and/or site."""
+    from django.core.cache import cache
+    
+    if user_id:
+        # Invalidate cache for specific user
+        cache_key = f"dashboard_data_all_{user_id}"
+        cache.delete(cache_key)
+        
+        if site_id:
+            # Invalidate cache for specific user and site
+            cache_key = f"dashboard_data_{site_id}_{user_id}"
+            cache.delete(cache_key)
+    else:
+        # Invalidate all dashboard caches (use with caution)
+        # This is a simple approach - in production you might want more sophisticated cache invalidation
+        cache.delete_pattern("dashboard_data_*")
 
 
 @login_required

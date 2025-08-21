@@ -5,3 +5,7 @@ class EventsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'events'
     verbose_name = 'Event Management'
+    
+    def ready(self):
+        """Import signals when the app is ready."""
+        import events.signals
