@@ -665,6 +665,16 @@ function initializeCalendar() {
                 
                 return params;
             },
+            success: function(events) {
+                console.log('Calendar events loaded from API:', events);
+                events.forEach((event, index) => {
+                    console.log(`API Event ${index}:`, {
+                        id: event.id,
+                        title: event.title,
+                        extendedProps: event.extendedProps
+                    });
+                });
+            },
             failure: function(errorObj) {
                 console.error('Calendar events fetch failed:', errorObj);
                 const errorMsg = `Failed to load calendar data. Status: ${errorObj.xhr?.status || 'unknown'}. Check console for details.`;
@@ -811,7 +821,19 @@ function applyClientSideFiltering() {
     console.log('Applying client-side filtering:', { eventTypeFilter, equipmentFilter });
     
     const events = window.calendar.getEvents();
-    events.forEach(event => {
+    console.log('Total events to filter:', events.length);
+    
+    events.forEach((event, index) => {
+        console.log(`Event ${index}:`, {
+            id: event.id,
+            title: event.title,
+            type: event.extendedProps?.type,
+            activity_type_id: event.extendedProps?.activity_type_id,
+            event_type: event.extendedProps?.event_type,
+            equipment_id: event.extendedProps?.equipment_id,
+            extendedProps: event.extendedProps
+        });
+        
         let shouldShow = true;
         
         // Filter by event type
@@ -819,16 +841,22 @@ function applyClientSideFiltering() {
             if (eventTypeFilter.startsWith('activity_')) {
                 // This is a maintenance activity type filter
                 const activityTypeId = eventTypeFilter.replace('activity_', '');
+                console.log(`Checking maintenance filter: activityTypeId=${activityTypeId}, event.type=${event.extendedProps?.type}, event.activity_type_id=${event.extendedProps?.activity_type_id}`);
+                
                 if (event.extendedProps?.type !== 'maintenance' || 
                     !event.extendedProps?.activity_type_id || 
                     event.extendedProps.activity_type_id.toString() !== activityTypeId) {
                     shouldShow = false;
+                    console.log(`Hiding event: ${event.title} - type mismatch or missing activity_type_id`);
                 }
             } else {
                 // This is a regular event type filter
+                console.log(`Checking event filter: eventTypeFilter=${eventTypeFilter}, event.type=${event.extendedProps?.type}, event.event_type=${event.extendedProps?.event_type}`);
+                
                 if (event.extendedProps?.type !== 'event' || 
                     event.extendedProps?.event_type !== eventTypeFilter) {
                     shouldShow = false;
+                    console.log(`Hiding event: ${event.title} - type mismatch or event_type mismatch`);
                 }
             }
         }
@@ -837,15 +865,20 @@ function applyClientSideFiltering() {
         if (equipmentFilter && event.extendedProps?.equipment_id && 
             event.extendedProps.equipment_id.toString() !== equipmentFilter) {
             shouldShow = false;
+            console.log(`Hiding event: ${event.title} - equipment mismatch`);
         }
         
         // Apply visibility
         if (shouldShow) {
             event.setProp('display', 'auto');
+            console.log(`Showing event: ${event.title}`);
         } else {
             event.setProp('display', 'none');
+            console.log(`Hiding event: ${event.title}`);
         }
     });
+    
+    console.log('Client-side filtering completed');
 }
 
 function handleSiteChange(siteId) {
