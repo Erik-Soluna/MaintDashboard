@@ -40,6 +40,7 @@ urlpatterns = [
     path('locations/bulk-edit/', views.bulk_edit_locations, name='bulk_edit_locations'),
     
     # Customer management URLs
+    path('customers/settings/', views.customers_settings, name='customers_settings'),
     path('customers/add/', views.add_customer, name='add_customer'),
     path('customers/<int:customer_id>/edit/', views.edit_customer, name='edit_customer'),
     path('customers/<int:customer_id>/delete/', views.delete_customer, name='delete_customer'),
