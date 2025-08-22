@@ -322,6 +322,28 @@
 .alert-danger .fas {
     color: #dc3545;
 }
+
+/* Form input styling for dark theme */
+.form-control.bg-dark {
+    background-color: #2d3748 !important;
+    border-color: #4a5568 !important;
+    color: white !important;
+}
+
+.form-control.bg-dark:focus {
+    background-color: #2d3748 !important;
+    border-color: #4299e1 !important;
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25) !important;
+}
+
+.form-control.bg-dark::placeholder {
+    color: #a0aec0 !important;
+}
+
+.form-control.bg-dark option {
+    background-color: #2d3748;
+    color: white;
+}
 </style>
 {% endblock %}
 
@@ -484,6 +506,115 @@
         </div>
     </div>
 
+    <!-- Create Maintenance Activity Modal -->
+    <div class="modal fade" id="createMaintenanceModal" tabindex="-1" aria-labelledby="createMaintenanceModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content" style="background-color: #1a2238; border: 1px solid #2d3748;">
+                <div class="modal-header" style="border-bottom: 1px solid #2d3748;">
+                    <h5 class="modal-title text-white" id="createMaintenanceModalLabel">Create New Maintenance Activity</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="createMaintenanceForm">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="form-group mb-3">
+                                    <label for="maintenanceTitle" class="text-white">Title *</label>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" id="maintenanceTitle" name="title" required>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="maintenanceDescription" class="text-white">Description</label>
+                                    <textarea class="form-control bg-dark text-white border-secondary" id="maintenanceDescription" name="description" rows="3"></textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group mb-3">
+                                    <label for="maintenancePriority" class="text-white">Priority *</label>
+                                    <select class="form-control bg-dark text-white border-secondary" id="maintenancePriority" name="priority" required>
+                                        <option value="">Select Priority</option>
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                        <option value="critical">Critical</option>
+                                    </select>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="maintenanceStatus" class="text-white">Status *</label>
+                                    <select class="form-control bg-dark text-white border-secondary" id="maintenanceStatus" name="status" required>
+                                        <option value="">Select Status</option>
+                                        <option value="scheduled">Scheduled</option>
+                                        <option value="pending">Pending</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="maintenanceStartDate" class="text-white">Start Date *</label>
+                                    <input type="date" class="form-control bg-dark text-white border-secondary" id="maintenanceStartDate" name="scheduled_start" required>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="maintenanceStartTime" class="text-white">Start Time</label>
+                                    <input type="time" class="form-control bg-dark text-white border-secondary" id="maintenanceStartTime" name="start_time">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="maintenanceEndDate" class="text-white">End Date *</label>
+                                    <input type="date" class="form-control bg-dark text-white border-secondary" id="maintenanceEndDate" name="scheduled_end" required>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label for="maintenanceEndTime" class="text-white">End Time</label>
+                                    <input type="time" class="form-control bg-dark text-white border-secondary" id="maintenanceEndTime" name="end_time">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="maintenanceActivityType" class="text-white">Activity Type *</label>
+                                    <select class="form-control bg-dark text-white border-secondary" id="maintenanceActivityType" name="activity_type" required>
+                                        <option value="">Select Activity Type</option>
+                                        {% for value, label in event_types %}
+                                            <option value="{{ value }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="maintenanceEquipment" class="text-white">Equipment</label>
+                                    <select class="form-control bg-dark text-white border-secondary" id="maintenanceEquipment" name="equipment">
+                                        <option value="">Select Equipment</option>
+                                        {% for equipment in equipment_list %}
+                                            <option value="{{ equipment.id }}">{{ equipment.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="maintenanceAssignedTo" class="text-white">Assigned To</label>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" id="maintenanceAssignedTo" name="assigned_to" placeholder="Enter assignee name">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #2d3748;">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="submitMaintenanceForm()">
+                        <i class="fas fa-save me-1"></i> Create Activity
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Calendar View -->
     {% if view_mode == 'calendar' %}
     <div class="calendar-content">
@@ -615,6 +746,10 @@ function initializeCalendar() {
                     openMaintenanceDetailsModal(eventId);
                 }
             }
+        },
+        dateClick: function(info) {
+            // Open maintenance creation modal with selected date
+            openCreateMaintenanceModal(info.dateStr);
         },
         eventMouseEnter: function(info) {
             var tooltip = document.createElement('div');
@@ -1472,9 +1607,102 @@ function toggleDebugPanel() {
 }
 
 // Function to open maintenance creation modal
-function openCreateMaintenanceModal() {
-    // Redirect to the maintenance add page
-    window.open('/maintenance/activities/add/', '_blank');
+function openCreateMaintenanceModal(selectedDate = null) {
+    // Reset form
+    document.getElementById('createMaintenanceForm').reset();
+    
+    // Set the selected date if provided
+    if (selectedDate) {
+        document.getElementById('maintenanceStartDate').value = selectedDate;
+        document.getElementById('maintenanceEndDate').value = selectedDate;
+    } else {
+        // Default to today
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('maintenanceStartDate').value = today;
+        document.getElementById('maintenanceEndDate').value = today;
+    }
+    
+    // Set default time to 9 AM - 5 PM
+    document.getElementById('maintenanceStartTime').value = '09:00';
+    document.getElementById('maintenanceEndTime').value = '17:00';
+    
+    // Show the modal
+    $('#createMaintenanceModal').modal('show');
+}
+
+function submitMaintenanceForm() {
+    const form = document.getElementById('createMaintenanceForm');
+    const formData = new FormData(form);
+    
+    // Combine date and time for start and end
+    const startDate = formData.get('scheduled_start');
+    const startTime = formData.get('start_time');
+    const endDate = formData.get('scheduled_end');
+    const endTime = formData.get('end_time');
+    
+    // Create datetime strings
+    const scheduledStart = startTime ? `${startDate}T${startTime}:00` : startDate;
+    const scheduledEnd = endTime ? `${endDate}T${endTime}:00` : endDate;
+    
+    // Prepare the data for submission
+    const maintenanceData = {
+        title: formData.get('title'),
+        description: formData.get('description'),
+        priority: formData.get('priority'),
+        status: formData.get('status'),
+        scheduled_start: scheduledStart,
+        scheduled_end: scheduledEnd,
+        activity_type: formData.get('activity_type'),
+        equipment: formData.get('equipment') || null,
+        assigned_to: formData.get('assigned_to') || null
+    };
+    
+    // Show loading state
+    const submitBtn = document.querySelector('#createMaintenanceModal .btn-success');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Creating...';
+    submitBtn.disabled = true;
+    
+    // Submit to maintenance API
+    fetch('/maintenance/activities/add/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(maintenanceData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            alert('Maintenance activity created successfully!');
+            
+            // Close the modal
+            $('#createMaintenanceModal').modal('hide');
+            
+            // Refresh the calendar to show the new activity
+            if (window.calendar) {
+                window.calendar.refetchEvents();
+            }
+        } else {
+            throw new Error(data.error || 'Failed to create maintenance activity');
+        }
+    })
+    .catch(error => {
+        console.error('Error creating maintenance activity:', error);
+        alert(`Error creating maintenance activity: ${error.message}`);
+    })
+    .finally(() => {
+        // Restore button state
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
 }
 
 // Function removed - no longer needed for maintenance-only calendar
