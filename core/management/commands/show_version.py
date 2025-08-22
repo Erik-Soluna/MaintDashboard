@@ -1,5 +1,7 @@
 from django.core.management.base import BaseCommand
-from version import get_git_version
+import importlib.util
+import os
+from django.conf import settings
 
 
 class Command(BaseCommand):
@@ -7,7 +9,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         try:
-            version_info = get_git_version()
+            spec = importlib.util.spec_from_file_location("version_module", settings.BASE_DIR / "version.py")
+            version_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(version_module)
+            
+            version_info = version_module.get_git_version()
             
             self.stdout.write(
                 self.style.SUCCESS(f"Version: {version_info['version']}")

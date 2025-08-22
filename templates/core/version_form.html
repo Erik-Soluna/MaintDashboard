@@ -1,0 +1,350 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Set Version Information{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Set Version Information</h4>
+                </div>
+                <div class="card-body">
+                    <!-- URL Extraction Section -->
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-link me-2"></i>🆕 Extract from URL</h6>
+                        <p class="mb-3">Paste a GitHub or GitLab URL to automatically extract version information!</p>
+                        <div class="input-group mb-3">
+                            <input type="url" class="form-control" id="url_input" placeholder="https://github.com/user/repo/commit/abc123 or https://github.com/user/repo">
+                            <div class="input-group-append">
+                                <button class="btn btn-info" type="button" onclick="extractFromUrl()">
+                                    <i class="fas fa-download me-1"></i>Extract
+                                </button>
+                            </div>
+                        </div>
+                        <div id="url_result" class="mt-2"></div>
+                        <div class="text-muted small">
+                            <strong>Supported URLs:</strong>
+                            <ul class="mb-0">
+                                <li>GitHub commit: https://github.com/user/repo/commit/abc123</li>
+                                <li>GitHub repository: https://github.com/user/repo</li>
+                                <li>GitLab commit: https://gitlab.com/user/repo/-/commit/abc123</li>
+                                <li>GitLab repository: https://gitlab.com/user/repo</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                                         <!-- Manual Input Section -->
+                     <form id="versionForm">
+                         {% csrf_token %}
+                         <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="commit_count" class="form-label">Commit Count</label>
+                                    <input type="number" class="form-control" id="commit_count" name="commit_count" required>
+                                    <div class="form-text">Total number of commits in the repository</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="commit_hash" class="form-label">Commit Hash</label>
+                                    <input type="text" class="form-control" id="commit_hash" name="commit_hash" maxlength="7" required>
+                                    <div class="form-text">Short commit hash (7 characters)</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="branch" class="form-label">Branch</label>
+                                    <input type="text" class="form-control" id="branch" name="branch" required>
+                                    <div class="form-text">Branch name (e.g., main, develop)</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="commit_date" class="form-label">Commit Date</label>
+                                    <input type="date" class="form-control" id="commit_date" name="commit_date" required>
+                                    <div class="form-text">Date of the commit (YYYY-MM-DD)</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>Set Version
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="loadCurrentVersion()">
+                                <i class="fas fa-sync me-1"></i>Load Current Version
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div id="result" class="mt-3"></div>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Version Links</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Click these links to quickly set common version information:</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-outline-primary btn-sm" onclick="setVersionFromLink('123', 'abc1234', 'main', '2024-01-15')">
+                            v123.abc1234 (main)
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="setVersionFromLink('456', 'def5678', 'develop', '2024-01-16')">
+                            v456.def5678 (develop)
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="setVersionFromLink('789', 'ghi9012', 'feature', '2024-01-17')">
+                            v789.ghi9012 (feature)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('versionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = {
+        commit_count: formData.get('commit_count'),
+        commit_hash: formData.get('commit_hash'),
+        branch: formData.get('branch'),
+        commit_date: formData.get('commit_date')
+    };
+    
+    fetch('/version/set/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultDiv = document.getElementById('result');
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <h6>✅ Version Set Successfully!</h6>
+                    <p class="mb-1"><strong>Version:</strong> ${data.version_info.version}</p>
+                    <p class="mb-1"><strong>Commit:</strong> ${data.version_info.commit_hash}</p>
+                    <p class="mb-1"><strong>Branch:</strong> ${data.version_info.branch}</p>
+                    <p class="mb-1"><strong>Date:</strong> ${data.version_info.commit_date}</p>
+                    <p class="mb-0"><strong>Full:</strong> ${data.version_info.full_version}</p>
+                </div>
+            `;
+            
+            // Clear form
+            document.getElementById('versionForm').reset();
+            
+            // Refresh page after 2 seconds to show new version
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6>❌ Error Setting Version</h6>
+                    <p class="mb-0">${data.error}</p>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        document.getElementById('result').innerHTML = `
+            <div class="alert alert-danger">
+                <h6>❌ Network Error</h6>
+                <p class="mb-0">${error.message}</p>
+            </div>
+        `;
+    });
+});
+
+function setVersionFromLink(commitCount, commitHash, branch, commitDate) {
+    document.getElementById('commit_count').value = commitCount;
+    document.getElementById('commit_hash').value = commitHash;
+    document.getElementById('branch').value = branch;
+    document.getElementById('commit_date').value = commitDate;
+}
+
+function loadCurrentVersion() {
+    fetch('/version/')
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error loading current version: ' + data.error);
+            return;
+        }
+        
+        document.getElementById('commit_count').value = data.commit_count;
+        document.getElementById('commit_hash').value = data.commit_hash;
+        document.getElementById('branch').value = data.branch;
+        document.getElementById('commit_date').value = data.commit_date;
+    })
+    .catch(error => {
+        alert('Error loading current version: ' + error.message);
+    });
+}
+
+// Set today's date as default
+document.getElementById('commit_date').value = new Date().toISOString().split('T')[0];
+
+// URL extraction function
+function extractFromUrl() {
+    const url = document.getElementById('url_input').value.trim();
+    const resultDiv = document.getElementById('url_result');
+    
+    if (!url) {
+        resultDiv.innerHTML = '<div class="alert alert-warning">Please enter a URL</div>';
+        return;
+    }
+    
+    // Show loading state
+    resultDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>Extracting version information...</div>';
+    
+    fetch('/version/extract/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({ url: url, auto_set: false })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const extracted = data.extracted_data;
+            
+            // Populate form fields
+            document.getElementById('commit_count').value = extracted.commit_count;
+            document.getElementById('commit_hash').value = extracted.commit_hash;
+            document.getElementById('branch').value = extracted.branch;
+            document.getElementById('commit_date').value = extracted.commit_date;
+            
+            // Show success message
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-check-circle me-2"></i>✅ Version Extracted Successfully!</h6>
+                    <p class="mb-1"><strong>Version:</strong> ${extracted.version}</p>
+                    <p class="mb-1"><strong>Commit:</strong> ${extracted.commit_hash}</p>
+                    <p class="mb-1"><strong>Branch:</strong> ${extracted.branch}</p>
+                    <p class="mb-1"><strong>Date:</strong> ${extracted.commit_date}</p>
+                    ${extracted.commit_message ? `<p class="mb-1"><strong>Message:</strong> ${extracted.commit_message}</p>` : ''}
+                    ${extracted.source_url ? `<p class="mb-0"><strong>Source:</strong> <a href="${extracted.source_url}" target="_blank">${extracted.source_url}</a></p>` : ''}
+                    <div class="mt-2">
+                        <button class="btn btn-success btn-sm" onclick="setVersionFromExtracted()">
+                            <i class="fas fa-bolt me-1"></i>Quick Set Version
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Store extracted data for quick set
+            window.extractedVersionData = extracted;
+            
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>❌ Extraction Failed</h6>
+                    <p class="mb-1">${data.error}</p>
+                    ${data.supported ? `<p class="mb-0"><strong>Supported providers:</strong> ${data.supported.join(', ')}</p>` : ''}
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>❌ Network Error</h6>
+                <p class="mb-0">${error.message}</p>
+            </div>
+        `;
+    });
+}
+
+// Quick set version from extracted data
+function setVersionFromExtracted() {
+    if (!window.extractedVersionData) return;
+    
+    const extracted = window.extractedVersionData;
+    
+    // Show loading state
+    const resultDiv = document.getElementById('result');
+    resultDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>Setting version...</div>';
+    
+    fetch('/version/set/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            commit_count: extracted.commit_count,
+            commit_hash: extracted.commit_hash,
+            branch: extracted.branch,
+            commit_date: extracted.commit_date
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        const resultDiv = document.getElementById('result');
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <h6>✅ Version Set Successfully!</h6>
+                    <p class="mb-1"><strong>Version:</strong> ${data.version_info.version}</p>
+                    <p class="mb-1"><strong>Commit:</strong> ${data.version_info.commit_hash}</p>
+                    <p class="mb-1"><strong>Branch:</strong> ${data.version_info.branch}</p>
+                    <p class="mb-1"><strong>Date:</strong> ${data.version_info.commit_date}</p>
+                    <p class="mb-0"><strong>Full:</strong> ${data.version_info.full_version}</p>
+                </div>
+            `;
+            
+            // Clear URL input and results
+            document.getElementById('url_input').value = '';
+            document.getElementById('url_result').innerHTML = '';
+            
+            // Refresh page after 3 seconds to show new version
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6>❌ Error Setting Version</h6>
+                    <p class="mb-0">${data.error}</p>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        document.getElementById('result').innerHTML = `
+            <div class="alert alert-danger">
+                <h6>❌ Network Error</h6>
+                <p class="mb-0">${error.message}</p>
+            </div>
+        `;
+    });
+}
+
+// Add Enter key support for URL input
+document.getElementById('url_input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        extractFromUrl();
+    }
+});
+</script>
+{% endblock %}

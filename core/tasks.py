@@ -467,3 +467,99 @@ def collect_system_logs():
     except Exception as e:
         logger.error(f"Error in collect_system_logs task: {e}")
         return {'status': 'error', 'message': str(e)}
+
+@shared_task
+def update_version_info():
+    """Automatically update version information from git"""
+    try:
+        import importlib.util
+        from django.conf import settings
+        
+        spec = importlib.util.spec_from_file_location("version_module", settings.BASE_DIR / "version.py")
+        version_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(version_module)
+        import json
+        import os
+        
+        # Get current version info
+        version_info = version_module.get_git_version()
+        
+        # Update version.json file
+        with open('version.json', 'w') as f:
+            json.dump(version_info, f, indent=2)
+        
+        # Update .env file if it exists
+        env_file = '.env'
+        if os.path.exists(env_file):
+            with open(env_file, 'r') as f:
+                env_content = f.read()
+            
+            # Update version-related lines
+            lines = env_content.split('\n')
+            updated_lines = []
+            
+            for line in lines:
+                if line.startswith('GIT_COMMIT_COUNT='):
+                    updated_lines.append(f'GIT_COMMIT_COUNT={version_info["commit_count"]}')
+                elif line.startswith('GIT_COMMIT_HASH='):
+                    updated_lines.append(f'GIT_COMMIT_HASH={version_info["commit_hash"]}')
+                elif line.startswith('GIT_BRANCH='):
+                    updated_lines.append(f'GIT_BRANCH={version_info["branch"]}')
+                elif line.startswith('GIT_COMMIT_DATE='):
+                    updated_lines.append(f'GIT_COMMIT_DATE={version_info["commit_date"]}')
+                else:
+                    updated_lines.append(line)
+            
+            # Write updated content
+            with open(env_file, 'w') as f:
+                f.write('\n'.join(updated_lines))
+        
+        logger.info(f"Version info updated: {version_info['full_version']}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error updating version info: {str(e)}")
+        return False
+
+
+@shared_task
+def set_manual_version(commit_count, commit_hash, branch, commit_date):
+    """Set version information manually via Celery task"""
+    try:
+        import json
+        import os
+        
+        # Create version data
+        version_data = {
+            'commit_count': int(commit_count),
+            'commit_hash': commit_hash,
+            'branch': branch,
+            'commit_date': commit_date,
+            'version': f'v{commit_count}.{commit_hash}',
+            'full_version': f'v{commit_count}.{commit_hash} ({branch}) - {commit_date}'
+        }
+        
+        # Update version.json
+        with open('version.json', 'w') as f:
+            json.dump(version_data, f, indent=2)
+        
+        # Update .env file
+        env_file = '.env'
+        env_content = f"""# Version Information (Auto-generated)
+GIT_COMMIT_COUNT={commit_count}
+GIT_COMMIT_HASH={commit_hash}
+GIT_BRANCH={branch}
+GIT_COMMIT_DATE={commit_date}
+
+# Other environment variables can be added below
+"""
+        
+        with open(env_file, 'w') as f:
+            f.write(env_content)
+        
+        logger.info(f"Manual version set: {version_data['full_version']}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error setting manual version: {str(e)}")
+        return False

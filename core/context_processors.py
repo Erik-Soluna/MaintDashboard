@@ -84,8 +84,46 @@ def version_context(request):
     Context processor to provide version information to all templates.
     """
     try:
-        from version import get_git_version
-        version_info = get_git_version()
+        import json
+        import os
+        from django.conf import settings
+        
+        # First try to read from version.json file
+        version_file = settings.BASE_DIR / "version.json"
+        if version_file.exists():
+            with open(version_file, 'r') as f:
+                version_info = json.load(f)
+            
+            return {
+                'app_version': version_info.get('version', 'v0.0.0'),
+                'app_version_full': version_info.get('full_version', 'v0.0.0 (Development)'),
+                'app_commit_hash': version_info.get('commit_hash', 'unknown'),
+                'app_branch': version_info.get('branch', 'unknown'),
+                'app_commit_date': version_info.get('commit_date', 'unknown'),
+            }
+        
+        # Fallback to environment variables
+        commit_count = os.environ.get('GIT_COMMIT_COUNT', '0')
+        commit_hash = os.environ.get('GIT_COMMIT_HASH', 'unknown')
+        branch = os.environ.get('GIT_BRANCH', 'unknown')
+        commit_date = os.environ.get('GIT_COMMIT_DATE', 'unknown')
+        
+        if commit_hash != 'unknown':
+            return {
+                'app_version': f"v{commit_count}.{commit_hash}",
+                'app_version_full': f"v{commit_count}.{commit_hash} ({branch}) - {commit_date}",
+                'app_commit_hash': commit_hash,
+                'app_branch': branch,
+                'app_commit_date': commit_date,
+            }
+        
+        # Final fallback to version.py module
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("version_module", settings.BASE_DIR / "version.py")
+        version_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(version_module)
+        
+        version_info = version_module.get_git_version()
         return {
             'app_version': version_info['version'],
             'app_version_full': version_info['full_version'],
@@ -93,7 +131,9 @@ def version_context(request):
             'app_branch': version_info['branch'],
             'app_commit_date': version_info['commit_date'],
         }
-    except ImportError:
+        
+    except Exception as e:
+        # Fallback version information
         return {
             'app_version': 'v0.0.0',
             'app_version_full': 'v0.0.0 (Development)',

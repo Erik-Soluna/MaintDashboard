@@ -4,13 +4,13 @@ URL configuration for core app.
 
 from django.urls import path
 from . import views
-from version import get_git_version
 from django.http import JsonResponse
 
 app_name = 'core'
 
 urlpatterns = [
-    path('dashboard/', views.dashboard, name='dashboard'),
+    path('', views.dashboard, name='dashboard'),  # Root path for dashboard
+    path('dashboard/', views.dashboard, name='dashboard_alt'),  # Alternative dashboard path
     path('profile/', views.profile, name='profile'),
     path('settings/', views.settings_view, name='settings'),
     path('user-management/', views.user_management, name='user_management'),
@@ -21,6 +21,9 @@ urlpatterns = [
     path('docker-logs/', views.docker_logs_view, name='docker_logs'),
     path('version/', views.version_view, name='version'),
     path('version/html/', views.version_html_view, name='version_html'),
+    path('version/set/', views.set_version_api, name='set_version_api'),
+    path('version/extract/', views.extract_version_from_url_api, name='extract_version_from_url_api'),
+    path('version/form/', views.version_form_view, name='version_form'),
     path('map/', views.map_view, name='map_view'),
     path('locations/settings/', views.locations_settings, name='locations_settings'),
     path('equipment-items/settings/', views.equipment_items_settings, name='equipment_items_settings'),

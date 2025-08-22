@@ -11,13 +11,37 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Version Information
 try:
-    from version import get_git_version
-    VERSION_INFO = get_git_version()
-    VERSION = VERSION_INFO['version']
-    VERSION_FULL = VERSION_INFO['full_version']
-except ImportError:
+    import json
+    import os
+    
+    # First try to read from version.json file
+    version_file = BASE_DIR / "version.json"
+    if version_file.exists():
+        with open(version_file, 'r') as f:
+            VERSION_INFO = json.load(f)
+        
+        VERSION = VERSION_INFO.get('version', 'v0.0.0')
+        VERSION_FULL = VERSION_INFO.get('full_version', 'v0.0.0 (Development)')
+    else:
+        # Fallback to environment variables
+        commit_count = os.environ.get('GIT_COMMIT_COUNT', '0')
+        commit_hash = os.environ.get('GIT_COMMIT_HASH', 'unknown')
+        branch = os.environ.get('GIT_BRANCH', 'unknown')
+        commit_date = os.environ.get('GIT_COMMIT_DATE', 'unknown')
+        
+        if commit_hash != 'unknown':
+            VERSION = f"v{commit_count}.{commit_hash}"
+            VERSION_FULL = f"v{commit_count}.{commit_hash} ({branch}) - {commit_date}"
+        else:
+            # Final fallback
+            VERSION = 'v0.0.0'
+            VERSION_FULL = 'v0.0.0 (Development)'
+            
+except (ImportError, Exception) as e:
+    # Fallback version information
     VERSION = 'v0.0.0'
     VERSION_FULL = 'v0.0.0 (Development)'
+    print(f"Warning: Could not load version info: {e}")
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')

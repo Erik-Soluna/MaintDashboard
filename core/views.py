@@ -47,7 +47,6 @@ import hmac
 import hashlib
 import os
 import time
-from version import get_git_version
 
 logger = logging.getLogger(__name__)
 
@@ -4282,7 +4281,14 @@ def stop_log_stream_api(request):
 def version_view(request):
     """Display version information for debugging and verification."""
     try:
-        version_info = get_git_version()
+        import importlib.util
+        from django.conf import settings
+        
+        spec = importlib.util.spec_from_file_location("version_module", settings.BASE_DIR / "version.py")
+        version_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(version_module)
+        
+        version_info = version_module.get_git_version()
         return JsonResponse(version_info)
     except Exception as e:
         logger.error(f"Error getting version info: {str(e)}")
@@ -4294,7 +4300,14 @@ def version_view(request):
 def version_html_view(request):
     """Display version information in HTML format."""
     try:
-        version_info = get_git_version()
+        import importlib.util
+        from django.conf import settings
+        
+        spec = importlib.util.spec_from_file_location("version_module", settings.BASE_DIR / "version.py")
+        version_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(version_module)
+        
+        version_info = version_module.get_git_version()
         # Add deployment context
         deployment_info = {
             'debug_mode': settings.DEBUG,
@@ -4326,3 +4339,130 @@ def invalidate_dashboard_cache():
         logger.info("Dashboard cache cleared successfully")
     except Exception as e:
         logger.error(f"Error clearing dashboard cache: {str(e)}")
+
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def version_form_view(request):
+    """Display version form for manual version setting."""
+    return render(request, 'core/version_form.html')
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
+def set_version_api(request):
+    """API endpoint to set version information manually."""
+    try:
+        data = json.loads(request.body)
+        commit_count = data.get('commit_count')
+        commit_hash = data.get('commit_hash')
+        branch = data.get('branch')
+        commit_date = data.get('commit_date')
+        
+        # Validate required fields
+        if not all([commit_count, commit_hash, branch, commit_date]):
+            return JsonResponse({
+                'success': False,
+                'error': 'All fields are required: commit_count, commit_hash, branch, commit_date'
+            }, status=400)
+        
+        # Import and call the Celery task
+        from core.tasks import set_manual_version
+        result = set_manual_version.delay(commit_count, commit_hash, branch, commit_date)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Version set to v{commit_count}.{commit_hash} ({branch}) - {commit_date}',
+            'task_id': result.id,
+            'version_info': {
+                'version': f'v{commit_count}.{commit_hash}',
+                'commit_count': int(commit_count),
+                'commit_hash': commit_hash,
+                'branch': branch,
+                'commit_date': commit_date,
+                'full_version': f'v{commit_count}.{commit_hash} ({branch}) - {commit_date}'
+            }
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error setting version: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Error setting version: {str(e)}'
+        }, status=500)
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
+def extract_version_from_url_api(request):
+    """API endpoint to extract version information from a URL."""
+    try:
+        data = json.loads(request.body)
+        url = data.get('url')
+        
+        if not url:
+            return JsonResponse({
+                'success': False,
+                'error': 'URL is required'
+            }, status=400)
+        
+        # Import and use the URL extractor
+        from core.url_version_extractor import URLVersionExtractor
+        
+        extractor = URLVersionExtractor()
+        result = extractor.extract_from_url(url)
+        
+        if 'error' in result:
+            return JsonResponse({
+                'success': False,
+                'error': result['error'],
+                'supported': result.get('supported', [])
+            }, status=400)
+        
+        # Optionally auto-set the version
+        auto_set = data.get('auto_set', False)
+        if auto_set:
+            # Import and call the Celery task
+            from core.tasks import set_manual_version
+            task_result = set_manual_version.delay(
+                result['commit_count'], 
+                result['commit_hash'], 
+                result['branch'], 
+                result['commit_date']
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Version extracted and set successfully',
+                'task_id': task_result.id,
+                'extracted_data': result
+            })
+        else:
+            return JsonResponse({
+                'success': True,
+                'message': 'Version extracted successfully',
+                'extracted_data': result
+            })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except ImportError:
+        return JsonResponse({
+            'success': False,
+            'error': 'URL extraction not available. Missing dependencies.'
+        }, status=500)
+    except Exception as e:
+        logger.error(f"Error extracting version from URL: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Error extracting version from URL: {str(e)}'
+        }, status=500)

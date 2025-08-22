@@ -771,6 +771,9 @@
                     <a class="dropdown-item" href="{% url 'core:version_html' %}">
                         <i class="fas fa-code-branch me-1"></i> Version Info
                     </a>
+                    <a class="dropdown-item" href="{% url 'core:version_form' %}">
+                        <i class="fas fa-edit me-1"></i> Set Version
+                    </a>
                 </div>
             </li>
             {% if user.is_superuser %}
