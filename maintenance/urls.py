@@ -20,7 +20,7 @@ urlpatterns = [
     path('activities/<int:activity_id>/delete/', views.delete_activity, name='delete_activity'),
     
     # Schedules
-    path('schedules/', views.schedule_list, name='schedules'),  # Changed from 'schedule_list' to 'schedules'
+    path('schedules/', views.schedule_list, name='schedule_list'),  # Fixed name to match template usage
     path('schedules/add/', views.add_schedule, name='add_schedule'),
     path('schedules/<int:schedule_id>/', views.schedule_detail, name='schedule_detail'),
     path('schedules/<int:schedule_id>/edit/', views.edit_schedule, name='edit_schedule'),

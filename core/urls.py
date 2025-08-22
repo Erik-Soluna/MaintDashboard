@@ -34,6 +34,7 @@ urlpatterns = [
     path('health/run/', views.run_health_check, name='run_health_check'),
     path('health/api/', views.comprehensive_health_check, name='health_check_api'),  # Alias for template compatibility
     path('health/', views.run_health_check, name='health_check'),  # Alias for template compatibility
+    path('health/simple/', views.simple_health_check, name='simple_health_check'),
     path('health/clear-logs/', views.clear_health_logs, name='clear_health_logs'),
     path('debug/playwright/', views.playwright_debug_api, name='playwright_debug_api'),
     path('debug/clear-database/', views.clear_database, name='clear_database'),
