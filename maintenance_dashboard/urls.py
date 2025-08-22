@@ -4,19 +4,42 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.generic import RedirectView
-from django.views.static import serve
-from django.http import HttpResponse
+from core.views import dashboard
+from version import get_git_version
+from django.http import JsonResponse
 import os
+
+def version_info(request):
+    """Display comprehensive version and deployment information."""
+    try:
+        version_data = get_git_version()
+        # Add deployment context
+        version_data.update({
+            'deployment_info': {
+                'debug_mode': settings.DEBUG,
+                'timezone': str(settings.TIME_ZONE),
+                'database_engine': settings.DATABASES['default']['ENGINE'] if 'default' in settings.DATABASES else 'unknown',
+                'static_files_root': str(settings.STATIC_ROOT) if hasattr(settings, 'STATIC_ROOT') else 'not_set',
+                'media_files_root': str(settings.MEDIA_ROOT) if hasattr(settings, 'MEDIA_ROOT') else 'not_set',
+                'environment': os.environ.get('ENVIRONMENT', 'development'),
+                'docker_container': os.environ.get('HOSTNAME', 'unknown'),
+            }
+        })
+        return JsonResponse(version_data)
+    except Exception as e:
+        return JsonResponse({
+            'error': 'Failed to get version information',
+            'details': str(e)
+        }, status=500)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', RedirectView.as_view(pattern_name='core:dashboard', permanent=False)),
-    path('auth/', include('django.contrib.auth.urls')),
+    path('', dashboard, name='dashboard'),
     path('equipment/', include('equipment.urls')),
     path('maintenance/', include('maintenance.urls')),
     path('events/', include('events.urls')),
     path('core/', include('core.urls')),
+    path('version/', version_info, name='version'),
 ]
 
 # Serve favicon.ico and robots.txt at root level

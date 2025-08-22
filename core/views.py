@@ -47,6 +47,7 @@ import hmac
 import hashlib
 import os
 import time
+from version import get_git_version
 
 logger = logging.getLogger(__name__)
 
@@ -4277,3 +4278,51 @@ def stop_log_stream_api(request):
             'success': False,
             'error': f'Error stopping log stream: {str(e)}'
         }, status=500)
+
+def version_view(request):
+    """Display version information for debugging and verification."""
+    try:
+        version_info = get_git_version()
+        return JsonResponse(version_info)
+    except Exception as e:
+        logger.error(f"Error getting version info: {str(e)}")
+        return JsonResponse({
+            'error': 'Failed to get version information',
+            'details': str(e)
+        }, status=500)
+
+def version_html_view(request):
+    """Display version information in HTML format."""
+    try:
+        version_info = get_git_version()
+        # Add deployment context
+        deployment_info = {
+            'debug_mode': settings.DEBUG,
+            'timezone': str(settings.TIME_ZONE),
+            'database_engine': settings.DATABASES['default']['ENGINE'] if 'default' in settings.DATABASES else 'unknown',
+            'static_files_root': str(settings.STATIC_ROOT) if hasattr(settings, 'STATIC_ROOT') else 'not_set',
+            'media_files_root': str(settings.MEDIA_ROOT) if hasattr(settings, 'MEDIA_ROOT') else 'not_set',
+            'environment': os.environ.get('ENVIRONMENT', 'development'),
+            'docker_container': os.environ.get('HOSTNAME', 'unknown'),
+        }
+        
+        context = {
+            'version_info': version_info,
+            'deployment_info': deployment_info,
+        }
+        return render(request, 'core/version.html', context)
+    except Exception as e:
+        logger.error(f"Error getting version info for HTML view: {str(e)}")
+        messages.error(request, f'Failed to get version information: {str(e)}')
+        return redirect('core:dashboard')
+
+def invalidate_dashboard_cache():
+    """Programmatically clear dashboard cache."""
+    try:
+        cache.delete('dashboard_data')
+        cache.delete('next_events')
+        cache.delete('recent_activities')
+        cache.delete('maintenance_stats')
+        logger.info("Dashboard cache cleared successfully")
+    except Exception as e:
+        logger.error(f"Error clearing dashboard cache: {str(e)}")
