@@ -9,6 +9,16 @@ from decouple import config
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Version Information
+try:
+    from version import get_git_version
+    VERSION_INFO = get_git_version()
+    VERSION = VERSION_INFO['version']
+    VERSION_FULL = VERSION_INFO['full_version']
+except ImportError:
+    VERSION = 'v0.0.0'
+    VERSION_FULL = 'v0.0.0 (Development)'
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
 
@@ -69,16 +79,17 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-                'core.context_processors.site_context',
-                'core.context_processors.user_context',
-            ],
-        },
+                    'OPTIONS': {
+                'context_processors': [
+                    'django.template.context_processors.debug',
+                    'django.template.context_processors.request',
+                    'django.contrib.auth.context_processors.auth',
+                    'django.contrib.messages.context_processors.messages',
+                    'core.context_processors.site_context',
+                    'core.context_processors.user_context',
+                    'core.context_processors.version_context',
+                ],
+            },
     },
 ]
 

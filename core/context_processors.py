@@ -77,3 +77,27 @@ def user_context(request):
         context['user_permissions'] = user_profile.get_permissions()
     
     return context
+
+
+def version_context(request):
+    """
+    Context processor to provide version information to all templates.
+    """
+    try:
+        from version import get_git_version
+        version_info = get_git_version()
+        return {
+            'app_version': version_info['version'],
+            'app_version_full': version_info['full_version'],
+            'app_commit_hash': version_info['commit_hash'],
+            'app_branch': version_info['branch'],
+            'app_commit_date': version_info['commit_date'],
+        }
+    except ImportError:
+        return {
+            'app_version': 'v0.0.0',
+            'app_version_full': 'v0.0.0 (Development)',
+            'app_commit_hash': 'unknown',
+            'app_branch': 'unknown',
+            'app_commit_date': 'unknown',
+        }

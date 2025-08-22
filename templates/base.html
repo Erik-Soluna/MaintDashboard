@@ -107,6 +107,19 @@
             gap: 15px;
         }
         
+        .version-badge {
+            font-size: 12px;
+            padding: 4px 8px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .version-badge small {
+            color: #a0aec0 !important;
+            font-weight: 500;
+        }
+        
         .site-selector {
             background-color: #2d3748;
             color: white;
@@ -661,6 +674,9 @@
                 <i class="fas fa-tools me-2"></i>
                 Maintenance Dashboard
             </a>
+            <span class="version-badge ml-3">
+                <small class="text-muted">{{ app_version }}</small>
+            </span>
         </div>
         
         <div class="header-controls">

@@ -357,6 +357,12 @@
                 Dashboard Overview
             </h1>
             <p class="text-muted mb-0">Welcome back, {{ user.get_full_name|default:user.username }}!</p>
+            <div class="version-info mt-2">
+                <small class="text-muted">
+                    <i class="fas fa-code-branch me-1"></i>
+                    {{ app_version_full }}
+                </small>
+            </div>
         </div>
         <div>
             <button type="button" class="btn btn-outline-primary" onclick="refreshDashboard()" title="Refresh dashboard data">
