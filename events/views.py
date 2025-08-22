@@ -21,110 +21,14 @@ logger = logging.getLogger(__name__)
 
 
 def create_maintenance_activity_for_event(event):
-    """Create or update a maintenance activity for a calendar event."""
-    # Create maintenance activities for ALL event types, not just 'maintenance'
-    # This ensures calendar events and maintenance activities are synchronized
-        
-    try:
-        from maintenance.models import MaintenanceActivity, MaintenanceActivityType, ActivityTypeCategory
-        from django.utils import timezone as django_timezone
-        from datetime import datetime, time
-        
-        # Check if a maintenance activity already exists for this event
-        existing_activity = event.maintenance_activity
-        
-        if existing_activity:
-            # Update existing activity
-            existing_activity.title = event.title.replace('Maintenance: ', '') if event.title.startswith('Maintenance: ') else event.title
-            existing_activity.description = event.description
-            existing_activity.scheduled_start = django_timezone.make_aware(
-                datetime.combine(event.event_date, event.start_time or time(9, 0))
-            )
-            if event.end_time:
-                existing_activity.scheduled_end = django_timezone.make_aware(
-                    datetime.combine(event.event_date, event.end_time)
-                )
-            else:
-                existing_activity.scheduled_end = existing_activity.scheduled_start + django_timezone.timedelta(hours=2)
-            
-            existing_activity.assigned_to = event.assigned_to
-            existing_activity.priority = event.priority
-            existing_activity.updated_by = event.updated_by or event.created_by
-            existing_activity.save()
-            logger.info(f"Updated maintenance activity for calendar event: {event.title}")
-            return existing_activity
-        else:
-            # Get the specific activity type based on the event type
-            if event.event_type.startswith('activity_'):
-                # Extract the activity type ID from the event type
-                activity_type_id = event.event_type.replace('activity_', '')
-                try:
-                    activity_type = MaintenanceActivityType.objects.get(id=activity_type_id, is_active=True)
-                except MaintenanceActivityType.DoesNotExist:
-                    logger.error(f"Activity type {activity_type_id} not found for event {event.id}")
-                    return None
-            else:
-                # Fallback: Get or create activity type based on the event type name
-                default_category = ActivityTypeCategory.objects.filter(is_active=True).first()
-                if not default_category:
-                    default_category = ActivityTypeCategory.objects.create(
-                        name='Calendar Events',
-                        description='Activities created from calendar events',
-                        color='#007bff',
-                        icon='fas fa-calendar',
-                        is_active=True,
-                        created_by=event.created_by
-                    )
-                
-                # Create activity type name based on event type
-                activity_type_name = event.get_event_type_display()
-                activity_type, created = MaintenanceActivityType.objects.get_or_create(
-                    name=activity_type_name,
-                    defaults={
-                        'category': default_category,
-                        'description': f'{activity_type_name} activity created from calendar event',
-                        'estimated_duration_hours': 2,
-                        'frequency_days': 365,
-                        'is_mandatory': False,
-                        'created_by': event.created_by,
-                    }
-                )
-            
-            # Create maintenance activity
-            scheduled_start = django_timezone.make_aware(
-                datetime.combine(event.event_date, event.start_time or time(9, 0))
-            )
-            
-            if event.end_time:
-                scheduled_end = django_timezone.make_aware(
-                    datetime.combine(event.event_date, event.end_time)
-                )
-            else:
-                scheduled_end = scheduled_start + django_timezone.timedelta(hours=activity_type.estimated_duration_hours)
-            
-            activity = MaintenanceActivity.objects.create(
-                equipment=event.equipment,
-                activity_type=activity_type,
-                title=event.title.replace('Maintenance: ', '') if event.title.startswith('Maintenance: ') else event.title,
-                description=event.description,
-                scheduled_start=scheduled_start,
-                scheduled_end=scheduled_end,
-                assigned_to=event.assigned_to,
-                priority=event.priority,
-                status='scheduled',
-                created_by=event.created_by
-            )
-            
-            # Link the calendar event to the maintenance activity
-            event.maintenance_activity = activity
-            event.save()
-            
-            logger.info(f"Created maintenance activity for calendar event: {event.title}")
-            return activity
-            
-    except Exception as e:
-        logger.error(f"Error creating/updating maintenance activity for event {event.id}: {str(e)}")
-        return None
+    """Create or update a maintenance activity for a calendar event.
+    
+    NOTE: This function is now deprecated. Calendar events should not automatically 
+    create maintenance activities to prevent duplication. Maintenance activities 
+    should be created directly and will automatically create calendar events.
+    """
+    logger.warning(f"create_maintenance_activity_for_event called for event {event.id} - this should not happen in normal operation")
+    return None
 
 
 def generate_ical_feed(request):
@@ -494,14 +398,10 @@ def add_event(request):
                 created_by=request.user
             )
             
-            # Create corresponding maintenance activity for ALL events
-            # This ensures calendar events and maintenance activities are synchronized
-            maintenance_activity = create_maintenance_activity_for_event(event)
-            if maintenance_activity:
-                messages.success(request, f'Event "{title}" created successfully and linked to maintenance activity!')
-            else:
-                messages.success(request, f'Event "{title}" created successfully!')
-                messages.warning(request, 'Could not create corresponding maintenance activity. Please check logs.')
+            # Note: Calendar events no longer automatically create maintenance activities
+            # to prevent duplication. Maintenance activities should be created directly
+            # and will automatically create calendar events.
+            messages.success(request, f'Event "{title}" created successfully!')
             
             return redirect('events:event_detail', event_id=event.id)
             
@@ -592,14 +492,10 @@ def edit_event(request, event_id):
             event.updated_by = request.user
             event.save()
             
-            # Update corresponding maintenance activity for ALL events
-            # This ensures calendar events and maintenance activities are synchronized
-            maintenance_activity = create_maintenance_activity_for_event(event)
-            if maintenance_activity:
-                messages.success(request, f'Event "{event.title}" updated successfully! Maintenance activity synchronized.')
-            else:
-                messages.success(request, f'Event "{event.title}" updated successfully!')
-                messages.warning(request, 'Could not synchronize maintenance activity. Please check logs.')
+            # Note: Calendar events no longer automatically create maintenance activities
+            # to prevent duplication. Maintenance activities should be created directly
+            # and will automatically create calendar events.
+            messages.success(request, f'Event "{event.title}" updated successfully!')
             
             return redirect('events:event_detail', event_id=event.id)
             
@@ -1114,12 +1010,10 @@ def create_event_ajax(request):
             created_by=request.user
         )
         
-        # Create corresponding maintenance activity for ALL events
-        # This ensures calendar events and maintenance activities are synchronized
+        # Note: Calendar events no longer automatically create maintenance activities
+        # to prevent duplication. Maintenance activities should be created directly
+        # and will automatically create calendar events.
         message = f'Event "{title}" created successfully!'
-        maintenance_activity = create_maintenance_activity_for_event(event)
-        if maintenance_activity:
-            message = f'Event "{title}" created successfully and linked to maintenance activity!'
         
         return JsonResponse({
             'success': True,
@@ -1155,12 +1049,10 @@ def update_event_ajax(request, event_id):
         event.updated_by = request.user
         event.save()
         
-        # Update corresponding maintenance activity for ALL events
-        # This ensures calendar events and maintenance activities are synchronized
+        # Note: Calendar events no longer automatically create maintenance activities
+        # to prevent duplication. Maintenance activities should be created directly
+        # and will automatically create calendar events.
         message = f'Event "{event.title}" updated successfully!'
-        maintenance_activity = create_maintenance_activity_for_event(event)
-        if maintenance_activity:
-            message = f'Event "{event.title}" updated successfully! Maintenance activity synchronized.'
         
         return JsonResponse({
             'success': True,

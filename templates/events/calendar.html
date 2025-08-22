@@ -344,13 +344,9 @@
                     </option>
                 {% endfor %}
             </select>
-            <button type="button" class="add-event-btn" onclick="openCreateEventModal()">
-                <i class="fas fa-plus"></i>
-                Add Event
-            </button>
-            <button type="button" class="btn btn-outline-success btn-sm ms-2" onclick="openCreateMaintenanceModal()">
+            <button type="button" class="btn btn-outline-success btn-sm" onclick="openCreateMaintenanceModal()">
                 <i class="fas fa-tools"></i>
-                Add Maintenance
+                Add Maintenance Activity
             </button>
             <a href="{% url 'events:calendar_settings' %}" class="btn btn-outline-light btn-sm ms-2">
                 <i class="fas fa-cog"></i> Calendar Settings
@@ -442,127 +438,7 @@
     <!-- Debug Info (remove in production) -->
     {# Debug panel removed: now in settings/health #}
 
-    <!-- Event Modal -->
-    <div class="modal fade" id="eventModal" tabindex="-1" aria-labelledby="eventModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content" style="background-color: #1a2238; border: 1px solid #2d3748;">
-                <div class="modal-header" style="border-bottom: 1px solid #2d3748;">
-                    <h5 class="modal-title text-white" id="eventModalLabel">Add Event</h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <form id="eventForm">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="eventTitle" class="form-label text-white">Title *</label>
-                                    <input type="text" class="form-control" id="eventTitle" name="title" required style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="eventType" class="form-label text-white">Activity Type *</label>
-                                    <select class="form-control" id="eventType" name="event_type" required style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
-                                        <option value="">Select Activity Type</option>
-                                        {% for value, label in event_types %}
-                                            {% if value %}
-                                                <option value="{{ value }}">{{ label }}</option>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="eventEquipment" class="form-label text-white">Equipment *</label>
-                                    <select class="form-control" id="eventEquipment" name="equipment" required style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
-                                        <option value="">Select Equipment</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="eventPriority" class="form-label text-white">Priority</label>
-                                    <select class="form-control" id="eventPriority" name="priority" style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
-                                        {% for value, label in priority_choices %}
-                                            <option value="{{ value }}" {% if value == 'medium' %}selected{% endif %}>{{ label }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="eventDate" class="form-label text-white">Date *</label>
-                                    <input type="date" class="form-control" id="eventDate" name="event_date" required style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="eventStartTime" class="form-label text-white">Start Time</label>
-                                    <input type="time" class="form-control" id="eventStartTime" name="start_time" style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="eventEndTime" class="form-label text-white">End Time</label>
-                                    <input type="time" class="form-control" id="eventEndTime" name="end_time" style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="eventAssignedTo" class="form-label text-white">Assigned To</label>
-                                    <select class="form-control" id="eventAssignedTo" name="assigned_to" style="background-color: #2d3748; border: 1px solid #4a5568; color: white;">
-                                        <option value="">Unassigned</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3 d-flex align-items-end">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="eventAllDay" name="all_day">
-                                        <label class="form-check-label text-white" for="eventAllDay">
-                                            All Day Event
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="eventDescription" class="form-label text-white">Description</label>
-                            <textarea class="form-control" id="eventDescription" name="description" rows="3" style="background-color: #2d3748; border: 1px solid #4a5568; color: white;"></textarea>
-                        </div>
-                        
-                        <input type="hidden" id="eventId" name="event_id">
-                    </form>
-                </div>
-                <div class="modal-footer" style="border-top: 1px solid #2d3748;">
-                    <div class="d-flex justify-content-between w-100">
-                        <div>
-                            <button type="button" class="btn btn-danger" id="deleteEventBtn" onclick="deleteEvent()" style="display: none;">
-                                <i class="fas fa-trash"></i> Delete Event
-                            </button>
-                        </div>
-                        <div>
-                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-primary" onclick="saveEvent()">Save Event</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Maintenance Details Modal -->
     <div class="modal fade" id="maintenanceDetailsModal" tabindex="-1" aria-labelledby="maintenanceDetailsModalLabel" aria-hidden="true">
@@ -710,9 +586,6 @@ function initializeCalendar() {
                 }
             }
         },
-        dateClick: function(info) {
-            openCreateEventModal(info.dateStr);
-        },
         eventClick: function(info) {
             info.jsEvent.preventDefault();
             var eventId = info.event.id;
@@ -720,12 +593,8 @@ function initializeCalendar() {
             
             console.log('Event clicked:', eventId, 'Type:', eventType);
             
-            if (eventType === 'event') {
-                // Remove 'event_' prefix for event ID
-                var actualEventId = eventId.replace('event_', '');
-                console.log('Opening event modal for ID:', actualEventId);
-                openEditEventModal(actualEventId);
-            } else if (eventType === 'maintenance') {
+            // All events on the calendar are now maintenance activities
+            if (eventType === 'maintenance' || eventId.startsWith('activity_')) {
                 // Remove 'activity_' prefix for activity ID
                 var actualActivityId = eventId.replace('activity_', '');
                 console.log('Opening maintenance modal for ID:', actualActivityId);
@@ -737,14 +606,9 @@ function initializeCalendar() {
                     var actualActivityId = eventId.replace('activity_', '');
                     console.log('Detected maintenance activity, opening modal for ID:', actualActivityId);
                     openMaintenanceDetailsModal(actualActivityId);
-                } else if (eventId.startsWith('event_')) {
-                    // This is a calendar event, show maintenance details if available
-                    var actualEventId = eventId.replace('event_', '');
-                    console.log('Calendar event clicked, showing maintenance details for event ID:', actualEventId);
-                    openEventMaintenanceDetails(actualEventId);
                 } else {
-                    console.log('Could not determine event type, treating as calendar event');
-                    openEditEventModal(eventId);
+                    console.log('Could not determine event type, treating as maintenance activity');
+                    openMaintenanceDetailsModal(eventId);
                 }
             }
         },
@@ -783,8 +647,8 @@ function initializeCalendar() {
                 info.el.style.textDecoration = 'line-through';
             }
             
-            // Add visual indicators for maintenance activities
-            if (info.event.extendedProps.type === 'maintenance') {
+            // All events on the calendar are now maintenance activities
+            if (info.event.extendedProps.type === 'maintenance' || info.event.id.startsWith('activity_')) {
                 // Add a small maintenance icon or indicator
                 const maintenanceIcon = document.createElement('span');
                 maintenanceIcon.innerHTML = '🔧';
@@ -801,9 +665,6 @@ function initializeCalendar() {
                 // Add hover effect to show it's clickable for details
                 info.el.style.cursor = 'pointer';
                 info.el.title = `${info.event.title} (Maintenance Activity - Click for details)`;
-            } else if (info.event.extendedProps.type === 'event') {
-                info.el.style.cursor = 'pointer';
-                info.el.title = `${info.event.title} (Calendar Event - Click to edit)`;
             }
             
             // Apply legend visibility filtering
@@ -1032,271 +893,15 @@ function createFilterTag(label, value, onRemove) {
     return tag;
 }
 
-// Event Modal Functions
-let formData = null;
 
-function loadFormData() {
-    if (formData) {
-        return Promise.resolve(formData);
-    }
-    
-    const siteId = document.getElementById('siteSelector').value;
-    const url = new URL('{% url "events:get_form_data" %}', window.location.origin);
-    if (siteId) {
-        url.searchParams.set('site_id', siteId);
-    }
-    
-    return fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                formData = data;
-                return data;
-            } else {
-                throw new Error(data.error || 'Failed to load form data');
-            }
-        });
-}
+// Form data loading removed - not needed for maintenance-only calendar
 
-function populateFormData(data) {
-    // Populate equipment dropdown
-    const equipmentSelect = document.getElementById('eventEquipment');
-    equipmentSelect.innerHTML = '<option value="">Select Equipment</option>';
-    data.equipment.forEach(equipment => {
-        const option = document.createElement('option');
-        option.value = equipment.id;
-        option.textContent = `${equipment.name} (${equipment.location})`;
-        equipmentSelect.appendChild(option);
-    });
-    
-    // Populate users dropdown
-    const usersSelect = document.getElementById('eventAssignedTo');
-    usersSelect.innerHTML = '<option value="">Unassigned</option>';
-    data.users.forEach(user => {
-        const option = document.createElement('option');
-        option.value = user.id;
-        option.textContent = user.name;
-        usersSelect.appendChild(option);
-    });
-}
+// Form data population removed - not needed for maintenance-only calendar
 
-function openCreateEventModal(dateStr = null) {
-    // Reset form
-    document.getElementById('eventForm').reset();
-    document.getElementById('eventId').value = '';
-    document.getElementById('eventModalLabel').textContent = 'Add Event';
-    
-    // Hide delete button for new events
-    document.getElementById('deleteEventBtn').style.display = 'none';
-    
-    // Set date if provided
-    if (dateStr) {
-        document.getElementById('eventDate').value = dateStr;
-    }
-    
-    // Load form data and show modal
-    loadFormData()
-        .then(data => {
-            populateFormData(data);
-            $('#eventModal').modal('show');
-        })
-        .catch(error => {
-            console.error('Error loading form data:', error);
-            alert('Error loading form data: ' + error.message);
-        });
-}
+// Event creation functions removed - only maintenance activities are supported now
 
-function openEditEventModal(eventId) {
-    // Load event data
-    fetch(`{% url "events:get_event" event_id=0 %}`.replace('0', eventId))
-        .then(response => response.json())
-        .then(eventData => {
-            // Load form data first
-            return loadFormData().then(formDataResponse => {
-                return { eventData, formDataResponse };
-            });
-        })
-        .then(({ eventData, formDataResponse }) => {
-            // Populate form data dropdowns
-            populateFormData(formDataResponse);
-            
-            // Populate form with event data
-            document.getElementById('eventId').value = eventData.id;
-            document.getElementById('eventTitle').value = eventData.title;
-            document.getElementById('eventDescription').value = eventData.description || '';
-            document.getElementById('eventType').value = eventData.event_type;
-            document.getElementById('eventEquipment').value = eventData.equipment.id;
-            document.getElementById('eventDate').value = eventData.event_date;
-            document.getElementById('eventStartTime').value = eventData.start_time || '';
-            document.getElementById('eventEndTime').value = eventData.end_time || '';
-            document.getElementById('eventAllDay').checked = eventData.all_day;
-            document.getElementById('eventPriority').value = eventData.priority;
-            document.getElementById('eventAssignedTo').value = eventData.assigned_to_id || '';
-            
-            // Update modal title
-            document.getElementById('eventModalLabel').textContent = 'Edit Event';
-            
-            // Show delete button for existing events
-            document.getElementById('deleteEventBtn').style.display = 'block';
-            
-            // Show modal
-            $('#eventModal').modal('show');
-        })
-        .catch(error => {
-            console.error('Error loading event data:', error);
-            alert('Error loading event data: ' + error.message);
-        });
-}
-
-function saveEvent() {
-    const form = document.getElementById('eventForm');
-    const formData = new FormData(form);
-    const eventId = document.getElementById('eventId').value;
-    
-    // Validate time inputs before submission
-    if (!validateCalendarEventTimes()) {
-        return; // Stop submission if validation fails
-    }
-    
-    // Add CSRF token
-    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-    
-    // Determine URL based on whether we're creating or editing
-    const url = eventId ? 
-        `{% url "events:update_event_ajax" event_id=0 %}`.replace('0', eventId) :
-        '{% url "events:create_event_ajax" %}';
-    
-    fetch(url, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Close modal
-            $('#eventModal').modal('hide');
-            
-            // Refresh calendar
-            if (window.calendar) {
-                window.calendar.refetchEvents();
-            }
-            
-            // Show success message
-            alert(data.message);
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error saving event:', error);
-        alert('Error saving event: ' + error.message);
-    });
-}
-
-// Function to validate calendar event times
-function validateCalendarEventTimes() {
-    const startTime = document.getElementById('eventStartTime').value;
-    const endTime = document.getElementById('eventEndTime').value;
-    const allDay = document.getElementById('eventAllDay').checked;
-    
-    // Clear previous error messages
-    clearCalendarTimeErrors();
-    
-    if (!allDay && startTime && endTime) {
-        if (startTime >= endTime) {
-            showCalendarTimeError('Start time must be before end time. For same-day events, you cannot start at a later time than you end.');
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-// Function to show time validation error in calendar modal
-function showCalendarTimeError(message) {
-    const startTimeInput = document.getElementById('eventStartTime');
-    const endTimeInput = document.getElementById('eventEndTime');
-    
-    // Add error class to inputs
-    startTimeInput.classList.add('is-invalid');
-    endTimeInput.classList.add('is-invalid');
-    
-    // Create error message element
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'alert alert-danger mt-2';
-    errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + message;
-    errorDiv.id = 'calendar-time-validation-error';
-    
-    // Insert error message after the time fields row
-    const timeFieldsRow = startTimeInput.closest('.row');
-    timeFieldsRow.parentNode.insertBefore(errorDiv, timeFieldsRow.nextSibling);
-}
-
-// Function to clear time validation errors in calendar modal
-function clearCalendarTimeErrors() {
-    const startTimeInput = document.getElementById('eventStartTime');
-    const endTimeInput = document.getElementById('eventEndTime');
-    
-    startTimeInput.classList.remove('is-invalid');
-    endTimeInput.classList.remove('is-invalid');
-    
-    const errorDiv = document.getElementById('calendar-time-validation-error');
-    if (errorDiv) {
-        errorDiv.remove();
-    }
-}
-
-function deleteEvent() {
-    const eventId = document.getElementById('eventId').value;
-    
-    if (!eventId) {
-        alert('No event selected for deletion.');
-        return;
-    }
-    
-    if (!confirm('Are you sure you want to delete this event? This action cannot be undone.')) {
-        return;
-    }
-    
-    const formData = new FormData();
-    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-    
-    fetch(`{% url "events:delete_event_ajax" event_id=0 %}`.replace('0', eventId), {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Close modal
-            $('#eventModal').modal('hide');
-            
-            // Refresh calendar
-            if (window.calendar) {
-                window.calendar.refetchEvents();
-            }
-            
-            // Show success message
-            alert(data.message);
-        } else {
-            alert('Error: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error deleting event:', error);
-        alert('Error deleting event: ' + error.message);
-    });
-}
-
-// Clear form data cache when site changes
+// Handle site change
 function handleSiteChange(siteId) {
-    formData = null; // Clear cached form data
     const url = new URL(window.location);
     if (siteId) {
         url.searchParams.set('site_id', siteId);
@@ -1478,117 +1083,7 @@ function displayMaintenanceDetails(activity) {
     `;
 }
 
-// Function to display calendar event details when no maintenance activity is linked
-function displayCalendarEventDetails(event) {
-    const content = document.getElementById('maintenanceDetailsContent');
-    const viewDetailsBtn = document.getElementById('viewMaintenanceDetailsBtn');
-    const editMaintenanceBtn = document.getElementById('editMaintenanceBtn');
-    const completeMaintenanceBtn = document.getElementById('completeMaintenanceBtn');
-    
-    // Hide action buttons for calendar events
-    editMaintenanceBtn.style.display = 'none';
-    completeMaintenanceBtn.style.display = 'none';
-    
-    // Show the "View Full Details" button
-    viewDetailsBtn.style.display = 'inline-block';
-    viewDetailsBtn.onclick = function() {
-        window.open(`/events/${event.id}/`, '_blank');
-    };
-    
-    // Create the details HTML for calendar events
-    const priorityBadge = getPriorityBadge(event.priority);
-    
-    content.innerHTML = `
-        <div class="row">
-            <div class="col-md-8">
-                <h6 class="text-white mb-3">${event.title}</h6>
-                <div class="mb-3">
-                    <span class="badge badge-info me-2">Calendar Event</span>
-                    <span class="badge ${priorityBadge.class}">${priorityBadge.text}</span>
-                </div>
-                ${event.description ? `<p class="text-light mb-3">${event.description}</p>` : ''}
-            </div>
-            <div class="col-md-4">
-                <div class="card bg-dark border-secondary">
-                    <div class="card-body">
-                        <h6 class="text-white">Quick Info</h6>
-                        <div class="mb-2">
-                            <small class="text-muted">Equipment:</small><br>
-                            <span class="text-white">${event.equipment.name || 'N/A'}</span>
-                        </div>
-                        <div class="mb-2">
-                            <small class="text-muted">Location:</small><br>
-                            <span class="text-white">${event.equipment.location ? event.equipment.location.name : 'N/A'}</span>
-                        </div>
-                        <div class="mb-2">
-                            <small class="text-muted">Assigned To:</small><br>
-                            <span class="text-white">${event.assigned_to ? event.assigned_to.get_full_name() : 'Unassigned'}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row mt-3">
-            <div class="col-md-6">
-                <div class="card bg-dark border-secondary">
-                    <div class="card-body">
-                        <h6 class="text-white">Schedule</h6>
-                        <div class="mb-2">
-                            <small class="text-muted">Date:</small><br>
-                            <span class="text-white">${new Date(event.event_date).toLocaleDateString()}</span>
-                        </div>
-                        ${event.start_time ? `
-                        <div class="mb-2">
-                            <small class="text-muted">Start Time:</small><br>
-                            <span class="text-white">${event.start_time}</span>
-                        </div>
-                        ` : ''}
-                        ${event.end_time ? `
-                        <div class="mb-2">
-                            <small class="text-muted">End Time:</small><br>
-                            <span class="text-white">${event.end_time}</span>
-                        </div>
-                        ` : ''}
-                        <div class="mb-2">
-                            <small class="text-muted">All Day:</small><br>
-                            <span class="text-white">${event.all_day ? 'Yes' : 'No'}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card bg-dark border-secondary">
-                    <div class="card-body">
-                        <h6 class="text-white">Event Details</h6>
-                        <div class="mb-2">
-                            <small class="text-muted">Type:</small><br>
-                            <span class="text-white">${event.get_event_type_display ? event.get_event_type_display() : event.event_type}</span>
-                        </div>
-                        <div class="mb-2">
-                            <small class="text-muted">Created:</small><br>
-                            <span class="text-white">${new Date(event.created_at).toLocaleDateString()}</span>
-                        </div>
-                        <div class="mb-2">
-                            <small class="text-muted">Status:</small><br>
-                            <span class="text-white">${event.is_completed ? 'Completed' : 'Active'}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="row mt-3">
-            <div class="col-12">
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong>Note:</strong> This calendar event is not yet linked to a maintenance activity. 
-                    You can edit the event to create a corresponding maintenance activity.
-                </div>
-            </div>
-        </div>
-    `;
-}
+// Function removed - no longer needed for maintenance-only calendar
 
 function getStatusBadge(status) {
     const badges = {
@@ -1917,46 +1412,7 @@ function openCreateMaintenanceModal() {
     window.open('/maintenance/activities/add/', '_blank');
 }
 
-// Function to show maintenance details for calendar events
-function openEventMaintenanceDetails(eventId) {
-    // Show loading state
-    const content = document.getElementById('maintenanceDetailsContent');
-    content.innerHTML = `
-        <div class="text-center py-4">
-            <i class="fas fa-spinner fa-spin fa-2x text-muted"></i>
-            <p class="text-muted mt-2">Loading event details...</p>
-        </div>
-    `;
-    
-    // Update modal title
-    document.getElementById('maintenanceDetailsModalLabel').textContent = 'Calendar Event Details';
-    
-    // Show modal
-    $('#maintenanceDetailsModal').modal('show');
-    
-    // Load calendar event data and its linked maintenance activity
-    fetch(`{% url "events:get_event" event_id=0 %}`.replace('0', eventId))
-        .then(response => response.json())
-        .then(eventData => {
-            if (eventData.maintenance_activity) {
-                // If there's a linked maintenance activity, show its details
-                displayMaintenanceDetails(eventData.maintenance_activity);
-            } else {
-                // Show calendar event details with option to create maintenance activity
-                displayCalendarEventDetails(eventData);
-            }
-        })
-        .catch(error => {
-            console.error('Error loading event data:', error);
-            content.innerHTML = `
-                <div class="text-center py-4">
-                    <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
-                    <p class="text-warning mt-2">Error loading event details</p>
-                    <small class="text-muted">${error.message}</small>
-                </div>
-            `;
-        });
-}
+// Function removed - no longer needed for maintenance-only calendar
 
 // Function to complete a maintenance activity
 function completeMaintenanceActivity(activityId) {
