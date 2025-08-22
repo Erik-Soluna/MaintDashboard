@@ -49,4 +49,5 @@ urlpatterns = [
     # Other utility URLs
     path('bulk-locations/', views.bulk_locations_view, name='bulk_locations'),
     path('api-explorer/', views.api_explorer, name='api_explorer'),
+    path('locations/api/', views.locations_api, name='locations_api'),  # API endpoint for locations
 ]
