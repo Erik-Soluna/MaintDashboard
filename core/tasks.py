@@ -529,14 +529,22 @@ def set_manual_version(commit_count, commit_hash, branch, commit_date):
         import json
         import os
         
+        # Ensure commit_count is a valid integer
+        try:
+            commit_count_int = int(commit_count)
+            if commit_count_int <= 0:
+                commit_count_int = 1  # Fallback to 1 if invalid
+        except (ValueError, TypeError):
+            commit_count_int = 1  # Fallback to 1 if conversion fails
+        
         # Create version data
         version_data = {
-            'commit_count': int(commit_count),
-            'commit_hash': commit_hash,
-            'branch': branch,
-            'commit_date': commit_date,
-            'version': f'v{commit_count}.{commit_hash}',
-            'full_version': f'v{commit_count}.{commit_hash} ({branch}) - {commit_date}'
+            'commit_count': commit_count_int,
+            'commit_hash': str(commit_hash),
+            'branch': str(branch),
+            'commit_date': str(commit_date),
+            'version': f'v{commit_count_int}.{commit_hash}',
+            'full_version': f'v{commit_count_int}.{commit_hash} ({branch}) - {commit_date}'
         }
         
         # Update version.json

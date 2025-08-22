@@ -27,6 +27,7 @@ urlpatterns = [
     path('map/', views.map_view, name='map_view'),
     path('locations/settings/', views.locations_settings, name='locations_settings'),
     path('equipment-items/settings/', views.equipment_items_settings, name='equipment_items_settings'),
+    path('equipment-categories/settings/', views.equipment_categories_settings, name='equipment_categories_settings'),
     
     # Debug and utility URLs
     path('health/comprehensive/', views.comprehensive_health_check, name='comprehensive_health_check'),
@@ -49,6 +50,23 @@ urlpatterns = [
     path('customers/add/', views.add_customer, name='add_customer'),
     path('customers/<int:customer_id>/edit/', views.edit_customer, name='edit_customer'),
     path('customers/<int:customer_id>/delete/', views.delete_customer, name='delete_customer'),
+    
+    # API endpoints
+    path('api/customers/add/', views.add_customer_ajax, name='add_customer_ajax'),
+    path('api/equipment-items/', views.equipment_items_api, name='equipment_items_api'),
+    path('api/equipment-categories/', views.equipment_categories_api, name='equipment_categories_api'),
+    path('api/users/', views.users_api, name='users_api'),
+    path('api/roles/', views.roles_api, name='roles_api'),
+    path('api/roles/<int:role_id>/', views.role_detail_api, name='role_detail_api'),
+    path('api/endpoint-metrics/', views.endpoint_metrics_api, name='endpoint_metrics_api'),
+    path('api/playwright-debug/', views.playwright_debug_api, name='playwright_debug_api'),
+    path('api/playwright/natural-language/', views.run_natural_language_test_api, name='run_natural_language_test_api'),
+    path('api/playwright/rbac-suite/', views.run_rbac_test_suite_api, name='run_rbac_test_suite_api'),
+    path('api/playwright/results/', views.get_test_results_api, name='get_test_results_api'),
+    path('api/playwright/scenarios/', views.run_test_scenario_api, name='run_test_scenario_api'),
+    path('api/playwright/screenshots/', views.get_test_screenshots_api, name='get_test_screenshots_api'),
+    path('api/test-health/', views.test_health, name='test_health'),
+    path('api/toggle-monitoring/', views.toggle_monitoring, name='toggle_monitoring'),
     
     # Other utility URLs
     path('bulk-locations/', views.bulk_locations_view, name='bulk_locations'),

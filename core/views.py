@@ -4369,19 +4369,28 @@ def set_version_api(request):
         
         # Import and call the Celery task
         from core.tasks import set_manual_version
-        result = set_manual_version.delay(commit_count, commit_hash, branch, commit_date)
+        
+        # Ensure commit_count is a valid integer
+        try:
+            commit_count_int = int(commit_count)
+            if commit_count_int <= 0:
+                commit_count_int = 1  # Fallback to 1 if invalid
+        except (ValueError, TypeError):
+            commit_count_int = 1  # Fallback to 1 if conversion fails
+        
+        result = set_manual_version.delay(commit_count_int, commit_hash, branch, commit_date)
         
         return JsonResponse({
             'success': True,
             'message': f'Version set to v{commit_count}.{commit_hash} ({branch}) - {commit_date}',
             'task_id': result.id,
             'version_info': {
-                'version': f'v{commit_count}.{commit_hash}',
-                'commit_count': int(commit_count),
+                'version': f'v{commit_count_int}.{commit_hash}',
+                'commit_count': commit_count_int,
                 'commit_hash': commit_hash,
                 'branch': branch,
                 'commit_date': commit_date,
-                'full_version': f'v{commit_count}.{commit_hash} ({branch}) - {commit_date}'
+                'full_version': f'v{commit_count_int}.{commit_hash} ({branch}) - {commit_date}'
             }
         })
         
@@ -4430,8 +4439,17 @@ def extract_version_from_url_api(request):
         if auto_set:
             # Import and call the Celery task
             from core.tasks import set_manual_version
+            
+            # Ensure commit_count is a valid integer
+            try:
+                commit_count_int = int(result['commit_count'])
+                if commit_count_int <= 0:
+                    commit_count_int = 1  # Fallback to 1 if invalid
+            except (ValueError, TypeError):
+                commit_count_int = 1  # Fallback to 1 if conversion fails
+            
             task_result = set_manual_version.delay(
-                result['commit_count'], 
+                commit_count_int, 
                 result['commit_hash'], 
                 result['branch'], 
                 result['commit_date']
