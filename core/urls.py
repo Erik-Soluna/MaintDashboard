@@ -54,7 +54,6 @@ urlpatterns = [
     # API endpoints
     path('api/customers/add/', views.add_customer_ajax, name='add_customer_ajax'),
     path('api/equipment-items/', views.equipment_items_api, name='equipment_items_api'),
-    path('api/equipment-categories/', views.equipment_categories_api, name='equipment_categories_api'),
     path('api/users/', views.users_api, name='users_api'),
     path('api/roles/', views.roles_api, name='roles_api'),
     path('api/roles/<int:role_id>/', views.role_detail_api, name='role_detail_api'),
