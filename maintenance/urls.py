@@ -82,7 +82,7 @@ urlpatterns = [
     path('api/reports/equipment/<int:equipment_id>/', views.get_reports_for_equipment, name='get_reports_for_equipment'),
 
     # Combined Schedules View
-    path('schedules/', views.schedules_view, name='schedules'),
+    # path('schedules/', views.schedules_view, name='schedules'),  # Removed duplicate
     
     # Category Schedules
     path('category-schedules/', views.category_schedule_list, name='category_schedule_list'),

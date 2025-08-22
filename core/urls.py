@@ -21,6 +21,9 @@ urlpatterns = [
     path('docker-logs/', views.docker_logs_view, name='docker_logs'),
     path('version/', views.version_view, name='version'),
     path('version/html/', views.version_html_view, name='version_html'),
+    path('map/', views.map_view, name='map_view'),
+    path('locations/settings/', views.locations_settings, name='locations_settings'),
+    path('equipment-items/settings/', views.equipment_items_settings, name='equipment_items_settings'),
     
     # Debug and utility URLs
     path('health/comprehensive/', views.comprehensive_health_check, name='comprehensive_health_check'),
