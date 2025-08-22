@@ -139,9 +139,9 @@ Make sure the web application has write permissions to the project directory for
 
 ## File Locations
 
-- **Version Form**: `/core/version/form/`
-- **Version API**: `/core/version/set/`
-- **Version Info**: `/core/version/html/`
+- **Version Form**: `/version/form/`
+- **Version API**: `/version/set/`
+- **Version Info**: `/version/html/`
 - **Version Files**: `version.json` and `.env` in project root
 
 ## Examples

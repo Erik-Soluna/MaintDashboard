@@ -10,7 +10,7 @@
 #    GIT_BRANCH=<branch name>
 #    GIT_COMMIT_DATE=<commit date>
 # 2. Or use the portainer build script: ./scripts/portainer_build.sh
-# 3. The version info will be available at /version/ and /core/version/html/
+# 3. The version info will be available at /version/ and /version/html/
 
 version: '3.8'
 

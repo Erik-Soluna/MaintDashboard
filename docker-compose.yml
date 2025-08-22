@@ -12,7 +12,7 @@ version: '3.8'
 #    GIT_BRANCH=<branch name>
 #    GIT_COMMIT_DATE=<commit date>
 # 2. Or use the build script: ./scripts/build_with_version.sh
-# 3. The version info will be available at /version/ and /core/version/html/
+# 3. The version info will be available at /version/ and /version/html/
 
 services:
   db:
