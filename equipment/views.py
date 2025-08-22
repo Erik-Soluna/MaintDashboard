@@ -883,12 +883,25 @@ def import_equipment_csv(request):
         return redirect('equipment:equipment_list')
     
     try:
+        # Log import start
+        print(f"🚀 Starting CSV import for user: {request.user.username}")
+        print(f"📁 File: {csv_file.name}")
+        print(f"📊 Processing CSV data...")
+        
         # Read CSV file
         file_data = csv_file.read().decode('utf-8')
         csv_data = csv.reader(io.StringIO(file_data))
         
         # Skip header row
         header = next(csv_data)
+        print(f"📋 CSV Headers: {', '.join(header)}")
+        
+        # Validate required columns
+        required_columns = ['Name', 'Category', 'Manufacturer Serial']
+        missing_columns = [col for col in required_columns if col not in header]
+        if missing_columns:
+            messages.error(request, f'Missing required columns: {", ".join(missing_columns)}')
+            return redirect('equipment:equipment_list')
         
         # Import data
         from .models import Equipment
@@ -897,8 +910,21 @@ def import_equipment_csv(request):
         
         imported_count = 0
         error_count = 0
+        sites_created = 0
+        locations_created = 0
+        location_errors = []
+        validation_errors = []
+        
+        total_rows = sum(1 for row in csv_data)
+        csv_data = csv.reader(io.StringIO(file_data))
+        next(csv_data)  # Skip header again
+        
+        print(f"📊 Total rows to process: {total_rows}")
         
         for row_num, row in enumerate(csv_data, start=2):
+            # Progress indicator every 10 rows
+            if row_num % 10 == 0:
+                print(f"⏳ Processing row {row_num}/{total_rows + 1}...")
             try:
                 if len(row) < 3:  # Must have at least name, category, and serial
                     continue
@@ -910,7 +936,21 @@ def import_equipment_csv(request):
                 location_path = row[4].strip() if len(row) > 4 else ''
                 status = row[5].strip() if len(row) > 5 else 'active'
                 
+                # Validate required fields
                 if not name or not manufacturer_serial:
+                    validation_errors.append(f"Row {row_num}: Missing required fields (name: '{name}', serial: '{manufacturer_serial}')")
+                    error_count += 1
+                    continue
+                
+                # Validate field lengths
+                if len(name) > 200:
+                    validation_errors.append(f"Row {row_num}: Equipment name too long: {name[:50]}...")
+                    error_count += 1
+                    continue
+                
+                if len(manufacturer_serial) > 100:
+                    validation_errors.append(f"Row {row_num}: Manufacturer serial too long: {manufacturer_serial[:50]}...")
+                    error_count += 1
                     continue
                 
                 # Get or create category
@@ -921,18 +961,154 @@ def import_equipment_csv(request):
                         defaults={'description': f'Imported category: {category_name}'}
                     )
                 
-                # Find location by path
+                # Parse and create location hierarchy from location_path
                 location = None
                 if location_path:
-                    # Try to find location by full path
-                    for loc in Location.objects.all():
-                        if loc.get_full_path() == location_path:
-                            location = loc
-                            break
+                    try:
+                        # Validate location path format
+                        if not location_path.strip():
+                            validation_errors.append(f"Row {row_num}: Empty location path")
+                            continue
+                        
+                        # Check for invalid characters in location names
+                        invalid_chars = ['<', '>', '&', '"', "'", '\\', '/', '|', ':', ';', '*', '?']
+                        if any(char in location_path for char in invalid_chars):
+                            validation_errors.append(f"Row {row_num}: Location path contains invalid characters: {location_path}")
+                            continue
+                        
+                        # Parse location path (e.g., "Dorothy 1A > POD 17 > MDC 1")
+                        location_parts = [part.strip() for part in location_path.split('>')]
+                        
+                        # Validate each location part
+                        for i, part in enumerate(location_parts):
+                            if not part.strip():
+                                validation_errors.append(f"Row {row_num}: Empty location part at position {i+1}")
+                                continue
+                            if len(part.strip()) > 200:  # Max length from Location model
+                                validation_errors.append(f"Row {row_num}: Location part too long at position {i+1}: {part[:50]}...")
+                                continue
+                        
+                        if len(location_parts) >= 2:
+                            site_name = location_parts[0].strip()
+                            location_name = location_parts[1].strip()
+                            
+                            # Get or create the site
+                            try:
+                                site, site_created = Location.objects.get_or_create(
+                                    name=site_name,
+                                    is_site=True,
+                                    defaults={
+                                        'is_site': True,
+                                        'is_active': True,
+                                        'created_by': request.user
+                                    }
+                                )
+                                
+                                if site_created:
+                                    print(f"✅ Created new site: {site_name}")
+                                    sites_created += 1
+                                else:
+                                    print(f"ℹ️  Using existing site: {site_name}")
+                                
+                                # Get or create the location under the site
+                                location, loc_created = Location.objects.get_or_create(
+                                    name=location_name,
+                                    parent_location=site,
+                                    defaults={
+                                        'is_site': False,
+                                        'parent_location': site,
+                                        'is_active': True,
+                                        'created_by': request.user
+                                    }
+                                )
+                                
+                                if loc_created:
+                                    print(f"✅ Created new location: {location_name} under site {site_name}")
+                                    locations_created += 1
+                                else:
+                                    print(f"ℹ️  Using existing location: {location_name} under site {site_name}")
+                                
+                                # Handle additional location levels if they exist
+                                current_parent = location
+                                for i in range(2, len(location_parts)):
+                                    sub_location_name = location_parts[i].strip()
+                                    try:
+                                        current_parent, sub_created = Location.objects.get_or_create(
+                                            name=sub_location_name,
+                                            parent_location=current_parent,
+                                            defaults={
+                                                'is_site': False,
+                                                'parent_location': current_parent,
+                                                'is_active': True,
+                                                'created_by': request.user
+                                            }
+                                        )
+                                        
+                                        if sub_created:
+                                            print(f"✅ Created new sub-location: {sub_location_name} under {current_parent.parent_location.name}")
+                                            locations_created += 1
+                                        else:
+                                            print(f"ℹ️  Using existing sub-location: {sub_location_name}")
+                                            
+                                    except Exception as e:
+                                        location_errors.append(f"Row {row_num}: Failed to create sub-location '{sub_location_name}': {str(e)}")
+                                        continue
+                                
+                                # Update location to the final level
+                                location = current_parent
+                                
+                            except Exception as e:
+                                location_errors.append(f"Row {row_num}: Failed to create site '{site_name}': {str(e)}")
+                                continue
+                                
+                        elif len(location_parts) == 1:
+                            # Single location name - treat as a site
+                            try:
+                                location, created = Location.objects.get_or_create(
+                                    name=location_parts[0].strip(),
+                                    is_site=True,
+                                    defaults={
+                                        'is_site': True,
+                                        'is_active': True,
+                                        'created_by': request.user
+                                    }
+                                )
+                                
+                                if created:
+                                    print(f"✅ Created new site: {location_parts[0].strip()}")
+                                    sites_created += 1
+                                else:
+                                    print(f"ℹ️  Using existing site: {location_parts[0].strip()}")
+                                    
+                            except Exception as e:
+                                location_errors.append(f"Row {row_num}: Failed to create site '{location_parts[0].strip()}': {str(e)}")
+                                continue
+                        
+                        # Fallback: try to find existing location by full path
+                        if not location:
+                            try:
+                                for loc in Location.objects.all():
+                                    if loc.get_full_path() == location_path:
+                                        location = loc
+                                        print(f"ℹ️  Found existing location by path: {location_path}")
+                                        break
+                            except Exception as e:
+                                location_errors.append(f"Row {row_num}: Error searching for existing location: {str(e)}")
+                                
+                    except Exception as e:
+                        location_errors.append(f"Row {row_num}: Unexpected error processing location '{location_path}': {str(e)}")
+                        continue
+                
+                # Skip equipment creation if location creation failed
+                if not location and location_path:
+                    error_count += 1
+                    print(f"⚠️  Skipping equipment '{name}' - location creation failed")
+                    continue
                 
                 # Check if equipment already exists
                 if Equipment.objects.filter(manufacturer_serial=manufacturer_serial).exists():
                     error_count += 1
+                    print(f"⚠️  Skipping equipment '{name}' - duplicate manufacturer serial: {manufacturer_serial}")
                     continue
                 
                 # Create equipment
@@ -976,12 +1152,46 @@ def import_equipment_csv(request):
                 print(f"Error importing row {row_num}: {str(e)}")
                 continue
         
+        # Prepare detailed success message
+        success_parts = []
         if imported_count > 0:
-            messages.success(request, f'Successfully imported {imported_count} equipment items.')
+            success_parts.append(f'✅ Successfully imported {imported_count} equipment items')
+        if sites_created > 0:
+            success_parts.append(f'🏗️  Created {sites_created} new sites')
+        if locations_created > 0:
+            success_parts.append(f'📍 Created {locations_created} new locations')
+        
+        if success_parts:
+            messages.success(request, ' | '.join(success_parts) + '.')
+        
+        # Prepare detailed error/warning messages
         if error_count > 0:
-            messages.warning(request, f'{error_count} rows had errors and were skipped.')
+            messages.warning(request, f'⚠️  {error_count} rows had errors and were skipped.')
+        
+        if validation_errors:
+            error_msg = f"🚫 Validation errors ({len(validation_errors)}):\n" + "\n".join(validation_errors[:5])
+            if len(validation_errors) > 5:
+                error_msg += f"\n... and {len(validation_errors) - 5} more validation errors"
+            messages.error(request, error_msg)
+        
+        if location_errors:
+            location_error_msg = f"🏗️  Location creation errors ({len(location_errors)}):\n" + "\n".join(location_errors[:5])
+            if len(location_errors) > 5:
+                location_error_msg += f"\n... and {len(location_errors) - 5} more location errors"
+            messages.error(request, location_error_msg)
+        
+        # Final import summary
+        print(f"\n🎯 CSV Import Summary:")
+        print(f"   📦 Equipment imported: {imported_count}")
+        print(f"   🏗️  Sites created: {sites_created}")
+        print(f"   📍 Locations created: {locations_created}")
+        print(f"   ❌ Errors: {error_count}")
+        print(f"   🚫 Validation errors: {len(validation_errors)}")
+        print(f"   🏗️  Location errors: {len(location_errors)}")
+        print(f"   ✅ Import completed successfully!")
             
     except Exception as e:
+        print(f"💥 Fatal error during CSV import: {str(e)}")
         messages.error(request, f'Error reading CSV file: {str(e)}')
     
     return redirect('equipment:equipment_list')
