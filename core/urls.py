@@ -15,9 +15,9 @@ urlpatterns = [
     path('user-management/', views.user_management, name='user_management'),
     path('roles-permissions/', views.roles_permissions_management, name='roles_permissions_management'),
     path('system-health/', views.system_health, name='system_health'),
-    path('debug/', views.debug_view, name='debug_view'),
+    path('debug/', views.debug, name='debug'),
     path('webhook-settings/', views.webhook_settings, name='webhook_settings'),
-    path('docker-logs/', views.docker_logs, name='docker_logs'),
+    path('docker-logs/', views.docker_logs_view, name='docker_logs'),
     path('version/', views.version_view, name='version'),
     path('version/html/', views.version_html_view, name='version_html'),
 ]
