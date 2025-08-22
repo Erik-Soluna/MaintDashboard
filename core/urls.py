@@ -44,6 +44,9 @@ urlpatterns = [
     path('docker/aggregated-logs/', views.get_aggregated_logs_api, name='get_aggregated_logs'),
     path('docker/system-logs/', views.get_system_logs_api, name='get_system_logs'),
     path('locations/bulk-edit/', views.bulk_edit_locations, name='bulk_edit_locations'),
+    path('locations/<int:location_id>/delete/', views.delete_location, name='delete_location'),
+    path('locations/<int:location_id>/edit/', views.edit_location, name='edit_location'),
+    path('locations/add/', views.add_location, name='add_location'),
     
     # Customer management URLs
     path('customers/settings/', views.customers_settings, name='customers_settings'),
@@ -71,4 +74,5 @@ urlpatterns = [
     path('bulk-locations/', views.bulk_locations_view, name='bulk_locations'),
     path('api-explorer/', views.api_explorer, name='api_explorer'),
     path('locations/api/', views.locations_api, name='locations_api'),  # API endpoint for locations
+    path('api/locations/<int:location_id>/', views.location_detail_api, name='location_detail_api'),  # API endpoint for individual location operations
 ]

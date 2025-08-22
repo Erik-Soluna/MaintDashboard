@@ -1067,7 +1067,7 @@ $(document).ready(function() {
         $deleteBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Deleting...');
         
         $.ajax({
-            url: '/core/api/locations/' + id + '/',
+            url: '/api/locations/' + id + '/',
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
