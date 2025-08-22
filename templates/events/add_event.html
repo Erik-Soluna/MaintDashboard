@@ -407,13 +407,50 @@ document.getElementById('eventForm').addEventListener('submit', function(e) {
     const endTime = document.getElementById('end_time').value;
     const allDay = document.getElementById('all_day').checked;
     
+    // Clear previous error messages
+    clearTimeErrors();
+    
     if (!allDay && startTime && endTime) {
         if (startTime >= endTime) {
             e.preventDefault();
-            alert('End time must be after start time.');
+            showTimeError('Start time must be before end time. For same-day events, you cannot start at a later time than you end.');
             return false;
         }
     }
 });
+
+// Function to show time validation error
+function showTimeError(message) {
+    const startTimeInput = document.getElementById('start_time');
+    const endTimeInput = document.getElementById('end_time');
+    
+    // Add error class to inputs
+    startTimeInput.classList.add('is-invalid');
+    endTimeInput.classList.add('is-invalid');
+    
+    // Create error message element
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'alert alert-danger mt-2';
+    errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + message;
+    errorDiv.id = 'time-validation-error';
+    
+    // Insert error message after the time fields
+    const timeFields = document.getElementById('timeFields');
+    timeFields.parentNode.insertBefore(errorDiv, timeFields.nextSibling);
+}
+
+// Function to clear time validation errors
+function clearTimeErrors() {
+    const startTimeInput = document.getElementById('start_time');
+    const endTimeInput = document.getElementById('end_time');
+    
+    startTimeInput.classList.remove('is-invalid');
+    endTimeInput.classList.remove('is-invalid');
+    
+    const errorDiv = document.getElementById('time-validation-error');
+    if (errorDiv) {
+        errorDiv.remove();
+    }
+}
 </script>
 {% endblock %}

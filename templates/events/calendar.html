@@ -300,6 +300,27 @@
     height: 16px;
     border-radius: 4px;
 }
+
+/* Form validation styling */
+.is-invalid {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+}
+
+.is-invalid:focus {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+}
+
+.alert-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    border: 1px solid #dc3545;
+    color: #f8d7da;
+}
+
+.alert-danger .fas {
+    color: #dc3545;
+}
 </style>
 {% endblock %}
 
@@ -1132,6 +1153,11 @@ function saveEvent() {
     const formData = new FormData(form);
     const eventId = document.getElementById('eventId').value;
     
+    // Validate time inputs before submission
+    if (!validateCalendarEventTimes()) {
+        return; // Stop submission if validation fails
+    }
+    
     // Add CSRF token
     formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
     
@@ -1168,6 +1194,59 @@ function saveEvent() {
         console.error('Error saving event:', error);
         alert('Error saving event: ' + error.message);
     });
+}
+
+// Function to validate calendar event times
+function validateCalendarEventTimes() {
+    const startTime = document.getElementById('eventStartTime').value;
+    const endTime = document.getElementById('eventEndTime').value;
+    const allDay = document.getElementById('eventAllDay').checked;
+    
+    // Clear previous error messages
+    clearCalendarTimeErrors();
+    
+    if (!allDay && startTime && endTime) {
+        if (startTime >= endTime) {
+            showCalendarTimeError('Start time must be before end time. For same-day events, you cannot start at a later time than you end.');
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// Function to show time validation error in calendar modal
+function showCalendarTimeError(message) {
+    const startTimeInput = document.getElementById('eventStartTime');
+    const endTimeInput = document.getElementById('eventEndTime');
+    
+    // Add error class to inputs
+    startTimeInput.classList.add('is-invalid');
+    endTimeInput.classList.add('is-invalid');
+    
+    // Create error message element
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'alert alert-danger mt-2';
+    errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + message;
+    errorDiv.id = 'calendar-time-validation-error';
+    
+    // Insert error message after the time fields row
+    const timeFieldsRow = startTimeInput.closest('.row');
+    timeFieldsRow.parentNode.insertBefore(errorDiv, timeFieldsRow.nextSibling);
+}
+
+// Function to clear time validation errors in calendar modal
+function clearCalendarTimeErrors() {
+    const startTimeInput = document.getElementById('eventStartTime');
+    const endTimeInput = document.getElementById('eventEndTime');
+    
+    startTimeInput.classList.remove('is-invalid');
+    endTimeInput.classList.remove('is-invalid');
+    
+    const errorDiv = document.getElementById('calendar-time-validation-error');
+    if (errorDiv) {
+        errorDiv.remove();
+    }
 }
 
 function deleteEvent() {

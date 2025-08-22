@@ -227,6 +227,31 @@ class MaintenanceActivityForm(forms.ModelForm):
             'safety_notes': forms.Textarea(attrs={'rows': 2}),
         }
 
+    def clean(self):
+        """Custom validation for maintenance activity form."""
+        cleaned_data = super().clean()
+        scheduled_start = cleaned_data.get('scheduled_start')
+        scheduled_end = cleaned_data.get('scheduled_end')
+        
+        if scheduled_start and scheduled_end:
+            # Check if start time is after end time
+            if scheduled_start >= scheduled_end:
+                raise forms.ValidationError(
+                    "Scheduled start time must be before scheduled end time. "
+                    "You cannot have a start time that is after or equal to the end time."
+                )
+            
+            # Check if start and end are on the same day
+            if scheduled_start.date() == scheduled_end.date():
+                # For same-day events, ensure start time is before end time
+                if scheduled_start.time() >= scheduled_end.time():
+                    raise forms.ValidationError(
+                        "For same-day maintenance, the start time must be before the end time. "
+                        "For example, you cannot start at 7:00 PM and end at 3:00 PM on the same day."
+                    )
+        
+        return cleaned_data
+
     def __init__(self, *args, **kwargs):
         # Extract request from kwargs to access session data
         self.request = kwargs.pop('request', None)

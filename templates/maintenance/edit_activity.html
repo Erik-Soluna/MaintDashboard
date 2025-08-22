@@ -185,4 +185,87 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startTimeInput = document.getElementById('{{ form.scheduled_start.id_for_label }}');
+    const endTimeInput = document.getElementById('{{ form.scheduled_end.id_for_label }}');
+    const form = document.querySelector('form');
+    
+    // Function to validate time inputs
+    function validateTimeInputs() {
+        const startValue = startTimeInput.value;
+        const endValue = endTimeInput.value;
+        
+        // Clear previous error messages
+        clearTimeErrors();
+        
+        if (startValue && endValue) {
+            const startDateTime = new Date(startValue);
+            const endDateTime = new Date(endValue);
+            
+            // Check if start is after or equal to end
+            if (startDateTime >= endDateTime) {
+                showTimeError('Start time must be before end time');
+                return false;
+            }
+            
+            // Check if same day and start time is after end time
+            if (startDateTime.toDateString() === endDateTime.toDateString()) {
+                if (startDateTime.getTime() >= endDateTime.getTime()) {
+                    showTimeError('For same-day maintenance, start time must be before end time (e.g., cannot start at 7:00 PM and end at 3:00 PM)');
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+    
+    // Function to show time validation error
+    function showTimeError(message) {
+        // Add error class to inputs
+        startTimeInput.classList.add('is-invalid');
+        endTimeInput.classList.add('is-invalid');
+        
+        // Create error message element
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger mt-2';
+        errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + message;
+        errorDiv.id = 'time-validation-error';
+        
+        // Insert error message after the scheduling row
+        const schedulingRow = endTimeInput.closest('.row');
+        schedulingRow.parentNode.insertBefore(errorDiv, schedulingRow.nextSibling);
+    }
+    
+    // Function to clear time validation errors
+    function clearTimeErrors() {
+        startTimeInput.classList.remove('is-invalid');
+        endTimeInput.classList.remove('is-invalid');
+        
+        const errorDiv = document.getElementById('time-validation-error');
+        if (errorDiv) {
+            errorDiv.remove();
+        }
+    }
+    
+    // Add event listeners for real-time validation
+    startTimeInput.addEventListener('change', validateTimeInputs);
+    endTimeInput.addEventListener('change', validateTimeInputs);
+    
+    // Form submission validation
+    form.addEventListener('submit', function(e) {
+        if (!validateTimeInputs()) {
+            e.preventDefault();
+            // Scroll to the error message
+            const errorDiv = document.getElementById('time-validation-error');
+            if (errorDiv) {
+                errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    });
+});
+</script>
+
 {% endblock %}
