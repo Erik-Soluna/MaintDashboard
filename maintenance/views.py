@@ -2442,3 +2442,47 @@ def debug_equipment_filtering(request):
     }
     
     return render(request, 'maintenance/debug_equipment_filtering.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def create_activity_api(request):
+    """API endpoint for creating maintenance activities via AJAX."""
+    try:
+        # Parse JSON data from request
+        data = json.loads(request.body)
+        
+        # Create form with the data
+        form = MaintenanceActivityForm(data, request=request)
+        
+        if form.is_valid():
+            # Save the activity
+            activity = form.save(commit=False)
+            activity.created_by = request.user
+            activity.save()
+            
+            # Return success response
+            return JsonResponse({
+                'success': True,
+                'message': f'Maintenance activity "{activity.title}" created successfully!',
+                'activity_id': activity.id
+            })
+        else:
+            # Return validation errors
+            return JsonResponse({
+                'success': False,
+                'error': 'Validation failed',
+                'errors': form.errors
+            }, status=400)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error creating maintenance activity via API: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Server error: {str(e)}'
+        }, status=500)
