@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% csrf_token %}
 
 {% block title %}Calendar - SOLUNA Maintenance Dashboard{% endblock %}
 
@@ -466,6 +467,9 @@
                             </button>
                             <button type="button" class="btn btn-outline-success" id="completeMaintenanceBtn" style="display: none;">
                                 <i class="fas fa-check me-1"></i> Mark Complete
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" id="deleteMaintenanceBtn" style="display: none;">
+                                <i class="fas fa-trash me-1"></i> Delete Activity
                             </button>
                         </div>
                         <div>
@@ -960,6 +964,7 @@ function displayMaintenanceDetails(activity) {
     const viewDetailsBtn = document.getElementById('viewMaintenanceDetailsBtn');
     const editMaintenanceBtn = document.getElementById('editMaintenanceBtn');
     const completeMaintenanceBtn = document.getElementById('completeMaintenanceBtn');
+    const deleteMaintenanceBtn = document.getElementById('deleteMaintenanceBtn');
     
     // Show the "View Full Details" button
     viewDetailsBtn.style.display = 'inline-block';
@@ -986,6 +991,18 @@ function displayMaintenanceDetails(activity) {
         };
     } else {
         completeMaintenanceBtn.style.display = 'none';
+    }
+    
+    // Show delete button for activities that can be deleted (not completed or in progress)
+    if (activity.status === 'Scheduled' || activity.status === 'Pending' || activity.status === 'Overdue') {
+        deleteMaintenanceBtn.style.display = 'inline-block';
+        deleteMaintenanceBtn.onclick = function() {
+            if (confirm(`Are you sure you want to delete the maintenance activity "${activity.title}"? This action cannot be undone.`)) {
+                deleteMaintenanceActivity(activity.id);
+            }
+        };
+    } else {
+        deleteMaintenanceBtn.style.display = 'none';
     }
     
     // Create the details HTML
@@ -1111,6 +1128,54 @@ function formatDateTime(dateTimeStr) {
     if (!dateTimeStr) return 'N/A';
     const date = new Date(dateTimeStr);
     return date.toLocaleString();
+}
+
+function deleteMaintenanceActivity(activityId) {
+    // Show loading state
+    const deleteBtn = document.getElementById('deleteMaintenanceBtn');
+    const originalText = deleteBtn.innerHTML;
+    deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Deleting...';
+    deleteBtn.disabled = true;
+    
+    // Make DELETE request to maintenance API
+    fetch(`/maintenance/activities/${activityId}/delete/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            alert('Maintenance activity deleted successfully!');
+            
+            // Close the modal
+            $('#maintenanceDetailsModal').modal('hide');
+            
+            // Refresh the calendar to reflect the deletion
+            if (window.calendar) {
+                window.calendar.refetchEvents();
+            }
+        } else {
+            throw new Error(data.error || 'Failed to delete maintenance activity');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting maintenance activity:', error);
+        alert(`Error deleting maintenance activity: ${error.message}`);
+    })
+    .finally(() => {
+        // Restore button state
+        deleteBtn.innerHTML = originalText;
+        deleteBtn.disabled = false;
+    });
 }
 
 // List View Functions
