@@ -1,6 +1,16 @@
 # WARNING: This file is for development environment only.
 # Do NOT merge MaintDashboard/portainer-stack-dev.yml into the main branch.
 # It is intended for use with the 'latest' or other development branches only.
+#
+# 🚀 PORTAINER DEPLOYMENT WITH VERSIONING:
+# To enable git-based versioning in Portainer:
+# 1. Set these environment variables in your Portainer stack:
+#    GIT_COMMIT_COUNT=<number of commits>
+#    GIT_COMMIT_HASH=<short commit hash>
+#    GIT_BRANCH=<branch name>
+#    GIT_COMMIT_DATE=<commit date>
+# 2. Or use the portainer build script: ./scripts/portainer_build.sh
+# 3. The version info will be available at /version/ and /core/version/html/
 
 version: '3.8'
 
@@ -58,6 +68,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-0}
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-unknown}
+        GIT_BRANCH: ${GIT_BRANCH:-unknown}
+        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-unknown}
     container_name: maintenance_web_dev
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["web"]
@@ -135,6 +150,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-0}
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-unknown}
+        GIT_BRANCH: ${GIT_BRANCH:-unknown}
+        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-unknown}
     container_name: maintenance_celery_dev
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["celery"]
@@ -179,6 +199,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-0}
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-unknown}
+        GIT_BRANCH: ${GIT_BRANCH:-unknown}
+        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-unknown}
     container_name: maintenance_celery_beat_dev
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["celery-beat"]
