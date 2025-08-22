@@ -11,6 +11,7 @@ app_name = 'core'
 
 urlpatterns = [
     path('dashboard/', views.dashboard, name='dashboard'),
+    path('profile/', views.profile, name='profile'),
     path('settings/', views.settings_view, name='settings'),
     path('user-management/', views.user_management, name='user_management'),
     path('roles-permissions/', views.roles_permissions_management, name='roles_permissions_management'),
