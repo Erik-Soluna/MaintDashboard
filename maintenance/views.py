@@ -34,6 +34,7 @@ from .forms import (
 from events.models import CalendarEvent
 from maintenance.models import EquipmentCategorySchedule, GlobalSchedule, ScheduleOverride
 from maintenance.forms import EquipmentCategoryScheduleForm, GlobalScheduleForm, ScheduleOverrideForm
+from django.contrib.auth.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -2452,8 +2453,44 @@ def create_activity_api(request):
         # Parse JSON data from request
         data = json.loads(request.body)
         
-        # Create form with the data
-        form = MaintenanceActivityForm(data, request=request)
+        # Process the data to match form expectations
+        processed_data = data.copy()
+        
+        # Handle activity_type - remove 'activity_' prefix if present
+        if 'activity_type' in processed_data and processed_data['activity_type']:
+            activity_type_value = processed_data['activity_type']
+            if isinstance(activity_type_value, str) and activity_type_value.startswith('activity_'):
+                processed_data['activity_type'] = activity_type_value.replace('activity_', '')
+        
+        # Handle assigned_to - if it's a string, try to find the user
+        if 'assigned_to' in processed_data and processed_data['assigned_to']:
+            assigned_to_value = processed_data['assigned_to']
+            if isinstance(assigned_to_value, str) and assigned_to_value.strip():
+                # Try to find user by username, first_name, or last_name
+                try:
+                    user = User.objects.filter(
+                        Q(username__icontains=assigned_to_value) |
+                        Q(first_name__icontains=assigned_to_value) |
+                        Q(last_name__icontains=assigned_to_value)
+                    ).first()
+                    if user:
+                        processed_data['assigned_to'] = user.id
+                    else:
+                        # If no user found, set to None
+                        processed_data['assigned_to'] = None
+                except Exception:
+                    processed_data['assigned_to'] = None
+            else:
+                processed_data['assigned_to'] = None
+        else:
+            processed_data['assigned_to'] = None
+        
+        # Handle equipment - ensure it's not empty string
+        if 'equipment' in processed_data and processed_data['equipment'] == '':
+            processed_data['equipment'] = None
+        
+        # Create form with the processed data
+        form = MaintenanceActivityForm(processed_data, request=request)
         
         if form.is_valid():
             # Save the activity
@@ -2469,6 +2506,7 @@ def create_activity_api(request):
             })
         else:
             # Return validation errors
+            logger.error(f"Form validation failed: {form.errors}")
             return JsonResponse({
                 'success': False,
                 'error': 'Validation failed',
@@ -2476,6 +2514,7 @@ def create_activity_api(request):
             }, status=400)
             
     except json.JSONDecodeError:
+        logger.error("Invalid JSON data received")
         return JsonResponse({
             'success': False,
             'error': 'Invalid JSON data'
