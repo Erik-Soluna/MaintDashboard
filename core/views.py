@@ -4378,6 +4378,32 @@ def set_version_api(request):
         except (ValueError, TypeError):
             commit_count_int = 1  # Fallback to 1 if conversion fails
         
+        # Validate commit_date format
+        try:
+            from datetime import datetime
+            if isinstance(commit_date, str):
+                # Try to parse the date to ensure it's valid
+                date_formats = ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%Y/%m/%d']
+                parsed_date = None
+                
+                for fmt in date_formats:
+                    try:
+                        parsed_date = datetime.strptime(commit_date, fmt)
+                        break
+                    except ValueError:
+                        continue
+                
+                if not parsed_date:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'Invalid date format: {commit_date}. Expected YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY, or YYYY/MM/DD'
+                    }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid date format: {commit_date}'
+            }, status=400)
+        
         result = set_manual_version.delay(commit_count_int, commit_hash, branch, commit_date)
         
         return JsonResponse({
@@ -4447,6 +4473,33 @@ def extract_version_from_url_api(request):
                     commit_count_int = 1  # Fallback to 1 if invalid
             except (ValueError, TypeError):
                 commit_count_int = 1  # Fallback to 1 if conversion fails
+            
+            # Validate commit_date format
+            try:
+                from datetime import datetime
+                commit_date = result['commit_date']
+                if isinstance(commit_date, str):
+                    # Try to parse the date to ensure it's valid
+                    date_formats = ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%Y/%m/%d']
+                    parsed_date = None
+                    
+                    for fmt in date_formats:
+                        try:
+                            parsed_date = datetime.strptime(commit_date, fmt)
+                            break
+                        except ValueError:
+                            continue
+                    
+                    if not parsed_date:
+                        return JsonResponse({
+                            'success': False,
+                            'error': f'Invalid date format from URL: {commit_date}. Expected YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY, or YYYY/MM/DD'
+                        }, status=400)
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Invalid date format from URL: {result.get("commit_date", "unknown")}'
+                }, status=400)
             
             task_result = set_manual_version.delay(
                 commit_count_int, 

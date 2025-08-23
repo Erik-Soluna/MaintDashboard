@@ -537,6 +537,33 @@ def set_manual_version(commit_count, commit_hash, branch, commit_date):
         except (ValueError, TypeError):
             commit_count_int = 1  # Fallback to 1 if conversion fails
         
+        # Validate and format commit_date
+        try:
+            from datetime import datetime
+            # Try to parse the date and format it consistently
+            if isinstance(commit_date, str):
+                # Try different date formats
+                date_formats = ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%Y/%m/%d']
+                parsed_date = None
+                
+                for fmt in date_formats:
+                    try:
+                        parsed_date = datetime.strptime(commit_date, fmt)
+                        break
+                    except ValueError:
+                        continue
+                
+                if parsed_date:
+                    commit_date = parsed_date.strftime('%Y-%m-%d')
+                else:
+                    # If all formats fail, use today's date
+                    commit_date = datetime.now().strftime('%Y-%m-%d')
+            else:
+                commit_date = str(commit_date)
+        except Exception:
+            # Fallback to today's date if date parsing fails
+            commit_date = datetime.now().strftime('%Y-%m-%d')
+        
         # Create version data
         version_data = {
             'commit_count': commit_count_int,
@@ -554,7 +581,7 @@ def set_manual_version(commit_count, commit_hash, branch, commit_date):
         # Update .env file
         env_file = '.env'
         env_content = f"""# Version Information (Auto-generated)
-GIT_COMMIT_COUNT={commit_count}
+GIT_COMMIT_COUNT={commit_count_int}
 GIT_COMMIT_HASH={commit_hash}
 GIT_BRANCH={branch}
 GIT_COMMIT_DATE={commit_date}
