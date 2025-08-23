@@ -970,13 +970,15 @@ def import_equipment_csv(request):
                             validation_errors.append(f"Row {row_num}: Empty location path")
                             continue
                         
-                        # Check for invalid characters in location names
-                        invalid_chars = ['<', '>', '&', '"', "'", '\\', '/', '|', ':', ';', '*', '?']
-                        if any(char in location_path for char in invalid_chars):
-                            validation_errors.append(f"Row {row_num}: Location path contains invalid characters: {location_path}")
+                        # Check for invalid characters in location names (excluding '>' which is our delimiter)
+                        # These characters can cause issues in URLs, HTML, and database operations
+                        invalid_chars = ['<', '&', '"', "'", '\\', '/', '|', ':', ';', '*', '?']
+                        problematic_chars = [char for char in invalid_chars if char in location_path]
+                        if problematic_chars:
+                            validation_errors.append(f"Row {row_num}: Location path contains invalid characters: {', '.join(problematic_chars)} in: {location_path}")
                             continue
                         
-                        # Parse location path (e.g., "Dorothy 1A > POD 17 > MDC 1")
+                        # Parse location path using '>' as delimiter (e.g., "Dorothy 1A > POD 17 > MDC 1")
                         location_parts = [part.strip() for part in location_path.split('>')]
                         
                         # Validate each location part
