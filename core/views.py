@@ -4281,14 +4281,55 @@ def stop_log_stream_api(request):
 def version_view(request):
     """Display version information for debugging and verification."""
     try:
-        import importlib.util
+        import json
+        import os
         from django.conf import settings
         
-        spec = importlib.util.spec_from_file_location("version_module", settings.BASE_DIR / "version.py")
-        version_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(version_module)
+        # First try to read from version.json (most up-to-date)
+        version_info = None
+        version_json_path = os.path.join(settings.BASE_DIR, 'version.json')
         
-        version_info = version_module.get_git_version()
+        if os.path.exists(version_json_path):
+            try:
+                with open(version_json_path, 'r') as f:
+                    version_info = json.load(f)
+                logger.info(f"Loaded version info from version.json: {version_info.get('version', 'unknown')}")
+            except Exception as e:
+                logger.warning(f"Failed to read version.json: {str(e)}")
+        
+        # Fallback to environment variables
+        if not version_info:
+            version_info = {
+                'commit_count': os.environ.get('GIT_COMMIT_COUNT', '0'),
+                'commit_hash': os.environ.get('GIT_COMMIT_HASH', 'unknown'),
+                'branch': os.environ.get('GIT_BRANCH', 'unknown'),
+                'commit_date': os.environ.get('GIT_COMMIT_DATE', 'unknown'),
+                'version': f"v{os.environ.get('GIT_COMMIT_COUNT', '0')}.{os.environ.get('GIT_COMMIT_HASH', 'unknown')}",
+                'full_version': f"v{os.environ.get('GIT_COMMIT_HASH', 'unknown')} ({os.environ.get('GIT_BRANCH', 'unknown')}) - {os.environ.get('GIT_COMMIT_DATE', 'unknown')}"
+            }
+            logger.info(f"Loaded version info from environment variables: {version_info.get('version', 'unknown')}")
+        
+        # Final fallback to version.py module
+        if not version_info or version_info.get('commit_hash') == 'unknown':
+            try:
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("version_module", settings.BASE_DIR / "version.py")
+                version_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(version_module)
+                version_info = version_module.get_git_version()
+                logger.info(f"Loaded version info from version.py: {version_info.get('version', 'unknown')}")
+            except Exception as e:
+                logger.warning(f"Failed to load version.py: {str(e)}")
+                # Last resort fallback
+                version_info = {
+                    'commit_count': '0',
+                    'commit_hash': 'unknown',
+                    'branch': 'unknown',
+                    'commit_date': 'unknown',
+                    'version': 'v0.0.0',
+                    'full_version': 'v0.0.0 (unknown) - Development'
+                }
+        
         return JsonResponse(version_info)
     except Exception as e:
         logger.error(f"Error getting version info: {str(e)}")
@@ -4300,14 +4341,54 @@ def version_view(request):
 def version_html_view(request):
     """Display version information in HTML format."""
     try:
-        import importlib.util
+        import json
+        import os
         from django.conf import settings
         
-        spec = importlib.util.spec_from_file_location("version_module", settings.BASE_DIR / "version.py")
-        version_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(version_module)
+        # First try to read from version.json (most up-to-date)
+        version_info = None
+        version_json_path = os.path.join(settings.BASE_DIR, 'version.json')
         
-        version_info = version_module.get_git_version()
+        if os.path.exists(version_json_path):
+            try:
+                with open(version_json_path, 'r') as f:
+                    version_info = json.load(f)
+                logger.info(f"Loaded version info from version.json: {version_info.get('version', 'unknown')}")
+            except Exception as e:
+                logger.warning(f"Failed to read version.json: {str(e)}")
+        
+        # Fallback to environment variables
+        if not version_info:
+            version_info = {
+                'commit_count': os.environ.get('GIT_COMMIT_COUNT', '0'),
+                'commit_hash': os.environ.get('GIT_COMMIT_HASH', 'unknown'),
+                'branch': os.environ.get('GIT_BRANCH', 'unknown'),
+                'commit_date': os.environ.get('GIT_COMMIT_DATE', 'unknown'),
+                'version': f"v{os.environ.get('GIT_COMMIT_COUNT', '0')}.{os.environ.get('GIT_COMMIT_HASH', 'unknown')}",
+                'full_version': f"v{os.environ.get('GIT_COMMIT_COUNT', '0')}.{os.environ.get('GIT_COMMIT_HASH', 'unknown')} ({os.environ.get('GIT_BRANCH', 'unknown')}) - {os.environ.get('GIT_COMMIT_DATE', 'unknown')}"
+            }
+            logger.info(f"Loaded version info from environment variables: {version_info.get('version', 'unknown')}")
+        
+        # Final fallback to version.py module
+        if not version_info or version_info.get('commit_hash') == 'unknown':
+            try:
+                import importlib.util
+                spec = importlib.util.spec_from_file_location("version_module", settings.BASE_DIR / "version.py")
+                version_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(version_module)
+                version_info = version_module.get_git_version()
+                logger.info(f"Loaded version info from version.py: {version_info.get('version', 'unknown')}")
+            except Exception as e:
+                logger.warning(f"Failed to load version.py: {str(e)}")
+                # Last resort fallback
+                version_info = {
+                    'commit_count': '0',
+                    'commit_hash': 'unknown',
+                    'branch': 'unknown',
+                    'commit_date': 'unknown',
+                    'version': 'v0.0.0',
+                    'full_version': 'v0.0.0 (unknown) - Development'
+                }
         # Add deployment context
         deployment_info = {
             'debug_mode': settings.DEBUG,
