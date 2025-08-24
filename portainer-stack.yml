@@ -122,7 +122,7 @@ services:
       # Apply security middleware
       - "traefik.http.routers.maintenance-web.middlewares=maintenance-security"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/core/health/simple/", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/simple/", "||", "exit", "1"]
       interval: 30s
       timeout: 10s
       retries: 3

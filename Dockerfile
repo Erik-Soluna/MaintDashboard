@@ -102,7 +102,7 @@ EXPOSE 8000
 
 # Enhanced health check that works with the new system
 HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8000/health/ || python manage.py check --database default || exit 1
+    CMD curl -f http://localhost:8000/health/simple/ || python manage.py check --database default || exit 1
 
 # Set the entrypoint
 ENTRYPOINT ["./scripts/deployment/docker-entrypoint.sh"]
