@@ -5,6 +5,10 @@ on:
     branches: [ main, latest ]
   workflow_dispatch: # Allow manual triggering
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   auto-version:
     runs-on: ubuntu-latest
@@ -81,9 +85,18 @@ jobs:
           # Commit changes
           git commit -m "🤖 Auto-update version to v${{ steps.version.outputs.commit_count }}.${{ steps.version.outputs.commit_hash }}"
           
-          # Push changes
-          git push origin ${{ steps.version.outputs.branch }}
-          echo "✅ Version files committed and pushed"
+          # Push changes with better error handling
+          echo "🔄 Pushing changes to ${{ steps.version.outputs.branch }}..."
+          if git push origin ${{ steps.version.outputs.branch }}; then
+            echo "✅ Version files committed and pushed successfully"
+          else
+            echo "❌ Failed to push changes"
+            echo "Git status:"
+            git status
+            echo "Git remote:"
+            git remote -v
+            exit 1
+          fi
         fi
     
     - name: Create summary
