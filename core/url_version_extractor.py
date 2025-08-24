@@ -106,13 +106,21 @@ class URLVersionExtractor:
                 commit_data['commit']['committer']['date'].replace('Z', '+00:00')
             ).strftime('%Y-%m-%d')
             
+            # Ensure commit_count is a valid positive integer
+            try:
+                commit_count_int = int(commit_count)
+                if commit_count_int <= 0:
+                    commit_count_int = 1
+            except (ValueError, TypeError):
+                commit_count_int = 1
+            
             return {
-                'commit_count': commit_count,
+                'commit_count': commit_count_int,
                 'commit_hash': commit_data['sha'][:7],
                 'branch': branch,
                 'commit_date': commit_date,
-                'version': f"v{commit_count}.{commit_data['sha'][:7]}",
-                'full_version': f"v{commit_count}.{commit_data['sha'][:7]} ({branch}) - {commit_date}",
+                'version': f"v{commit_count_int}.{commit_data['sha'][:7]}",
+                'full_version': f"v{commit_count_int}.{commit_data['sha'][:7]} ({branch}) - {commit_date}",
                 'source_url': f"https://github.com/{owner}/{repo}/commit/{commit_data['sha']}",
                 'commit_message': commit_data['commit']['message'].split('\n')[0][:100]
             }
@@ -169,22 +177,35 @@ class URLVersionExtractor:
                     if 'rel="last"' in link_header:
                         last_page_match = re.search(r'page=(\d+)>; rel="last"', link_header)
                         if last_page_match:
-                            last_page = int(last_page_match.group(1))
-                            # Get the last page to see how many commits are on it
-                            last_page_response = requests.get(commits_url, params={'sha': default_branch, 'page': last_page, 'per_page': 100}, timeout=10)
-                            if last_page_response.status_code == 200:
-                                last_page_commits = last_page_response.json()
-                                total_commits = (last_page - 1) * 100 + len(last_page_commits)
-                                return max(1, total_commits)
+                            try:
+                                last_page = int(last_page_match.group(1))
+                                if last_page > 0:
+                                    # Get the last page to see how many commits are on it
+                                    last_page_response = requests.get(commits_url, params={'sha': default_branch, 'page': last_page, 'per_page': 100}, timeout=10)
+                                    if last_page_response.status_code == 200:
+                                        last_page_commits = last_page_response.json()
+                                        total_commits = (last_page - 1) * 100 + len(last_page_commits)
+                                        # Ensure we return a valid positive integer
+                                        if total_commits > 0:
+                                            return total_commits
+                            except (ValueError, TypeError) as e:
+                                logger.warning(f"Error parsing last page number: {e}")
                     
                     # Fallback: estimate from repository age
-                    created_at = datetime.fromisoformat(repo_data['created_at'].replace('Z', '+00:00'))
-                    days_old = (datetime.now().replace(tzinfo=created_at.tzinfo) - created_at).days
-                    return max(1, days_old // 3)  # Rough estimate: 1 commit per 3 days
+                    try:
+                        created_at = datetime.fromisoformat(repo_data['created_at'].replace('Z', '+00:00'))
+                        days_old = (datetime.now().replace(tzinfo=created_at.tzinfo) - created_at).days
+                        estimated_commits = max(1, days_old // 3)  # Rough estimate: 1 commit per 3 days
+                        return estimated_commits
+                    except Exception as e:
+                        logger.warning(f"Error estimating from repository age: {e}")
             
-            return 1  # Fallback
+            # Final fallback: return a safe default
+            logger.warning(f"Using fallback commit count for {owner}/{repo}")
+            return 1
             
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error getting commit count for {owner}/{repo}: {e}")
             return 1  # Default fallback
     
     def _get_branch_for_commit(self, owner, repo, commit_hash):
@@ -255,13 +276,21 @@ class URLVersionExtractor:
                 commit_data['committed_date'].replace('Z', '+00:00')
             ).strftime('%Y-%m-%d')
             
+            # Ensure commit_count is a valid positive integer
+            try:
+                commit_count_int = int(commit_count)
+                if commit_count_int <= 0:
+                    commit_count_int = 1
+            except (ValueError, TypeError):
+                commit_count_int = 1
+            
             return {
-                'commit_count': commit_count,
+                'commit_count': commit_count_int,
                 'commit_hash': commit_data['id'][:7],
                 'branch': 'main',  # Simplified
                 'commit_date': commit_date,
-                'version': f"v{commit_count}.{commit_data['id'][:7]}",
-                'full_version': f"v{commit_count}.{commit_data['id'][:7]} (main) - {commit_date}",
+                'version': f"v{commit_count_int}.{commit_data['id'][:7]}",
+                'full_version': f"v{commit_count_int}.{commit_data['id'][:7]} (main) - {commit_date}",
                 'source_url': commit_data['web_url'],
                 'commit_message': commit_data['message'].split('\n')[0][:100]
             }
