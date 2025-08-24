@@ -136,19 +136,19 @@ GIT_COMMIT_DATE={commit_date}
     with open('.env', 'w') as f:
         f.write(env_content)
     
-            logger.info("✅ Version set successfully!")
-        logger.info(f"📝 Version: {version_data['version']}")
-        logger.info(f"📝 Commit: {commit_hash}")
-        logger.info(f"📝 Branch: {branch}")
-        logger.info(f"📝 Date: {commit_date}")
-        logger.info(f"📝 Full: {version_data['full_version']}")
-        logger.info("🌐 For Portainer deployment, use these environment variables:")
-        logger.info(f"   GIT_COMMIT_COUNT={commit_count}")
-        logger.info(f"   GIT_COMMIT_HASH={commit_hash}")
-        logger.info(f"   GIT_BRANCH={branch}")
-        logger.info(f"   GIT_COMMIT_DATE={commit_date}")
-        logger.info("💡 Copy these values into your Portainer stack environment variables!")
-        logger.info("🔄 The web application will now show the updated version information.")
+    logger.info("✅ Version set successfully!")
+    logger.info(f"📝 Version: {version_data['version']}")
+    logger.info(f"📝 Commit: {commit_hash}")
+    logger.info(f"📝 Branch: {branch}")
+    logger.info(f"📝 Date: {commit_date}")
+    logger.info(f"📝 Full: {version_data['full_version']}")
+    logger.info("🌐 For Portainer deployment, use these environment variables:")
+    logger.info(f"   GIT_COMMIT_COUNT={commit_count}")
+    logger.info(f"   GIT_COMMIT_HASH={commit_hash}")
+    logger.info(f"   GIT_BRANCH={branch}")
+    logger.info(f"   GIT_COMMIT_DATE={commit_date}")
+    logger.info("💡 Copy these values into your Portainer stack environment variables!")
+    logger.info("🔄 The web application will now show the updated version information.")
     
     return version_data
 
