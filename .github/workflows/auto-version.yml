@@ -20,6 +20,10 @@ jobs:
       with:
         python-version: '3.11'
     
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    
     - name: Get version information
       id: version
       run: |
@@ -38,7 +42,20 @@ jobs:
     
     - name: Update version files
       run: |
-        python version.py --update
+        # Debug: show current directory and files
+        echo "Current directory: $(pwd)"
+        echo "Files in current directory:"
+        ls -la
+        
+        echo "Checking version.py exists:"
+        if [ -f "version.py" ]; then
+          echo "✅ version.py found"
+          python --version
+          python version.py --update
+        else
+          echo "❌ version.py not found!"
+          exit 1
+        fi
         
         # Display updated files
         echo "📁 Updated version files:"
