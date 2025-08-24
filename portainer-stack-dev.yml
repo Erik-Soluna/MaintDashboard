@@ -12,7 +12,7 @@
 # 2. Or use the portainer build script: ./scripts/portainer_build.sh
 # 3. The version info will be available at /version/ and /version/html/
 
-version: '3.8'
+# Portainer Development Stack for Maintenance Dashboard
 
 services:
   db-dev:
@@ -133,7 +133,7 @@ services:
       # Apply security middleware
       - "traefik.http.routers.maintenance-web-dev.middlewares=maintenance-dev-security"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/core/health/simple/", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/simple/", "||", "exit", "1"]
       interval: 30s
       timeout: 10s
       retries: 3

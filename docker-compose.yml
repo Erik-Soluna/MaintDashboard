@@ -1,4 +1,4 @@
-version: '3.8'
+# Docker Compose configuration for Maintenance Dashboard
 
 # ⚠️ UNSTABLE DEVELOPMENT VERSION ⚠️
 # This compose file is for development/testing only
@@ -122,7 +122,7 @@ services:
       - "traefik.http.services.maintenance-web.loadbalancer.server.port=8000"
       - "traefik.docker.network=proxy-network"
     healthcheck:
-      test: ["CMD", "curl", "-f", "--max-time", "5", "--retry", "2", "http://localhost:8000/core/health/simple/"]
+      test: ["CMD", "curl", "-f", "--max-time", "5", "--retry", "2", "http://localhost:8000/health/simple/"]
       interval: 30s
       timeout: 15s
       retries: 5
