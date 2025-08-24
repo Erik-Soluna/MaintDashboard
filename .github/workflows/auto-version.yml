@@ -83,7 +83,7 @@ jobs:
         echo "📋 Created deployment-info.txt"
     
     - name: Upload deployment artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: deployment-files-${{ steps.version.outputs.branch }}-${{ steps.version.outputs.commit_hash }}
         path: |
@@ -109,7 +109,7 @@ jobs:
           
           # Push changes (only for main and latest branches)
           if [[ "${{ steps.version.outputs.branch }}" == "main" || "${{ steps.version.outputs.branch }}" == "latest" ]]; then
-            git push
+            git push origin ${{ steps.version.outputs.branch }}
             echo "✅ Version files committed and pushed"
           else
             echo "⚠️  Skipping push for branch ${{ steps.version.outputs.branch }}"
