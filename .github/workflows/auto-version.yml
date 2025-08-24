@@ -2,8 +2,6 @@ name: Auto Version Management
 
 on:
   push:
-    branches: [ main, latest, dev ]
-  pull_request:
     branches: [ main, latest ]
   workflow_dispatch: # Allow manual triggering
 
@@ -50,73 +48,28 @@ jobs:
         echo "   .env:"
         cat .env
     
-    - name: Create deployment artifacts
-      run: |
-        # Create deployment info file
-        cat > deployment-info.txt << EOF
-        # Maintenance Dashboard Deployment Information
-        # Generated automatically on $(date)
-        
-        ## Version Information
-        Commit Count: ${{ steps.version.outputs.commit_count }}
-        Commit Hash: ${{ steps.version.outputs.commit_hash }}
-        Branch: ${{ steps.version.outputs.branch }}
-        Commit Date: ${{ steps.version.outputs.commit_date }}
-        Version: v${{ steps.version.outputs.commit_count }}.${{ steps.version.outputs.commit_hash }}
-        
-        ## Portainer Environment Variables
-        GIT_COMMIT_COUNT=${{ steps.version.outputs.commit_count }}
-        GIT_COMMIT_HASH=${{ steps.version.outputs.commit_hash }}
-        GIT_BRANCH=${{ steps.version.outputs.branch }}
-        GIT_COMMIT_DATE=${{ steps.version.outputs.commit_date }}
-        
-        ## Deployment Instructions
-        1. Copy the environment variables above into your Portainer stack
-        2. Deploy the stack
-        3. Version info will be available at /core/version/
-        
-        ## Files Updated
-        - version.json: Contains version information
-        - .env: Environment variables for Docker
-        EOF
-        
-        echo "📋 Created deployment-info.txt"
-    
-    - name: Upload deployment artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: deployment-files-${{ steps.version.outputs.branch }}-${{ steps.version.outputs.commit_hash }}
-        path: |
-          version.json
-          .env
-          deployment-info.txt
-    
-    - name: Commit version updates
+    - name: Commit and push version updates
       run: |
         # Configure git
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         
         # Add version files
-        git add version.json .env deployment-info.txt
+        git add version.json .env
         
         # Check if there are changes
         if git diff --staged --quiet; then
-          echo "No version changes to commit"
+          echo "✅ No version changes to commit"
         else
           # Commit changes
-          git commit -m "🤖 Auto-update version to v${{ steps.version.outputs.commit_count }}.${{ steps.version.outputs.commit_hash }} [skip ci]"
+          git commit -m "🤖 Auto-update version to v${{ steps.version.outputs.commit_count }}.${{ steps.version.outputs.commit_hash }}"
           
-          # Push changes (only for main and latest branches)
-          if [[ "${{ steps.version.outputs.branch }}" == "main" || "${{ steps.version.outputs.branch }}" == "latest" ]]; then
-            git push origin ${{ steps.version.outputs.branch }}
-            echo "✅ Version files committed and pushed"
-          else
-            echo "⚠️  Skipping push for branch ${{ steps.version.outputs.branch }}"
-          fi
+          # Push changes
+          git push origin ${{ steps.version.outputs.branch }}
+          echo "✅ Version files committed and pushed"
         fi
     
-    - name: Create deployment summary
+    - name: Create summary
       run: |
         echo "## 🚀 Auto Version Update Complete!" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -127,13 +80,8 @@ jobs:
         echo "### 📁 Files Updated:" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ version.json" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ .env" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ deployment-info.txt" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 🔧 Portainer Deployment:" >> $GITHUB_STEP_SUMMARY
-        echo "Copy these environment variables to your Portainer stack:" >> $GITHUB_STEP_SUMMARY
-        echo "```" >> $GITHUB_STEP_SUMMARY
-        echo "GIT_COMMIT_COUNT=${{ steps.version.outputs.commit_count }}" >> $GITHUB_STEP_SUMMARY
-        echo "GIT_COMMIT_HASH=${{ steps.version.outputs.commit_hash }}" >> $GITHUB_STEP_SUMMARY
-        echo "GIT_BRANCH=${{ steps.version.outputs.branch }}" >> $GITHUB_STEP_SUMMARY
-        echo "GIT_COMMIT_DATE=${{ steps.version.outputs.commit_date }}" >> $GITHUB_STEP_SUMMARY
-        echo "```" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔧 Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Update your Portainer stack environment variables" >> $GITHUB_STEP_SUMMARY
+        echo "2. Redeploy to get the latest version" >> $GITHUB_STEP_SUMMARY
+        echo "3. Test the version form interface" >> $GITHUB_STEP_SUMMARY
