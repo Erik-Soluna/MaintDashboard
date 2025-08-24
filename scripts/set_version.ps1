@@ -34,51 +34,23 @@ try {
     exit 1
 }
 
-Write-Host "Setting version information..." -ForegroundColor Green
+Write-Host "Setting version information using unified version.py..." -ForegroundColor Green
 Write-Host "Commit Count: $commit_count"
 Write-Host "Commit Hash: $commit_hash"
 Write-Host "Branch: $branch"
 Write-Host "Commit Date: $commit_date"
 Write-Host ""
 
-# Create version data
-$version_data = @{
-    commit_count = [int]$commit_count
-    commit_hash = $commit_hash
-    branch = $branch
-    commit_date = $commit_date
-    version = "v$commit_count.$commit_hash"
-    full_version = "v$commit_count.$commit_hash ($branch) - $commit_date"
+# Use the unified version.py script
+try {
+    python version.py $commit_count $commit_hash $branch $commit_date
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "✅ Version set successfully using unified system!" -ForegroundColor Green
+    } else {
+        Write-Error "❌ Failed to set version using unified system"
+        exit 1
+    }
+} catch {
+    Write-Error "❌ Error running unified version.py: $_"
+    exit 1
 }
-
-# Update version.json
-$version_data | ConvertTo-Json -Depth 10 | Set-Content "version.json"
-
-# Update .env file
-$env_content = @"
-# Version Information (Auto-generated)
-GIT_COMMIT_COUNT=$commit_count
-GIT_COMMIT_HASH=$commit_hash
-GIT_BRANCH=$branch
-GIT_COMMIT_DATE=$commit_date
-
-# Other environment variables can be added below
-"@
-
-$env_content | Set-Content ".env"
-
-Write-Host "✅ Version set successfully!" -ForegroundColor Green
-Write-Host "📝 Version: $($version_data.version)"
-Write-Host "📝 Commit: $commit_hash"
-Write-Host "📝 Branch: $branch"
-Write-Host "📝 Date: $commit_date"
-Write-Host "📝 Full: $($version_data.full_version)"
-Write-Host ""
-Write-Host "🌐 For Portainer deployment, use these environment variables:" -ForegroundColor Cyan
-Write-Host "   GIT_COMMIT_COUNT=$commit_count"
-Write-Host "   GIT_COMMIT_HASH=$commit_hash"
-Write-Host "   GIT_BRANCH=$branch"
-Write-Host "   GIT_COMMIT_DATE=$commit_date"
-Write-Host ""
-Write-Host "💡 Copy these values into your Portainer stack environment variables!" -ForegroundColor Yellow
-Write-Host "🔄 The web application will now show the updated version information." -ForegroundColor Green

@@ -25,6 +25,7 @@ class URLVersionExtractor:
         Supports:
         - GitHub commit URLs
         - GitHub repository URLs (gets latest commit)
+        - GitHub branch URLs (gets latest commit from specific branch)
         - GitLab commit URLs
         - GitLab repository URLs (gets latest commit)
         """
@@ -64,9 +65,14 @@ class URLVersionExtractor:
                 commit_hash = path_parts[3][:7]  # Take first 7 characters
                 return self._get_github_commit_info(owner, repo, commit_hash)
             
-            # Check if it's a tree/branch URL
+            # Check if it's a tree/branch URL (e.g., /tree/latest, /tree/main)
             elif len(path_parts) >= 4 and path_parts[2] == 'tree':
                 branch = path_parts[3]
+                return self._get_github_latest_commit(owner, repo, branch)
+            
+            # Check if it's a branch URL (e.g., /latest, /main, /develop)
+            elif len(path_parts) >= 3 and path_parts[2] not in ['commit', 'tree', 'blob', 'issues', 'pulls']:
+                branch = path_parts[2]
                 return self._get_github_latest_commit(owner, repo, branch)
             
             # Default to main/master branch
@@ -89,12 +95,8 @@ class URLVersionExtractor:
             
             commit_data = response.json()
             
-            # Get total commit count
-            commits_url = f"{self.github_api_base}/repos/{owner}/{repo}/commits"
-            commits_response = requests.get(commits_url, params={'per_page': 1}, timeout=10)
-            
-            # Try to get commit count from link header or estimate
-            commit_count = self._estimate_commit_count(commits_response, owner, repo)
+            # Get total commit count more accurately
+            commit_count = self._get_accurate_commit_count(owner, repo)
             
             # Extract branch name (try to get from commit or use 'main')
             branch = self._get_branch_for_commit(owner, repo, commit_hash)
@@ -122,7 +124,7 @@ class URLVersionExtractor:
     def _get_github_latest_commit(self, owner, repo, branch='main'):
         """Get latest commit information from GitHub API"""
         try:
-            # Try main first, then master if main fails
+            # Try the specified branch first, then fallback to main/master
             branches_to_try = [branch] if branch != 'main' else ['main', 'master']
             
             for branch_name in branches_to_try:
@@ -145,27 +147,40 @@ class URLVersionExtractor:
             logger.error(f"Error getting GitHub latest commit: {str(e)}")
             return {'error': f'Failed to get GitHub latest commit: {str(e)}'}
     
-    def _estimate_commit_count(self, commits_response, owner, repo):
-        """Estimate commit count from GitHub API response"""
+    def _get_accurate_commit_count(self, owner, repo):
+        """Get accurate commit count from GitHub API"""
         try:
-            # Try to get from link header
-            link_header = commits_response.headers.get('link', '')
-            if 'rel="last"' in link_header:
-                # Parse the last page number from link header
-                last_page_match = re.search(r'page=(\d+)>; rel="last"', link_header)
-                if last_page_match:
-                    last_page = int(last_page_match.group(1))
-                    return last_page * 30  # GitHub default per_page is 30
+            # Try to get from repository statistics first
+            repo_url = f"{self.github_api_base}/repos/{owner}/{repo}"
+            response = requests.get(repo_url, timeout=10)
             
-            # Fallback: try to get repo statistics
-            stats_url = f"{self.github_api_base}/repos/{owner}/{repo}"
-            stats_response = requests.get(stats_url, timeout=10)
-            if stats_response.status_code == 200:
-                repo_data = stats_response.json()
-                # Use created date to estimate (rough estimate)
-                created_at = datetime.fromisoformat(repo_data['created_at'].replace('Z', '+00:00'))
-                days_old = (datetime.now().replace(tzinfo=created_at.tzinfo) - created_at).days
-                return max(1, days_old // 7)  # Rough estimate: 1 commit per week
+            if response.status_code == 200:
+                repo_data = response.json()
+                # GitHub provides default_branch info
+                default_branch = repo_data.get('default_branch', 'main')
+                
+                # Get commit count for the default branch
+                commits_url = f"{self.github_api_base}/repos/{owner}/{repo}/commits"
+                commits_response = requests.get(commits_url, params={'sha': default_branch, 'per_page': 1}, timeout=10)
+                
+                if commits_response.status_code == 200:
+                    # Try to get from link header for accurate count
+                    link_header = commits_response.headers.get('link', '')
+                    if 'rel="last"' in link_header:
+                        last_page_match = re.search(r'page=(\d+)>; rel="last"', link_header)
+                        if last_page_match:
+                            last_page = int(last_page_match.group(1))
+                            # Get the last page to see how many commits are on it
+                            last_page_response = requests.get(commits_url, params={'sha': default_branch, 'page': last_page, 'per_page': 100}, timeout=10)
+                            if last_page_response.status_code == 200:
+                                last_page_commits = last_page_response.json()
+                                total_commits = (last_page - 1) * 100 + len(last_page_commits)
+                                return max(1, total_commits)
+                    
+                    # Fallback: estimate from repository age
+                    created_at = datetime.fromisoformat(repo_data['created_at'].replace('Z', '+00:00'))
+                    days_old = (datetime.now().replace(tzinfo=created_at.tzinfo) - created_at).days
+                    return max(1, days_old // 3)  # Rough estimate: 1 commit per 3 days
             
             return 1  # Fallback
             
@@ -300,6 +315,7 @@ def get_example_urls():
         'github_commit': 'https://github.com/user/repo/commit/abc1234567890',
         'github_repo': 'https://github.com/user/repo',
         'github_branch': 'https://github.com/user/repo/tree/develop',
+        'github_branch_simple': 'https://github.com/user/repo/latest',
         'gitlab_commit': 'https://gitlab.com/user/repo/-/commit/abc1234567890',
         'gitlab_repo': 'https://gitlab.com/user/repo'
     }

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Portainer Build Script for Maintenance Dashboard
-# This script captures git information and outputs it for Portainer deployment
-# Run this script before deploying to Portainer to get the version variables
+# This script automatically captures git information and updates version files
+# Run this script before deploying to Portainer for automatic version management
 
 echo "🚀 Portainer Build Script for Maintenance Dashboard"
 echo "=================================================="
@@ -29,6 +29,17 @@ echo "   Branch: $GIT_BRANCH"
 echo "   Date: $GIT_COMMIT_DATE"
 echo ""
 
+# Automatically update version files using the unified system
+echo "🔄 Updating version files automatically..."
+if command -v python3 &> /dev/null; then
+    python3 version.py --update
+elif command -v python &> /dev/null; then
+    python version.py --update
+else
+    echo "⚠️  Python not found, skipping automatic version file update"
+fi
+
+echo ""
 echo "🔧 For Portainer deployment, set these environment variables:"
 echo "=============================================================="
 echo "GIT_COMMIT_COUNT=$GIT_COMMIT_COUNT"
@@ -42,7 +53,7 @@ echo "   Or use the 'Environment' tab when editing your stack"
 echo ""
 
 echo "🌐 After deployment, version info will be available at:"
-echo "   - /version/ (JSON format)"
+echo "   - /core/version/ (JSON format)"
 echo "   - /core/version/html/ (HTML page)"
 echo "   - Settings → Version Info (navigation menu)"
 echo ""
@@ -52,3 +63,5 @@ echo "   ./scripts/build_with_version.sh"
 echo ""
 
 echo "✨ Happy deploying!"
+echo ""
+echo "💡 Pro tip: Add this script to your deployment workflow for automatic version updates!"
