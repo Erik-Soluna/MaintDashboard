@@ -117,8 +117,27 @@ document.getElementById('versionForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
     const formData = new FormData(this);
+    
+    // Validate commit_count before sending
+    let commitCount = formData.get('commit_count');
+    if (!commitCount || commitCount.trim() === '' || isNaN(commitCount) || commitCount.includes('/')) {
+        document.getElementById('result').innerHTML = `
+            <div class="alert alert-danger">
+                <h6>❌ Validation Error</h6>
+                <p class="mb-0">Commit count must be a valid number. Current value: "${commitCount}"</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Ensure it's a positive integer
+    commitCount = parseInt(commitCount);
+    if (commitCount <= 0) {
+        commitCount = 1;
+    }
+    
     const data = {
-        commit_count: formData.get('commit_count'),
+        commit_count: commitCount,
         commit_hash: formData.get('commit_hash'),
         branch: formData.get('branch'),
         commit_date: formData.get('commit_date')
@@ -174,7 +193,13 @@ document.getElementById('versionForm').addEventListener('submit', function(e) {
 });
 
 function setVersionFromLink(commitCount, commitHash, branch, commitDate) {
-    document.getElementById('commit_count').value = commitCount;
+    // Validate commit count before setting
+    if (!commitCount || isNaN(commitCount) || String(commitCount).includes('/')) {
+        alert(`Invalid commit count: "${commitCount}". Using fallback value 1.`);
+        commitCount = 1;
+    }
+    
+    document.getElementById('commit_count').value = parseInt(commitCount);
     document.getElementById('commit_hash').value = commitHash;
     document.getElementById('branch').value = branch;
     document.getElementById('commit_date').value = commitDate;
@@ -189,10 +214,17 @@ function loadCurrentVersion() {
             return;
         }
         
-        document.getElementById('commit_count').value = data.commit_count;
-        document.getElementById('commit_hash').value = data.commit_hash;
-        document.getElementById('branch').value = data.branch;
-        document.getElementById('commit_date').value = data.commit_date;
+        // Validate commit count before setting
+        let commitCount = data.commit_count;
+        if (!commitCount || isNaN(commitCount) || String(commitCount).includes('/')) {
+            alert(`Invalid commit count from server: "${commitCount}". Using fallback value 1.`);
+            commitCount = 1;
+        }
+        
+        document.getElementById('commit_count').value = parseInt(commitCount);
+        document.getElementById('commit_hash').value = data.commit_hash || 'unknown';
+        document.getElementById('branch').value = data.branch || 'main';
+        document.getElementById('commit_date').value = data.commit_date || new Date().toISOString().split('T')[0];
     })
     .catch(error => {
         alert('Error loading current version: ' + error.message);
@@ -228,11 +260,18 @@ function extractFromUrl() {
         if (data.success) {
             const extracted = data.extracted_data;
             
+            // Validate commit count before populating
+            let commitCount = extracted.commit_count;
+            if (!commitCount || isNaN(commitCount) || String(commitCount).includes('/')) {
+                console.warn(`Invalid commit count from URL extraction: "${commitCount}". Using fallback value 1.`);
+                commitCount = 1;
+            }
+            
             // Populate form fields
-            document.getElementById('commit_count').value = extracted.commit_count;
-            document.getElementById('commit_hash').value = extracted.commit_hash;
-            document.getElementById('branch').value = extracted.branch;
-            document.getElementById('commit_date').value = extracted.commit_date;
+            document.getElementById('commit_count').value = parseInt(commitCount);
+            document.getElementById('commit_hash').value = extracted.commit_hash || 'unknown';
+            document.getElementById('branch').value = extracted.branch || 'main';
+            document.getElementById('commit_date').value = extracted.commit_date || new Date().toISOString().split('T')[0];
             
             // Show success message
             resultDiv.innerHTML = `
@@ -281,6 +320,24 @@ function setVersionFromExtracted() {
     
     const extracted = window.extractedVersionData;
     
+    // Validate commit_count before sending
+    let commitCount = extracted.commit_count;
+    if (!commitCount || isNaN(commitCount) || String(commitCount).includes('/')) {
+        document.getElementById('result').innerHTML = `
+            <div class="alert alert-danger">
+                <h6>❌ Validation Error</h6>
+                <p class="mb-0">Invalid commit count from extracted data: "${commitCount}"</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Ensure it's a positive integer
+    commitCount = parseInt(commitCount);
+    if (commitCount <= 0) {
+        commitCount = 1;
+    }
+    
     // Show loading state
     const resultDiv = document.getElementById('result');
     resultDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>Setting version...</div>';
@@ -292,7 +349,7 @@ function setVersionFromExtracted() {
             'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
         },
         body: JSON.stringify({
-            commit_count: extracted.commit_count,
+            commit_count: commitCount,
             commit_hash: extracted.commit_hash,
             branch: extracted.branch,
             commit_date: extracted.commit_date
