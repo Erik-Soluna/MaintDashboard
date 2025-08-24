@@ -158,47 +158,75 @@ class URLVersionExtractor:
     def _get_accurate_commit_count(self, owner, repo):
         """Get accurate commit count from GitHub API"""
         try:
-            # Try to get from repository statistics first
+            # First, try to get from repository statistics API (more reliable)
+            stats_url = f"{self.github_api_base}/repos/{owner}/{repo}/stats/participation"
+            stats_response = requests.get(stats_url, timeout=10)
+            
+            if stats_response.status_code == 200:
+                stats_data = stats_response.json()
+                if stats_data and 'all' in stats_data:
+                    # Sum up all weekly commits for the last year
+                    total_commits = sum(stats_data['all'])
+                    if total_commits > 0 and total_commits < 10000:  # Sanity check
+                        logger.info(f"Got commit count from stats API: {total_commits} for {owner}/{repo}")
+                        return total_commits
+            
+            # Fallback to repository info
             repo_url = f"{self.github_api_base}/repos/{owner}/{repo}"
             response = requests.get(repo_url, timeout=10)
             
             if response.status_code == 200:
                 repo_data = response.json()
-                # GitHub provides default_branch info
-                default_branch = repo_data.get('default_branch', 'main')
                 
-                # Get commit count for the default branch
-                commits_url = f"{self.github_api_base}/repos/{owner}/{repo}/commits"
-                commits_response = requests.get(commits_url, params={'sha': default_branch, 'per_page': 1}, timeout=10)
-                
-                if commits_response.status_code == 200:
-                    # Try to get from link header for accurate count
-                    link_header = commits_response.headers.get('link', '')
-                    if 'rel="last"' in link_header:
-                        last_page_match = re.search(r'page=(\d+)>; rel="last"', link_header)
-                        if last_page_match:
-                            try:
-                                last_page = int(last_page_match.group(1))
-                                if last_page > 0:
-                                    # Get the last page to see how many commits are on it
-                                    last_page_response = requests.get(commits_url, params={'sha': default_branch, 'page': last_page, 'per_page': 100}, timeout=10)
-                                    if last_page_response.status_code == 200:
-                                        last_page_commits = last_page_response.json()
-                                        total_commits = (last_page - 1) * 100 + len(last_page_commits)
-                                        # Ensure we return a valid positive integer
-                                        if total_commits > 0:
-                                            return total_commits
-                            except (ValueError, TypeError) as e:
-                                logger.warning(f"Error parsing last page number: {e}")
+                # Try to get commit count from the specific branch we're interested in
+                # This is more accurate than trying to calculate from pagination
+                try:
+                    # Get commits for the specific branch (or default branch)
+                    default_branch = repo_data.get('default_branch', 'main')
+                    commits_url = f"{self.github_api_base}/repos/{owner}/{repo}/commits"
+                    commits_response = requests.get(commits_url, params={'sha': default_branch, 'per_page': 1}, timeout=10)
                     
-                    # Fallback: estimate from repository age
-                    try:
-                        created_at = datetime.fromisoformat(repo_data['created_at'].replace('Z', '+00:00'))
-                        days_old = (datetime.now().replace(tzinfo=created_at.tzinfo) - created_at).days
-                        estimated_commits = max(1, days_old // 3)  # Rough estimate: 1 commit per 3 days
-                        return estimated_commits
-                    except Exception as e:
-                        logger.warning(f"Error estimating from repository age: {e}")
+                    if commits_response.status_code == 200:
+                        # Check if we have a reasonable number of commits
+                        link_header = commits_response.headers.get('link', '')
+                        if 'rel="last"' in link_header:
+                            last_page_match = re.search(r'page=(\d+)>; rel="last"', link_header)
+                            if last_page_match:
+                                try:
+                                    last_page = int(last_page_match.group(1))
+                                    # Sanity check: if last_page is unreasonably high, use fallback
+                                    if last_page > 100:  # More than 10,000 commits seems suspicious
+                                        logger.warning(f"Suspiciously high page count ({last_page}) for {owner}/{repo}, using fallback")
+                                        raise ValueError("Page count too high")
+                                    
+                                    if last_page > 0:
+                                        # Get the last page to see how many commits are on it
+                                        last_page_response = requests.get(commits_url, params={'sha': default_branch, 'page': last_page, 'per_page': 100}, timeout=10)
+                                        if last_page_response.status_code == 200:
+                                            last_page_commits = last_page_response.json()
+                                            total_commits = (last_page - 1) * 100 + len(last_page_commits)
+                                            # Additional sanity check
+                                            if total_commits > 10000:
+                                                logger.warning(f"Calculated commit count too high ({total_commits}) for {owner}/{repo}, using fallback")
+                                                raise ValueError("Commit count too high")
+                                            
+                                            if total_commits > 0:
+                                                return total_commits
+                                except (ValueError, TypeError) as e:
+                                    logger.warning(f"Error parsing last page number: {e}")
+                except Exception as e:
+                    logger.warning(f"Error calculating from pagination: {e}")
+                
+                # Fallback: estimate from repository age (more conservative)
+                try:
+                    created_at = datetime.fromisoformat(repo_data['created_at'].replace('Z', '+00:00'))
+                    days_old = (datetime.now().replace(tzinfo=created_at.tzinfo) - created_at).days
+                    # More conservative estimate: 1 commit per 7 days instead of 3
+                    estimated_commits = max(1, days_old // 7)
+                    logger.info(f"Using age-based estimate: {estimated_commits} commits for {owner}/{repo}")
+                    return estimated_commits
+                except Exception as e:
+                    logger.warning(f"Error estimating from repository age: {e}")
             
             # Final fallback: return a safe default
             logger.warning(f"Using fallback commit count for {owner}/{repo}")
