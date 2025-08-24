@@ -10,10 +10,18 @@ import subprocess
 import time
 import psutil
 import django
+import logging
 from django.conf import settings
 from django.core.management import execute_from_command_line
 from django.db import connection
 from django.core.cache import cache
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 def setup_django():
@@ -24,18 +32,18 @@ def setup_django():
 
 def run_command(command, description):
     """Run a command with error handling."""
-    print(f"\n🔧 {description}")
+    logger.info(f"\n🔧 {description}")
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True)
         if result.returncode == 0:
-            print(f"✅ {description} completed successfully")
+            logger.info(f"✅ {description} completed successfully")
             if result.stdout:
-                print(f"Output: {result.stdout}")
+                logger.info(f"Output: {result.stdout}")
         else:
-            print(f"❌ {description} failed: {result.stderr}")
+            logger.error(f"❌ {description} failed: {result.stderr}")
         return result.returncode == 0
     except Exception as e:
-        print(f"❌ Error running {description}: {e}")
+        logger.error(f"❌ Error running {description}: {e}")
         return False
 
 

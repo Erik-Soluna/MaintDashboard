@@ -329,7 +329,7 @@ class LogStreamingService:
                             try:
                                 dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
                                 formatted_time = dt.strftime('%Y-%m-%d %H:%M:%S')
-                            except:
+                            except (ValueError, TypeError):
                                 formatted_time = timestamp
                         else:
                             formatted_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')

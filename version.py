@@ -9,7 +9,15 @@ import subprocess
 import re
 import json
 import sys
+import logging
 from datetime import datetime
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 def get_git_version():
     """Get version information from git repository"""
@@ -128,21 +136,19 @@ GIT_COMMIT_DATE={commit_date}
     with open('.env', 'w') as f:
         f.write(env_content)
     
-    print(f"✅ Version set successfully!")
-    print(f"📝 Version: {version_data['version']}")
-    print(f"📝 Commit: {commit_hash}")
-    print(f"📝 Branch: {branch}")
-    print(f"📝 Date: {commit_date}")
-    print(f"📝 Full: {version_data['full_version']}")
-    print()
-    print("🌐 For Portainer deployment, use these environment variables:")
-    print(f"   GIT_COMMIT_COUNT={commit_count}")
-    print(f"   GIT_COMMIT_HASH={commit_hash}")
-    print(f"   GIT_BRANCH={branch}")
-    print(f"   GIT_COMMIT_DATE={commit_date}")
-    print()
-    print("💡 Copy these values into your Portainer stack environment variables!")
-    print("🔄 The web application will now show the updated version information.")
+            logger.info("✅ Version set successfully!")
+        logger.info(f"📝 Version: {version_data['version']}")
+        logger.info(f"📝 Commit: {commit_hash}")
+        logger.info(f"📝 Branch: {branch}")
+        logger.info(f"📝 Date: {commit_date}")
+        logger.info(f"📝 Full: {version_data['full_version']}")
+        logger.info("🌐 For Portainer deployment, use these environment variables:")
+        logger.info(f"   GIT_COMMIT_COUNT={commit_count}")
+        logger.info(f"   GIT_COMMIT_HASH={commit_hash}")
+        logger.info(f"   GIT_BRANCH={branch}")
+        logger.info(f"   GIT_COMMIT_DATE={commit_date}")
+        logger.info("💡 Copy these values into your Portainer stack environment variables!")
+        logger.info("🔄 The web application will now show the updated version information.")
     
     return version_data
 
@@ -178,17 +184,17 @@ if __name__ == "__main__":
         try:
             int(commit_count)
         except ValueError:
-            print("❌ Error: commit_count must be a number")
+            logger.error("❌ Error: commit_count must be a number")
             sys.exit(1)
         
         if len(commit_hash) != 7:
-            print("❌ Error: commit_hash must be exactly 7 characters")
+            logger.error("❌ Error: commit_hash must be exactly 7 characters")
             sys.exit(1)
         
         try:
             datetime.strptime(commit_date, '%Y-%m-%d')
         except ValueError:
-            print("❌ Error: commit_date must be in YYYY-MM-DD format")
+            logger.error("❌ Error: commit_date must be in YYYY-MM-DD format")
             sys.exit(1)
         
         # Set the version
@@ -197,19 +203,19 @@ if __name__ == "__main__":
     elif len(sys.argv) == 1:
         # No arguments - just display current version info
         version_info = get_git_version()
-        print(f"Version: {version_info['version']}")
-        print(f"Commit: {version_info['commit_hash']}")
-        print(f"Branch: {version_info['branch']}")
-        print(f"Date: {version_info['commit_date']}")
-        print(f"Full: {version_info['full_version']}")
+        logger.info(f"Version: {version_info['version']}")
+        logger.info(f"Commit: {version_info['commit_hash']}")
+        logger.info(f"Branch: {version_info['branch']}")
+        logger.info(f"Date: {version_info['commit_date']}")
+        logger.info(f"Full: {version_info['full_version']}")
         
     elif len(sys.argv) == 2 and sys.argv[1] == '--update':
         # Update version files with current git info
         update_version_files()
         
     else:
-        print("Usage:")
-        print("  python version.py                                    # Display current version")
-        print("  python version.py --update                          # Update version files from git")
-        print("  python version.py <count> <hash> <branch> <date>    # Set specific version")
-        print("Example: python version.py 123 abc1234 main 2024-01-15")
+        logger.info("Usage:")
+        logger.info("  python version.py                                    # Display current version")
+        logger.info("  python version.py --update                          # Update version files from git")
+        logger.info("  python version.py <count> <hash> <branch> <date>    # Set specific version")
+        logger.info("Example: python version.py 123 abc1234 main 2024-01-15")

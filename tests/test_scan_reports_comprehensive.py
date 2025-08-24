@@ -134,7 +134,7 @@ def test_scan_reports_comprehensive():
                         try:
                             element_id = similar.nth(i).get_attribute('id') or similar.nth(i).get_attribute('class')
                             print(f"    Similar element {i}: {element_id}")
-                        except:
+                        except Exception:
                             pass
                 
                 # Take full page screenshot after click

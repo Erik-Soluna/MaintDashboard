@@ -145,7 +145,7 @@ class Command(BaseCommand):
                             if admin_user:
                                 admin_username = admin_user.username
                                 admin_email = admin_user.email
-                        except:
+                        except Exception:
                             pass
                     
                     # Clear all data using raw SQL for better control

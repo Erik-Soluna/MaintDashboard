@@ -7,7 +7,15 @@ import os
 import sys
 import socket
 import subprocess
+import logging
 from urllib.parse import urlparse
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 def test_redis_connection(host='redis', port=6379, timeout=5):
     """Test if Redis is reachable."""
@@ -19,23 +27,23 @@ def test_redis_connection(host='redis', port=6379, timeout=5):
         sock.close()
         
         if result == 0:
-            print(f"✅ Redis connection to {host}:{port} successful")
+            logger.info(f"✅ Redis connection to {host}:{port} successful")
             return True
         else:
-            print(f"❌ Redis connection to {host}:{port} failed (error code: {result})")
+            logger.error(f"❌ Redis connection to {host}:{port} failed (error code: {result})")
             return False
     except Exception as e:
-        print(f"❌ Redis connection test failed: {e}")
+        logger.error(f"❌ Redis connection test failed: {e}")
         return False
 
 def test_dns_resolution(hostname):
     """Test DNS resolution for a hostname."""
     try:
         ip = socket.gethostbyname(hostname)
-        print(f"✅ DNS resolution for '{hostname}' successful: {ip}")
+        logger.info(f"✅ DNS resolution for '{hostname}' successful: {ip}")
         return True
     except socket.gaierror as e:
-        print(f"❌ DNS resolution for '{hostname}' failed: {e}")
+        logger.error(f"❌ DNS resolution for '{hostname}' failed: {e}")
         return False
 
 def check_docker_status():

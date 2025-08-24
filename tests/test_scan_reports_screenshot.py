@@ -43,7 +43,7 @@ def test_scan_reports_and_screenshot():
                 try:
                     text = buttons.nth(i).inner_text()
                     print(f"Button {i}: '{text}'")
-                except:
+                except Exception:
                     print(f"Button {i}: [no text]")
             
             # Try different selectors for the Scan Reports button

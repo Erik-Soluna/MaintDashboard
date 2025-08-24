@@ -174,7 +174,7 @@ def debug_maintenance_reports():
                                     element_id = result_elements.nth(i).get_attribute('id') or result_elements.nth(i).get_attribute('class')
                                     element_text = result_elements.nth(i).inner_text()
                                     print(f"  Result element {i}: {element_id} - {element_text[:100]}...")
-                                except:
+                                except Exception:
                                     pass
                     else:
                         print("✗ Scan Reports button is not visible")
