@@ -14,6 +14,7 @@ def site_context(request):
         'sites': [],
         'selected_site': None,
         'selected_site_id': None,
+        'is_all_sites': False,
     }
     
     # Get all sites
@@ -32,10 +33,12 @@ def site_context(request):
                 # Clear site selection (All Sites) - use special marker
                 request.session['selected_site_id'] = 'all'
                 context['selected_site_id'] = None
+                context['is_all_sites'] = True
             else:
                 # Set specific site selection
                 request.session['selected_site_id'] = selected_site_id
                 context['selected_site_id'] = selected_site_id
+                context['is_all_sites'] = False
         else:
             # No site_id in request, check session or default
             selected_site_id = request.session.get('selected_site_id')
@@ -43,16 +46,20 @@ def site_context(request):
             # If session has 'all', keep it as None (All Sites)
             if selected_site_id == 'all':
                 context['selected_site_id'] = None
+                context['is_all_sites'] = True
             elif selected_site_id:
                 # Use session value
                 context['selected_site_id'] = selected_site_id
+                context['is_all_sites'] = False
             elif user_profile.default_site:
                 # Use default site only if no explicit selection was made
                 selected_site_id = str(user_profile.default_site.id)
                 request.session['selected_site_id'] = selected_site_id
                 context['selected_site_id'] = selected_site_id
+                context['is_all_sites'] = False
             else:
                 context['selected_site_id'] = None
+                context['is_all_sites'] = True
         
         # Get the selected site object if we have a valid ID
         if context['selected_site_id']:
@@ -64,10 +71,13 @@ def site_context(request):
                 if 'selected_site_id' in request.session:
                     del request.session['selected_site_id']
                 context['selected_site_id'] = None
+                context['is_all_sites'] = True
         
         # Add a display name for the current selection
-        if context['selected_site_id']:
-            context['current_site_display'] = context['selected_site'].name if context['selected_site'] else 'Unknown Site'
+        if context['is_all_sites']:
+            context['current_site_display'] = 'All Sites'
+        elif context['selected_site']:
+            context['current_site_display'] = context['selected_site'].name
         else:
             context['current_site_display'] = 'All Sites'
     

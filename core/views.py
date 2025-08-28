@@ -71,15 +71,19 @@ def dashboard(request):
     
     # Get selected site from request, session, or user default
     selected_site_id = request.GET.get('site_id')
+    is_all_sites = False
+    
     if selected_site_id is not None:
         # If site_id is explicitly provided (even if empty), use it
         if selected_site_id == '':
             # Clear site selection (All Sites) - use special marker
             request.session['selected_site_id'] = 'all'
             selected_site_id = None
+            is_all_sites = True
         else:
             # Set specific site selection
             request.session['selected_site_id'] = selected_site_id
+            is_all_sites = False
     else:
         # No site_id in request, check session or default
         selected_site_id = request.session.get('selected_site_id')
@@ -87,9 +91,13 @@ def dashboard(request):
         # If session has 'all', keep it as None (All Sites)
         if selected_site_id == 'all':
             selected_site_id = None
+            is_all_sites = True
         elif not selected_site_id and user_profile.default_site:
             selected_site_id = str(user_profile.default_site.id)
             request.session['selected_site_id'] = selected_site_id
+            is_all_sites = False
+        else:
+            is_all_sites = True
     
     # Create cache key for this dashboard view
     cache_key = f"dashboard_data_{selected_site_id or 'all'}_{request.user.id}"
@@ -103,7 +111,7 @@ def dashboard(request):
     # Get all sites for the site selector
     sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
     selected_site = None
-    if selected_site_id:
+    if selected_site_id and not is_all_sites:
         try:
             selected_site = sites.get(id=selected_site_id)
         except Location.DoesNotExist:
@@ -465,6 +473,8 @@ def dashboard(request):
     context = {
         'sites': sites,
         'selected_site': selected_site,
+        'selected_site_id': selected_site_id,
+        'is_all_sites': is_all_sites,
         'site_health': site_health,
         'site_stats': site_stats,
         
@@ -502,24 +512,33 @@ def invalidate_dashboard_cache(user_id=None, site_id=None):
     
     if user_id:
         # Invalidate cache for specific user
-        cache_key = f"dashboard_data_all_{user_id}"
-        cache.delete(cache_key)
-        
-        if site_id and site_id != 'all':
+        if site_id == 'all':
+            # For 'all' sites, clear the 'all' cache for this user
+            cache_key = f"dashboard_data_all_{user_id}"
+            cache.delete(cache_key)
+        elif site_id:
             # Invalidate cache for specific user and site
             cache_key = f"dashboard_data_{site_id}_{user_id}"
             cache.delete(cache_key)
-        elif site_id == 'all':
-            # For 'all' sites, we've already deleted the 'all' cache above
-            pass
+            # Also clear the 'all' cache since it might contain this site's data
+            cache_key = f"dashboard_data_all_{user_id}"
+            cache.delete(cache_key)
+        else:
+            # Invalidate all dashboard caches for this user (use with caution)
+            # Since Django cache doesn't support pattern deletion, we'll clear common cache keys
+            for i in range(100):  # Reasonable upper limit for user IDs
+                cache.delete(f"dashboard_data_all_{i}")
+                # Also clear some common site-specific caches
+                for site_id_val in range(1, 100):  # Reasonable upper limit for site IDs
+                    cache.delete(f"dashboard_data_{site_id_val}_{i}")
     else:
         # Invalidate all dashboard caches (use with caution)
         # Since Django cache doesn't support pattern deletion, we'll clear common cache keys
-        # In production you might want more sophisticated cache invalidation
         for i in range(100):  # Reasonable upper limit for user IDs
             cache.delete(f"dashboard_data_all_{i}")
             # Also clear some common site-specific caches
-            cache.delete(f"dashboard_data_all_{i}")
+            for site_id_val in range(1, 100):  # Reasonable upper limit for site IDs
+                cache.delete(f"dashboard_data_{site_id_val}_{i}")
 
 
 @login_required
@@ -4634,16 +4653,27 @@ def extract_version_from_url_api(request):
 def invalidate_cache_api(request):
     """API endpoint to invalidate dashboard cache for the current user."""
     try:
-        # Get the current user's site selection
-        selected_site_id = request.session.get('selected_site_id')
+        import json
+        
+        # Get the site_id from the request body
+        data = json.loads(request.body)
+        site_id = data.get('site_id')
+        
+        # Update the session with the new site selection
+        if site_id == 'all':
+            request.session['selected_site_id'] = 'all'
+        elif site_id:
+            request.session['selected_site_id'] = site_id
+        else:
+            request.session['selected_site_id'] = 'all'
         
         # Invalidate cache for this user and site
-        invalidate_dashboard_cache(user_id=request.user.id, site_id=selected_site_id)
+        invalidate_dashboard_cache(user_id=request.user.id, site_id=site_id)
         
         return JsonResponse({
             'status': 'success',
             'message': 'Cache invalidated successfully',
-            'site_id': selected_site_id
+            'site_id': site_id
         })
     except Exception as e:
         logger.error(f"Error invalidating cache: {str(e)}")

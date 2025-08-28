@@ -710,7 +710,7 @@
             <div class="d-flex align-items-center">
                 <label for="site-selector" class="text-white me-2 mb-0">Select Site:</label>
                 <select id="site-selector" class="site-selector form-control form-control-sm" onchange="changeSite(this.value)">
-                    <option value="" {% if not selected_site_id %}selected{% endif %}>All - Soluna</option>
+                    <option value="" {% if is_all_sites %}selected{% endif %}>All - Soluna</option>
                     {% for site in sites %}
                     <option value="{{ site.id }}" {% if selected_site_id == site.id|stringformat:"s" %}selected{% endif %}>
                         {{ site.name }}
@@ -894,7 +894,7 @@
                     'X-CSRFToken': '{{ csrf_token }}',
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ site_id: siteId })
+                body: JSON.stringify({ site_id: siteId || 'all' })
             }).then(response => response.json())
             .then(data => {
                 console.log('Cache invalidation result:', data);
@@ -908,7 +908,7 @@
                 } else {
                     // Remove the site_id parameter completely for "All - Soluna"
                     url.searchParams.delete('site_id');
-                    console.log('Removing site_id parameter');
+                    console.log('Removing site_id parameter for All Sites');
                 }
                 
                 // Add a timestamp to force cache busting
