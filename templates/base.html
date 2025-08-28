@@ -700,15 +700,8 @@
         </div>
         
         <div class="header-controls">
-            <!-- Current Site Display -->
-            <div class="d-flex align-items-center me-3">
-                <span class="text-white me-2">Current Site:</span>
-                <span class="badge bg-primary">{{ current_site_display }}</span>
-            </div>
-            
             <!-- Site Selector -->
             <div class="d-flex align-items-center">
-                <label for="site-selector" class="text-white me-2 mb-0">Select Site:</label>
                 <select id="site-selector" class="site-selector form-control form-control-sm" onchange="changeSite(this.value)">
                     <option value="" {% if is_all_sites %}selected{% endif %}>All - Soluna</option>
                     {% for site in sites %}
