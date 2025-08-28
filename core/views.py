@@ -509,10 +509,17 @@ def invalidate_dashboard_cache(user_id=None, site_id=None):
             # Invalidate cache for specific user and site
             cache_key = f"dashboard_data_{site_id}_{user_id}"
             cache.delete(cache_key)
+        elif site_id == 'all':
+            # For 'all' sites, we've already deleted the 'all' cache above
+            pass
     else:
         # Invalidate all dashboard caches (use with caution)
-        # This is a simple approach - in production you might want more sophisticated cache invalidation
-        cache.delete_pattern("dashboard_data_*")
+        # Since Django cache doesn't support pattern deletion, we'll clear common cache keys
+        # In production you might want more sophisticated cache invalidation
+        for i in range(100):  # Reasonable upper limit for user IDs
+            cache.delete(f"dashboard_data_all_{i}")
+            # Also clear some common site-specific caches
+            cache.delete(f"dashboard_data_all_{i}")
 
 
 @login_required
@@ -4423,16 +4430,7 @@ def version_html_view(request):
         messages.error(request, f'Failed to get version information: {str(e)}')
         return redirect('core:dashboard')
 
-def invalidate_dashboard_cache():
-    """Programmatically clear dashboard cache."""
-    try:
-        cache.delete('dashboard_data')
-        cache.delete('next_events')
-        cache.delete('recent_activities')
-        cache.delete('maintenance_stats')
-        logger.info("Dashboard cache cleared successfully")
-    except Exception as e:
-        logger.error(f"Error clearing dashboard cache: {str(e)}")
+
 
 
 
