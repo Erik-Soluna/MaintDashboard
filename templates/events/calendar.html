@@ -226,6 +226,152 @@
     text-decoration: none;
 }
 
+/* Condensed Layout Styles */
+.controls-section {
+    background-color: #0f1419;
+    border-bottom: 1px solid #2d3748;
+    padding: 15px 20px;
+}
+
+.filters-and-legend {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.filter-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-item label {
+    color: #a0aec0;
+    font-size: 14px;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.filter-item select, .filter-item input {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+    min-width: 120px;
+}
+
+.active-filters {
+    margin-top: 10px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.filter-tag {
+    background-color: #4299e1;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.filter-tag .remove {
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* Compact Legend */
+.legend-compact {
+    flex-shrink: 0;
+}
+
+.legend-compact .legend-items {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.legend-compact .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.legend-compact .legend-item:hover {
+    background-color: rgba(66, 153, 225, 0.1);
+}
+
+.legend-compact .legend-item.disabled {
+    opacity: 0.5;
+    text-decoration: line-through;
+    color: #718096;
+}
+
+.legend-compact .legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .filters-and-legend {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .legend-compact .legend-items {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 768px) {
+    .header-controls {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+    }
+    
+    .filter-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-item {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .legend-compact .legend-items {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+}
+
 /* Legend */
 .legend {
     background-color: #0f1419;
@@ -349,115 +495,114 @@
 
 {% block content %}
 <div class="calendar-container">
-    <!-- Header -->
+    <!-- Condensed Header Controls -->
     <div class="calendar-header">
-        <div class="d-flex align-items-center" style="gap: 15px;">
-            <a class="soluna-brand" href="{% url 'core:dashboard' %}">
-                <i class="fas fa-calendar me-2"></i>SOLUNA
-            </a>
-            <span class="text-light">Maintenance Dashboard</span>
-            <span class="version-badge ml-3">
-                <small class="text-muted">{{ app_version }}</small>
-            </span>
-        </div>
         <div class="header-controls">
-            <span class="text-light">Select Site:</span>
-            <select class="site-selector" id="siteSelector" onchange="handleSiteChange(this.value)">
-                <option value="" {% if is_all_sites %}selected{% endif %}>All - Soluna</option>
-                {% for site in sites %}
-                    <option value="{{ site.id }}" {% if selected_site_id == site.id|stringformat:"s" %}selected{% endif %}>
-                        {{ site.name }}
-                    </option>
-                {% endfor %}
-            </select>
-            <button type="button" class="btn btn-outline-success btn-sm" onclick="openCreateMaintenanceModal()">
-                <i class="fas fa-tools"></i>
-                Add Maintenance Activity
-            </button>
-            <a href="{% url 'events:calendar_settings' %}" class="btn btn-outline-light btn-sm ms-2">
-                <i class="fas fa-cog"></i> Calendar Settings
-            </a>
+            <div class="d-flex align-items-center gap-3">
+                <!-- View Mode Toggle -->
+                <div class="view-toggle">
+                    <button id="toggle-calendar" class="btn btn-sm {% if view_mode == 'calendar' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar_view' %}?mode=calendar'">
+                        <i class="fas fa-calendar-alt me-1"></i>Calendar
+                    </button>
+                    <button id="toggle-list" class="btn btn-sm {% if view_mode == 'list' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar_view' %}?mode=list'">
+                        <i class="fas fa-list me-1"></i>List
+                    </button>
+                </div>
+                
+                <!-- Site Selector -->
+                <div class="site-selector-wrapper">
+                    <select class="site-selector" id="siteSelector" onchange="handleSiteChange(this.value)">
+                        <option value="" {% if is_all_sites %}selected{% endif %}>All - Soluna</option>
+                        {% for site in sites %}
+                            <option value="{{ site.id }}" {% if selected_site_id == site.id|stringformat:"s" %}selected{% endif %}>
+                                {{ site.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-outline-success btn-sm" onclick="openCreateMaintenanceModal()">
+                    <i class="fas fa-tools"></i>
+                    Add Maintenance Activity
+                </button>
+                <a href="{% url 'events:calendar_settings' %}" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-cog"></i> Settings
+                </a>
+            </div>
         </div>
     </div>
 
-    <!-- View Mode Toggle -->
-    <div class="calendar-toggle" style="background:#0f1419; border-bottom:1px solid #2d3748; padding:10px 20px; display:flex; gap:20px; align-items:center;">
-        <button id="toggle-calendar" class="btn btn-sm {% if view_mode == 'calendar' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar_view' %}?mode=calendar'">
-            <i class="fas fa-calendar-alt me-1"></i>Calendar
-        </button>
-        <button id="toggle-list" class="btn btn-sm {% if view_mode == 'list' %}btn-primary{% else %}btn-outline-light{% endif %}" onclick="window.location.href='{% url 'events:calendar_view' %}?mode=list'">
-            <i class="fas fa-list me-1"></i>List
-        </button>
-        <span class="text-light ms-3">Switch between Calendar and List views</span>
-    </div>
 
-    <!-- Filters -->
-    <div class="filter-section">
-        <div class="filter-controls">
-            <div class="filter-item">
-                                        <label>Activity Type:</label>
-                <select id="eventTypeFilter" onchange="updateCalendar()">
-                    <option value="">All Types</option>
-                    {% for value, label in event_types %}
-                        <option value="{{ value }}" {% if selected_event_type == value %}selected{% endif %}>
-                            {{ label }}
-                        </option>
-                    {% endfor %}
-                </select>
+
+    <!-- Compact Filters and Legend -->
+    <div class="controls-section">
+        <div class="filters-and-legend">
+            <!-- Filters -->
+            <div class="filter-controls">
+                <div class="filter-item">
+                    <label>Activity Type:</label>
+                    <select id="eventTypeFilter" onchange="updateCalendar()">
+                        <option value="">All Types</option>
+                        {% for value, label in event_types %}
+                            <option value="{{ value }}" {% if selected_event_type == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-item">
+                    <label>Equipment:</label>
+                    <select id="equipmentFilter" onchange="updateCalendar()">
+                        <option value="">All Equipment</option>
+                        {% for equipment in equipment_list %}
+                            <option value="{{ equipment.id }}" {% if selected_equipment == equipment.id|stringformat:"s" %}selected{% endif %}>
+                                {{ equipment.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="filter-item">
+                    <button type="button" class="btn btn-outline-light btn-sm" onclick="clearFilters()">
+                        <i class="fas fa-times me-1"></i>Clear
+                    </button>
+                </div>
             </div>
             
-            <div class="filter-item">
-                <label>Equipment:</label>
-                <select id="equipmentFilter" onchange="updateCalendar()">
-                    <option value="">All Equipment</option>
-                    {% for equipment in equipment_list %}
-                        <option value="{{ equipment.id }}" {% if selected_equipment == equipment.id|stringformat:"s" %}selected{% endif %}>
-                            {{ equipment.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            
-            <div class="filter-item">
-                <button type="button" class="btn btn-outline-light btn-sm" onclick="clearFilters()">
-                    <i class="fas fa-times me-1"></i>Clear Filters
-                </button>
-            </div>
+            <!-- Active filters display -->
+            <div class="active-filters" id="activeFilters"></div>
         </div>
         
-        <!-- Active filters display -->
-        <div class="active-filters" id="activeFilters"></div>
-    </div>
-
-    <!-- Legend -->
-    <div class="legend">
-        <h6>Calendar Items</h6>
-        <div class="legend-items">
-            <div class="legend-item" data-type="scheduled" onclick="toggleLegendItem(this, 'scheduled')">
-                <div class="legend-color" style="background-color: #4299e1;"></div>
-                <span>Scheduled Maintenance</span>
+        <!-- Compact Legend -->
+        <div class="legend-compact">
+            <div class="legend-items">
+                <div class="legend-item" data-type="scheduled" onclick="toggleLegendItem(this, 'scheduled')">
+                    <div class="legend-color" style="background-color: #4299e1;"></div>
+                    <span>Scheduled</span>
+                </div>
+                <div class="legend-item" data-type="overdue" onclick="toggleLegendItem(this, 'overdue')">
+                    <div class="legend-color" style="background-color: #dc3545;"></div>
+                    <span>Overdue</span>
+                </div>
+                <div class="legend-item" data-type="completed" onclick="toggleLegendItem(this, 'completed')">
+                    <div class="legend-color" style="background-color: #28a745;"></div>
+                    <span>Completed</span>
+                </div>
+                <div class="legend-item" data-type="in_progress" onclick="toggleLegendItem(this, 'in_progress')">
+                    <div class="legend-color" style="background-color: #ffc107;"></div>
+                    <span>In Progress</span>
+                </div>
+                <div class="legend-item" data-type="events" onclick="toggleLegendItem(this, 'events')">
+                    <div class="legend-color" style="background-color: #17a2b8;"></div>
+                    <span>Events</span>
+                </div>
+                <button type="button" class="btn btn-outline-light btn-sm" onclick="showAllLegendItems()">
+                    <i class="fas fa-eye"></i> Show All
+                </button>
             </div>
-            <div class="legend-item" data-type="overdue" onclick="toggleLegendItem(this, 'overdue')">
-                <div class="legend-color" style="background-color: #dc3545;"></div>
-                <span>Overdue Maintenance</span>
-            </div>
-            <div class="legend-item" data-type="completed" onclick="toggleLegendItem(this, 'completed')">
-                <div class="legend-color" style="background-color: #28a745;"></div>
-                <span>Completed Maintenance</span>
-            </div>
-            <div class="legend-item" data-type="in_progress" onclick="toggleLegendItem(this, 'in_progress')">
-                <div class="legend-color" style="background-color: #ffc107;"></div>
-                <span>In Progress</span>
-            </div>
-            <div class="legend-item" data-type="events" onclick="toggleLegendItem(this, 'events')">
-                <div class="legend-color" style="background-color: #17a2b8;"></div>
-                <span>Events</span>
-            </div>
-        </div>
-        <div class="mt-3">
-            <button type="button" class="btn btn-outline-light btn-sm" onclick="showAllLegendItems()">
-                <i class="fas fa-eye"></i> Show All
-            </button>
         </div>
     </div>
 
