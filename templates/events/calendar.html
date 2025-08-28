@@ -292,10 +292,6 @@
     flex-wrap: wrap;
 }
 
-.filter-toggle {
-    margin-bottom: 15px;
-}
-
 .filter-panel {
     width: 100%;
     margin-bottom: 15px;
@@ -703,13 +699,40 @@
     <!-- Collapsible Filters and Legend -->
     <div class="controls-section">
         <div class="filters-and-legend">
-            <!-- Filter Toggle Button -->
-            <div class="filter-toggle">
-                <button type="button" class="btn btn-outline-light btn-sm" onclick="toggleFilters()" id="filterToggleBtn">
-                    <i class="fas fa-filter me-1"></i>
-                    <span id="filterToggleText">Show Filters</span>
-                    <span id="activeFilterCount" class="badge badge-primary ms-2" style="display: none;">0</span>
-                </button>
+            <!-- Compact Legend with Filter Toggle -->
+            <div class="legend-compact">
+                <div class="legend-items">
+                    <div class="legend-item" data-type="scheduled" onclick="toggleLegendItem(this, 'scheduled')">
+                        <div class="legend-color" style="background-color: #4299e1;"></div>
+                        <span>Scheduled</span>
+                    </div>
+                    <div class="legend-item" data-type="overdue" onclick="toggleLegendItem(this, 'overdue')">
+                        <div class="legend-color" style="background-color: #dc3545;"></div>
+                        <span>Overdue</span>
+                    </div>
+                    <div class="legend-item" data-type="completed" onclick="toggleLegendItem(this, 'completed')">
+                        <div class="legend-color" style="background-color: #28a745;"></div>
+                        <span>Completed</span>
+                    </div>
+                    <div class="legend-item" data-type="in_progress" onclick="toggleLegendItem(this, 'in_progress')">
+                        <div class="legend-color" style="background-color: #ffc107;"></div>
+                        <span>In Progress</span>
+                    </div>
+                    <div class="legend-item" data-type="events" onclick="toggleLegendItem(this, 'events')">
+                        <div class="legend-color" style="background-color: #17a2b8;"></div>
+                        <span>Events</span>
+                    </div>
+                    <button type="button" class="btn btn-outline-light btn-sm" onclick="showAllLegendItems()">
+                        <i class="fas fa-eye"></i> Show All
+                    </button>
+                    
+                    <!-- Filter Toggle Button moved to same row -->
+                    <button type="button" class="btn btn-outline-light btn-sm" onclick="toggleFilters()" id="filterToggleBtn">
+                        <i class="fas fa-filter me-1"></i>
+                        <span id="filterToggleText">Show Filters</span>
+                        <span id="activeFilterCount" class="badge badge-primary ms-2" style="display: none;">0</span>
+                    </button>
+                </div>
             </div>
             
             <!-- Collapsible Filters -->
@@ -770,35 +793,6 @@
                 
                 <!-- Active filters display -->
                 <div class="active-filters" id="activeFilters"></div>
-            </div>
-        </div>
-        
-        <!-- Compact Legend -->
-        <div class="legend-compact">
-            <div class="legend-items">
-                <div class="legend-item" data-type="scheduled" onclick="toggleLegendItem(this, 'scheduled')">
-                    <div class="legend-color" style="background-color: #4299e1;"></div>
-                    <span>Scheduled</span>
-                </div>
-                <div class="legend-item" data-type="overdue" onclick="toggleLegendItem(this, 'overdue')">
-                    <div class="legend-color" style="background-color: #dc3545;"></div>
-                    <span>Overdue</span>
-                </div>
-                <div class="legend-item" data-type="completed" onclick="toggleLegendItem(this, 'completed')">
-                    <div class="legend-color" style="background-color: #28a745;"></div>
-                    <span>Completed</span>
-                </div>
-                <div class="legend-item" data-type="in_progress" onclick="toggleLegendItem(this, 'in_progress')">
-                    <div class="legend-color" style="background-color: #ffc107;"></div>
-                    <span>In Progress</span>
-                </div>
-                <div class="legend-item" data-type="events" onclick="toggleLegendItem(this, 'events')">
-                    <div class="legend-color" style="background-color: #17a2b8;"></div>
-                    <span>Events</span>
-                </div>
-                <button type="button" class="btn btn-outline-light btn-sm" onclick="showAllLegendItems()">
-                    <i class="fas fa-eye"></i> Show All
-                </button>
             </div>
         </div>
     </div>
