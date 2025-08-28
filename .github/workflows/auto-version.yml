@@ -75,8 +75,8 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         
-        # Add version files
-        git add version.json .env
+        # Add only version.json (not .env since it's in .gitignore)
+        git add version.json
         
         # Check if there are changes
         if git diff --staged --quiet; then
@@ -109,9 +109,14 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 📁 Files Updated:" >> $GITHUB_STEP_SUMMARY
         echo "- ✅ version.json" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ .env" >> $GITHUB_STEP_SUMMARY
+        echo "- ℹ️ .env (not committed - use for Portainer deployment)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### 🔧 Next Steps:" >> $GITHUB_STEP_SUMMARY
-        echo "1. Update your Portainer stack environment variables" >> $GITHUB_STEP_SUMMARY
-        echo "2. Redeploy to get the latest version" >> $GITHUB_STEP_SUMMARY
-        echo "3. Test the version form interface" >> $GITHUB_STEP_SUMMARY
+        echo "1. Copy the .env values below for Portainer deployment:" >> $GITHUB_STEP_SUMMARY
+        echo "   GIT_COMMIT_COUNT=${{ steps.version.outputs.commit_count }}" >> $GITHUB_STEP_SUMMARY
+        echo "   GIT_COMMIT_HASH=${{ steps.version.outputs.commit_hash }}" >> $GITHUB_STEP_SUMMARY
+        echo "   GIT_BRANCH=${{ steps.version.outputs.branch }}" >> $GITHUB_STEP_SUMMARY
+        echo "   GIT_COMMIT_DATE=${{ steps.version.outputs.commit_date }}" >> $GITHUB_STEP_SUMMARY
+        echo "2. Update your Portainer stack environment variables" >> $GITHUB_STEP_SUMMARY
+        echo "3. Redeploy to get the latest version" >> $GITHUB_STEP_SUMMARY
+        echo "4. Test the version form interface" >> $GITHUB_STEP_SUMMARY
