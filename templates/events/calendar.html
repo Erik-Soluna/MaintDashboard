@@ -277,7 +277,7 @@
     text-decoration: none;
 }
 
-/* Condensed Layout Styles */
+/* Collapsible Filter Styles */
 .controls-section {
     background-color: #0f1419;
     border-bottom: 1px solid #2d3748;
@@ -290,6 +290,19 @@
     align-items: flex-start;
     gap: 20px;
     flex-wrap: wrap;
+}
+
+.filter-toggle {
+    margin-bottom: 15px;
+}
+
+.filter-panel {
+    width: 100%;
+    margin-bottom: 15px;
+    padding: 15px;
+    background-color: #1a2238;
+    border-radius: 6px;
+    border: 1px solid #2d3748;
 }
 
 .filter-controls {
@@ -321,6 +334,116 @@
     border-radius: 4px;
     font-size: 14px;
     min-width: 120px;
+}
+
+/* Equipment Multiselect Styles */
+.equipment-multiselect {
+    position: relative;
+    min-width: 200px;
+}
+
+.equipment-selected {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.equipment-selected:hover {
+    border-color: #4299e1;
+}
+
+.equipment-selected .placeholder {
+    color: #a0aec0;
+}
+
+.equipment-selected .equipment-tag {
+    background-color: #4299e1;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.equipment-selected .equipment-tag .remove {
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.equipment-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    border-radius: 4px;
+    margin-top: 2px;
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.equipment-search {
+    padding: 10px;
+    border-bottom: 1px solid #4a5568;
+}
+
+.equipment-search input {
+    width: 100%;
+    background-color: #1a2238;
+    border: 1px solid #4a5568;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.equipment-search input:focus {
+    border-color: #4299e1;
+    outline: none;
+}
+
+.equipment-options {
+    padding: 10px;
+}
+
+.equipment-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    cursor: pointer;
+    color: white;
+    font-size: 14px;
+}
+
+.equipment-option:hover {
+    background-color: #4a5568;
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin: 0 -8px;
+}
+
+.equipment-option input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.equipment-option span {
+    flex: 1;
 }
 
 .active-filters {
@@ -577,44 +700,77 @@
 
 
 
-    <!-- Compact Filters and Legend -->
+    <!-- Collapsible Filters and Legend -->
     <div class="controls-section">
         <div class="filters-and-legend">
-            <!-- Filters -->
-            <div class="filter-controls">
-                <div class="filter-item">
-                    <label>Activity Type:</label>
-                    <select id="eventTypeFilter" onchange="updateCalendar()">
-                        <option value="">All Types</option>
-                        {% for value, label in event_types %}
-                            <option value="{{ value }}" {% if selected_event_type == value %}selected{% endif %}>
-                                {{ label }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="filter-item">
-                    <label>Equipment:</label>
-                    <select id="equipmentFilter" onchange="updateCalendar()">
-                        <option value="">All Equipment</option>
-                        {% for equipment in equipment_list %}
-                            <option value="{{ equipment.id }}" {% if selected_equipment == equipment.id|stringformat:"s" %}selected{% endif %}>
-                                {{ equipment.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="filter-item">
-                    <button type="button" class="btn btn-outline-light btn-sm" onclick="clearFilters()">
-                        <i class="fas fa-times me-1"></i>Clear
-                    </button>
-                </div>
+            <!-- Filter Toggle Button -->
+            <div class="filter-toggle">
+                <button type="button" class="btn btn-outline-light btn-sm" onclick="toggleFilters()" id="filterToggleBtn">
+                    <i class="fas fa-filter me-1"></i>
+                    <span id="filterToggleText">Show Filters</span>
+                    <span id="activeFilterCount" class="badge badge-primary ms-2" style="display: none;">0</span>
+                </button>
             </div>
             
-            <!-- Active filters display -->
-            <div class="active-filters" id="activeFilters"></div>
+            <!-- Collapsible Filters -->
+            <div class="filter-panel" id="filterPanel" style="display: none;">
+                <div class="filter-controls">
+                    <div class="filter-item">
+                        <label>Activity Type:</label>
+                        <select id="eventTypeFilter" onchange="updateCalendar()">
+                            <option value="">All Types</option>
+                            {% for value, label in event_types %}
+                                <option value="{{ value }}" {% if selected_event_type == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label>Customer:</label>
+                        <select id="customerFilter" onchange="updateCalendar()">
+                            <option value="">All Customers</option>
+                            {% for customer in customers %}
+                                <option value="{{ customer.id }}" {% if selected_customer == customer.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ customer.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-item">
+                        <label>Equipment:</label>
+                        <div class="equipment-multiselect">
+                            <div class="equipment-selected" id="equipmentSelected">
+                                <span class="placeholder">Select Equipment</span>
+                            </div>
+                            <div class="equipment-dropdown" id="equipmentDropdown" style="display: none;">
+                                <div class="equipment-search">
+                                    <input type="text" id="equipmentSearch" placeholder="Search equipment..." class="form-control form-control-sm">
+                                </div>
+                                <div class="equipment-options" id="equipmentOptions">
+                                    {% for equipment in equipment_list %}
+                                        <label class="equipment-option">
+                                            <input type="checkbox" value="{{ equipment.id }}" class="equipment-checkbox">
+                                            <span>{{ equipment.name }}</span>
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-item">
+                        <button type="button" class="btn btn-outline-light btn-sm" onclick="clearFilters()">
+                            <i class="fas fa-times me-1"></i>Clear
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Active filters display -->
+                <div class="active-filters" id="activeFilters"></div>
+            </div>
         </div>
         
         <!-- Compact Legend -->
@@ -848,11 +1004,18 @@
 document.addEventListener('DOMContentLoaded', function() {
     var calendarView = '{{ calendar_view }}';
     var viewMode = '{{ view_mode }}';
+    
+    // Initialize equipment multiselect
+    initializeEquipmentMultiselect();
+    
     if (viewMode === 'calendar') {
         initializeCalendar();
     } else if (viewMode === 'list') {
         loadListView();
     }
+    
+    // Initialize active filter count
+    updateActiveFilterCount();
 });
 
 function initializeCalendar() {
@@ -888,18 +1051,19 @@ function initializeCalendar() {
         events: {
             url: eventsUrl,
             method: 'GET',
-            extraParams: function() {
-                var params = {
-                    equipment: document.getElementById('equipmentFilter').value,
-                    site_id: document.getElementById('site-selector').value,
-                    event_type: document.getElementById('eventTypeFilter').value
-                };
-                
-                // Debug logging for filter parameters
-                console.log('Calendar filter parameters:', params);
-                
-                return params;
-            },
+                    extraParams: function() {
+            var params = {
+                equipment: getSelectedEquipment().join(','),
+                site_id: document.getElementById('site-selector').value,
+                event_type: document.getElementById('eventTypeFilter').value,
+                customer: document.getElementById('customerFilter').value
+            };
+            
+            // Debug logging for filter parameters
+            console.log('Calendar filter parameters:', params);
+            
+            return params;
+        },
             success: function(events) {
                 console.log('Calendar events loaded from API:', events);
                 events.forEach((event, index) => {
@@ -1040,9 +1204,10 @@ function applyClientSideFiltering() {
     if (!window.calendar) return;
     
     const eventTypeFilter = document.getElementById('eventTypeFilter').value;
-    const equipmentFilter = document.getElementById('equipmentFilter').value;
+    const customerFilter = document.getElementById('customerFilter').value;
+    const selectedEquipment = getSelectedEquipment();
     
-    console.log('Applying client-side filtering:', { eventTypeFilter, equipmentFilter });
+    console.log('Applying client-side filtering:', { eventTypeFilter, customerFilter, selectedEquipment });
     
     const events = window.calendar.getEvents();
     console.log('Total events to filter:', events.length);
@@ -1055,6 +1220,7 @@ function applyClientSideFiltering() {
             activity_type_id: event.extendedProps?.activity_type_id,
             event_type: event.extendedProps?.event_type,
             equipment_id: event.extendedProps?.equipment_id,
+            customer_id: event.extendedProps?.customer_id,
             extendedProps: event.extendedProps
         });
         
@@ -1085,9 +1251,16 @@ function applyClientSideFiltering() {
             }
         }
         
-        // Filter by equipment
-        if (equipmentFilter && event.extendedProps?.equipment_id && 
-            event.extendedProps.equipment_id.toString() !== equipmentFilter) {
+        // Filter by customer
+        if (customerFilter && event.extendedProps?.customer_id && 
+            event.extendedProps.customer_id.toString() !== customerFilter) {
+            shouldShow = false;
+            console.log(`Hiding event: ${event.title} - customer mismatch`);
+        }
+        
+        // Filter by equipment (multiple selection)
+        if (selectedEquipment.length > 0 && event.extendedProps?.equipment_id && 
+            !selectedEquipment.includes(event.extendedProps.equipment_id.toString())) {
             shouldShow = false;
             console.log(`Hiding event: ${event.title} - equipment mismatch`);
         }
@@ -1155,9 +1328,152 @@ function handleSiteChange(siteId) {
     });
 }
 
+// Filter toggle functionality
+function toggleFilters() {
+    const filterPanel = document.getElementById('filterPanel');
+    const filterToggleText = document.getElementById('filterToggleText');
+    const filterToggleBtn = document.getElementById('filterToggleBtn');
+    
+    if (filterPanel.style.display === 'none') {
+        filterPanel.style.display = 'block';
+        filterToggleText.textContent = 'Hide Filters';
+        filterToggleBtn.classList.add('btn-primary');
+        filterToggleBtn.classList.remove('btn-outline-light');
+    } else {
+        filterPanel.style.display = 'none';
+        filterToggleText.textContent = 'Show Filters';
+        filterToggleBtn.classList.remove('btn-primary');
+        filterToggleBtn.classList.add('btn-outline-light');
+    }
+}
+
+// Equipment multiselect functionality
+function initializeEquipmentMultiselect() {
+    const equipmentSelected = document.getElementById('equipmentSelected');
+    const equipmentDropdown = document.getElementById('equipmentDropdown');
+    const equipmentSearch = document.getElementById('equipmentSearch');
+    const equipmentOptions = document.getElementById('equipmentOptions');
+    
+    // Toggle dropdown
+    equipmentSelected.addEventListener('click', function(e) {
+        e.stopPropagation();
+        equipmentDropdown.style.display = equipmentDropdown.style.display === 'none' ? 'block' : 'none';
+        if (equipmentDropdown.style.display === 'block') {
+            equipmentSearch.focus();
+        }
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function() {
+        equipmentDropdown.style.display = 'none';
+    });
+    
+    // Search functionality
+    equipmentSearch.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const options = equipmentOptions.querySelectorAll('.equipment-option');
+        
+        options.forEach(option => {
+            const text = option.querySelector('span').textContent.toLowerCase();
+            if (text.includes(searchTerm)) {
+                option.style.display = 'flex';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+    });
+    
+    // Handle checkbox changes
+    equipmentOptions.addEventListener('change', function(e) {
+        if (e.target.classList.contains('equipment-checkbox')) {
+            updateEquipmentSelection();
+            updateCalendar();
+        }
+    });
+}
+
+function updateEquipmentSelection() {
+    const selectedEquipment = [];
+    const checkboxes = document.querySelectorAll('.equipment-checkbox:checked');
+    
+    checkboxes.forEach(checkbox => {
+        selectedEquipment.push({
+            id: checkbox.value,
+            name: checkbox.nextElementSibling.textContent
+        });
+    });
+    
+    displayEquipmentSelection(selectedEquipment);
+    updateActiveFilterCount();
+}
+
+function displayEquipmentSelection(equipment) {
+    const equipmentSelected = document.getElementById('equipmentSelected');
+    
+    if (equipment.length === 0) {
+        equipmentSelected.innerHTML = '<span class="placeholder">Select Equipment</span>';
+        return;
+    }
+    
+    const tags = equipment.map(eq => `
+        <span class="equipment-tag">
+            ${eq.name}
+            <span class="remove" onclick="removeEquipmentSelection('${eq.id}')">&times;</span>
+        </span>
+    `).join('');
+    
+    equipmentSelected.innerHTML = tags;
+}
+
+function removeEquipmentSelection(equipmentId) {
+    const checkbox = document.querySelector(`.equipment-checkbox[value="${equipmentId}"]`);
+    if (checkbox) {
+        checkbox.checked = false;
+        updateEquipmentSelection();
+        updateCalendar();
+    }
+}
+
+function getSelectedEquipment() {
+    const checkboxes = document.querySelectorAll('.equipment-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function updateActiveFilterCount() {
+    const count = getActiveFilterCount();
+    const countBadge = document.getElementById('activeFilterCount');
+    
+    if (count > 0) {
+        countBadge.textContent = count;
+        countBadge.style.display = 'inline-block';
+    } else {
+        countBadge.style.display = 'none';
+    }
+}
+
+function getActiveFilterCount() {
+    let count = 0;
+    
+    // Activity Type filter
+    if (document.getElementById('eventTypeFilter').value) count++;
+    
+    // Customer filter
+    if (document.getElementById('customerFilter').value) count++;
+    
+    // Equipment filter
+    if (getSelectedEquipment().length > 0) count++;
+    
+    return count;
+}
+
 function clearFilters() {
     document.getElementById('eventTypeFilter').value = '';
-    document.getElementById('equipmentFilter').value = '';
+    document.getElementById('customerFilter').value = '';
+    
+    // Clear equipment checkboxes
+    document.querySelectorAll('.equipment-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
     
     // Clear client-side filtering
     if (window.calendar) {
@@ -1167,6 +1483,8 @@ function clearFilters() {
         });
     }
     
+    updateEquipmentSelection();
+    updateActiveFilterCount();
     updateCalendar();
 }
 
@@ -1246,7 +1564,8 @@ function updateActiveFilters() {
     container.innerHTML = '';
     
     const eventType = document.getElementById('eventTypeFilter');
-    const equipment = document.getElementById('equipmentFilter');
+    const customer = document.getElementById('customerFilter');
+    const selectedEquipment = getSelectedEquipment();
     
     if (eventType.value) {
         const tag = createFilterTag('Activity Type', eventType.options[eventType.selectedIndex].text, () => {
@@ -1256,12 +1575,22 @@ function updateActiveFilters() {
         container.appendChild(tag);
     }
     
-    if (equipment.value) {
-        const tag = createFilterTag('Equipment', equipment.options[equipment.selectedIndex].text, () => {
-            equipment.value = '';
+    if (customer.value) {
+        const tag = createFilterTag('Customer', customer.options[customer.selectedIndex].text, () => {
+            customer.value = '';
             updateCalendar();
         });
         container.appendChild(tag);
+    }
+    
+    if (selectedEquipment.length > 0) {
+        selectedEquipment.forEach(equipmentId => {
+            const equipmentName = document.querySelector(`.equipment-checkbox[value="${equipmentId}"] + span`).textContent;
+            const tag = createFilterTag('Equipment', equipmentName, () => {
+                removeEquipmentSelection(equipmentId);
+            });
+            container.appendChild(tag);
+        });
     }
 }
 
@@ -1579,13 +1908,17 @@ function loadListView() {
     
     // Add filters to URL
     const eventTypeFilter = document.getElementById('eventTypeFilter');
-    const equipmentFilter = document.getElementById('equipmentFilter');
+    const customerFilter = document.getElementById('customerFilter');
+    const selectedEquipment = getSelectedEquipment();
     
     if (eventTypeFilter && eventTypeFilter.value) {
         apiUrl += (apiUrl.includes('?') ? '&' : '?') + 'event_type=' + eventTypeFilter.value;
     }
-    if (equipmentFilter && equipmentFilter.value) {
-        apiUrl += (apiUrl.includes('?') ? '&' : '?') + 'equipment=' + equipmentFilter.value;
+    if (customerFilter && customerFilter.value) {
+        apiUrl += (apiUrl.includes('?') ? '&' : '?') + 'customer=' + customerFilter.value;
+    }
+    if (selectedEquipment.length > 0) {
+        apiUrl += (apiUrl.includes('?') ? '&' : '?') + 'equipment=' + selectedEquipment.join(',');
     }
     
     // Fetch data
