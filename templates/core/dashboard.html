@@ -583,7 +583,7 @@
             <i class="fas fa-building"></i>
             No pods configured for this site.<br>
             {% if selected_site %}
-            <small>Add locations under {{ selected_site.name }} to see pod status.</small>
+            <small>Add locations under {{ selected_site.name|default:"All Sites" }} to see pod status.</small>
             {% else %}
             <small>Select a site to view pod information.</small>
             {% endif %}

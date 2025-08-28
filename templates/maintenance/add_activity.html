@@ -61,7 +61,7 @@
                                             <i class="fas fa-exclamation-triangle"></i>
                                             No active equipment found
                                             {% if selected_site %}
-                                                for site "{{ selected_site.name }}"
+                                                for site "{{ selected_site.name|default:'All Sites' }}"
                                             {% endif %}
                                             {% if total_equipment_count > 0 %}
                                                 ({{ total_equipment_count }} total equipment available).
@@ -74,7 +74,7 @@
                                         <small class="text-muted">
                                             {{ equipment_count }} equipment available
                                             {% if selected_site %}
-                                                for {{ selected_site.name }}
+                                                for {{ selected_site.name|default:'All Sites' }}
                                             {% endif %}
                                             {% if total_equipment_count != equipment_count %}
                                                 ({{ total_equipment_count }} total)

@@ -64,6 +64,12 @@ def site_context(request):
                 if 'selected_site_id' in request.session:
                     del request.session['selected_site_id']
                 context['selected_site_id'] = None
+        
+        # Add a display name for the current selection
+        if context['selected_site_id']:
+            context['current_site_display'] = context['selected_site'].name if context['selected_site'] else 'Unknown Site'
+        else:
+            context['current_site_display'] = 'All Sites'
     
     return context
 

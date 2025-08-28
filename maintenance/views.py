@@ -342,7 +342,7 @@ def add_activity(request):
         if selected_site_id:
             try:
                 selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-                logger.info(f"Selected site: {selected_site.name}")
+                logger.info(f"Selected site: {selected_site.name if selected_site else 'All Sites'}")
             except Location.DoesNotExist:
                 logger.warning(f"Invalid site ID: {selected_site_id}")
         
