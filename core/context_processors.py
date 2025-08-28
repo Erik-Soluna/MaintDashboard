@@ -141,3 +141,13 @@ def version_context(request):
             'app_branch': 'unknown',
             'app_commit_date': 'unknown',
         }
+
+
+def logo_processor(request):
+    """Add the active logo to the template context"""
+    try:
+        from .models import Logo
+        active_logo = Logo.objects.filter(is_active=True).first()
+        return {'site_logo': active_logo}
+    except Exception:
+        return {'site_logo': None}

@@ -112,6 +112,7 @@ TEMPLATES = [
                     'core.context_processors.site_context',
                     'core.context_processors.user_context',
                     'core.context_processors.version_context',
+                    'core.context_processors.logo_processor',
                 ],
             },
     },

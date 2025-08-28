@@ -12,7 +12,7 @@ from django.utils.timezone import now
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
-from .models import EquipmentCategory, Location, UserProfile, Customer, Role, Permission, PortainerConfig
+from .models import EquipmentCategory, Location, UserProfile, Customer, Role, Permission, PortainerConfig, Logo
 
 
 # Custom Password Change View for Admin
@@ -189,3 +189,22 @@ class PortainerConfigAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """Prevent deletion of the configuration."""
         return False
+
+@admin.register(Logo)
+class LogoAdmin(admin.ModelAdmin):
+    list_display = ['name', 'image', 'is_active', 'created_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    def has_delete_permission(self, request, obj=None):
+        # Don't allow deletion of the last logo
+        if obj and Logo.objects.count() == 1:
+            return False
+        return super().has_delete_permission(request, obj)
+    
+    def save_model(self, request, obj, form, change):
+        # Ensure only one logo is active
+        if obj.is_active:
+            Logo.objects.filter(is_active=True).exclude(pk=obj.pk).update(is_active=False)
+        super().save_model(request, obj, form, change)

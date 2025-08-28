@@ -618,3 +618,33 @@ class PortainerConfig(models.Model):
         """Ensure only one configuration exists."""
         self.pk = 1
         super().save(*args, **kwargs)
+
+
+class Logo(models.Model):
+    """Site logo that can be managed by admins"""
+    name = models.CharField(max_length=100, default="Site Logo")
+    image = models.ImageField(upload_to='logos/', help_text="Upload your site logo (recommended: 200x60px)")
+    is_active = models.BooleanField(default=True, help_text="Only one logo can be active at a time")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Logo"
+        verbose_name_plural = "Logos"
+        ordering = ['-is_active', '-created_at']
+    
+    def __str__(self):
+        return f"{self.name} ({'Active' if self.is_active else 'Inactive'})"
+    
+    def save(self, *args, **kwargs):
+        # Ensure only one logo is active at a time
+        if self.is_active:
+            Logo.objects.filter(is_active=True).update(is_active=False)
+        super().save(*args, **kwargs)
+    
+    @property
+    def url(self):
+        """Return the logo URL"""
+        if self.image:
+            return self.image.url
+        return None
