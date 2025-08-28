@@ -621,6 +621,10 @@ def add_activity_type(request):
     else:
         form = MaintenanceActivityTypeForm()
     
+    # Debug: Log form field data
+    print(f"Category choices: {list(form.fields['category'].queryset.values_list('name', flat=True))}")
+    print(f"Equipment categories: {list(form.fields['applicable_equipment_categories'].queryset.values_list('name', flat=True))}")
+    
     context = {'form': form}
     return render(request, 'maintenance/add_activity_type.html', context)
 

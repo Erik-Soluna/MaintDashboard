@@ -159,6 +159,17 @@ class EnhancedMaintenanceActivityTypeForm(forms.ModelForm):
         self.fields['applicable_equipment_categories'].queryset = EquipmentCategory.objects.filter(is_active=True)
         self.fields['template_selection'].queryset = ActivityTypeTemplate.objects.filter(is_active=True)
         
+        # Add empty choice for category if no categories exist
+        if not self.fields['category'].queryset.exists():
+            self.fields['category'].empty_label = "No categories available - please create some first"
+            self.fields['category'].required = False
+        else:
+            self.fields['category'].empty_label = "--- Select Category ---"
+        
+        # Add empty choice for equipment categories if none exist
+        if not self.fields['applicable_equipment_categories'].queryset.exists():
+            self.fields['applicable_equipment_categories'].help_text = "No equipment categories available - please create some first"
+        
         # Setup crispy forms helper
         self.helper = FormHelper()
         self.helper.layout = Layout(
