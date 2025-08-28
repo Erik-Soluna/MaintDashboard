@@ -223,6 +223,82 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Documents Section -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Documents & Reports</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Maintenance Reports -->
+                    {% if maintenance_reports %}
+                    <div class="mb-4">
+                        <h6 class="mb-3"><i class="fas fa-clipboard-list me-2"></i>Maintenance Reports</h6>
+                        <div class="row">
+                            {% for report in maintenance_reports %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card border-primary">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-primary">{{ report.title }}</h6>
+                                        <p class="card-text">
+                                            <small class="text-muted">{{ report.get_report_type_display }}</small><br>
+                                            {% if report.findings_summary %}
+                                                {{ report.findings_summary|truncatechars:100 }}
+                                            {% endif %}
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">{{ report.created_at|date:"M d, Y" }}</small>
+                                            <a href="{{ report.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                <i class="fas fa-download me-1"></i> View
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Equipment Documents -->
+                    {% if equipment_documents %}
+                    <div class="mb-4">
+                        <h6 class="mb-3"><i class="fas fa-folder-open me-2"></i>Equipment Documents</h6>
+                        <div class="row">
+                            {% for document in equipment_documents %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card border-secondary">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-secondary">{{ document.title }}</h6>
+                                        <p class="card-text">
+                                            <small class="text-muted">{{ document.get_document_type_display }}</small><br>
+                                            {% if document.description %}
+                                                {{ document.description|truncatechars:100 }}
+                                            {% endif %}
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">{{ document.created_at|date:"M d, Y" }}</small>
+                                            <a href="{{ document.file.url }}" class="btn btn-sm btn-outline-secondary" target="_blank">
+                                                <i class="fas fa-download me-1"></i> View
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if not maintenance_reports and not equipment_documents %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No documents or reports available for this activity</p>
+                        <p class="text-muted small">Documents will appear here when maintenance reports are uploaded or equipment documents are available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
 
         <!-- Sidebar -->

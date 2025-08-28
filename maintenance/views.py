@@ -243,6 +243,15 @@ def activity_detail(request, activity_id):
     # Get timeline entries
     timeline_entries = activity.timeline_entries.all().order_by('-created_at')
     
+    # Get all related documents
+    all_documents = activity.get_all_documents()
+    
+    # Get maintenance reports for this activity
+    maintenance_reports = activity.reports.all().order_by('-created_at')
+    
+    # Get equipment documents that might be relevant
+    equipment_documents = activity.equipment.documents.all().order_by('-created_at')[:10]
+    
     # Get related maintenance activities for this equipment
     related_activities = MaintenanceActivity.objects.filter(
         equipment=activity.equipment
@@ -285,6 +294,9 @@ def activity_detail(request, activity_id):
     context = {
         'activity': activity,
         'timeline_entries': timeline_entries,
+        'all_documents': all_documents,
+        'maintenance_reports': maintenance_reports,
+        'equipment_documents': equipment_documents,
         'related_activities': related_activities,
         'equipment_history': equipment_history,
         'total_maintenance_time': round(total_maintenance_time, 2),

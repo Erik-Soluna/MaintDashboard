@@ -282,6 +282,21 @@ class MaintenanceActivity(TimeStampedModel):
             return self.scheduled_end - self.scheduled_start
         return None
 
+    def get_all_documents(self):
+        """Get all documents related to this maintenance activity."""
+        documents = []
+        
+        # Add maintenance reports
+        documents.extend(self.reports.all())
+        
+        # Add equipment documents
+        if self.equipment:
+            documents.extend(self.equipment.documents.all())
+        
+        # Sort by creation date
+        documents.sort(key=lambda x: x.created_at, reverse=True)
+        return documents
+
     def is_overdue(self):
         """Check if maintenance is overdue."""
         return (
@@ -512,6 +527,9 @@ class MaintenanceTimelineEntry(TimeStampedModel):
         ('note', 'Note Added'),
         ('issue', 'Issue Reported'),
         ('resolution', 'Issue Resolved'),
+        ('status_change', 'Status Changed'),
+        ('unassigned', 'Activity Unassigned'),
+        ('report_uploaded', 'Report Uploaded'),
     ]
     
     activity = models.ForeignKey(

@@ -21,6 +21,9 @@ def timeline_color(entry_type):
         'note': 'light',
         'issue': 'danger',
         'resolution': 'success',
+        'status_change': 'primary',
+        'unassigned': 'warning',
+        'report_uploaded': 'info',
     }
     return color_map.get(entry_type, 'secondary')
 
@@ -39,6 +42,9 @@ def timeline_icon(entry_type):
         'note': 'fa-sticky-note',
         'issue': 'fa-exclamation-triangle',
         'resolution': 'fa-check-circle',
+        'status_change': 'fa-exchange-alt',
+        'unassigned': 'fa-user-minus',
+        'report_uploaded': 'fa-file-upload',
     }
     return icon_map.get(entry_type, 'fa-circle')
 
