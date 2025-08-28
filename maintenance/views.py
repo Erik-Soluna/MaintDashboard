@@ -28,15 +28,23 @@ from .models import (
     MaintenanceTimelineEntry
 )
 from equipment.models import Equipment
-from core.models import EquipmentCategory, EquipmentDocument
+from core.models import EquipmentCategory
+from equipment.models import Equipment, EquipmentDocument
 from .forms import (
     MaintenanceActivityForm, MaintenanceScheduleForm, 
     MaintenanceActivityTypeForm, EnhancedMaintenanceActivityTypeForm,
     ActivityTypeCategoryForm, ActivityTypeTemplateForm
 )
 from events.models import CalendarEvent
-from maintenance.models import EquipmentCategorySchedule, GlobalSchedule, ScheduleOverride
-from maintenance.forms import EquipmentCategoryScheduleForm, GlobalScheduleForm, ScheduleOverrideForm
+
+# Import maintenance models and forms to avoid circular imports
+from .models import (
+    EquipmentCategorySchedule, GlobalSchedule, ScheduleOverride
+)
+from .forms import (
+    EquipmentCategoryScheduleForm, GlobalScheduleForm, ScheduleOverrideForm
+)
+
 from django.contrib.auth.models import User
 
 logger = logging.getLogger(__name__)
