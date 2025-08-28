@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Documents - {{ equipment.name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_list' %}">Equipment</a></li>
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_detail' equipment.id %}">{{ equipment.name }}</a></li>
+<li class="breadcrumb-item active">Documents</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-file-alt me-2"></i>
+                        Equipment Documents
+                    </h1>
+                    <p class="text-muted mb-0">Documents and reports for {{ equipment.name }}</p>
+                </div>
+                <div>
+                    <a href="{% url 'equipment:add_document' equipment.id %}" class="btn btn-primary">
+                        <i class="fas fa-upload me-1"></i> Upload Document
+                    </a>
+                    <a href="{% url 'equipment:equipment_detail' equipment.id %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Equipment
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Equipment Documents -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-folder-open me-2"></i>
+                    Equipment Documents
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if documents %}
+                    <div class="list-group list-group-flush">
+                        {% for document in documents %}
+                        <div class="list-group-item d-flex justify-content-between align-items-start">
+                            <div class="ms-2 me-auto">
+                                <div class="fw-bold">{{ document.title }}</div>
+                                <small class="text-muted">
+                                    {{ document.get_document_type_display }} • 
+                                    {{ document.created_at|date:"M d, Y" }}
+                                </small>
+                                {% if document.description %}
+                                <div class="mt-1">{{ document.description|truncatechars:100 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="btn-group">
+                                <a href="{{ document.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                    <i class="fas fa-download me-1"></i> View
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No equipment documents available</p>
+                        <a href="{% url 'equipment:add_document' equipment.id %}" class="btn btn-primary">
+                            <i class="fas fa-upload me-1"></i> Upload First Document
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Maintenance Reports -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-clipboard-list me-2"></i>
+                    Maintenance Reports
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if maintenance_reports %}
+                    <div class="list-group list-group-flush">
+                        {% for report in maintenance_reports %}
+                        <div class="list-group-item d-flex justify-content-between align-items-start">
+                            <div class="ms-2 me-auto">
+                                <div class="fw-bold">{{ report.title }}</div>
+                                <small class="text-muted">
+                                    {{ report.get_report_type_display }} • 
+                                    {{ report.created_at|date:"M d, Y" }}
+                                </small>
+                                {% if report.findings_summary %}
+                                <div class="mt-1">{{ report.findings_summary|truncatechars:100 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="btn-group">
+                                <a href="{{ report.file.url }}" class="btn btn-sm btn-outline-success" target="_blank">
+                                    <i class="fas fa-download me-1"></i> View
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No maintenance reports available</p>
+                        <p class="text-muted small">Maintenance reports will appear here when uploaded during maintenance activities</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Document Statistics -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Document Summary
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <div class="border-end">
+                            <h4 class="text-primary">{{ documents.count }}</h4>
+                            <p class="text-muted mb-0">Equipment Documents</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border-end">
+                            <h4 class="text-success">{{ maintenance_reports.count }}</h4>
+                            <p class="text-muted mb-0">Maintenance Reports</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <h4 class="text-info">{{ documents.count|add:maintenance_reports.count }}</h4>
+                        <p class="text-muted mb-0">Total Documents</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Add click tracking for document downloads
+    $('a[href*=".pdf"], a[href*=".doc"], a[href*=".docx"]').on('click', function() {
+        const fileName = $(this).attr('href').split('/').pop();
+        console.log('Document accessed:', fileName);
+    });
+});
+</script>
+{% endblock %}

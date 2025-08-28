@@ -540,9 +540,24 @@ def equipment_components(request, equipment_id):
     equipment = get_object_or_404(Equipment, id=equipment_id)
     components = equipment.components.all()
     
+    # Calculate component statistics
+    from datetime import date
+    today = date.today()
+    
+    critical_components_count = components.filter(is_critical=True).count()
+    overdue_components_count = components.filter(
+        next_replacement_date__lt=today,
+        next_replacement_date__isnull=False
+    ).count()
+    total_quantity = sum(component.quantity for component in components)
+    
     context = {
         'equipment': equipment,
         'components': components,
+        'today': today,
+        'critical_components_count': critical_components_count,
+        'overdue_components_count': overdue_components_count,
+        'total_quantity': total_quantity,
     }
     
     return render(request, 'equipment/equipment_components.html', context)
@@ -580,9 +595,17 @@ def equipment_documents(request, equipment_id):
     equipment = get_object_or_404(Equipment, id=equipment_id)
     documents = equipment.documents.all()
     
+    # Get maintenance reports for this equipment
+    from maintenance.models import MaintenanceReport
+    maintenance_reports = MaintenanceReport.objects.filter(
+        equipment=equipment,
+        is_active=True
+    ).order_by('-created_at')
+    
     context = {
         'equipment': equipment,
         'documents': documents,
+        'maintenance_reports': maintenance_reports,
     }
     
     return render(request, 'equipment/equipment_documents.html', context)

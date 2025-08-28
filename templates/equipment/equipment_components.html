@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Components - {{ equipment.name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_list' %}">Equipment</a></li>
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_detail' equipment.id %}">{{ equipment.name }}</a></li>
+<li class="breadcrumb-item active">Components</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-puzzle-piece me-2"></i>
+                        Equipment Components
+                    </h1>
+                    <p class="text-muted mb-0">Components and parts for {{ equipment.name }}</p>
+                </div>
+                <div>
+                    <a href="{% url 'equipment:add_component' equipment.id %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> Add Component
+                    </a>
+                    <a href="{% url 'equipment:equipment_detail' equipment.id %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Equipment
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs me-2"></i>
+                    Component List
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if components %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Component Name</th>
+                                    <th>Part Number</th>
+                                    <th>Quantity</th>
+                                    <th>Critical</th>
+                                    <th>Last Replaced</th>
+                                    <th>Next Replacement</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for component in components %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ component.name }}</strong>
+                                        {% if component.description %}
+                                        <br><small class="text-muted">{{ component.description|truncatechars:50 }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if component.part_number %}
+                                            <code>{{ component.part_number }}</code>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ component.quantity }}</span>
+                                    </td>
+                                    <td>
+                                        {% if component.is_critical %}
+                                            <span class="badge bg-danger">Critical</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Standard</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if component.replacement_date %}
+                                            {{ component.replacement_date|date:"M d, Y" }}
+                                        {% else %}
+                                            <span class="text-muted">Not replaced</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if component.next_replacement_date %}
+                                            {% if component.next_replacement_date < today %}
+                                                <span class="badge bg-warning">Overdue</span>
+                                            {% else %}
+                                                {{ component.next_replacement_date|date:"M d, Y" }}
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Not scheduled</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#componentModal{{ component.id }}">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <a href="#" class="btn btn-outline-secondary">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-puzzle-piece fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No components defined for this equipment</p>
+                        <p class="text-muted small">Components help track individual parts and their maintenance schedules</p>
+                        <a href="{% url 'equipment:add_component' equipment.id %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i> Add First Component
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Component Statistics -->
+{% if components %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    Component Summary
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="border-end">
+                            <h4 class="text-primary">{{ components.count }}</h4>
+                            <p class="text-muted mb-0">Total Components</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border-end">
+                            <h4 class="text-danger">{{ critical_components_count|default:0 }}</h4>
+                            <p class="text-muted mb-0">Critical Components</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border-end">
+                            <h4 class="text-warning">{{ overdue_components_count|default:0 }}</h4>
+                            <p class="text-muted mb-0">Overdue Replacements</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-info">{{ total_quantity|default:0 }}</h4>
+                        <p class="text-muted mb-0">Total Quantity</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Component Detail Modals -->
+{% for component in components %}
+<div class="modal fade" id="componentModal{{ component.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-puzzle-piece me-2"></i>
+                    {{ component.name }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Basic Information</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Name:</strong></td>
+                                <td>{{ component.name }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Part Number:</strong></td>
+                                <td>{{ component.part_number|default:"N/A" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Quantity:</strong></td>
+                                <td>{{ component.quantity }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Critical:</strong></td>
+                                <td>
+                                    {% if component.is_critical %}
+                                        <span class="badge bg-danger">Yes</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">No</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Maintenance Schedule</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Last Replaced:</strong></td>
+                                <td>{{ component.replacement_date|date:"M d, Y"|default:"Not replaced" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Next Replacement:</strong></td>
+                                <td>
+                                    {% if component.next_replacement_date %}
+                                        {% if component.next_replacement_date < today %}
+                                            <span class="badge bg-warning">Overdue</span>
+                                        {% else %}
+                                            {{ component.next_replacement_date|date:"M d, Y" }}
+                                        {% endif %}
+                                    {% else %}
+                                        Not scheduled
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                {% if component.description %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Description</h6>
+                        <p class="mb-0">{{ component.description }}</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="#" class="btn btn-primary">Edit Component</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Add any component-specific JavaScript here
+    console.log('Equipment components page loaded');
+});
+</script>
+{% endblock %}
