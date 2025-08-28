@@ -4616,3 +4616,25 @@ def extract_version_from_url_api(request):
             'error': f'Error extracting version from URL: {str(e)}'
         }, status=500)
 
+@login_required
+def invalidate_cache_api(request):
+    """API endpoint to invalidate dashboard cache for the current user."""
+    try:
+        # Get the current user's site selection
+        selected_site_id = request.session.get('selected_site_id')
+        
+        # Invalidate cache for this user and site
+        invalidate_dashboard_cache(user_id=request.user.id, site_id=selected_site_id)
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Cache invalidated successfully',
+            'site_id': selected_site_id
+        })
+    except Exception as e:
+        logger.error(f"Error invalidating cache: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Error invalidating cache: {str(e)}'
+        }, status=500)
+

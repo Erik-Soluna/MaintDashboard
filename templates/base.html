@@ -879,14 +879,53 @@
     <script>
         // Site selector change handler
         function changeSite(siteId) {
-            const url = new URL(window.location);
-            if (siteId && siteId !== '') {
-                url.searchParams.set('site_id', siteId);
-            } else {
-                // Explicitly set empty string to trigger clearing logic in context processor
-                url.searchParams.set('site_id', '');
-            }
-            window.location.href = url.toString();
+            console.log('changeSite called with:', siteId);
+            
+            // First invalidate the cache to ensure fresh data
+            fetch('/api/invalidate-cache/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({})
+            }).then(response => response.json())
+            .then(data => {
+                console.log('Cache invalidation result:', data);
+                
+                // Now navigate to the new URL
+                const url = new URL(window.location);
+                
+                if (siteId && siteId !== '') {
+                    url.searchParams.set('site_id', siteId);
+                    console.log('Setting site_id to:', siteId);
+                } else {
+                    // Remove the site_id parameter completely for "All - Soluna"
+                    url.searchParams.delete('site_id');
+                    console.log('Removing site_id parameter');
+                }
+                
+                // Add a timestamp to force cache busting
+                url.searchParams.set('_t', Date.now());
+                
+                console.log('Navigating to:', url.toString());
+                // Force a page refresh by navigating to the new URL
+                window.location.href = url.toString();
+            })
+            .catch(error => {
+                console.error('Error invalidating cache:', error);
+                // Still navigate even if cache invalidation fails
+                const url = new URL(window.location);
+                
+                if (siteId && siteId !== '') {
+                    url.searchParams.set('site_id', siteId);
+                } else {
+                    url.searchParams.delete('site_id');
+                }
+                
+                url.searchParams.set('_t', Date.now());
+                window.location.href = url.toString();
+            });
         }
         
         // Theme switching function
