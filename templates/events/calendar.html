@@ -560,17 +560,7 @@
                     </button>
                 </div>
                 
-                <!-- Site Selector -->
-                <div class="site-selector-wrapper">
-                    <select class="site-selector" id="siteSelector" onchange="handleSiteChange(this.value)">
-                        <option value="" {% if is_all_sites %}selected{% endif %}>All - Soluna</option>
-                        {% for site in sites %}
-                            <option value="{{ site.id }}" {% if selected_site_id == site.id|stringformat:"s" %}selected{% endif %}>
-                                {{ site.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                </div>
+
             </div>
             
             <div class="d-flex align-items-center gap-2">
@@ -901,7 +891,7 @@ function initializeCalendar() {
             extraParams: function() {
                 var params = {
                     equipment: document.getElementById('equipmentFilter').value,
-                    site_id: document.getElementById('siteSelector').value,
+                    site_id: document.getElementById('site-selector').value,
                     event_type: document.getElementById('eventTypeFilter').value
                 };
                 
