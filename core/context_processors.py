@@ -171,9 +171,21 @@ def version_context(request):
 def logo_processor(request):
     """Add the active logo to the template context"""
     try:
-        from .models import Logo
-        active_logo = Logo.objects.filter(is_active=True).first()
-        return {'site_logo': active_logo}
+        # Check if the logo table exists
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT name FROM information_schema.tables 
+                WHERE table_name = 'core_logo'
+            """)
+            logo_table_exists = cursor.fetchone() is not None
+        
+        if logo_table_exists:
+            from .models import Logo
+            active_logo = Logo.objects.filter(is_active=True).first()
+            return {'site_logo': active_logo}
+        else:
+            return {'site_logo': None}
     except Exception:
         return {'site_logo': None}
 
@@ -181,17 +193,47 @@ def logo_processor(request):
 def branding_processor(request):
     """Context processor for branding settings and CSS customizations"""
     try:
-        branding = BrandingSettings.objects.get(is_active=True)
-    except BrandingSettings.DoesNotExist:
+        # Check if the branding tables exist by trying to access them
+        # This prevents errors when migrations haven't been run yet
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT name FROM information_schema.tables 
+                WHERE table_name = 'core_brandingsettings'
+            """)
+            branding_table_exists = cursor.fetchone() is not None
+            
+            cursor.execute("""
+                SELECT name FROM information_schema.tables 
+                WHERE table_name = 'core_csscustomization'
+            """)
+            css_table_exists = cursor.fetchone() is not None
+        
         branding = None
-    
-    # Get active CSS customizations
-    css_customizations = CSSCustomization.objects.filter(is_active=True).order_by('-priority', 'order')
-    
-    # Build CSS string from customizations
-    css_code = ''
-    for css in css_customizations:
-        css_code += f"/* {css.name} - {css.description} */\n{css.css_code}\n\n"
+        css_customizations = []
+        css_code = ''
+        
+        if branding_table_exists:
+            try:
+                branding = BrandingSettings.objects.get(is_active=True)
+            except BrandingSettings.DoesNotExist:
+                branding = None
+        
+        if css_table_exists:
+            try:
+                css_customizations = CSSCustomization.objects.filter(is_active=True).order_by('-priority', 'order')
+                # Build CSS string from customizations
+                for css in css_customizations:
+                    css_code += f"/* {css.name} - {css.description} */\n{css.css_code}\n\n"
+            except Exception:
+                css_customizations = []
+                css_code = ''
+        
+    except Exception:
+        # If anything goes wrong, provide default values
+        branding = None
+        css_customizations = []
+        css_code = ''
     
     return {
         'branding': branding,
