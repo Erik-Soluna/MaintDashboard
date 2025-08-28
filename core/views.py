@@ -4624,3 +4624,189 @@ def builderio_overview(request):
         'user': request.user,
     }
     return render(request, 'core/builderio_overview.html', context)
+
+@login_required
+def builderio_overview_data(request):
+    """
+    API endpoint to provide real data for the Builder.io overview page.
+    This replaces the static data with live data from Django models.
+    """
+    try:
+        from django.db.models import Count, Q
+        from django.utils import timezone
+        from datetime import timedelta
+        from equipment.models import Equipment
+        from maintenance.models import MaintenanceActivity, MaintenanceSchedule
+        from events.models import Event
+        
+        # Get current date and time
+        now = timezone.now()
+        week_start = now - timedelta(days=now.weekday())
+        month_start = now.replace(day=1)
+        
+        # Equipment statistics
+        active_equipment = Equipment.objects.filter(status='active', is_active=True).count()
+        pending_maintenance = MaintenanceSchedule.objects.filter(
+            next_due_date__gte=now,
+            is_active=True
+        ).count()
+        overdue_items = MaintenanceSchedule.objects.filter(
+            next_due_date__lt=now,
+            is_active=True
+        ).count()
+        events_this_week = Event.objects.filter(
+            start_date__gte=week_start,
+            is_active=True
+        ).count()
+        completed_this_month = MaintenanceActivity.objects.filter(
+            completion_date__gte=month_start,
+            status='completed'
+        ).count()
+        
+        # Urgent items (overdue maintenance)
+        urgent_items = []
+        overdue_schedules = MaintenanceSchedule.objects.filter(
+            next_due_date__lt=now,
+            is_active=True
+        ).select_related('equipment', 'equipment__location', 'equipment__location__customer')[:10]
+        
+        for schedule in overdue_schedules:
+            urgent_items.append({
+                'date': schedule.next_due_date.strftime('%m-%d'),
+                'time': schedule.next_due_date.strftime('%H:%M'),
+                'item': f"Item: {schedule.activity_type.name if schedule.activity_type else 'Maintenance'}",
+                'customer': f"Customer: {schedule.equipment.location.customer.name if schedule.equipment.location.customer else 'Unknown'}",
+                'downtime': f"Est. Downtime: {schedule.estimated_duration_hours}h" if schedule.estimated_duration_hours else "Est. Downtime: N/A",
+                'outstanding': f"Outstanding: {schedule.equipment.name}",
+                'borderColor': '#FF0000'  # Red for urgent
+            })
+        
+        # Upcoming items (scheduled maintenance)
+        upcoming_items = []
+        upcoming_schedules = MaintenanceSchedule.objects.filter(
+            next_due_date__gte=now,
+            next_due_date__lte=now + timedelta(days=30),
+            is_active=True
+        ).select_related('equipment', 'equipment__location', 'equipment__location__customer')[:10]
+        
+        for schedule in upcoming_schedules:
+            upcoming_items.append({
+                'date': schedule.next_due_date.strftime('%m-%d'),
+                'time': schedule.next_due_date.strftime('%H:%M'),
+                'item': f"Item: {schedule.activity_type.name if schedule.activity_type else 'Maintenance'}",
+                'customer': f"Customer: {schedule.equipment.location.customer.name if schedule.equipment.location.customer else 'Unknown'}",
+                'downtime': f"Est. Downtime: {schedule.estimated_duration_hours}h" if schedule.estimated_duration_hours else "Est. Downtime: N/A",
+                'outstanding': f"Outstanding: {schedule.equipment.name}"
+            })
+        
+        # Equipment cards with real status
+        equipment_cards = []
+        equipment_list = Equipment.objects.filter(is_active=True).select_related(
+            'location', 'location__customer'
+        )[:6]  # Limit to 6 cards
+        
+        for equipment in equipment_list:
+            # Determine status and type
+            if equipment.status == 'maintenance':
+                status = "In Repair"
+                status_type = "warning"
+            elif equipment.status == 'active':
+                status = "Healthy"
+                status_type = "healthy"
+            elif equipment.status == 'inactive':
+                status = "Offline"
+                status_type = "offline"
+            else:
+                status = "Unknown"
+                status_type = "offline"
+            
+            # Get scheduled downtimes
+            downtimes = []
+            equipment_schedules = MaintenanceSchedule.objects.filter(
+                equipment=equipment,
+                next_due_date__gte=now,
+                is_active=True
+            ).select_related('equipment__location__customer')[:3]
+            
+            for schedule in equipment_schedules:
+                customer_name = schedule.equipment.location.customer.name if schedule.equipment.location.customer else 'Unknown'
+                downtime_str = f"{schedule.next_due_date.strftime('%m/%d/%Y')} {schedule.next_due_date.strftime('%H:%M')} - {(schedule.next_due_date + timedelta(hours=schedule.estimated_duration_hours or 8)).strftime('%H:%M')}"
+                downtimes.append({
+                    'company': customer_name,
+                    'datetime': downtime_str
+                })
+            
+            # Get equipment in repair info
+            equipment_in_repair = None
+            if equipment.status == 'maintenance':
+                equipment_in_repair = equipment.asset_tag or equipment.manufacturer_serial
+            
+            equipment_cards.append({
+                'name': equipment.name,
+                'status': status,
+                'statusType': status_type,
+                'downtimes': downtimes,
+                'equipmentInRepair': equipment_in_repair
+            })
+        
+        # Prepare response data
+        data = {
+            'stats': {
+                'activeEquipment': active_equipment,
+                'pendingMaintenance': pending_maintenance,
+                'overdueItems': overdue_items,
+                'eventsThisWeek': events_this_week,
+                'completedThisMonth': completed_this_month
+            },
+            'urgentItems': urgent_items,
+            'upcomingItems': upcoming_items,
+            'equipmentCards': equipment_cards
+        }
+        
+        return JsonResponse(data)
+        
+    except Exception as e:
+        logger.error(f'Error fetching Builder.io overview data: {e}')
+        return JsonResponse({'error': 'Failed to fetch data'}, status=500)
+
+@login_required
+def builderio_webhook(request):
+    """
+    Handle Builder.io webhook for automatic content updates.
+    This allows Builder.io to notify your app when content changes.
+    """
+    try:
+        webhook_secret = getattr(settings, 'BUILDERIO_WEBHOOK_SECRET', None)
+        if webhook_secret:
+            signature = request.headers.get('X-Builder-Signature')
+            if not signature:
+                logger.warning('Builder.io webhook missing signature')
+                return JsonResponse({'error': 'Missing signature'}, status=400)
+            logger.info(f'Builder.io webhook signature: {signature}')
+
+        webhook_data = json.loads(request.body)
+        logger.info(f'Builder.io webhook received: {webhook_data}')
+
+        model = webhook_data.get('model', {}).get('name')
+        entry = webhook_data.get('entry', {}).get('id')
+        action = webhook_data.get('action')
+
+        if model and entry:
+            cache_key = f"builderio_{model}_{entry}"
+            cache.delete(cache_key)
+            logger.info(f'Cleared Builder.io cache for {model}:{entry} ({action})')
+            return JsonResponse({
+                'success': True,
+                'message': f'Webhook processed for {model}:{entry}',
+                'action': action
+            })
+        else:
+            logger.warning('Builder.io webhook missing model or entry data')
+            return JsonResponse({'error': 'Missing model or entry data'}, status=400)
+
+    except json.JSONDecodeError as e:
+        logger.error(f'Builder.io webhook JSON decode error: {e}')
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        logger.error(f'Builder.io webhook error: {e}')
+        return JsonResponse({'error': 'Internal server error'}, status=500)
