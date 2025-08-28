@@ -124,52 +124,60 @@
     color: white;
 }
 
-/* Quarter and Year view styling */
-.fc-dayGridQuarter-view .fc-daygrid-day,
+/* Week, Month and Year view styling */
+.fc-dayGridWeek-view .fc-daygrid-day,
+.fc-dayGridMonth-view .fc-daygrid-day,
 .fc-dayGridYear-view .fc-daygrid-day {
     min-height: 60px;
 }
 
-.fc-dayGridQuarter-view .fc-daygrid-day-number,
+.fc-dayGridWeek-view .fc-daygrid-day-number,
+.fc-dayGridMonth-view .fc-daygrid-day-number,
 .fc-dayGridYear-view .fc-daygrid-day-number {
     font-size: 12px;
     padding: 4px;
 }
 
-.fc-dayGridQuarter-view .fc-event,
+.fc-dayGridWeek-view .fc-event,
+.fc-dayGridMonth-view .fc-event,
 .fc-dayGridYear-view .fc-event {
     font-size: 10px;
     padding: 1px 3px;
     margin: 1px 0;
 }
 
-.fc-dayGridQuarter-view .fc-event-title,
+.fc-dayGridWeek-view .fc-event-title,
+.fc-dayGridMonth-view .fc-event-title,
 .fc-dayGridYear-view .fc-event-title {
     font-size: 10px;
     line-height: 1.2;
 }
 
-/* Better spacing for quarterly and yearly views */
-.fc-dayGridQuarter-view .fc-daygrid-day-frame,
+/* Better spacing for weekly, monthly and yearly views */
+.fc-dayGridWeek-view .fc-daygrid-day-frame,
+.fc-dayGridMonth-view .fc-daygrid-day-frame,
 .fc-dayGridYear-view .fc-daygrid-day-frame {
     padding: 2px;
 }
 
 /* Toolbar button styling for new views */
-.fc-button-group .fc-dayGridQuarter-button,
+.fc-button-group .fc-dayGridWeek-button,
+.fc-button-group .fc-dayGridMonth-button,
 .fc-button-group .fc-dayGridYear-button {
     background-color: #4299e1;
     border-color: #4299e1;
     color: white;
 }
 
-.fc-button-group .fc-dayGridQuarter-button:hover,
+.fc-button-group .fc-dayGridWeek-button:hover,
+.fc-button-group .fc-dayGridMonth-button:hover,
 .fc-button-group .fc-dayGridYear-button:hover {
     background-color: #3182ce;
     border-color: #3182ce;
 }
 
-.fc-button-group .fc-dayGridQuarter-button.fc-button-active,
+.fc-button-group .fc-dayGridWeek-button.fc-button-active,
+.fc-button-group .fc-dayGridMonth-button.fc-button-active,
 .fc-button-group .fc-dayGridYear-button.fc-button-active {
     background-color: #2b6cb0;
     border-color: #2b6cb0;
@@ -1024,12 +1032,12 @@ function initializeCalendar() {
         initialView: 'dayGridMonth',
         height: 'auto',
         views: {
-            dayGridMonth: {
-                dayMaxEvents: 5,
+            dayGridWeek: {
+                dayMaxEvents: 8,
                 moreLinkClick: 'popover'
             },
-            dayGridQuarter: {
-                dayMaxEvents: 3,
+            dayGridMonth: {
+                dayMaxEvents: 5,
                 moreLinkClick: 'popover'
             },
             dayGridYear: {
@@ -1040,7 +1048,7 @@ function initializeCalendar() {
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,dayGridQuarter,dayGridYear'
+            right: 'dayGridWeek,dayGridMonth,dayGridYear'
         },
         events: {
             url: eventsUrl,
