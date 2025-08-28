@@ -4615,3 +4615,12 @@ def extract_version_from_url_api(request):
             'success': False,
             'error': f'Error extracting version from URL: {str(e)}'
         }, status=500)
+
+@login_required
+def builderio_overview(request):
+    """Builder.io Overview page - displays the custom maintenance dashboard."""
+    context = {
+        'page_title': 'Builder.io Overview',
+        'user': request.user,
+    }
+    return render(request, 'core/builderio_overview.html', context)
