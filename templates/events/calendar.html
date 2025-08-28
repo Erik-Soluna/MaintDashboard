@@ -1252,11 +1252,15 @@ function applyClientSideFiltering() {
             console.log(`Hiding event: ${event.title} - customer mismatch`);
         }
         
-        // Filter by equipment (multiple selection)
-        if (selectedEquipment.length > 0 && event.extendedProps?.equipment_id && 
-            !selectedEquipment.includes(event.extendedProps.equipment_id.toString())) {
-            shouldShow = false;
-            console.log(`Hiding event: ${event.title} - equipment mismatch`);
+        // Filter by equipment (multiple selection - OR logic)
+        if (selectedEquipment.length > 0 && event.extendedProps?.equipment_id) {
+            const eventEquipmentId = event.extendedProps.equipment_id.toString();
+            const hasMatchingEquipment = selectedEquipment.some(selectedId => selectedId === eventEquipmentId);
+            
+            if (!hasMatchingEquipment) {
+                shouldShow = false;
+                console.log(`Hiding event: ${event.title} - equipment mismatch. Event equipment: ${eventEquipmentId}, Selected: [${selectedEquipment.join(', ')}]`);
+            }
         }
         
         // Apply visibility

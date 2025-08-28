@@ -322,7 +322,9 @@ def event_list(request):
         events = events.filter(event_type=event_type)
     
     if equipment_filter:
-        events = events.filter(equipment_id=equipment_filter)
+        equipment_ids = [id.strip() for id in equipment_filter.split(',') if id.strip()]
+        if equipment_ids:
+            events = events.filter(equipment_id__in=equipment_ids)
     
     if status_filter == 'completed':
         events = events.filter(is_completed=True)
@@ -655,9 +657,11 @@ def fetch_events(request):
                 Q(equipment__location_id=site_id)
             )
         
-        # Equipment filtering
+        # Equipment filtering (multiple selection - OR logic)
         if equipment_filter:
-            events = events.filter(equipment_id=equipment_filter)
+            equipment_ids = [id.strip() for id in equipment_filter.split(',') if id.strip()]
+            if equipment_ids:
+                events = events.filter(equipment_id__in=equipment_ids)
         
         # Event type filtering
         if event_type_filter:
@@ -756,9 +760,11 @@ def fetch_unified_events(request):
                     Q(equipment__location_id=site_id)
                 )
             
-            # Equipment filtering
+            # Equipment filtering (multiple selection - OR logic)
             if equipment_filter:
-                events = events.filter(equipment_id=equipment_filter)
+                equipment_ids = [id.strip() for id in equipment_filter.split(',') if id.strip()]
+                if equipment_ids:
+                    events = events.filter(equipment_id__in=equipment_ids)
             
             # Event type filtering
             if event_type_filter and not event_type_filter.startswith('maintenance_'):
@@ -834,9 +840,11 @@ def fetch_unified_events(request):
                     Q(equipment__location_id=site_id)
                 )
             
-            # Equipment filtering
+            # Equipment filtering (multiple selection - OR logic)
             if equipment_filter:
-                activities = activities.filter(equipment_id=equipment_filter)
+                equipment_ids = [id.strip() for id in equipment_filter.split(',') if id.strip()]
+                if equipment_ids:
+                    activities = activities.filter(equipment_id__in=equipment_ids)
             
             # Activity type filtering
             if event_type_filter and event_type_filter.startswith('activity_'):
