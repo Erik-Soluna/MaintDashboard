@@ -808,7 +808,7 @@
     </div>
 
     <!-- Breadcrumb -->
-    {% if request.resolver_match.url_name != 'dashboard' %}
+    {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'calendar_view' %}
     <div class="container-fluid mt-3">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
