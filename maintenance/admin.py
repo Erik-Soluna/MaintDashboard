@@ -3,6 +3,7 @@ Admin interface for maintenance models.
 """
 
 from django.contrib import admin
+from django.utils.html import format_html
 from .models import (
     MaintenanceActivityType, MaintenanceActivity, MaintenanceChecklist, 
     MaintenanceSchedule, ActivityTypeCategory, ActivityTypeTemplate, MaintenanceReport
@@ -12,25 +13,83 @@ from .models import (
 @admin.register(ActivityTypeCategory)
 class ActivityTypeCategoryAdmin(admin.ModelAdmin):
     list_display = [
-        'name', 'description', 'color', 'icon', 'sort_order', 'is_active', 'created_at'
+        'name', 'description', 'color_preview', 'icon_preview', 'sort_order', 'is_active', 'created_at'
     ]
-    list_filter = ['is_active', 'created_at']
+    list_filter = ['is_active', 'created_at', 'is_global']
     search_fields = ['name', 'description']
     readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
     ordering = ['sort_order', 'name']
+    list_editable = ['sort_order', 'is_active']
+    actions = ['activate_categories', 'deactivate_categories', 'duplicate_categories']
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name', 'description', 'sort_order', 'is_active')
+            'fields': ('name', 'description', 'sort_order', 'is_active', 'is_global')
         }),
         ('Visual Settings', {
-            'fields': ('color', 'icon')
+            'fields': ('color', 'icon'),
+            'description': 'Customize the appearance of this category in the dashboard and reports.'
         }),
         ('Audit Information', {
             'fields': ('created_at', 'updated_at', 'created_by', 'updated_by'),
             'classes': ('collapse',)
         }),
     )
+    
+    def color_preview(self, obj):
+        """Display color as a colored square with hex value."""
+        if obj.color:
+            return format_html(
+                '<span style="display: inline-block; width: 20px; height: 20px; background-color: {}; border: 1px solid #ccc; margin-right: 8px;"></span>{}',
+                obj.color, obj.color
+            )
+        return '-'
+    color_preview.short_description = 'Color'
+    
+    def icon_preview(self, obj):
+        """Display icon preview."""
+        if obj.icon:
+            return format_html('<i class="{}" style="font-size: 18px;"></i>', obj.icon)
+        return '-'
+    icon_preview.short_description = 'Icon'
+    
+    def activate_categories(self, request, queryset):
+        """Bulk action to activate selected categories."""
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} categories were successfully activated.')
+    activate_categories.short_description = "Activate selected categories"
+    
+    def deactivate_categories(self, request, queryset):
+        """Bulk action to deactivate selected categories."""
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} categories were successfully deactivated.')
+    deactivate_categories.short_description = "Deactivate selected categories"
+    
+    def duplicate_categories(self, request, queryset):
+        """Bulk action to duplicate selected categories."""
+        duplicated_count = 0
+        for category in queryset:
+            # Create a copy with a new name
+            new_name = f"{category.name} (Copy)"
+            counter = 1
+            while ActivityTypeCategory.objects.filter(name=new_name).exists():
+                counter += 1
+                new_name = f"{category.name} (Copy {counter})"
+            
+            # Create the duplicate
+            new_category = ActivityTypeCategory.objects.create(
+                name=new_name,
+                description=category.description,
+                color=category.color,
+                icon=category.icon,
+                sort_order=category.sort_order + 100,  # Place after original
+                is_active=False,  # Start as inactive
+                is_global=category.is_global
+            )
+            duplicated_count += 1
+        
+        self.message_user(request, f'{duplicated_count} categories were successfully duplicated.')
+    duplicate_categories.short_description = "Duplicate selected categories"
     
     def save_model(self, request, obj, form, change):
         if not change:
@@ -96,9 +155,11 @@ class MaintenanceActivityTypeAdmin(admin.ModelAdmin):
         'is_mandatory', 'is_active', 'created_at'
     ]
     list_filter = ['category', 'template', 'is_mandatory', 'is_active', 'created_at']
-    search_fields = ['name', 'description']
+    search_fields = ['name', 'description', 'category__name']
     readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
     filter_horizontal = ['applicable_equipment_categories']
+    list_editable = ['is_active', 'is_mandatory']
+    actions = ['activate_activity_types', 'deactivate_activity_types', 'duplicate_activity_types']
     
     fieldsets = (
         ('Basic Information', {
@@ -112,7 +173,8 @@ class MaintenanceActivityTypeAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('Equipment Categories', {
-            'fields': ('applicable_equipment_categories',)
+            'fields': ('applicable_equipment_categories',),
+            'description': 'Select which equipment categories this activity type applies to.'
         }),
         ('Settings', {
             'fields': ('is_active',)
@@ -122,6 +184,54 @@ class MaintenanceActivityTypeAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+    
+    def activate_activity_types(self, request, queryset):
+        """Bulk action to activate selected activity types."""
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f'{updated} activity types were successfully activated.')
+    activate_activity_types.short_description = "Activate selected activity types"
+    
+    def deactivate_activity_types(self, request, queryset):
+        """Bulk action to deactivate selected activity types."""
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f'{updated} activity types were successfully deactivated.')
+    deactivate_activity_types.short_description = "Deactivate selected activity types"
+    
+    def duplicate_activity_types(self, request, queryset):
+        """Bulk action to duplicate selected activity types."""
+        duplicated_count = 0
+        for activity_type in queryset:
+            # Create a copy with a new name
+            new_name = f"{activity_type.name} (Copy)"
+            counter = 1
+            while MaintenanceActivityType.objects.filter(name=new_name).exists():
+                counter += 1
+                new_name = f"{activity_type.name} (Copy {counter})"
+            
+            # Create the duplicate
+            new_activity_type = MaintenanceActivityType.objects.create(
+                name=new_name,
+                category=activity_type.category,
+                template=activity_type.template,
+                description=activity_type.description,
+                estimated_duration_hours=activity_type.estimated_duration_hours,
+                frequency_days=activity_type.frequency_days,
+                is_mandatory=activity_type.is_mandatory,
+                tools_required=activity_type.tools_required,
+                parts_required=activity_type.parts_required,
+                safety_notes=activity_type.safety_notes,
+                is_active=False,  # Start as inactive
+                created_by=request.user,
+                updated_by=request.user
+            )
+            # Copy many-to-many relationships
+            new_activity_type.applicable_equipment_categories.set(
+                activity_type.applicable_equipment_categories.all()
+            )
+            duplicated_count += 1
+        
+        self.message_user(request, f'{duplicated_count} activity types were successfully duplicated.')
+    duplicate_activity_types.short_description = "Duplicate selected activity types"
     
     def save_model(self, request, obj, form, change):
         if not change:
