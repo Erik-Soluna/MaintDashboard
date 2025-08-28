@@ -22,7 +22,8 @@ import json
 from .models import (
     MaintenanceActivity, MaintenanceActivityType, 
     MaintenanceSchedule, MaintenanceChecklist,
-    ActivityTypeCategory, ActivityTypeTemplate, MaintenanceReport
+    ActivityTypeCategory, ActivityTypeTemplate, MaintenanceReport,
+    MaintenanceTimelineEntry
 )
 from equipment.models import Equipment
 from core.models import EquipmentCategory
@@ -2529,3 +2530,38 @@ def create_activity_api(request):
             'success': False,
             'error': f'Server error: {str(e)}'
         }, status=500)
+
+@login_required
+def add_timeline_entry(request, activity_id):
+    """Add a new timeline entry to a maintenance activity."""
+    activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+    
+    if request.method == 'POST':
+        entry_type = request.POST.get('entry_type')
+        title = request.POST.get('title')
+        description = request.POST.get('description')
+        
+        if entry_type and title and description:
+            try:
+                # Create the timeline entry
+                timeline_entry = MaintenanceTimelineEntry.objects.create(
+                    activity=activity,
+                    entry_type=entry_type,
+                    title=title,
+                    description=description,
+                    created_by=request.user
+                )
+                
+                messages.success(request, 'Timeline entry added successfully!')
+                
+                # Redirect back to the activity detail page
+                return redirect('maintenance:activity_detail', activity_id=activity_id)
+                
+            except Exception as e:
+                logger.error(f"Error creating timeline entry: {str(e)}")
+                messages.error(request, f'Error creating timeline entry: {str(e)}')
+        else:
+            messages.error(request, 'Please fill in all required fields.')
+    
+    # If GET request or validation failed, redirect back to activity detail
+    return redirect('maintenance:activity_detail', activity_id=activity_id)

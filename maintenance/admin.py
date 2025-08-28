@@ -6,7 +6,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from .models import (
     MaintenanceActivityType, MaintenanceActivity, MaintenanceChecklist, 
-    MaintenanceSchedule, ActivityTypeCategory, ActivityTypeTemplate, MaintenanceReport
+    MaintenanceSchedule, ActivityTypeCategory, ActivityTypeTemplate, MaintenanceReport, MaintenanceTimelineEntry
 )
 
 
@@ -380,5 +380,41 @@ class MaintenanceReportAdmin(admin.ModelAdmin):
         if not change:
             obj.created_by = request.user
             obj.uploaded_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(MaintenanceTimelineEntry)
+class MaintenanceTimelineEntryAdmin(admin.ModelAdmin):
+    list_display = [
+        'activity', 'entry_type', 'title', 'created_by', 'created_at'
+    ]
+    list_filter = [
+        'entry_type', 'created_at', 'activity__status', 'activity__equipment__category'
+    ]
+    search_fields = [
+        'title', 'description', 'activity__title', 'activity__equipment__name'
+    ]
+    readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+    ordering = ['-created_at']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('activity', 'entry_type', 'title', 'description')
+        }),
+        ('Issue Details', {
+            'fields': ('issue_severity', 'resolution_time'),
+            'classes': ('collapse',),
+            'description': 'Additional fields for issue and resolution entries'
+        }),
+        ('Audit Information', {
+            'fields': ('created_at', 'updated_at', 'created_by', 'updated_by'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
         obj.updated_by = request.user
         super().save_model(request, obj, form, change)
