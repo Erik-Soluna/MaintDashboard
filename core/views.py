@@ -71,13 +71,25 @@ def dashboard(request):
     
     # Get selected site from request, session, or user default
     selected_site_id = request.GET.get('site_id')
-    if not selected_site_id:
+    if selected_site_id is not None:
+        # If site_id is explicitly provided (even if empty), use it
+        if selected_site_id == '':
+            # Clear site selection (All Sites) - use special marker
+            request.session['selected_site_id'] = 'all'
+            selected_site_id = None
+        else:
+            # Set specific site selection
+            request.session['selected_site_id'] = selected_site_id
+    else:
+        # No site_id in request, check session or default
         selected_site_id = request.session.get('selected_site_id')
-    if not selected_site_id and user_profile.default_site:
-        selected_site_id = str(user_profile.default_site.id)
-    
-    if selected_site_id:
-        request.session['selected_site_id'] = selected_site_id
+        
+        # If session has 'all', keep it as None (All Sites)
+        if selected_site_id == 'all':
+            selected_site_id = None
+        elif not selected_site_id and user_profile.default_site:
+            selected_site_id = str(user_profile.default_site.id)
+            request.session['selected_site_id'] = selected_site_id
     
     # Create cache key for this dashboard view
     cache_key = f"dashboard_data_{selected_site_id or 'all'}_{request.user.id}"
@@ -489,7 +501,7 @@ def invalidate_dashboard_cache(user_id=None, site_id=None):
         cache_key = f"dashboard_data_all_{user_id}"
         cache.delete(cache_key)
         
-        if site_id:
+        if site_id and site_id != 'all':
             # Invalidate cache for specific user and site
             cache_key = f"dashboard_data_{site_id}_{user_id}"
             cache.delete(cache_key)

@@ -29,9 +29,8 @@ def site_context(request):
         if selected_site_id is not None:
             # If site_id is explicitly provided (even if empty), use it
             if selected_site_id == '':
-                # Clear site selection (All Sites)
-                if 'selected_site_id' in request.session:
-                    del request.session['selected_site_id']
+                # Clear site selection (All Sites) - use special marker
+                request.session['selected_site_id'] = 'all'
                 context['selected_site_id'] = None
             else:
                 # Set specific site selection
@@ -40,10 +39,20 @@ def site_context(request):
         else:
             # No site_id in request, check session or default
             selected_site_id = request.session.get('selected_site_id')
-            if not selected_site_id and user_profile.default_site:
+            
+            # If session has 'all', keep it as None (All Sites)
+            if selected_site_id == 'all':
+                context['selected_site_id'] = None
+            elif selected_site_id:
+                # Use session value
+                context['selected_site_id'] = selected_site_id
+            elif user_profile.default_site:
+                # Use default site only if no explicit selection was made
                 selected_site_id = str(user_profile.default_site.id)
                 request.session['selected_site_id'] = selected_site_id
-            context['selected_site_id'] = selected_site_id
+                context['selected_site_id'] = selected_site_id
+            else:
+                context['selected_site_id'] = None
         
         # Get the selected site object if we have a valid ID
         if context['selected_site_id']:
