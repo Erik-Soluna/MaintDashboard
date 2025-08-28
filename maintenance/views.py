@@ -18,6 +18,8 @@ from datetime import timedelta, datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
 import json
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 from .models import (
     MaintenanceActivity, MaintenanceActivityType, 
@@ -26,7 +28,7 @@ from .models import (
     MaintenanceTimelineEntry
 )
 from equipment.models import Equipment
-from core.models import EquipmentCategory
+from core.models import EquipmentCategory, EquipmentDocument
 from .forms import (
     MaintenanceActivityForm, MaintenanceScheduleForm, 
     MaintenanceActivityTypeForm, EnhancedMaintenanceActivityTypeForm,
@@ -2577,3 +2579,154 @@ def add_timeline_entry(request, activity_id):
     
     # If GET request or validation failed, redirect back to activity detail
     return redirect('maintenance:activity_detail', activity_id=activity_id)
+
+@receiver(post_save, sender=MaintenanceReport)
+def maintenance_report_post_save(sender, instance, created, **kwargs):
+    """Create timeline entry when maintenance report is uploaded."""
+    if created:
+        MaintenanceTimelineEntry.objects.create(
+            activity=instance.maintenance_activity,
+            entry_type='report_uploaded',
+            title=f'{instance.get_report_type_display()} Uploaded',
+            description=f'Report "{instance.title}" was uploaded by {instance.created_by.get_full_name() or instance.created_by.username}',
+            created_by=instance.created_by
+        )
+
+
+@login_required
+def upload_activity_document(request, activity_id):
+    """Upload a document to a maintenance activity."""
+    activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+    
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        description = request.POST.get('description')
+        document_type = request.POST.get('document_type')
+        file = request.FILES.get('file')
+        
+        if title and file and document_type:
+            try:
+                # Create the document
+                document = EquipmentDocument.objects.create(
+                    equipment=activity.equipment,
+                    title=title,
+                    description=description or '',
+                    document_type=document_type,
+                    file=file,
+                    created_by=request.user
+                )
+                
+                # Create timeline entry
+                MaintenanceTimelineEntry.objects.create(
+                    activity=activity,
+                    entry_type='note',
+                    title=f'Document Uploaded: {title}',
+                    description=f'Document "{title}" was uploaded by {request.user.get_full_name() or request.user.username}',
+                    created_by=request.user
+                )
+                
+                messages.success(request, 'Document uploaded successfully!')
+                return redirect('maintenance:activity_detail', activity_id=activity_id)
+                
+            except Exception as e:
+                logger.error(f"Error uploading document: {str(e)}")
+                messages.error(request, f'Error uploading document: {str(e)}')
+        else:
+            messages.error(request, 'Please fill in all required fields.')
+    
+    context = {
+        'activity': activity,
+        'document_types': EquipmentDocument.DOCUMENT_TYPE_CHOICES,
+    }
+    return render(request, 'maintenance/upload_document.html', context)
+
+
+@login_required
+def change_activity_status(request, activity_id):
+    """Change activity status without editing the entire activity."""
+    activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+    
+    if request.method == 'POST':
+        new_status = request.POST.get('status')
+        notes = request.POST.get('notes', '')
+        
+        if new_status and new_status in dict(MaintenanceActivity.STATUS_CHOICES):
+            old_status = activity.status
+            activity.status = new_status
+            activity.updated_by = request.user
+            
+            # Handle start/end times based on status
+            if new_status == 'in_progress' and not activity.actual_start:
+                activity.actual_start = timezone.now()
+            elif new_status == 'completed' and not activity.actual_end:
+                activity.actual_end = timezone.now()
+                if not activity.actual_start:
+                    activity.actual_start = activity.scheduled_start
+            
+            activity.save()
+            
+            # Create timeline entry for status change
+            MaintenanceTimelineEntry.objects.create(
+                activity=activity,
+                entry_type='status_change',
+                title=f'Status Changed to {activity.get_status_display()}',
+                description=f'Status changed from {dict(MaintenanceActivity.STATUS_CHOICES).get(old_status, old_status)} to {activity.get_status_display()}' + (f'. Notes: {notes}' if notes else ''),
+                created_by=request.user
+            )
+            
+            messages.success(request, f'Activity status changed to {activity.get_status_display()}')
+            return redirect('maintenance:activity_detail', activity_id=activity_id)
+        else:
+            messages.error(request, 'Invalid status selected.')
+    
+    context = {
+        'activity': activity,
+        'status_choices': MaintenanceActivity.STATUS_CHOICES,
+    }
+    return render(request, 'maintenance/change_status.html', context)
+
+
+@login_required
+def attach_related_activity(request, activity_id):
+    """Attach a related activity to the current activity."""
+    activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+    
+    if request.method == 'POST':
+        related_activity_id = request.POST.get('related_activity_id')
+        relationship_type = request.POST.get('relationship_type', 'related')
+        
+        if related_activity_id:
+            try:
+                related_activity = MaintenanceActivity.objects.get(id=related_activity_id)
+                
+                # Create a many-to-many relationship (you may need to add this field to your model)
+                # For now, we'll create a timeline entry to document the relationship
+                MaintenanceTimelineEntry.objects.create(
+                    activity=activity,
+                    entry_type='note',
+                    title=f'Related Activity Attached: {related_activity.title}',
+                    description=f'Activity "{related_activity.title}" was attached as a {relationship_type} activity by {request.user.get_full_name() or request.user.username}',
+                    created_by=request.user
+                )
+                
+                messages.success(request, 'Related activity attached successfully!')
+                return redirect('maintenance:activity_detail', activity_id=activity_id)
+                
+            except MaintenanceActivity.DoesNotExist:
+                messages.error(request, 'Related activity not found.')
+            except Exception as e:
+                logger.error(f"Error attaching related activity: {str(e)}")
+                messages.error(request, f'Error attaching related activity: {str(e)}')
+        else:
+            messages.error(request, 'Please select a related activity.')
+    
+    # Get potential related activities (same equipment, different activity)
+    potential_related = MaintenanceActivity.objects.filter(
+        equipment=activity.equipment
+    ).exclude(id=activity.id).order_by('-scheduled_start')[:20]
+    
+    context = {
+        'activity': activity,
+        'potential_related': potential_related,
+    }
+    return render(request, 'maintenance/attach_related.html', context)

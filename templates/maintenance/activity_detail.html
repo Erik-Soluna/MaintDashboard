@@ -16,6 +16,9 @@
             <a href="{% url 'maintenance:edit_activity' activity.id %}" class="btn btn-primary">
                 <i class="fas fa-edit me-1"></i>Edit
             </a>
+            <a href="{% url 'maintenance:change_activity_status' activity.id %}" class="btn btn-warning">
+                <i class="fas fa-exchange-alt me-1"></i>Change Status
+            </a>
             {% if activity.status != 'completed' %}
                 <a href="{% url 'maintenance:complete_activity' activity.id %}" class="btn btn-success">
                     <i class="fas fa-check me-1"></i>Complete
@@ -226,8 +229,16 @@
             
             <!-- Documents Section -->
             <div class="card mb-4">
-                <div class="card-header">
+                <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Documents & Reports</h5>
+                    <div class="btn-group">
+                        <a href="{% url 'maintenance:upload_activity_document' activity.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-upload me-1"></i>Upload Document
+                        </a>
+                        <a href="{% url 'maintenance:attach_related_activity' activity.id %}" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-link me-1"></i>Attach Related
+                        </a>
+                    </div>
                 </div>
                 <div class="card-body">
                     <!-- Maintenance Reports -->

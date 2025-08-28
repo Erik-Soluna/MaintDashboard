@@ -19,6 +19,9 @@ urlpatterns = [
     path('activities/<int:activity_id>/complete/', views.complete_activity, name='complete_activity'),
     path('activities/<int:activity_id>/delete/', views.delete_activity, name='delete_activity'),
     path('activities/<int:activity_id>/timeline/add/', views.add_timeline_entry, name='add_timeline_entry'),
+    path('activities/<int:activity_id>/upload-document/', views.upload_activity_document, name='upload_activity_document'),
+    path('activities/<int:activity_id>/change-status/', views.change_activity_status, name='change_activity_status'),
+    path('activities/<int:activity_id>/attach-related/', views.attach_related_activity, name='attach_related_activity'),
     
     # Schedules
     path('schedules/', views.schedule_list, name='schedule_list'),  # Fixed name to match template usage
