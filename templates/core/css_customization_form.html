@@ -1,0 +1,529 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+    {% if is_create %}Create CSS Customization{% else %}Edit CSS Customization{% endif %} - {{ css_customization.name|default:"CSS Customization" }}
+{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css" rel="stylesheet">
+<style>
+.css-form-container {
+    background-color: var(--bg-secondary);
+    min-height: 100vh;
+    color: var(--text-primary);
+    padding: 20px;
+}
+
+.css-form-header {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.css-form-content {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.css-editor-container {
+    margin-bottom: 20px;
+}
+
+.css-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.css-editor-tools {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.css-editor-tools button {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.css-preview-panel {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.css-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.css-preview-toggle {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.css-preview-toggle:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.css-preview-content {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 15px;
+    min-height: 200px;
+    display: none;
+}
+
+.css-preview-content.show {
+    display: block;
+}
+
+.css-preview-element {
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.css-preview-element h5 {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.css-help-section {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.css-help-item {
+    margin-bottom: 15px;
+}
+
+.css-help-item h6 {
+    color: var(--primary-color);
+    margin-bottom: 8px;
+}
+
+.css-help-item code {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.form-group label {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.form-control {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.form-control:focus {
+    background-color: var(--bg-secondary);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+/* CodeMirror customization */
+.CodeMirror {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    height: 400px;
+}
+
+.CodeMirror-gutters {
+    background-color: var(--bg-tertiary);
+    border-right: 1px solid var(--border-color);
+}
+
+.CodeMirror-linenumber {
+    color: var(--text-secondary);
+}
+
+.CodeMirror-cursor {
+    border-color: var(--primary-color);
+}
+
+.CodeMirror-selected {
+    background-color: var(--primary-color);
+    opacity: 0.3;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="css-form-container">
+    <!-- Header -->
+    <div class="css-form-header">
+        <h2>
+            <i class="fas fa-code me-2"></i>
+            {% if is_create %}Create CSS Customization{% else %}Edit CSS Customization{% endif %}
+        </h2>
+        <p class="text-muted mb-0">
+            {% if is_create %}
+                Add a new CSS customization to modify the appearance of specific components.
+            {% else %}
+                Modify the CSS customization "{{ css_customization.name }}".
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Form Content -->
+    <div class="css-form-content">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-6">
+                    {{ form.name|as_crispy_field }}
+                </div>
+                <div class="col-md-6">
+                    {{ form.item_type|as_crispy_field }}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-12">
+                    {{ form.description|as_crispy_field }}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    {{ form.priority|as_crispy_field }}
+                </div>
+                <div class="col-md-6">
+                    {{ form.order|as_crispy_field }}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-12">
+                    <div class="form-group">
+                        <label for="{{ form.css_code.id_for_label }}">{{ form.css_code.label }}</label>
+                        <div class="css-editor-container">
+                            <div class="css-editor-header">
+                                <span class="text-muted">CSS Code Editor</span>
+                                <div class="css-editor-tools">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="formatCss">
+                                        <i class="fas fa-magic me-1"></i>Format
+                                    </button>
+                                    <button type="button" class="btn btn-outline-info btn-sm" id="validateCss">
+                                        <i class="fas fa-check me-1"></i>Validate
+                                    </button>
+                                </div>
+                            </div>
+                            <textarea id="{{ form.css_code.id_for_label }}" name="{{ form.css_code.name }}" style="display: none;">{{ form.css_code.value|default:'' }}</textarea>
+                        </div>
+                        {% if form.css_code.help_text %}
+                            <small class="form-text text-muted">{{ form.css_code.help_text }}</small>
+                        {% endif %}
+                        {% if form.css_code.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.css_code.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-12">
+                    <div class="form-check">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                            {{ form.is_active.label }}
+                        </label>
+                        {% if form.is_active.help_text %}
+                            <small class="form-text text-muted">{{ form.is_active.help_text }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <button type="submit" class="btn btn-primary btn-lg me-3">
+                    <i class="fas fa-save me-2"></i>
+                    {% if is_create %}Create CSS Customization{% else %}Update CSS Customization{% endif %}
+                </button>
+                <a href="{% url 'core:css_customization_list' %}" class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- CSS Preview Panel -->
+    <div class="css-preview-panel">
+        <div class="css-preview-header">
+            <h5><i class="fas fa-eye me-2"></i>CSS Preview</h5>
+            <button type="button" class="btn css-preview-toggle" id="togglePreview">
+                <i class="fas fa-eye me-1"></i>Show Preview
+            </button>
+        </div>
+        
+        <div class="css-preview-content" id="cssPreviewContent">
+            <div class="css-preview-element">
+                <h5>Sample Header Element</h5>
+                <div class="d-flex justify-content-between align-items-center p-3" style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-tools fa-2x me-3" style="color: var(--primary-color);"></i>
+                        <div>
+                            <h4 class="mb-0">Sample Header</h4>
+                            <small class="text-muted">Sample tagline</small>
+                        </div>
+                    </div>
+                    <div class="version-badge">
+                        <small class="text-muted">v1.0.0</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="css-preview-element">
+                <h5>Sample Button Elements</h5>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-primary">Primary Button</button>
+                    <button class="btn btn-secondary">Secondary Button</button>
+                    <button class="btn btn-outline-primary">Outline Button</button>
+                </div>
+            </div>
+            
+            <div class="css-preview-element">
+                <h5>Sample Card Element</h5>
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Sample Card Header</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-0">This is a sample card body to preview your CSS customizations.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSS Help Section -->
+    <div class="css-help-section">
+        <h5><i class="fas fa-question-circle me-2"></i>CSS Customization Help</h5>
+        
+        <div class="css-help-item">
+            <h6>Item Types</h6>
+            <p>Choose the appropriate item type to organize your CSS customizations:</p>
+            <ul>
+                <li><strong>Header:</strong> Customize the main header, logo, and navigation</li>
+                <li><strong>Dashboard:</strong> Modify dashboard widgets and layout</li>
+                <li><strong>Equipment:</strong> Style equipment-related pages and components</li>
+                <li><strong>Maintenance:</strong> Customize maintenance activity displays</li>
+                <li><strong>Calendar:</strong> Modify calendar appearance and styling</li>
+                <li><strong>Global:</strong> Apply site-wide styling changes</li>
+            </ul>
+        </div>
+        
+        <div class="css-help-item">
+            <h6>Priority & Order</h6>
+            <p><strong>Priority:</strong> Higher priority CSS loads later and can override earlier styles (0-100).</p>
+            <p><strong>Order:</strong> Within the same priority level, lower order numbers load first.</p>
+        </div>
+        
+        <div class="css-help-item">
+            <h6>CSS Examples</h6>
+            <p>Here are some common CSS customizations you might want to try:</p>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Custom Button Styling</h6>
+                    <code>
+.btn-primary {<br>
+&nbsp;&nbsp;background-color: #your-color;<br>
+&nbsp;&nbsp;border-radius: 20px;<br>
+&nbsp;&nbsp;box-shadow: 0 2px 4px rgba(0,0,0,0.2);<br>
+}
+                    </code>
+                </div>
+                <div class="col-md-6">
+                    <h6>Custom Card Styling</h6>
+                    <code>
+.card {<br>
+&nbsp;&nbsp;border-radius: 12px;<br>
+&nbsp;&nbsp;box-shadow: 0 4px 8px rgba(0,0,0,0.1);<br>
+&nbsp;&nbsp;transition: transform 0.2s;<br>
+}<br>
+.card:hover {<br>
+&nbsp;&nbsp;transform: translateY(-2px);<br>
+}
+                    </code>
+                </div>
+            </div>
+        </div>
+        
+        <div class="css-help-item">
+            <h6>Best Practices</h6>
+            <ul>
+                <li>Use specific selectors to avoid conflicts</li>
+                <li>Test your CSS on different screen sizes</li>
+                <li>Keep customizations organized by component</li>
+                <li>Use CSS variables when possible for consistency</li>
+                <li>Comment your CSS code for future reference</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/matchtags.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/trailingspace.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/edit/closebrackets.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize CodeMirror
+    var editor = CodeMirror.fromTextArea(document.getElementById('{{ form.css_code.id_for_label }}'), {
+        mode: 'css',
+        theme: 'monokai',
+        lineNumbers: true,
+        autoCloseBrackets: true,
+        matchBrackets: true,
+        matchTags: true,
+        lineWrapping: true,
+        indentUnit: 4,
+        tabSize: 4,
+        indentWithTabs: false,
+        extraKeys: {
+            "Tab": function(cm) {
+                cm.replaceSelection("    ", "end");
+            }
+        }
+    });
+    
+    // Format CSS button
+    document.getElementById('formatCss').addEventListener('click', function() {
+        var code = editor.getValue();
+        // Simple CSS formatting (you could use a more sophisticated CSS formatter)
+        code = code.replace(/;\s*/g, ';\n    ')
+                   .replace(/\{\s*/g, ' {\n    ')
+                   .replace(/\s*\}/g, '\n}\n');
+        editor.setValue(code);
+    });
+    
+    // Validate CSS button
+    document.getElementById('validateCss').addEventListener('click', function() {
+        var code = editor.getValue();
+        if (code.trim()) {
+            // Basic CSS validation
+            var errors = [];
+            
+            // Check for basic syntax
+            var openBraces = (code.match(/\{/g) || []).length;
+            var closeBraces = (code.match(/\}/g) || []).length;
+            
+            if (openBraces !== closeBraces) {
+                errors.push('Mismatched braces: ' + openBraces + ' opening, ' + closeBraces + ' closing');
+            }
+            
+            // Check for common issues
+            if (code.includes('<style>') || code.includes('</style>')) {
+                errors.push('Remove <style> tags from CSS code');
+            }
+            
+            if (code.toLowerCase().includes('javascript:')) {
+                errors.push('JavaScript is not allowed in CSS customizations');
+            }
+            
+            if (errors.length > 0) {
+                alert('CSS Validation Errors:\n\n' + errors.join('\n'));
+            } else {
+                alert('CSS validation passed! No syntax errors found.');
+            }
+        } else {
+            alert('Please enter some CSS code to validate.');
+        }
+    });
+    
+    // Preview toggle
+    document.getElementById('togglePreview').addEventListener('click', function() {
+        var previewContent = document.getElementById('cssPreviewContent');
+        var button = this;
+        
+        if (previewContent.classList.contains('show')) {
+            previewContent.classList.remove('show');
+            button.innerHTML = '<i class="fas fa-eye me-1"></i>Show Preview';
+        } else {
+            previewContent.classList.add('show');
+            button.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide Preview';
+        }
+    });
+    
+    // Live CSS preview
+    editor.on('change', function() {
+        var code = editor.getValue();
+        if (code.trim()) {
+            // Apply CSS to preview elements
+            try {
+                // Remove existing preview styles
+                var existingStyle = document.getElementById('cssPreviewStyle');
+                if (existingStyle) {
+                    existingStyle.remove();
+                }
+                
+                // Add new preview styles
+                var style = document.createElement('style');
+                style.id = 'cssPreviewStyle';
+                style.textContent = code;
+                document.head.appendChild(style);
+            } catch (e) {
+                console.error('Error applying CSS preview:', e);
+            }
+        }
+    });
+    
+    // Form submission handling
+    document.querySelector('form').addEventListener('submit', function(e) {
+        var submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+    });
+});
+</script>
+{% endblock %}

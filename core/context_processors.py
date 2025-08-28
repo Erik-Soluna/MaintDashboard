@@ -3,7 +3,7 @@ Context processors for core app.
 """
 
 from django.conf import settings
-from .models import Location, UserProfile
+from .models import Location, UserProfile, BrandingSettings, CSSCustomization
 
 
 def site_context(request):
@@ -176,3 +176,42 @@ def logo_processor(request):
         return {'site_logo': active_logo}
     except Exception:
         return {'site_logo': None}
+
+
+def branding_processor(request):
+    """Context processor for branding settings and CSS customizations"""
+    try:
+        branding = BrandingSettings.objects.get(is_active=True)
+    except BrandingSettings.DoesNotExist:
+        branding = None
+    
+    # Get active CSS customizations
+    css_customizations = CSSCustomization.objects.filter(is_active=True).order_by('-priority', 'order')
+    
+    # Build CSS string from customizations
+    css_code = ''
+    for css in css_customizations:
+        css_code += f"/* {css.name} - {css.description} */\n{css.css_code}\n\n"
+    
+    return {
+        'branding': branding,
+        'css_customizations': css_customizations,
+        'custom_css': css_code,
+        'site_name': branding.site_name if branding else 'Maintenance Dashboard',
+        'site_tagline': branding.site_tagline if branding else '',
+        'window_title_prefix': branding.window_title_prefix if branding else '',
+        'window_title_suffix': branding.window_title_suffix if branding else '',
+        'header_brand_text': branding.header_brand_text if branding else 'Maintenance Dashboard',
+        'navigation_overview_label': branding.navigation_overview_label if branding else 'Overview',
+        'navigation_equipment_label': branding.navigation_equipment_label if branding else 'Equipment',
+        'navigation_maintenance_label': branding.navigation_maintenance_label if branding else 'Maintenance',
+        'navigation_calendar_label': branding.navigation_calendar_label if branding else 'Calendar',
+        'navigation_map_label': branding.navigation_map_label if branding else 'Map',
+        'navigation_settings_label': branding.navigation_settings_label if branding else 'Settings',
+        'navigation_debug_label': branding.navigation_debug_label if branding else 'Debug',
+        'footer_copyright_text': branding.footer_copyright_text if branding else '© 2025 Maintenance Dashboard. All rights reserved.',
+        'footer_powered_by_text': branding.footer_powered_by_text if branding else 'Powered by Django',
+        'primary_color': branding.primary_color if branding else '#4299e1',
+        'secondary_color': branding.secondary_color if branding else '#2d3748',
+        'accent_color': branding.accent_color if branding else '#3182ce',
+    }

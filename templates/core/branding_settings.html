@@ -1,0 +1,575 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Branding Settings - {{ branding.site_name|default:"Maintenance Dashboard" }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.branding-container {
+    background-color: var(--bg-secondary);
+    min-height: 100vh;
+    color: var(--text-primary);
+    padding: 20px;
+}
+
+.branding-header {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.branding-tabs {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.branding-tab-content {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    padding: 20px;
+}
+
+.branding-form-section {
+    margin-bottom: 30px;
+}
+
+.branding-form-section h4 {
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.color-picker-group {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.color-picker-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.color-picker-item label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.color-picker-item input[type="color"] {
+    width: 60px;
+    height: 40px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.preview-section {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.preview-header {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+}
+
+.preview-navigation {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+}
+
+.preview-footer {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px 20px;
+}
+
+.css-customization-section {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.css-customization-item {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.css-customization-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.css-customization-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.css-customization-meta {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.css-customization-description {
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+.css-preview-code {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.tab-nav {
+    background-color: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 20px;
+}
+
+.tab-nav .nav-link {
+    color: var(--text-secondary);
+    border: none;
+    padding: 15px 25px;
+    font-weight: 500;
+    background: transparent;
+}
+
+.tab-nav .nav-link.active {
+    color: var(--primary-color);
+    background-color: transparent;
+    border-bottom: 2px solid var(--primary-color);
+    font-weight: 600;
+}
+
+.tab-nav .nav-link:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+}
+
+.form-group label {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.form-control {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.form-control:focus {
+    background-color: var(--bg-secondary);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="branding-container">
+    <!-- Header -->
+    <div class="branding-header">
+        <h2><i class="fas fa-palette me-2"></i>Branding Settings</h2>
+        <p class="text-muted mb-0">Customize the appearance, labels, and styling of your maintenance dashboard.</p>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="branding-tabs">
+        <ul class="nav nav-tabs tab-nav" id="brandingTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
+                    <i class="fas fa-cog me-2"></i>Basic Settings
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="navigation-tab" data-bs-toggle="tab" data-bs-target="#navigation" type="button" role="tab">
+                    <i class="fas fa-bars me-2"></i>Navigation Labels
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="appearance-tab" data-bs-toggle="tab" data-bs-target="#appearance" type="button" role="tab">
+                    <i class="fas fa-paint-brush me-2"></i>Appearance
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="css-tab" data-bs-toggle="tab" data-bs-target="#css" type="button" role="tab">
+                    <i class="fas fa-code me-2"></i>CSS Customizations
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="preview-tab" data-bs-toggle="tab" data-bs-target="#preview" type="button" role="tab">
+                    <i class="fas fa-eye me-2"></i>Live Preview
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="brandingTabContent">
+        <!-- Basic Settings Tab -->
+        <div class="tab-pane fade show active branding-tab-content" id="basic" role="tabpanel">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-info-circle me-2"></i>Site Information</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.site_name|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.site_tagline|as_crispy_field }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.window_title_prefix|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.window_title_suffix|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-image me-2"></i>Logo & Branding</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.header_brand_text|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.logo|as_crispy_field }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.favicon|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-copyright me-2"></i>Footer Customization</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.footer_copyright_text|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.footer_powered_by_text|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>Save Branding Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Navigation Labels Tab -->
+        <div class="tab-pane fade branding-tab-content" id="navigation" role="tabpanel">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-bars me-2"></i>Navigation Menu Labels</h4>
+                    <p class="text-muted">Customize the labels displayed in the main navigation menu.</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.navigation_overview_label|as_crispy_field }}
+                            {{ form.navigation_equipment_label|as_crispy_field }}
+                            {{ form.navigation_maintenance_label|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.navigation_calendar_label|as_crispy_field }}
+                            {{ form.navigation_map_label|as_crispy_field }}
+                            {{ form.navigation_settings_label|as_crispy_field }}
+                            {{ form.navigation_debug_label|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>Save Navigation Labels
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Appearance Tab -->
+        <div class="tab-pane fade branding-tab-content" id="appearance" role="tabpanel">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-palette me-2"></i>Theme Colors</h4>
+                    <p class="text-muted">Customize the primary colors used throughout the website.</p>
+                    
+                    <div class="color-picker-group">
+                        <div class="color-picker-item">
+                            <label>Primary Color</label>
+                            {{ form.primary_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Secondary Color</label>
+                            {{ form.secondary_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Accent Color</label>
+                            {{ form.accent_color }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>Save Appearance Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- CSS Customizations Tab -->
+        <div class="tab-pane fade branding-tab-content" id="css" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4><i class="fas fa-code me-2"></i>CSS Customizations</h4>
+                <a href="{% url 'core:css_customization_create' %}" class="btn btn-success">
+                    <i class="fas fa-plus me-2"></i>Add CSS Customization
+                </a>
+            </div>
+            
+            <div class="css-customization-section">
+                {% if css_customizations %}
+                    {% for css in css_customizations %}
+                        <div class="css-customization-item">
+                            <div class="css-customization-header">
+                                <div>
+                                    <span class="css-customization-name">{{ css.name }}</span>
+                                    <span class="badge badge-{{ css.item_type }} ms-2">{{ css.get_item_type_display }}</span>
+                                </div>
+                                <div class="css-customization-meta">
+                                    <span>Priority: {{ css.priority }}</span>
+                                    <span>Order: {{ css.order }}</span>
+                                    <span class="badge badge-{{ css.is_active|yesno:'success,secondary' }}">
+                                        {{ css.is_active|yesno:'Active,Inactive' }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            {% if css.description %}
+                                <div class="css-customization-description">{{ css.description }}</div>
+                            {% endif %}
+                            
+                            <div class="css-preview-code">{{ css.css_code|truncatechars:200 }}</div>
+                            
+                            <div class="action-buttons">
+                                <a href="{% url 'core:css_customization_edit' css.pk %}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-edit me-1"></i>Edit
+                                </a>
+                                <a href="{% url 'core:css_toggle' css.pk %}" class="btn btn-{{ css.is_active|yesno:'warning,success' }} btn-sm">
+                                    <i class="fas fa-{{ css.is_active|yesno:'pause,play' }} me-1"></i>
+                                    {{ css.is_active|yesno:'Deactivate,Activate' }}
+                                </a>
+                                <a href="{% url 'core:css_customization_delete' css.pk %}" class="btn btn-danger btn-sm" 
+                                   onclick="return confirm('Are you sure you want to delete this CSS customization?')">
+                                    <i class="fas fa-trash me-1"></i>Delete
+                                </a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    
+                    <div class="text-center mt-3">
+                        <a href="{% url 'core:css_customization_list' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-list me-2"></i>View All CSS Customizations
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-code fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No CSS customizations found.</p>
+                        <a href="{% url 'core:css_customization_create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Create Your First CSS Customization
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Live Preview Tab -->
+        <div class="tab-pane fade branding-tab-content" id="preview" role="tabpanel">
+            <div class="branding-form-section">
+                <h4><i class="fas fa-eye me-2"></i>Live Preview</h4>
+                <p class="text-muted">See how your branding changes will look in real-time.</p>
+            </div>
+
+            <div class="preview-section">
+                <!-- Header Preview -->
+                <div class="preview-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            {% if branding.logo %}
+                                <img src="{{ branding.logo.image.url }}" alt="{{ branding.logo.name }}" style="height: 40px; width: auto; margin-right: 15px;">
+                            {% else %}
+                                <i class="fas fa-tools fa-2x me-3" style="color: var(--primary-color);"></i>
+                            {% endif %}
+                            <div>
+                                <h4 class="mb-0" style="color: var(--text-primary);">
+                                    {{ branding.header_brand_text|default:"Maintenance Dashboard" }}
+                                </h4>
+                                {% if branding.site_tagline %}
+                                    <small class="text-muted">{{ branding.site_tagline }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="version-badge">
+                            <small class="text-muted">{{ app_version }}</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Preview -->
+                <div class="preview-navigation">
+                    <div class="d-flex gap-3 flex-wrap">
+                        <a href="#" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-home me-1"></i>{{ branding.navigation_overview_label|default:"Overview" }}
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-cogs me-1"></i>{{ branding.navigation_equipment_label|default:"Equipment" }}
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-calendar-check me-1"></i>{{ branding.navigation_maintenance_label|default:"Maintenance" }}
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-calendar me-1"></i>{{ branding.navigation_calendar_label|default:"Calendar" }}
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-map me-1"></i>{{ branding.navigation_map_label|default:"Map" }}
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-cog me-1"></i>{{ branding.navigation_settings_label|default:"Settings" }}
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Footer Preview -->
+                <div class="preview-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">{{ branding.footer_copyright_text|default:"© 2025 Maintenance Dashboard. All rights reserved." }}</small>
+                        </div>
+                        <div>
+                            <small class="text-muted">{{ branding.footer_powered_by_text|default:"Powered by Django" }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-3">
+                <a href="{% url 'core:css_preview' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-code me-2"></i>CSS Preview & Testing
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tabs
+    var triggerTabList = [].slice.call(document.querySelectorAll('#brandingTabs button'))
+    triggerTabList.forEach(function (triggerEl) {
+        var tabTrigger = new bootstrap.Tab(triggerEl)
+        
+        triggerEl.addEventListener('click', function (event) {
+            event.preventDefault()
+            tabTrigger.show()
+        })
+    })
+
+    // Color picker change handlers
+    document.querySelectorAll('.color-picker input[type="color"]').forEach(function(colorPicker) {
+        colorPicker.addEventListener('change', function() {
+            // Update CSS variables for live preview
+            const colorName = this.name.replace('primary_color', 'primary')
+                                      .replace('secondary_color', 'secondary')
+                                      .replace('accent_color', 'accent');
+            document.documentElement.style.setProperty(`--${colorName}-color`, this.value);
+        });
+    });
+
+    // Form submission handling
+    document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+        });
+    });
+});
+</script>
+{% endblock %}

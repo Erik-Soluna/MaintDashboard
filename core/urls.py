@@ -78,4 +78,13 @@ urlpatterns = [
     path('api-explorer/', views.api_explorer, name='api_explorer'),
     path('locations/api/', views.locations_api, name='locations_api'),  # API endpoint for locations
     path('api/locations/<int:location_id>/', views.location_detail_api, name='location_detail_api'),  # API endpoint for individual location operations
+
+    # Branding Settings
+    path('branding/', views.branding_settings, name='branding_settings'),
+    path('branding/css/', views.css_customization_list, name='css_customization_list'),
+    path('branding/css/create/', views.css_customization_create, name='css_customization_create'),
+    path('branding/css/<int:pk>/edit/', views.css_customization_edit, name='css_customization_edit'),
+    path('branding/css/<int:pk>/delete/', views.css_customization_delete, name='css_customization_delete'),
+    path('branding/css/<int:pk>/toggle/', views.css_toggle, name='css_toggle'),
+    path('branding/css/preview/', views.css_preview, name='css_preview'),
 ]

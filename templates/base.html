@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     
-    <title>{% block title %}Maintenance Dashboard{% endblock %}</title>
+    <title>{% block title %}{{ window_title_prefix }}{% if window_title_prefix and window_title_prefix|length > 0 %} {% endif %}{{ site_name }}{% if window_title_suffix and window_title_suffix|length > 0 %} {% endif %}{{ window_title_suffix }}{% endblock %}</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
@@ -21,23 +21,30 @@
     <!-- FullCalendar CSS -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet">
     
-    <!-- Custom CSS -->
-    <link href="{% static 'css/custom.css' %}" rel="stylesheet">
+         <!-- Custom CSS -->
+     <link href="{% static 'css/custom.css' %}" rel="stylesheet">
+     
+     <!-- Custom Branding CSS -->
+     {% if custom_css %}
+     <style>
+         {{ custom_css|safe }}
+     </style>
+     {% endif %}
     
     {% block extra_css %}{% endblock %}
     
     <style>
-        :root {
-            --primary-color: #4299e1;
-            --secondary-color: #2d3748;
-            --success-color: #48bb78;
-            --warning-color: #ed8936;
-            --danger-color: #f56565;
-            --info-color: #4299e1;
-            --light-color: #e2e8f0;
-            --dark-color: #1a2238;
-            --darker-color: #0f1419;
-        }
+                 :root {
+             --primary-color: {{ primary_color }};
+             --secondary-color: {{ secondary_color }};
+             --success-color: #48bb78;
+             --warning-color: #ed8936;
+             --danger-color: #f56565;
+             --info-color: {{ primary_color }};
+             --light-color: #e2e8f0;
+             --dark-color: #1a2238;
+             --darker-color: #0f1419;
+         }
         
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -692,7 +699,10 @@
                 {% else %}
                     <i class="fas fa-tools me-2"></i>
                 {% endif %}
-                <span class="brand-text">Maintenance Dashboard</span>
+                                 <span class="brand-text">{{ header_brand_text }}</span>
+                 {% if site_tagline %}
+                     <small class="d-block text-muted">{{ site_tagline }}</small>
+                 {% endif %}
             </a>
             <span class="version-badge ml-3">
                 <small class="text-muted">{{ app_version }}</small>
@@ -741,27 +751,27 @@
     <div class="nav-tabs-custom">
         <ul class="nav nav-tabs border-0">
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
-                   href="{% url 'core:dashboard' %}">
-                    <i class="fas fa-home me-1"></i> Overview
-                </a>
+                                 <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
+                    href="{% url 'core:dashboard' %}">
+                     <i class="fas fa-home me-1"></i> {{ navigation_overview_label }}
+                 </a>
             </li>
 
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {% if 'equipment' in request.resolver_match.url_name %}active{% endif %}" 
-                   href="#" data-toggle="dropdown">
-                    <i class="fas fa-cogs me-1"></i> Equipment
-                </a>
+                                 <a class="nav-link dropdown-toggle {% if 'equipment' in request.resolver_match.url_name %}active{% endif %}" 
+                    href="#" data-toggle="dropdown">
+                     <i class="fas fa-cogs me-1"></i> {{ navigation_equipment_label }}
+                 </a>
                 <div class="dropdown-menu">
                     <a class="dropdown-item" href="{% url 'equipment:equipment_list' %}">Equipment List</a>
                     <a class="dropdown-item" href="{% url 'equipment:add_equipment' %}">Add Equipment</a>
                 </div>
             </li>
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle {% if 'maintenance' in request.resolver_match.url_name %}active{% endif %}" 
-                   href="#" data-toggle="dropdown">
-                    <i class="fas fa-calendar-check me-1"></i> Maintenance
-                </a>
+                                 <a class="nav-link dropdown-toggle {% if 'maintenance' in request.resolver_match.url_name %}active{% endif %}" 
+                    href="#" data-toggle="dropdown">
+                     <i class="fas fa-calendar-check me-1"></i> {{ navigation_maintenance_label }}
+                 </a>
                 <div class="dropdown-menu">
                     <a class="dropdown-item" href="{% url 'maintenance:maintenance_list' %}">Activities</a>
                     <a class="dropdown-item" href="{% url 'maintenance:schedule_list' %}">Schedules</a>
@@ -769,39 +779,42 @@
                 </div>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{% url 'events:calendar_view' %}">
-                    <i class="fas fa-calendar me-1"></i> Calendar
-                </a>
+                                 <a class="nav-link" href="{% url 'events:calendar_view' %}">
+                     <i class="fas fa-calendar me-1"></i> {{ navigation_calendar_label }}
+                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="{% url 'core:map_view' %}">
-                    <i class="fas fa-map me-1"></i> Map
-                </a>
+                                 <a class="nav-link" href="{% url 'core:map_view' %}">
+                     <i class="fas fa-map me-1"></i> {{ navigation_map_label }}
+                 </a>
             </li>
             <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" data-toggle="dropdown">
-                    <i class="fas fa-cog me-1"></i> Settings
-                </a>
-                <div class="dropdown-menu">
-                    <a class="dropdown-item" href="{% url 'core:settings' %}">General Settings</a>
-                    <a class="dropdown-item" href="{% url 'core:locations_settings' %}">Locations</a>
-                    <a class="dropdown-item" href="{% url 'core:customers_settings' %}">Customers</a>
-                    <a class="dropdown-item" href="{% url 'core:equipment_items_settings' %}">Equipment Items</a>
-                    <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="{% url 'core:version_html' %}">
-                        <i class="fas fa-code-branch me-1"></i> Version Info
-                    </a>
-                    <a class="dropdown-item" href="{% url 'core:version_form' %}">
-                        <i class="fas fa-edit me-1"></i> Set Version
-                    </a>
-                </div>
+                                 <a class="nav-link dropdown-toggle" href="#" data-toggle="dropdown">
+                     <i class="fas fa-cog me-1"></i> {{ navigation_settings_label }}
+                 </a>
+                                 <div class="dropdown-menu">
+                     <a class="dropdown-item" href="{% url 'core:branding_settings' %}">
+                         <i class="fas fa-palette me-1"></i> Branding
+                     </a>
+                     <a class="dropdown-item" href="{% url 'core:settings' %}">General Settings</a>
+                     <a class="dropdown-item" href="{% url 'core:locations_settings' %}">Locations</a>
+                     <a class="dropdown-item" href="{% url 'core:customers_settings' %}">Customers</a>
+                     <a class="dropdown-item" href="{% url 'core:equipment_items_settings' %}">Equipment Items</a>
+                     <div class="dropdown-divider"></div>
+                     <a class="dropdown-item" href="{% url 'core:version_html' %}">
+                         <i class="fas fa-code-branch me-1"></i> Version Info
+                     </a>
+                     <a class="dropdown-item" href="{% url 'core:version_form' %}">
+                         <i class="fas fa-edit me-1"></i> Set Version
+                     </a>
+                 </div>
             </li>
             {% if user.is_superuser %}
             <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'debug' %}active{% endif %}" 
-                   href="{% url 'core:debug' %}">
-                    <i class="fas fa-bug me-1"></i> Debug
-                </a>
+                                 <a class="nav-link {% if request.resolver_match.url_name == 'debug' %}active{% endif %}" 
+                    href="{% url 'core:debug' %}">
+                     <i class="fas fa-bug me-1"></i> {{ navigation_debug_label }}
+                 </a>
             </li>
             {% endif %}
         </ul>
@@ -858,10 +871,10 @@
         <div class="container-fluid">
             <div class="row">
                 <div class="col-md-6">
-                    <p class="mb-0">&copy; {% now "Y" %} Maintenance Dashboard. All rights reserved.</p>
+                                         <p class="mb-0">{{ footer_copyright_text }}</p>
                 </div>
                 <div class="col-md-6 text-right">
-                    <small>Powered by Django</small>
+                                         <small>{{ footer_powered_by_text }}</small>
                 </div>
             </div>
         </div>

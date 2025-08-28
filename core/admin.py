@@ -12,7 +12,7 @@ from django.utils.timezone import now
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
-from .models import EquipmentCategory, Location, UserProfile, Customer, Role, Permission, PortainerConfig, Logo
+from .models import EquipmentCategory, Location, UserProfile, Customer, Role, Permission, PortainerConfig, Logo, BrandingSettings, CSSCustomization
 
 
 # Custom Password Change View for Admin
@@ -197,14 +197,79 @@ class LogoAdmin(admin.ModelAdmin):
     search_fields = ['name']
     readonly_fields = ['created_at', 'updated_at']
     
-    def has_delete_permission(self, request, obj=None):
-        # Don't allow deletion of the last logo
-        if obj and Logo.objects.count() == 1:
-            return False
-        return super().has_delete_permission(request, obj)
+    def save_model(self, request, obj, form, change):
+        # Ensure only one logo is active at a time
+        if obj.is_active:
+            Logo.objects.exclude(pk=obj.pk).update(is_active=False)
+        super().save_model(request, obj, form, change)
+
+@admin.register(BrandingSettings)
+class BrandingSettingsAdmin(admin.ModelAdmin):
+    list_display = ['site_name', 'is_active', 'created_at', 'updated_at']
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['site_name', 'header_brand_text']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Basic Settings', {
+            'fields': ('site_name', 'site_tagline', 'window_title_prefix', 'window_title_suffix')
+        }),
+        ('Header Customization', {
+            'fields': ('header_brand_text', 'logo', 'favicon')
+        }),
+        ('Navigation Labels', {
+            'fields': (
+                'navigation_overview_label', 'navigation_equipment_label', 
+                'navigation_maintenance_label', 'navigation_calendar_label',
+                'navigation_map_label', 'navigation_settings_label', 'navigation_debug_label'
+            )
+        }),
+        ('Footer Customization', {
+            'fields': ('footer_copyright_text', 'footer_powered_by_text')
+        }),
+        ('Theme Colors', {
+            'fields': ('primary_color', 'secondary_color', 'accent_color')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
     
     def save_model(self, request, obj, form, change):
-        # Ensure only one logo is active
+        # Ensure only one branding settings instance is active at a time
         if obj.is_active:
-            Logo.objects.filter(is_active=True).exclude(pk=obj.pk).update(is_active=False)
+            BrandingSettings.objects.exclude(pk=obj.pk).update(is_active=False)
+        super().save_model(request, obj, form, change)
+
+@admin.register(CSSCustomization)
+class CSSCustomizationAdmin(admin.ModelAdmin):
+    list_display = ['name', 'item_type', 'is_active', 'priority', 'order', 'created_by', 'created_at']
+    list_filter = ['item_type', 'is_active', 'priority', 'created_at']
+    search_fields = ['name', 'description', 'css_code']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'item_type', 'description')
+        }),
+        ('CSS Content', {
+            'fields': ('css_code',),
+            'classes': ('wide',)
+        }),
+        ('Settings', {
+            'fields': ('is_active', 'priority', 'order')
+        }),
+        ('Metadata', {
+            'fields': ('created_by', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not change:  # Only set created_by for new instances
+            obj.created_by = request.user
         super().save_model(request, obj, form, change)

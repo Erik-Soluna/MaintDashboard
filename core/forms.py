@@ -5,7 +5,7 @@ Forms for core app - managing locations and equipment categories.
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Row, Column, Submit
-from .models import Location, EquipmentCategory, Customer
+from .models import Location, EquipmentCategory, Customer, BrandingSettings, CSSCustomization
 
 
 class LocationForm(forms.ModelForm):
@@ -170,3 +170,113 @@ class CustomerForm(forms.ModelForm):
                 raise forms.ValidationError("Customer code cannot be empty.")
         
         return code
+
+class BrandingSettingsForm(forms.ModelForm):
+    """Form for editing branding settings"""
+    
+    class Meta:
+        model = BrandingSettings
+        fields = [
+            'site_name', 'site_tagline', 'window_title_prefix', 'window_title_suffix',
+            'header_brand_text', 'logo', 'favicon',
+            'navigation_overview_label', 'navigation_equipment_label', 
+            'navigation_maintenance_label', 'navigation_calendar_label',
+            'navigation_map_label', 'navigation_settings_label', 'navigation_debug_label',
+            'footer_copyright_text', 'footer_powered_by_text',
+            'primary_color', 'secondary_color', 'accent_color'
+        ]
+        widgets = {
+            'site_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter site name'}),
+            'site_tagline': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter optional tagline'}),
+            'window_title_prefix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., SOLUNA -'}),
+            'window_title_suffix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., - Maintenance System'}),
+            'header_brand_text': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Text displayed next to logo'}),
+            'navigation_overview_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'navigation_equipment_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'navigation_maintenance_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'navigation_calendar_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'navigation_map_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'navigation_settings_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'navigation_debug_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'footer_copyright_text': forms.TextInput(attrs={'class': 'form-control'}),
+            'footer_powered_by_text': forms.TextInput(attrs={'class': 'form-control'}),
+            'primary_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'secondary_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'accent_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+        }
+    
+    def clean_primary_color(self):
+        color = self.cleaned_data['primary_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_secondary_color(self):
+        color = self.cleaned_data['secondary_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_accent_color(self):
+        color = self.cleaned_data['accent_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+
+class CSSCustomizationForm(forms.ModelForm):
+    """Form for editing CSS customizations"""
+    
+    class Meta:
+        model = CSSCustomization
+        fields = ['name', 'item_type', 'description', 'css_code', 'is_active', 'priority', 'order']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter CSS customization name'}),
+            'item_type': forms.Select(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Describe what this CSS customization does'}),
+            'css_code': forms.Textarea(attrs={
+                'class': 'form-control css-editor', 
+                'rows': 15, 
+                'placeholder': 'Enter CSS code here (without <style> tags)',
+                'spellcheck': 'false'
+            }),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'priority': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
+            'order': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
+        }
+    
+    def clean_css_code(self):
+        css_code = self.cleaned_data['css_code']
+        
+        # Basic CSS validation
+        if css_code.strip():
+            # Check for common issues
+            if '<style>' in css_code or '</style>' in css_code:
+                raise forms.ValidationError("Please don't include <style> tags in the CSS code.")
+            
+            if 'javascript:' in css_code.lower():
+                raise forms.ValidationError("JavaScript is not allowed in CSS customizations.")
+        
+        return css_code
+
+class CSSPreviewForm(forms.Form):
+    """Form for previewing CSS changes"""
+    css_code = forms.CharField(
+        widget=forms.Textarea(attrs={
+            'class': 'form-control css-editor', 
+            'rows': 15,
+            'placeholder': 'Enter CSS code to preview...'
+        }),
+        required=False
+    )
+    
+    def clean_css_code(self):
+        css_code = self.cleaned_data['css_code']
+        
+        if css_code.strip():
+            if '<style>' in css_code or '</style>' in css_code:
+                raise forms.ValidationError("Please don't include <style> tags in the CSS code.")
+            
+            if 'javascript:' in css_code.lower():
+                raise forms.ValidationError("JavaScript is not allowed in CSS customizations.")
+        
+        return css_code

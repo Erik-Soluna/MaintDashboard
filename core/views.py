@@ -10,8 +10,8 @@ from django.contrib.auth.models import User
 from equipment.models import Equipment
 from maintenance.models import MaintenanceActivity
 from events.models import CalendarEvent
-from core.models import Location, EquipmentCategory, Role, Permission, UserProfile, Customer
-from core.forms import LocationForm, EquipmentCategoryForm, CustomerForm
+from core.models import Location, EquipmentCategory, Role, Permission, UserProfile, Customer, BrandingSettings, CSSCustomization
+from core.forms import LocationForm, EquipmentCategoryForm, CustomerForm, BrandingSettingsForm, CSSCustomizationForm, CSSPreviewForm
 from django.utils import timezone
 from django.db.models import Q, Count
 from datetime import datetime, timedelta, date
@@ -4681,4 +4681,142 @@ def invalidate_cache_api(request):
             'status': 'error',
             'message': f'Error invalidating cache: {str(e)}'
         }, status=500)
+
+@login_required
+def branding_settings(request):
+    """Branding settings management page"""
+    try:
+        branding = BrandingSettings.objects.get(is_active=True)
+    except BrandingSettings.DoesNotExist:
+        branding = None
+    
+    if request.method == 'POST':
+        form = BrandingSettingsForm(request.POST, request.FILES, instance=branding)
+        if form.is_valid():
+            branding = form.save()
+            messages.success(request, 'Branding settings updated successfully!')
+            return redirect('core:branding_settings')
+    else:
+        form = BrandingSettingsForm(instance=branding)
+    
+    # Get CSS customizations for preview
+    css_customizations = CSSCustomization.objects.filter(is_active=True).order_by('-priority', 'order')
+    
+    context = {
+        'form': form,
+        'branding': branding,
+        'css_customizations': css_customizations,
+        'active_tab': 'branding'
+    }
+    return render(request, 'core/branding_settings.html', context)
+
+@login_required
+def css_customization_list(request):
+    """List all CSS customizations"""
+    css_customizations = CSSCustomization.objects.all().order_by('-priority', 'order', 'name')
+    
+    context = {
+        'css_customizations': css_customizations,
+        'active_tab': 'branding'
+    }
+    return render(request, 'core/css_customization_list.html', context)
+
+@login_required
+def css_customization_create(request):
+    """Create a new CSS customization"""
+    if request.method == 'POST':
+        form = CSSCustomizationForm(request.POST)
+        if form.is_valid():
+            css_customization = form.save(commit=False)
+            css_customization.created_by = request.user
+            css_customization.save()
+            messages.success(request, 'CSS customization created successfully!')
+            return redirect('core:css_customization_list')
+    else:
+        form = CSSCustomizationForm()
+    
+    context = {
+        'form': form,
+        'active_tab': 'branding',
+        'is_create': True
+    }
+    return render(request, 'core/css_customization_form.html', context)
+
+@login_required
+def css_customization_edit(request, pk):
+    """Edit an existing CSS customization"""
+    try:
+        css_customization = CSSCustomization.objects.get(pk=pk)
+    except CSSCustomization.DoesNotExist:
+        messages.error(request, 'CSS customization not found.')
+        return redirect('core:css_customization_list')
+    
+    if request.method == 'POST':
+        form = CSSCustomizationForm(request.POST, instance=css_customization)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'CSS customization updated successfully!')
+            return redirect('core:css_customization_list')
+    else:
+        form = CSSCustomizationForm(instance=css_customization)
+    
+    context = {
+        'form': form,
+        'css_customization': css_customization,
+        'active_tab': 'branding',
+        'is_create': False
+    }
+    return render(request, 'core/css_customization_form.html', context)
+
+@login_required
+def css_customization_delete(request, pk):
+    """Delete a CSS customization"""
+    try:
+        css_customization = CSSCustomization.objects.get(pk=pk)
+        name = css_customization.name
+        css_customization.delete()
+        messages.success(request, f'CSS customization "{name}" deleted successfully!')
+    except CSSCustomization.DoesNotExist:
+        messages.error(request, 'CSS customization not found.')
+    
+    return redirect('core:css_customization_list')
+
+@login_required
+def css_preview(request):
+    """Preview CSS changes in real-time"""
+    if request.method == 'POST':
+        form = CSSPreviewForm(request.POST)
+        if form.is_valid():
+            css_code = form.cleaned_data['css_code']
+        else:
+            css_code = ''
+    else:
+        form = CSSPreviewForm()
+        css_code = ''
+    
+    # Get active CSS customizations for comparison
+    active_css = CSSCustomization.objects.filter(is_active=True).order_by('-priority', 'order')
+    
+    context = {
+        'form': form,
+        'css_code': css_code,
+        'active_css': active_css,
+        'active_tab': 'branding'
+    }
+    return render(request, 'core/css_preview.html', context)
+
+@login_required
+def css_toggle(request, pk):
+    """Toggle CSS customization active status"""
+    try:
+        css_customization = CSSCustomization.objects.get(pk=pk)
+        css_customization.is_active = not css_customization.is_active
+        css_customization.save()
+        
+        status = 'activated' if css_customization.is_active else 'deactivated'
+        messages.success(request, f'CSS customization "{css_customization.name}" {status} successfully!')
+    except CSSCustomization.DoesNotExist:
+        messages.error(request, 'CSS customization not found.')
+    
+    return redirect('core:css_customization_list')
 

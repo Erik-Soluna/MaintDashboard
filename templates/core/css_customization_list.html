@@ -1,0 +1,621 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}CSS Customizations - Maintenance Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.css-list-container {
+    background-color: var(--bg-secondary);
+    min-height: 100vh;
+    color: var(--text-primary);
+    padding: 20px;
+}
+
+.css-list-header {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.css-list-content {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.css-item {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.css-item:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.css-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.css-item-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.css-item-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.css-item-type {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.css-item-meta {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.css-item-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.css-item-description {
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+.css-item-code {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    max-height: 150px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.css-item-code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.css-item-code-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.css-item-code-toggle {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.css-item-code-toggle:hover {
+    color: var(--accent-color);
+}
+
+.css-item-code-content {
+    display: none;
+}
+
+.css-item-code-content.show {
+    display: block;
+}
+
+.css-item-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.css-item-actions .btn {
+    font-size: 12px;
+    padding: 6px 12px;
+}
+
+.css-filters {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.css-filters-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.css-filters-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.css-filters-toggle {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.css-filters-content {
+    display: none;
+}
+
+.css-filters-content.show {
+    display: block;
+}
+
+.css-filters-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    align-items: end;
+}
+
+.css-filters-form .form-group {
+    margin-bottom: 0;
+}
+
+.css-filters-form label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+}
+
+.css-filters-form .form-control {
+    font-size: 12px;
+    padding: 6px 10px;
+}
+
+.css-filters-actions {
+    display: flex;
+    gap: 10px;
+    align-items: end;
+}
+
+.css-filters-actions .btn {
+    font-size: 12px;
+    padding: 6px 12px;
+}
+
+.css-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.css-stat-card {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 15px;
+    text-align: center;
+}
+
+.css-stat-number {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 5px;
+}
+
+.css-stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.css-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.css-empty-state i {
+    font-size: 64px;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+}
+
+.css-empty-state h4 {
+    color: var(--text-primary);
+    margin-bottom: 10px;
+}
+
+.css-empty-state p {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.form-control {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.form-control:focus {
+    background-color: var(--bg-secondary);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="css-list-container">
+    <!-- Header -->
+    <div class="css-list-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2><i class="fas fa-code me-2"></i>CSS Customizations</h2>
+                <p class="text-muted mb-0">Manage and organize CSS customizations for different components.</p>
+            </div>
+            <a href="{% url 'core:css_customization_create' %}" class="btn btn-success">
+                <i class="fas fa-plus me-2"></i>Add CSS Customization
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="css-stats">
+        <div class="css-stat-card">
+            <div class="css-stat-number">{{ css_customizations.count }}</div>
+            <div class="css-stat-label">Total Customizations</div>
+        </div>
+        <div class="css-stat-card">
+            <div class="css-stat-number">{{ css_customizations.filter.is_active=True.count }}</div>
+            <div class="css-stat-label">Active</div>
+        </div>
+        <div class="css-stat-card">
+            <div class="css-stat-number">{{ css_customizations.filter.is_active=False.count }}</div>
+            <div class="css-stat-label">Inactive</div>
+        </div>
+        <div class="css-stat-card">
+            <div class="css-stat-number">{{ css_customizations.values_list.item_type.distinct.count }}</div>
+            <div class="css-stat-label">Item Types</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="css-filters">
+        <div class="css-filters-header">
+            <h5 class="css-filters-title"><i class="fas fa-filter me-2"></i>Filters</h5>
+            <button type="button" class="css-filters-toggle" id="toggleFilters">
+                <i class="fas fa-chevron-down me-1"></i>Show Filters
+            </button>
+        </div>
+        
+        <div class="css-filters-content" id="filtersContent">
+            <form method="get" class="css-filters-form">
+                <div class="form-group">
+                    <label for="item_type">Item Type</label>
+                    <select name="item_type" id="item_type" class="form-control">
+                        <option value="">All Types</option>
+                        <option value="header" {% if request.GET.item_type == 'header' %}selected{% endif %}>Header</option>
+                        <option value="navigation" {% if request.GET.item_type == 'navigation' %}selected{% endif %}>Navigation</option>
+                        <option value="dashboard" {% if request.GET.item_type == 'dashboard' %}selected{% endif %}>Dashboard</option>
+                        <option value="equipment" {% if request.GET.item_type == 'equipment' %}selected{% endif %}>Equipment</option>
+                        <option value="maintenance" {% if request.GET.item_type == 'maintenance' %}selected{% endif %}>Maintenance</option>
+                        <option value="calendar" {% if request.GET.item_type == 'calendar' %}selected{% endif %}>Calendar</option>
+                        <option value="map" {% if request.GET.item_type == 'map' %}selected{% endif %}>Map</option>
+                        <option value="settings" {% if request.GET.item_type == 'settings' %}selected{% endif %}>Settings</option>
+                        <option value="forms" {% if request.GET.item_type == 'forms' %}selected{% endif %}>Forms</option>
+                        <option value="tables" {% if request.GET.item_type == 'tables' %}selected{% endif %}>Tables</option>
+                        <option value="buttons" {% if request.GET.item_type == 'buttons' %}selected{% endif %}>Buttons</option>
+                        <option value="cards" {% if request.GET.item_type == 'cards' %}selected{% endif %}>Cards</option>
+                        <option value="modals" {% if request.GET.item_type == 'modals' %}selected{% endif %}>Modals</option>
+                        <option value="alerts" {% if request.GET.item_type == 'alerts' %}selected{% endif %}>Alerts</option>
+                        <option value="breadcrumbs" {% if request.GET.item_type == 'breadcrumbs' %}selected{% endif %}>Breadcrumbs</option>
+                        <option value="footer" {% if request.GET.item_type == 'footer' %}selected{% endif %}>Footer</option>
+                        <option value="global" {% if request.GET.item_type == 'global' %}selected{% endif %}>Global</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select name="status" id="status" class="form-control">
+                        <option value="">All Statuses</option>
+                        <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="priority">Priority</label>
+                    <select name="priority" id="priority" class="form-control">
+                        <option value="">All Priorities</option>
+                        <option value="high" {% if request.GET.priority == 'high' %}selected{% endif %}>High (80-100)</option>
+                        <option value="medium" {% if request.GET.priority == 'medium' %}selected{% endif %}>Medium (40-79)</option>
+                        <option value="low" {% if request.GET.priority == 'low' %}selected{% endif %}>Low (0-39)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="search">Search</label>
+                    <input type="text" name="search" id="search" class="form-control" 
+                           placeholder="Search by name or description" 
+                           value="{{ request.GET.search|default:'' }}">
+                </div>
+                
+                <div class="css-filters-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>Apply Filters
+                    </button>
+                    <a href="{% url 'core:css_customization_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CSS Customizations List -->
+    <div class="css-list-content">
+        {% if css_customizations %}
+            {% for css in css_customizations %}
+                <div class="css-item">
+                    <div class="css-item-header">
+                        <div class="css-item-title">
+                            <h5 class="css-item-name">{{ css.name }}</h5>
+                            <span class="css-item-type">{{ css.get_item_type_display }}</span>
+                        </div>
+                        
+                        <div class="css-item-meta">
+                            <div class="css-item-status">
+                                <i class="fas fa-{{ css.is_active|yesno:'check-circle,times-circle' }}" 
+                                   style="color: {{ css.is_active|yesno:'var(--success-color),var(--danger-color)' }};"></i>
+                                <span>{{ css.is_active|yesno:'Active,Inactive' }}</span>
+                            </div>
+                            <span>Priority: {{ css.priority }}</span>
+                            <span>Order: {{ css.order }}</span>
+                            <span>Created: {{ css.created_at|date:"M d, Y" }}</span>
+                            {% if css.created_by %}
+                                <span>by {{ css.created_by.get_full_name|default:css.created_by.username }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    {% if css.description %}
+                        <div class="css-item-description">{{ css.description }}</div>
+                    {% endif %}
+                    
+                    <div class="css-item-code">
+                        <div class="css-item-code-header">
+                            <h6 class="css-item-code-title">CSS Code</h6>
+                            <button type="button" class="css-item-code-toggle" onclick="toggleCode(this)">
+                                Show Code
+                            </button>
+                        </div>
+                        <div class="css-item-code-content" data-css-id="{{ css.id }}">
+                            <pre><code>{{ css.css_code }}</code></pre>
+                        </div>
+                    </div>
+                    
+                    <div class="css-item-actions">
+                        <a href="{% url 'core:css_customization_edit' css.pk %}" class="btn btn-primary">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </a>
+                        <a href="{% url 'core:css_toggle' css.pk %}" class="btn btn-{{ css.is_active|yesno:'warning,success' }}">
+                            <i class="fas fa-{{ css.is_active|yesno:'pause,play' }} me-1"></i>
+                            {{ css.is_active|yesno:'Deactivate,Activate' }}
+                        </a>
+                        <a href="{% url 'core:css_customization_delete' css.pk %}" class="btn btn-danger" 
+                           onclick="return confirm('Are you sure you want to delete this CSS customization? This action cannot be undone.')">
+                            <i class="fas fa-trash me-1"></i>Delete
+                        </a>
+                        <button type="button" class="btn btn-outline-info" onclick="previewCSS({{ css.id }})">
+                            <i class="fas fa-eye me-1"></i>Preview
+                        </button>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="css-empty-state">
+                <i class="fas fa-code"></i>
+                <h4>No CSS Customizations Found</h4>
+                <p>Get started by creating your first CSS customization to modify the appearance of your dashboard.</p>
+                <a href="{% url 'core:css_customization_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Create CSS Customization
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle filters
+    document.getElementById('toggleFilters').addEventListener('click', function() {
+        const filtersContent = document.getElementById('filtersContent');
+        const button = this;
+        
+        if (filtersContent.classList.contains('show')) {
+            filtersContent.classList.remove('show');
+            button.innerHTML = '<i class="fas fa-chevron-down me-1"></i>Show Filters';
+        } else {
+            filtersContent.classList.add('show');
+            button.innerHTML = '<i class="fas fa-chevron-up me-1"></i>Hide Filters';
+        }
+    });
+    
+    // Auto-submit form on filter change
+    document.querySelectorAll('.css-filters-form select, .css-filters-form input').forEach(function(element) {
+        element.addEventListener('change', function() {
+            if (this.name === 'search') return; // Don't auto-submit on search input
+            this.closest('form').submit();
+        });
+    });
+});
+
+// Toggle code display
+function toggleCode(button) {
+    const codeContent = button.closest('.css-item-code').querySelector('.css-item-code-content');
+    const isVisible = codeContent.classList.contains('show');
+    
+    if (isVisible) {
+        codeContent.classList.remove('show');
+        button.innerHTML = 'Show Code';
+    } else {
+        codeContent.classList.add('show');
+        button.innerHTML = 'Hide Code';
+    }
+}
+
+// Preview CSS
+function previewCSS(cssId) {
+    // Find the CSS code for this customization
+    const codeElement = document.querySelector(`[data-css-id="${cssId}"] code`);
+    if (!codeElement) return;
+    
+    const cssCode = codeElement.textContent;
+    
+    // Create a modal to show the preview
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">CSS Preview</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>CSS Code:</h6>
+                            <pre><code>${cssCode}</code></pre>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Preview:</h6>
+                            <div id="cssPreviewArea">
+                                <div class="d-flex justify-content-between align-items-center p-3" style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; margin-bottom: 15px;">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-tools fa-2x me-3" style="color: var(--primary-color);"></i>
+                                        <div>
+                                            <h4 class="mb-0">Sample Header</h4>
+                                            <small class="text-muted">Sample tagline</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-2 flex-wrap mb-3">
+                                    <button class="btn btn-primary">Primary Button</button>
+                                    <button class="btn btn-secondary">Secondary Button</button>
+                                </div>
+                                <div class="card">
+                                    <div class="card-header">Sample Card</div>
+                                    <div class="card-body">Sample content</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Apply CSS to preview
+    const style = document.createElement('style');
+    style.textContent = cssCode;
+    document.head.appendChild(style);
+    
+    // Show modal
+    $(modal).modal('show');
+    
+    // Clean up when modal is hidden
+    $(modal).on('hidden.bs.modal', function() {
+        style.remove();
+        modal.remove();
+    });
+}
+</script>
+{% endblock %}
