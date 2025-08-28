@@ -363,9 +363,9 @@
         <div class="header-controls">
             <span class="text-light">Select Site:</span>
             <select class="site-selector" id="siteSelector" onchange="handleSiteChange(this.value)">
-                <option value="">All - Soluna</option>
+                <option value="" {% if is_all_sites %}selected{% endif %}>All - Soluna</option>
                 {% for site in sites %}
-                    <option value="{{ site.id }}" {% if selected_site and selected_site.id == site.id %}selected{% endif %}>
+                    <option value="{{ site.id }}" {% if selected_site_id == site.id|stringformat:"s" %}selected{% endif %}>
                         {{ site.name }}
                     </option>
                 {% endfor %}
@@ -906,13 +906,53 @@ function applyClientSideFiltering() {
 }
 
 function handleSiteChange(siteId) {
-    const url = new URL(window.location);
-    if (siteId) {
-        url.searchParams.set('site_id', siteId);
-    } else {
-        url.searchParams.delete('site_id');
-    }
-    window.location.href = url.toString();
+    console.log('handleSiteChange called with:', siteId);
+    
+    // First invalidate the cache to ensure fresh data
+    fetch('{% url "core:invalidate_cache_api" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ site_id: siteId || 'all' })
+    }).then(response => response.json())
+    .then(data => {
+        console.log('Cache invalidation result:', data);
+        
+        // Now navigate to the new URL
+        const url = new URL(window.location);
+        
+        if (siteId && siteId !== '') {
+            url.searchParams.set('site_id', siteId);
+            console.log('Setting site_id to:', siteId);
+        } else {
+            // Remove the site_id parameter completely for "All - Soluna"
+            url.searchParams.delete('site_id');
+            console.log('Removing site_id parameter for All Sites');
+        }
+        
+        // Add a timestamp to force cache busting
+        url.searchParams.set('_t', Date.now());
+        
+        console.log('Navigating to:', url.toString());
+        // Force a page refresh by navigating to the new URL
+        window.location.href = url.toString();
+    })
+    .catch(error => {
+        console.error('Error invalidating cache:', error);
+        // Still navigate even if cache invalidation fails
+        const url = new URL(window.location);
+        
+        if (siteId && siteId !== '') {
+            url.searchParams.set('site_id', siteId);
+        } else {
+            url.searchParams.delete('site_id');
+        }
+        
+        url.searchParams.set('_t', Date.now());
+        window.location.href = url.toString();
+    });
 }
 
 function clearFilters() {

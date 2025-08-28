@@ -339,12 +339,23 @@ def add_activity(request):
             selected_site_id = request.session.get('selected_site_id')
         
         selected_site = None
+        is_all_sites = False
+        
         if selected_site_id:
-            try:
-                selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-                logger.info(f"Selected site: {selected_site.name if selected_site else 'All Sites'}")
-            except Location.DoesNotExist:
-                logger.warning(f"Invalid site ID: {selected_site_id}")
+            if selected_site_id == 'all':
+                # Handle "All Sites" selection
+                is_all_sites = True
+                logger.info("Selected site: All Sites")
+            else:
+                try:
+                    selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                    logger.info(f"Selected site: {selected_site.name}")
+                except (Location.DoesNotExist, ValueError):
+                    logger.warning(f"Invalid site ID: {selected_site_id}")
+        else:
+            # No site selected, treat as "All Sites"
+            is_all_sites = True
+            logger.info("Selected site: All Sites (default)")
         
         if request.method == 'POST':
             form = MaintenanceActivityForm(request.POST, request=request)
@@ -377,6 +388,8 @@ def add_activity(request):
             'equipment_count': filtered_equipment_count,
             'total_equipment_count': total_equipment_count,
             'selected_site': selected_site,
+            'selected_site_id': selected_site_id,
+            'is_all_sites': is_all_sites,
             'equipment_list': equipment_list,
         }
         return render(request, 'maintenance/add_activity.html', context)
@@ -829,7 +842,7 @@ def export_maintenance_csv(request):
     site_id = request.GET.get('site_id')
     status = request.GET.get('status')
     
-    if site_id:
+    if site_id and site_id != 'all':
         activities = activities.filter(
             Q(equipment__location__parent_location_id=site_id) | 
             Q(equipment__location_id=site_id)
@@ -1086,7 +1099,7 @@ def export_maintenance_schedules_csv(request):
     
     # Apply site filter if provided
     site_id = request.GET.get('site_id')
-    if site_id:
+    if site_id and site_id != 'all':
         schedules = schedules.filter(
             Q(equipment__location__parent_location_id=site_id) | 
             Q(equipment__location_id=site_id)
@@ -1658,7 +1671,7 @@ def fetch_activities(request):
             queryset = queryset.filter(equipment_id=equipment_id)
         if status:
             queryset = queryset.filter(status=status)
-        if site_id:
+        if site_id and site_id != 'all':
             # Filter by equipment's site or parent location
             queryset = queryset.filter(
                 Q(equipment__location__parent_location_id=site_id) |
@@ -2443,11 +2456,20 @@ def debug_equipment_filtering(request):
     
     # Get site info
     selected_site = None
+    is_all_sites = False
+    
     if selected_site_id:
-        try:
-            selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-        except Location.DoesNotExist:
-            pass
+        if selected_site_id == 'all':
+            # Handle "All Sites" selection
+            is_all_sites = True
+        else:
+            try:
+                selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+            except (Location.DoesNotExist, ValueError):
+                pass
+    else:
+        # No site selected, treat as "All Sites"
+        is_all_sites = True
     
     # Filter equipment by site
     filtered_equipment = all_equipment

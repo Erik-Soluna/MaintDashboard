@@ -46,10 +46,14 @@ class EquipmentForm(forms.ModelForm):
                 selected_site_id = self.request.session.get('selected_site_id')
             
             if selected_site_id:
-                try:
-                    selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-                except Location.DoesNotExist:
-                    pass
+                if selected_site_id == 'all':
+                    # Handle "All Sites" selection - no filtering needed
+                    selected_site = None
+                else:
+                    try:
+                        selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                    except (Location.DoesNotExist, ValueError):
+                        selected_site = None
         
         # Filter locations based on selected site
         if selected_site:

@@ -132,15 +132,19 @@ def equipment_list(request):
         selected_site_id = request.session.get('selected_site_id')
     
     if selected_site_id:
-        try:
-            selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-            queryset = queryset.filter(
-                Q(location__parent_location=selected_site) | Q(location=selected_site)
-            )
-        except Location.DoesNotExist:
-            logger.warning(f"Selected site with ID {selected_site_id} not found")
-        except Exception as e:
-            log_error(e, f"filtering equipment by site {selected_site_id}", request=request)
+        if selected_site_id == 'all':
+            # Handle "All Sites" selection - no filtering needed
+            pass
+        else:
+            try:
+                selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                queryset = queryset.filter(
+                    Q(location__parent_location=selected_site) | Q(location=selected_site)
+                )
+            except (Location.DoesNotExist, ValueError):
+                logger.warning(f"Selected site with ID {selected_site_id} not found")
+            except Exception as e:
+                log_error(e, f"filtering equipment by site {selected_site_id}", request=request)
     
     # Search functionality
     search_term = request.GET.get('search', '')
@@ -204,15 +208,19 @@ def manage_equipment(request):
         selected_site_id = request.session.get('selected_site_id')
     
     if selected_site_id:
-        try:
-            selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-            equipment_queryset = equipment_queryset.filter(
-                Q(location__parent_location=selected_site) | Q(location=selected_site)
-            )
-        except Location.DoesNotExist:
-            logger.warning(f"Selected site with ID {selected_site_id} not found")
-        except Exception as e:
-            log_error(e, f"filtering equipment by site {selected_site_id}", request=request)
+        if selected_site_id == 'all':
+            # Handle "All Sites" selection - no filtering needed
+            pass
+        else:
+            try:
+                selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                equipment_queryset = equipment_queryset.filter(
+                    Q(location__parent_location=selected_site) | Q(location=selected_site)
+                )
+            except (Location.DoesNotExist, ValueError):
+                logger.warning(f"Selected site with ID {selected_site_id} not found")
+            except Exception as e:
+                log_error(e, f"filtering equipment by site {selected_site_id}", request=request)
     
     equipment_list = equipment_queryset
     
@@ -860,7 +868,7 @@ def export_equipment_csv(request):
     
     # Apply site filter if provided
     site_id = request.GET.get('site_id')
-    if site_id:
+    if site_id and site_id != 'all':
         from django.db.models import Q
         equipment_list = equipment_list.filter(
             Q(location__parent_location_id=site_id) | Q(location_id=site_id)

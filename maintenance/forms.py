@@ -281,13 +281,17 @@ class MaintenanceActivityForm(forms.ModelForm):
                 selected_site_id = self.request.session.get('selected_site_id')
             
             if selected_site_id:
-                try:
-                    selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-                    equipment_queryset = equipment_queryset.filter(
-                        Q(location__parent_location=selected_site) | Q(location=selected_site)
-                    )
-                except Location.DoesNotExist:
+                if selected_site_id == 'all':
+                    # Handle "All Sites" selection - no filtering needed
                     pass
+                else:
+                    try:
+                        selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                        equipment_queryset = equipment_queryset.filter(
+                            Q(location__parent_location=selected_site) | Q(location=selected_site)
+                        )
+                    except (Location.DoesNotExist, ValueError):
+                        pass
         
         self.fields['equipment'].queryset = equipment_queryset.select_related('category')
         
@@ -366,13 +370,17 @@ class MaintenanceScheduleForm(forms.ModelForm):
                 selected_site_id = self.request.session.get('selected_site_id')
             
             if selected_site_id:
-                try:
-                    selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-                    equipment_queryset = equipment_queryset.filter(
-                        Q(location__parent_location=selected_site) | Q(location=selected_site)
-                    )
-                except Location.DoesNotExist:
+                if selected_site_id == 'all':
+                    # Handle "All Sites" selection - no filtering needed
                     pass
+                else:
+                    try:
+                        selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                        equipment_queryset = equipment_queryset.filter(
+                            Q(location__parent_location=selected_site) | Q(location=selected_site)
+                        )
+                    except (Location.DoesNotExist, ValueError):
+                        pass
         
         self.fields['equipment'].queryset = equipment_queryset.select_related('category')
         self.fields['activity_type'].queryset = MaintenanceActivityType.objects.filter(is_active=True).select_related('category')
@@ -598,13 +606,17 @@ class ScheduleOverrideForm(forms.ModelForm):
                 selected_site_id = self.request.session.get('selected_site_id')
             
             if selected_site_id:
-                try:
-                    selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-                    equipment_queryset = equipment_queryset.filter(
-                        Q(location__parent_location=selected_site) | Q(location=selected_site)
-                    )
-                except Location.DoesNotExist:
+                if selected_site_id == 'all':
+                    # Handle "All Sites" selection - no filtering needed
                     pass
+                else:
+                    try:
+                        selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                        equipment_queryset = equipment_queryset.filter(
+                            Q(location__parent_location=selected_site) | Q(location=selected_site)
+                        )
+                    except (Location.DoesNotExist, ValueError):
+                        pass
         
         self.fields['equipment'].queryset = equipment_queryset.select_related('category')
         self.fields['activity_type'].queryset = MaintenanceActivityType.objects.filter(is_active=True).select_related('category')

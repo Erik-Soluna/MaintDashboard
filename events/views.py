@@ -43,7 +43,7 @@ def generate_ical_feed(request):
     events = CalendarEvent.objects.select_related('equipment', 'equipment__location').all()
     
     # Apply filters
-    if site_id:
+    if site_id and site_id != 'all':
         events = events.filter(
             Q(equipment__location__parent_location_id=site_id) | 
             Q(equipment__location_id=site_id)
@@ -187,16 +187,25 @@ def calendar_view(request):
     # Get all sites for the site selector
     sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
     selected_site = None
+    is_all_sites = False
+    
     if selected_site_id:
-        try:
-            selected_site = sites.get(id=selected_site_id)
-            request.session['selected_site_id'] = selected_site_id
-        except Location.DoesNotExist:
-            pass
+        if selected_site_id == 'all':
+            # Handle "All Sites" selection
+            is_all_sites = True
+            request.session['selected_site_id'] = 'all'
+        else:
+            try:
+                selected_site = sites.get(id=selected_site_id)
+                request.session['selected_site_id'] = selected_site_id
+                is_all_sites = False
+            except (Location.DoesNotExist, ValueError):
+                # Handle invalid site_id gracefully
+                pass
 
     # Get equipment for filtering
     equipment_list = Equipment.objects.filter(is_active=True).order_by('name')
-    if selected_site:
+    if selected_site and not is_all_sites:
         equipment_list = equipment_list.filter(
             Q(location__parent_location=selected_site) | Q(location=selected_site)
         )
@@ -228,6 +237,8 @@ def calendar_view(request):
     context = {
         'sites': sites,
         'selected_site': selected_site,
+        'selected_site_id': selected_site_id,
+        'is_all_sites': is_all_sites,
         'equipment_list': equipment_list,
         'event_types': event_types,
         'priority_choices': CalendarEvent.PRIORITY_CHOICES,
@@ -638,7 +649,7 @@ def fetch_events(request):
                 )
         
         # Site filtering
-        if site_id:
+        if site_id and site_id != 'all':
             events = events.filter(
                 Q(equipment__location__parent_location_id=site_id) | 
                 Q(equipment__location_id=site_id)
@@ -739,7 +750,7 @@ def fetch_unified_events(request):
                     )
             
             # Site filtering
-            if site_id:
+            if site_id and site_id != 'all':
                 events = events.filter(
                     Q(equipment__location__parent_location_id=site_id) | 
                     Q(equipment__location_id=site_id)
@@ -1079,7 +1090,7 @@ def get_form_data(request):
         
         # Get site filter if provided
         site_id = request.GET.get('site_id')
-        if site_id:
+        if site_id and site_id != 'all':
             equipment_list = equipment_list.filter(
                 Q(location__parent_location_id=site_id) | Q(location_id=site_id)
             )

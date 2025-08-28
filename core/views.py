@@ -1499,7 +1499,7 @@ def export_locations_csv(request):
     
     # Apply site filter if provided
     site_id = request.GET.get('site_id')
-    if site_id:
+    if site_id and site_id != 'all':
         from django.db.models import Q
         locations = locations.filter(
             Q(parent_location_id=site_id) | Q(id=site_id)
