@@ -11,9 +11,7 @@ app_name = 'core'
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),  # Root path for dashboard
     path('dashboard/', views.dashboard, name='dashboard_alt'),  # Alternative dashboard path
-    path('overview/', views.builderio_overview, name='builderio_overview'),  # Builder.io Overview page
-    path('overview/data/', views.builderio_overview_data, name='builderio_overview_data'),
-    path('webhook/builderio/', views.builderio_webhook, name='builderio_webhook'),
+
     path('profile/', views.profile, name='profile'),
     path('settings/', views.settings_view, name='settings'),
     path('user-management/', views.user_management, name='user_management'),

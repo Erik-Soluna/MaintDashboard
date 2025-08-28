@@ -727,12 +727,7 @@
                     <i class="fas fa-home me-1"></i> Overview
                 </a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link {% if request.resolver_match.url_name == 'builderio_overview' %}active{% endif %}" 
-                   href="{% url 'core:builderio_overview' %}">
-                    <i class="fas fa-palette me-1"></i> Builder.io Overview
-                </a>
-            </li>
+
             <li class="nav-item dropdown">
                 <a class="nav-link dropdown-toggle {% if 'equipment' in request.resolver_match.url_name %}active{% endif %}" 
                    href="#" data-toggle="dropdown">
