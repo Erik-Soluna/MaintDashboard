@@ -408,7 +408,7 @@
         </div>
         {% endfor %}
         
-        <!-- Urgent Calendar Events -->
+        <!-- Urgent Calendar Events (only non-maintenance events) -->
         {% for event in urgent_calendar %}
         <div class="calendar-item urgent" onclick="viewCalendarEvent({{ event.id }})">
             <div class="item-title">{{ event.title|truncatechars:35 }}</div>
@@ -449,7 +449,7 @@
         </div>
         {% endfor %}
         
-        <!-- Upcoming Calendar Events -->
+        <!-- Upcoming Calendar Events (only non-maintenance events) -->
         {% for event in upcoming_calendar %}
         <div class="calendar-item scheduled" onclick="viewCalendarEvent({{ event.id }})">
             <div class="item-title">{{ event.title|truncatechars:35 }}</div>

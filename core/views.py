@@ -164,29 +164,33 @@ def dashboard(request):
     
     # ===== BULK STATISTICS CALCULATION =====
     
-    # Calculate urgent items with single queries
+    # Calculate urgent items with single queries - only show maintenance activities to avoid duplication
     urgent_maintenance = list(maintenance_query.filter(
         Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today),
         status__in=['pending', 'in_progress', 'overdue']
     ).order_by('scheduled_end')[:15])
     
+    # Filter out calendar events that are synced with maintenance activities to avoid duplication
     urgent_calendar = list(calendar_query.filter(
         event_date__lte=urgent_cutoff,
         event_date__gte=today,
-        is_completed=False
+        is_completed=False,
+        maintenance_activity__isnull=True  # Only show calendar events NOT synced with maintenance
     ).order_by('event_date')[:10])
     
-    # Calculate upcoming items with single queries
+    # Calculate upcoming items with single queries - only show maintenance activities to avoid duplication
     upcoming_maintenance = list(maintenance_query.filter(
         scheduled_end__gt=urgent_cutoff,
         scheduled_end__lte=upcoming_cutoff,
         status__in=['pending', 'scheduled']
     ).order_by('scheduled_end')[:15])
     
+    # Filter out calendar events that are synced with maintenance activities to avoid duplication
     upcoming_calendar = list(calendar_query.filter(
         event_date__gt=urgent_cutoff,
         event_date__lte=upcoming_cutoff,
-        is_completed=False
+        is_completed=False,
+        maintenance_activity__isnull=True  # Only show calendar events NOT synced with maintenance
     ).order_by('event_date')[:10])
     
     # ===== OPTIMIZED OVERVIEW DATA CALCULATION =====
