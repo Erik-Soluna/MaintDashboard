@@ -40,15 +40,15 @@
 {% block extra_css %}
 <style>
 .branding-container {
-    background-color: var(--bg-secondary);
+    background-color: var(--content-bg);
     min-height: 100vh;
-    color: var(--text-primary);
+    color: var(--content-text);
     padding: 20px;
 }
 
 .branding-header {
     background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border);
     border-radius: 8px;
     padding: 20px;
     margin-bottom: 20px;
@@ -56,14 +56,14 @@
 
 .branding-tabs {
     background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border);
     border-radius: 8px;
     margin-bottom: 20px;
 }
 
 .branding-tab-content {
     background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border);
     border-top: none;
     border-radius: 0 0 8px 8px;
     padding: 20px;
@@ -74,7 +74,7 @@
 }
 
 .branding-form-section h4 {
-    color: var(--text-primary);
+    color: var(--content-text);
     border-bottom: 2px solid var(--primary-color);
     padding-bottom: 10px;
     margin-bottom: 20px;
@@ -96,21 +96,21 @@
 
 .color-picker-item label {
     font-size: 14px;
-    color: var(--text-secondary);
+    color: var(--content-text);
     margin: 0;
 }
 
 .color-picker-item input[type="color"] {
     width: 60px;
     height: 40px;
-    border: 2px solid var(--border-color);
+    border: 2px solid var(--card-border);
     border-radius: 6px;
     cursor: pointer;
 }
 
 .preview-section {
-    background-color: var(--bg-tertiary);
-    border: 1px solid var(--border-color);
+    background-color: var(--darker-color);
+    border: 1px solid var(--card-border);
     border-radius: 8px;
     padding: 20px;
     margin-top: 20px;
@@ -118,7 +118,7 @@
 
 .preview-header {
     background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border);
     border-radius: 8px;
     padding: 15px 20px;
     margin-bottom: 20px;
@@ -126,7 +126,7 @@
 
 .preview-navigation {
     background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border);
     border-radius: 8px;
     padding: 15px 20px;
     margin-bottom: 20px;
@@ -234,15 +234,16 @@
 }
 
 .form-control {
-    background-color: var(--bg-secondary);
-    border-color: var(--border-color);
-    color: var(--text-primary);
+    background-color: var(--form-bg);
+    border-color: var(--form-border);
+    color: var(--form-text);
 }
 
 .form-control:focus {
-    background-color: var(--bg-secondary);
-    border-color: var(--primary-color);
-    color: var(--text-primary);
+    background-color: var(--form-bg);
+    border-color: var(--accent-color);
+    color: var(--form-text);
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
 }
 
 .btn-primary {
