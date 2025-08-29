@@ -414,14 +414,30 @@
                             {{ basic_form.header_brand_text|as_crispy_field }}
                         </div>
                         <div class="col-md-6">
-                            {{ basic_form.logo|as_crispy_field }}
+                            {{ basic_form.logo_file|as_crispy_field }}
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6">
-                            {{ basic_form.favicon|as_crispy_field }}
+                            {{ basic_form.favicon_file|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Current Logo Selection</label>
+                            {{ basic_form.logo }}
+                            <small class="form-text text-muted">Select from existing logos or upload a new one above</small>
                         </div>
                     </div>
+                    {% if branding.logo %}
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Current Logo Preview</label>
+                            <div class="border rounded p-3 text-center">
+                                <img src="{{ branding.logo.image.url }}" alt="{{ branding.logo.name }}" style="max-height: 100px; max-width: 100%;">
+                                <p class="mt-2 mb-0 text-muted">{{ branding.logo.name }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
 
                 <div class="branding-form-section">
@@ -991,6 +1007,77 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     };
+
+    // Image preview functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        // Logo file preview
+        const logoFileInput = document.querySelector('input[name="logo_file"]');
+        if (logoFileInput) {
+            logoFileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    // Create preview
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        // Remove existing preview
+                        const existingPreview = document.querySelector('.logo-preview');
+                        if (existingPreview) {
+                            existingPreview.remove();
+                        }
+                        
+                        // Create new preview
+                        const preview = document.createElement('div');
+                        preview.className = 'logo-preview mt-2';
+                        preview.innerHTML = `
+                            <label class="form-label">Logo Preview</label>
+                            <div class="border rounded p-3 text-center">
+                                <img src="${e.target.result}" alt="Logo Preview" style="max-height: 100px; max-width: 100%;">
+                                <p class="mt-2 mb-0 text-muted">${file.name}</p>
+                            </div>
+                        `;
+                        
+                        // Insert after the file input
+                        logoFileInput.parentNode.appendChild(preview);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // Favicon file preview
+        const faviconFileInput = document.querySelector('input[name="favicon_file"]');
+        if (faviconFileInput) {
+            faviconFileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    // Create preview
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        // Remove existing preview
+                        const existingPreview = document.querySelector('.favicon-preview');
+                        if (existingPreview) {
+                            existingPreview.remove();
+                        }
+                        
+                        // Create new preview
+                        const preview = document.createElement('div');
+                        preview.className = 'favicon-preview mt-2';
+                        preview.innerHTML = `
+                            <label class="form-label">Favicon Preview</label>
+                            <div class="border rounded p-3 text-center">
+                                <img src="${e.target.result}" alt="Favicon Preview" style="max-height: 50px; max-width: 100%;">
+                                <p class="mt-2 mb-0 text-muted">${file.name}</p>
+                            </div>
+                        `;
+                        
+                        // Insert after the file input
+                        faviconFileInput.parentNode.appendChild(preview);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+    });
 });
 </script>
 {% endblock %}

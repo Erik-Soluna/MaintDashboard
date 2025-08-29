@@ -191,8 +191,17 @@ class BrandingSettingsForm(forms.ModelForm):
             'window_title_prefix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., SOLUNA -'}),
             'window_title_suffix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., - Maintenance System'}),
             'header_brand_text': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Text displayed next to logo'}),
-            'logo': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
-            'favicon': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            # Custom file fields for handling uploads
+            'logo_file': forms.ImageField(
+                required=False, 
+                help_text="Upload a new logo image (PNG, JPG, GIF recommended)",
+                widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'})
+            ),
+            'favicon_file': forms.ImageField(
+                required=False, 
+                help_text="Upload a new favicon image (16x16, 32x32, or 48x48 recommended)",
+                widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'})
+            ),
             'navigation_overview_label': forms.TextInput(attrs={'class': 'form-control'}),
             'navigation_equipment_label': forms.TextInput(attrs={'class': 'form-control'}),
             'navigation_maintenance_label': forms.TextInput(attrs={'class': 'form-control'}),
@@ -229,6 +238,18 @@ class BrandingSettingsForm(forms.ModelForm):
 class BrandingBasicForm(forms.ModelForm):
     """Form for basic branding settings only"""
     
+    # Custom file fields for handling uploads
+    logo_file = forms.ImageField(
+        required=False, 
+        help_text="Upload a new logo image (PNG, JPG, GIF recommended)",
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'})
+    )
+    favicon_file = forms.ImageField(
+        required=False, 
+        help_text="Upload a new favicon image (16x16, 32x32, or 48x48 recommended)",
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'})
+    )
+    
     class Meta:
         model = BrandingSettings
         fields = [
@@ -243,11 +264,42 @@ class BrandingBasicForm(forms.ModelForm):
             'window_title_prefix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., SOLUNA -'}),
             'window_title_suffix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., - Maintenance System'}),
             'header_brand_text': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Text displayed next to logo'}),
-            'logo': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'logo': forms.Select(attrs={'class': 'form-control'}),
             'favicon': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
             'footer_copyright_text': forms.TextInput(attrs={'class': 'form-control'}),
             'footer_powered_by_text': forms.TextInput(attrs={'class': 'form-control'}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter active logos for selection
+        from .models import Logo
+        self.fields['logo'].queryset = Logo.objects.filter(is_active=True).order_by('name')
+    
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # Handle logo file upload
+        if self.cleaned_data.get('logo_file'):
+            from .models import Logo
+            # Create or update logo
+            logo_name = f"Logo_{instance.site_name or 'Site'}"
+            logo, created = Logo.objects.get_or_create(
+                name=logo_name,
+                defaults={'image': self.cleaned_data['logo_file']}
+            )
+            if not created:
+                logo.image = self.cleaned_data['logo_file']
+                logo.save()
+            instance.logo = logo
+        
+        # Handle favicon file upload
+        if self.cleaned_data.get('favicon_file'):
+            instance.favicon = self.cleaned_data['favicon_file']
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 class BrandingNavigationForm(forms.ModelForm):
