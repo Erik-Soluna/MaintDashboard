@@ -454,7 +454,7 @@
         }
         
         .breadcrumb-item + .breadcrumb-item::before {
-            content: "{{ breadcrumb_separator }}";
+            content: "{{ breadcrumb_separator|safe }}";
             color: var(--breadcrumb-separator);
         }
         
