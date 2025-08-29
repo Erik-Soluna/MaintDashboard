@@ -68,6 +68,12 @@
              --form-bg: {{ form_background_color }};
              --form-border: {{ form_border_color }};
              --form-text: {{ form_text_color }};
+             --dropdown-bg: {{ dropdown_background_color }};
+             --dropdown-bg-opacity: {{ dropdown_background_opacity }};
+             --dropdown-text: {{ dropdown_text_color }};
+             --dropdown-border: {{ dropdown_border_color }};
+             --dropdown-hover-bg: {{ dropdown_hover_background_color }};
+             --dropdown-hover-text: {{ dropdown_hover_text_color }};
          }
         
         body {
@@ -491,8 +497,9 @@
         
         /* Dropdown Menu Fixes */
         .dropdown-menu {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
+            background-color: var(--dropdown-bg);
+            background-color: rgba(var(--dropdown-bg-rgb), var(--dropdown-bg-opacity));
+            border: 1px solid var(--dropdown-border);
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             z-index: 1050;
@@ -507,10 +514,11 @@
             overflow-y: auto;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            backdrop-filter: blur(10px);
         }
         
         .dropdown-item {
-            color: var(--text-primary);
+            color: var(--dropdown-text);
             padding: 8px 16px;
             transition: background-color 0.2s ease;
             white-space: normal;
@@ -521,13 +529,13 @@
         }
         
         .dropdown-item:hover {
-            background-color: var(--bg-secondary);
-            color: var(--text-primary);
+            background-color: var(--dropdown-hover-bg);
+            color: var(--dropdown-hover-text);
         }
         
         .dropdown-item:focus {
-            background-color: var(--bg-secondary);
-            color: var(--text-primary);
+            background-color: var(--dropdown-hover-bg);
+            color: var(--dropdown-hover-text);
         }
         
         .dropdown-divider {

@@ -288,4 +288,10 @@ def branding_processor(request):
         'warning_color': branding.warning_color if branding else '#ed8936',
         'danger_color': branding.danger_color if branding else '#f56565',
         'info_color': branding.info_color if branding else '#4299e1',
+        'dropdown_background_color': branding.dropdown_background_color if branding else '#2d3748',
+        'dropdown_background_opacity': float(branding.dropdown_background_opacity) if branding else 0.95,
+        'dropdown_text_color': branding.dropdown_text_color if branding else '#e2e8f0',
+        'dropdown_border_color': branding.dropdown_border_color if branding else '#4a5568',
+        'dropdown_hover_background_color': branding.dropdown_hover_background_color if branding else '#4a5568',
+        'dropdown_hover_text_color': branding.dropdown_hover_text_color if branding else '#ffffff',
     }

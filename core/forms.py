@@ -282,7 +282,9 @@ class BrandingAppearanceForm(forms.ModelForm):
             'content_background_color', 'content_text_color', 'card_background_color', 'card_border_color',
             'button_primary_color', 'button_primary_text_color', 'button_secondary_color', 'button_secondary_text_color',
             'form_background_color', 'form_border_color', 'form_text_color',
-            'success_color', 'warning_color', 'danger_color', 'info_color'
+            'success_color', 'warning_color', 'danger_color', 'info_color',
+            'dropdown_background_color', 'dropdown_background_opacity', 'dropdown_text_color', 'dropdown_border_color',
+            'dropdown_hover_background_color', 'dropdown_hover_text_color'
         ]
         widgets = {
             'primary_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
@@ -309,6 +311,12 @@ class BrandingAppearanceForm(forms.ModelForm):
             'warning_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
             'danger_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
             'info_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'dropdown_background_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'dropdown_background_opacity': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 1, 'step': '0.01'}),
+            'dropdown_text_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'dropdown_border_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'dropdown_hover_background_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'dropdown_hover_text_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
         }
     
     def clean_primary_color(self):
