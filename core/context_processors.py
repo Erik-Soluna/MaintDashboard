@@ -300,4 +300,5 @@ def branding_processor(request):
         'breadcrumb_link_color': branding.breadcrumb_link_color if branding else '#4299e1',
         'breadcrumb_text_color': branding.breadcrumb_text_color if branding else '#a0aec0',
         'breadcrumb_separator_color': branding.breadcrumb_separator_color if branding else '#a0aec0',
+        'site_logo': branding.logo if branding and branding.logo else None,
     }

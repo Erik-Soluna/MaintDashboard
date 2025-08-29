@@ -864,15 +864,15 @@
     <div class="main-header d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center">
             <a href="{% url 'core:dashboard' %}" class="header-brand">
-                {% if site_logo %}
-                    <img src="{{ site_logo.url }}" alt="{{ site_logo.name }}" class="header-logo me-2">
+                {% if site_logo and site_logo.image %}
+                    <img src="{{ site_logo.image.url }}" alt="{{ site_logo.name }}" class="header-logo me-2">
                 {% else %}
                     <i class="fas fa-tools me-2"></i>
                 {% endif %}
-                                 <span class="brand-text">{{ header_brand_text }}</span>
-                 {% if site_tagline %}
-                     <small class="d-block text-muted">{{ site_tagline }}</small>
-                 {% endif %}
+                <span class="brand-text">{{ header_brand_text }}</span>
+                {% if site_tagline %}
+                    <small class="d-block text-muted">{{ site_tagline }}</small>
+                {% endif %}
             </a>
             <span class="version-badge ml-3">
                 <small class="text-muted">{{ app_version }}</small>
