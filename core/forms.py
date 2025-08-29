@@ -265,7 +265,7 @@ class BrandingBasicForm(forms.ModelForm):
             'window_title_suffix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., - Maintenance System'}),
             'header_brand_text': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Text displayed next to logo'}),
             'logo': forms.Select(attrs={'class': 'form-control'}),
-            'favicon': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'favicon': forms.HiddenInput(),  # Hide the original favicon field since we're using favicon_file
             'footer_copyright_text': forms.TextInput(attrs={'class': 'form-control'}),
             'footer_powered_by_text': forms.TextInput(attrs={'class': 'form-control'}),
         }
@@ -282,16 +282,24 @@ class BrandingBasicForm(forms.ModelForm):
         # Handle logo file upload
         if self.cleaned_data.get('logo_file'):
             from .models import Logo
-            # Create or update logo
-            logo_name = f"Logo_{instance.site_name or 'Site'}"
-            logo, created = Logo.objects.get_or_create(
-                name=logo_name,
-                defaults={'image': self.cleaned_data['logo_file']}
-            )
-            if not created:
+            # Create or update logo with a unique name
+            logo_name = f"Logo_{instance.site_name or 'Site'}_{instance.id or 'new'}"
+            
+            # Check if we already have a logo for this branding instance
+            if instance.logo:
+                # Update existing logo
+                logo = instance.logo
                 logo.image = self.cleaned_data['logo_file']
+                logo.name = logo_name
                 logo.save()
-            instance.logo = logo
+            else:
+                # Create new logo
+                logo = Logo.objects.create(
+                    name=logo_name,
+                    image=self.cleaned_data['logo_file'],
+                    is_active=True
+                )
+                instance.logo = logo
         
         # Handle favicon file upload
         if self.cleaned_data.get('favicon_file'):

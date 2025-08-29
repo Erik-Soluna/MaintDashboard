@@ -420,6 +420,15 @@
                     <div class="row">
                         <div class="col-md-6">
                             {{ basic_form.favicon_file|as_crispy_field }}
+                            {% if branding.favicon %}
+                            <div class="mt-2">
+                                <label class="form-label">Current Favicon</label>
+                                <div class="border rounded p-2 text-center">
+                                    <img src="{{ branding.favicon.url }}" alt="Current Favicon" style="max-height: 32px; max-width: 32px;">
+                                    <p class="mt-1 mb-0 text-muted small">Current favicon</p>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Current Logo Selection</label>
@@ -434,6 +443,16 @@
                             <div class="border rounded p-3 text-center">
                                 <img src="{{ branding.logo.image.url }}" alt="{{ branding.logo.name }}" style="max-height: 100px; max-width: 100%;">
                                 <p class="mt-2 mb-0 text-muted">{{ branding.logo.name }}</p>
+                                <p class="mt-1 mb-0 text-muted small">ID: {{ branding.logo.id }} | Active: {{ branding.logo.is_active|yesno:"Yes,No" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                No logo is currently selected. Upload a new logo above or select from existing logos.
                             </div>
                         </div>
                     </div>
@@ -1016,6 +1035,13 @@ document.addEventListener('DOMContentLoaded', function() {
             logoFileInput.addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 if (file) {
+                    // Validate file type
+                    if (!file.type.startsWith('image/')) {
+                        alert('Please select a valid image file for the logo.');
+                        this.value = '';
+                        return;
+                    }
+                    
                     // Create preview
                     const reader = new FileReader();
                     reader.onload = function(e) {
@@ -1029,10 +1055,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         const preview = document.createElement('div');
                         preview.className = 'logo-preview mt-2';
                         preview.innerHTML = `
-                            <label class="form-label">Logo Preview</label>
+                            <label class="form-label">New Logo Preview</label>
                             <div class="border rounded p-3 text-center">
                                 <img src="${e.target.result}" alt="Logo Preview" style="max-height: 100px; max-width: 100%;">
                                 <p class="mt-2 mb-0 text-muted">${file.name}</p>
+                                <p class="mt-1 mb-0 text-success small"><i class="fas fa-check-circle me-1"></i>Ready to upload</p>
                             </div>
                         `;
                         
@@ -1050,6 +1077,13 @@ document.addEventListener('DOMContentLoaded', function() {
             faviconFileInput.addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 if (file) {
+                    // Validate file type
+                    if (!file.type.startsWith('image/')) {
+                        alert('Please select a valid image file for the favicon.');
+                        this.value = '';
+                        return;
+                    }
+                    
                     // Create preview
                     const reader = new FileReader();
                     reader.onload = function(e) {
@@ -1063,10 +1097,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         const preview = document.createElement('div');
                         preview.className = 'favicon-preview mt-2';
                         preview.innerHTML = `
-                            <label class="form-label">Favicon Preview</label>
+                            <label class="form-label">New Favicon Preview</label>
                             <div class="border rounded p-3 text-center">
                                 <img src="${e.target.result}" alt="Favicon Preview" style="max-height: 50px; max-width: 100%;">
                                 <p class="mt-2 mb-0 text-muted">${file.name}</p>
+                                <p class="mt-1 mb-0 text-success small"><i class="fas fa-check-circle me-1"></i>Ready to upload</p>
                             </div>
                         `;
                         
