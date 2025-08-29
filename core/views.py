@@ -4724,6 +4724,18 @@ def branding_settings(request):
             except Exception:
                 css_customizations = []
         
+        # Always initialize forms if tables exist
+        if branding_table_exists:
+            basic_form = BrandingBasicForm(instance=branding)
+            navigation_form = BrandingNavigationForm(instance=branding)
+            appearance_form = BrandingAppearanceForm(instance=branding)
+            full_form = BrandingSettingsForm(instance=branding)  # For backward compatibility
+        else:
+            basic_form = None
+            navigation_form = None
+            appearance_form = None
+            full_form = None
+        
         if request.method == 'POST':
             if not branding_table_exists:
                 messages.error(request, 'Branding system is not yet set up. Please run database migrations first.')
@@ -4739,7 +4751,7 @@ def branding_settings(request):
                 form = BrandingNavigationForm(request.POST, instance=branding)
                 success_message = 'Navigation labels updated successfully!'
             elif form_type == 'appearance':
-                form = BrandingAppearanceForm(request.POST, instance=branding)
+                form = BrandingAppearanceForm(request.POST, request.FILES, instance=branding)
                 success_message = 'Appearance settings updated successfully!'
             else:
                 # Fallback to full form
@@ -4750,18 +4762,16 @@ def branding_settings(request):
                 branding = form.save()
                 messages.success(request, success_message)
                 return redirect('core:branding_settings')
-        else:
-            if branding_table_exists:
-                # Create all form instances for the different tabs
-                basic_form = BrandingBasicForm(instance=branding)
-                navigation_form = BrandingNavigationForm(instance=branding)
-                appearance_form = BrandingAppearanceForm(instance=branding)
-                full_form = BrandingSettingsForm(instance=branding)  # For backward compatibility
             else:
-                basic_form = None
-                navigation_form = None
-                appearance_form = None
-                full_form = None
+                # If form is invalid, re-initialize the forms with the invalid data
+                if form_type == 'basic':
+                    basic_form = form
+                elif form_type == 'navigation':
+                    navigation_form = form
+                elif form_type == 'appearance':
+                    appearance_form = form
+                else:
+                    full_form = form
         
         context = {
             'basic_form': basic_form,
