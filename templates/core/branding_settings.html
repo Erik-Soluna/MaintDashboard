@@ -1,10 +1,13 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load crispy_forms_tags %}
+{% load breadcrumb_controls %}
+
+{% breadcrumb_control 'hide' %}
 
 {% block title %}Branding Settings - {{ branding.site_name|default:"Maintenance Dashboard" }}{% endblock %}
 
-{% block breadcrumb %}{% endblock %}
+
 
 {% block content %}
 {% if not tables_exist %}
@@ -433,6 +436,22 @@
                     </div>
                 </div>
 
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-route me-2"></i>Breadcrumb Settings</h4>
+                    <p class="text-muted">Control the display and appearance of breadcrumb navigation.</p>
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ basic_form.breadcrumb_enabled|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ basic_form.breadcrumb_home_text|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ basic_form.breadcrumb_separator|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+
                 <div class="text-center">
                     <button type="button" class="btn btn-outline-secondary btn-lg me-3" onclick="resetToDefaults('basic')">
                         <i class="fas fa-undo me-2"></i>Reset to Defaults
@@ -654,6 +673,26 @@
                     </div>
                 </div>
 
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-route me-2"></i>Breadcrumb Colors</h4>
+                    <p class="text-muted">Customize the colors of breadcrumb navigation elements.</p>
+                    
+                    <div class="color-picker-group">
+                        <div class="color-picker-item">
+                            <label>Breadcrumb Link</label>
+                            {{ appearance_form.breadcrumb_link_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Breadcrumb Text</label>
+                            {{ appearance_form.breadcrumb_text_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Breadcrumb Separator</label>
+                            {{ appearance_form.breadcrumb_separator_color }}
+                        </div>
+                    </div>
+                </div>
+
                 <div class="text-center">
                     <button type="button" class="btn btn-outline-secondary btn-lg me-3" onclick="resetToDefaults('appearance')">
                         <i class="fas fa-undo me-2"></i>Reset to Defaults
@@ -871,7 +910,10 @@ document.addEventListener('DOMContentLoaded', function() {
             window_title_suffix: ' | Maintenance Dashboard',
             header_brand_text: 'MaintDashboard',
             footer_copyright_text: '© 2025 Maintenance Dashboard. All rights reserved.',
-            footer_powered_by_text: 'Powered by Soluna'
+            footer_powered_by_text: 'Powered by Soluna',
+            breadcrumb_enabled: true,
+            breadcrumb_home_text: 'Home',
+            breadcrumb_separator: '>'
         },
         navigation: {
             navigation_overview_label: 'Overview',
@@ -912,7 +954,10 @@ document.addEventListener('DOMContentLoaded', function() {
             dropdown_text_color: '#e2e8f0',
             dropdown_border_color: '#4a5568',
             dropdown_hover_background_color: '#4a5568',
-            dropdown_hover_text_color: '#ffffff'
+            dropdown_hover_text_color: '#ffffff',
+            breadcrumb_link_color: '#4299e1',
+            breadcrumb_text_color: '#a0aec0',
+            breadcrumb_separator_color: '#a0aec0'
         }
     };
 

@@ -234,7 +234,8 @@ class BrandingBasicForm(forms.ModelForm):
         fields = [
             'site_name', 'site_tagline', 'window_title_prefix', 'window_title_suffix',
             'header_brand_text', 'logo', 'favicon',
-            'footer_copyright_text', 'footer_powered_by_text'
+            'footer_copyright_text', 'footer_powered_by_text',
+            'breadcrumb_enabled', 'breadcrumb_home_text', 'breadcrumb_separator'
         ]
         widgets = {
             'site_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter site name'}),
@@ -284,7 +285,8 @@ class BrandingAppearanceForm(forms.ModelForm):
             'form_background_color', 'form_border_color', 'form_text_color',
             'success_color', 'warning_color', 'danger_color', 'info_color',
             'dropdown_background_color', 'dropdown_background_opacity', 'dropdown_text_color', 'dropdown_border_color',
-            'dropdown_hover_background_color', 'dropdown_hover_text_color'
+            'dropdown_hover_background_color', 'dropdown_hover_text_color',
+            'breadcrumb_link_color', 'breadcrumb_text_color', 'breadcrumb_separator_color'
         ]
         widgets = {
             'primary_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
@@ -317,6 +319,9 @@ class BrandingAppearanceForm(forms.ModelForm):
             'dropdown_border_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
             'dropdown_hover_background_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
             'dropdown_hover_text_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'breadcrumb_link_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'breadcrumb_text_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'breadcrumb_separator_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
         }
     
     def clean_primary_color(self):

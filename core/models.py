@@ -656,6 +656,11 @@ class BrandingSettings(models.Model):
     footer_copyright_text = models.CharField(max_length=200, default="© 2025 Maintenance Dashboard. All rights reserved.", help_text="Copyright text in footer")
     footer_powered_by_text = models.CharField(max_length=100, default="Powered by Django", help_text="Text displayed in footer")
     
+    # Breadcrumb customization
+    breadcrumb_enabled = models.BooleanField(default=True, help_text="Whether to show breadcrumbs globally")
+    breadcrumb_home_text = models.CharField(max_length=50, default="Home", help_text="Text for the home breadcrumb link")
+    breadcrumb_separator = models.CharField(max_length=10, default=">", help_text="Separator between breadcrumb items")
+    
     # Theme customization
     primary_color = models.CharField(max_length=7, default="#4299e1", help_text="Primary color in hex format (#RRGGBB)")
     secondary_color = models.CharField(max_length=7, default="#2d3748", help_text="Secondary color in hex format (#RRGGBB)")
@@ -697,6 +702,11 @@ class BrandingSettings(models.Model):
     dropdown_border_color = models.CharField(max_length=7, default="#4a5568", help_text="Dropdown menu border color in hex format (#RRGGBB)")
     dropdown_hover_background_color = models.CharField(max_length=7, default="#4a5568", help_text="Dropdown item hover background color in hex format (#RRGGBB)")
     dropdown_hover_text_color = models.CharField(max_length=7, default="#ffffff", help_text="Dropdown item hover text color in hex format (#RRGGBB)")
+    
+    # Breadcrumb colors
+    breadcrumb_link_color = models.CharField(max_length=7, default="#4299e1", help_text="Breadcrumb link color in hex format (#RRGGBB)")
+    breadcrumb_text_color = models.CharField(max_length=7, default="#a0aec0", help_text="Breadcrumb text color in hex format (#RRGGBB)")
+    breadcrumb_separator_color = models.CharField(max_length=7, default="#a0aec0", help_text="Breadcrumb separator color in hex format (#RRGGBB)")
     
     # Logo and favicon
     logo = models.ForeignKey(Logo, on_delete=models.SET_NULL, null=True, blank=True, help_text="Main site logo")

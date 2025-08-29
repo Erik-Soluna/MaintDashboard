@@ -72,8 +72,13 @@
              --dropdown-bg-opacity: {{ dropdown_background_opacity }};
              --dropdown-text: {{ dropdown_text_color }};
              --dropdown-border: {{ dropdown_border_color }};
-             --dropdown-hover-bg: {{ dropdown_hover_background_color }};
-             --dropdown-hover-text: {{ dropdown_hover_text_color }};
+                           --dropdown-hover-bg: {{ dropdown_hover_background_color }};
+              --dropdown-hover-text: {{ dropdown_hover_text_color }};
+              
+              /* Breadcrumb colors */
+              --breadcrumb-link: {{ breadcrumb_link_color }};
+              --breadcrumb-text: {{ breadcrumb_text_color }};
+              --breadcrumb-separator: {{ breadcrumb_separator_color }};
          }
         
         body {
@@ -436,16 +441,16 @@
         }
         
         .breadcrumb-item a {
-            color: var(--accent-color);
+            color: var(--breadcrumb-link);
         }
         
         .breadcrumb-item.active {
-            color: var(--text-secondary);
+            color: var(--breadcrumb-text);
         }
         
         .breadcrumb-item + .breadcrumb-item::before {
-            content: ">";
-            color: var(--text-secondary);
+            content: "{{ breadcrumb_separator }}";
+            color: var(--breadcrumb-separator);
         }
         
         .badge-secondary {
@@ -981,11 +986,12 @@
     </div>
 
     <!-- Breadcrumb -->
-    {% if request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'calendar_view' %}
+    {% load breadcrumb_controls %}
+    {% if request.breadcrumb_control.enabled|default:breadcrumb_enabled and request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'calendar_view' %}
     <div class="container-fluid mt-3">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">Home</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">{{ request.breadcrumb_control.home_text|default:breadcrumb_home_text }}</a></li>
                 {% block breadcrumb %}{% endblock %}
             </ol>
         </nav>

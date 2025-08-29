@@ -294,4 +294,10 @@ def branding_processor(request):
         'dropdown_border_color': branding.dropdown_border_color if branding else '#4a5568',
         'dropdown_hover_background_color': branding.dropdown_hover_background_color if branding else '#4a5568',
         'dropdown_hover_text_color': branding.dropdown_hover_text_color if branding else '#ffffff',
+        'breadcrumb_enabled': branding.breadcrumb_enabled if branding else True,
+        'breadcrumb_home_text': branding.breadcrumb_home_text if branding else 'Home',
+        'breadcrumb_separator': branding.breadcrumb_separator if branding else '>',
+        'breadcrumb_link_color': branding.breadcrumb_link_color if branding else '#4299e1',
+        'breadcrumb_text_color': branding.breadcrumb_text_color if branding else '#a0aec0',
+        'breadcrumb_separator_color': branding.breadcrumb_separator_color if branding else '#a0aec0',
     }
