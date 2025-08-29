@@ -222,9 +222,110 @@ run_database_initialization() {
     return 1
 }
 
+# Function to resolve migration conflicts
+resolve_migration_conflicts() {
+    print_status "🔧 Resolving migration conflicts..."
+    
+    # Check if migration conflict resolution is enabled
+    if [ "${MIGRATION_CONFLICT_RESOLUTION:-false}" != "true" ]; then
+        print_status "Migration conflict resolution disabled, skipping..."
+        return 0
+    fi
+    
+    # Check for conflicts using multiple detection methods
+    print_status "Checking for migration conflicts..."
+    
+    local conflicts_detected=false
+    
+    # Method 1: Check for explicit conflict messages
+    if python manage.py showmigrations --list 2>&1 | grep -q "Conflicting migrations detected"; then
+        print_warning "Migration conflicts detected via showmigrations!"
+        conflicts_detected=true
+    fi
+    
+    # Method 2: Check for multiple leaf nodes in specific apps
+    local core_leaves=$(python manage.py showmigrations core 2>/dev/null | grep -c "\[X\]" || echo "0")
+    local maintenance_leaves=$(python manage.py showmigrations maintenance 2>/dev/null | grep -c "\[X\]" || echo "0")
+    
+    if [ "$core_leaves" -gt 1 ] || [ "$maintenance_leaves" -gt 1 ]; then
+        print_warning "Multiple leaf nodes detected: core=$core_leaves, maintenance=$maintenance_leaves"
+        conflicts_detected=true
+    fi
+    
+    # Method 3: Try to run migrate --plan to detect conflicts
+    if ! python manage.py migrate --plan --noinput > /dev/null 2>&1; then
+        print_warning "Migration plan failed, conflicts likely present"
+        conflicts_detected=true
+    fi
+    
+    if [ "$conflicts_detected" = false ]; then
+        print_success "No migration conflicts detected"
+        return 0
+    fi
+    
+    print_warning "Migration conflicts detected, attempting to resolve..."
+    
+    # Try to merge conflicting migrations
+    print_status "Attempting to merge conflicting migrations..."
+    if python manage.py makemigrations --merge --noinput; then
+        print_success "Migration merge completed successfully"
+        
+        # Apply the merged migrations
+        print_status "Applying merged migrations..."
+        if python manage.py migrate --noinput; then
+            print_success "Merged migrations applied successfully"
+            return 0
+        else
+            print_warning "Failed to apply merged migrations"
+            return 1
+        fi
+    else
+        print_warning "Migration merge failed, attempting alternative resolution..."
+        
+        # Alternative approach: try to fake apply problematic migrations
+        if [ "${FORCE_MIGRATION_MERGE:-false}" = "true" ]; then
+            print_status "Attempting forced migration resolution..."
+            
+            # Get list of unapplied migrations
+            local unapplied=$(python manage.py showmigrations --list 2>/dev/null | grep "\[ \]" | awk '{print $2}' || echo "")
+            
+            if [ -n "$unapplied" ]; then
+                print_status "Found unapplied migrations: $unapplied"
+                
+                # Try to fake apply them one by one
+                for migration in $unapplied; do
+                    print_status "Attempting to fake apply: $migration"
+                    if python manage.py migrate --fake "$migration"; then
+                        print_success "Successfully fake applied: $migration"
+                    else
+                        print_warning "Failed to fake apply: $migration"
+                    fi
+                done
+                
+                # Final migration attempt
+                if python manage.py migrate --noinput; then
+                    print_success "Final migration completed successfully"
+                    return 0
+                else
+                    print_warning "Final migration failed"
+                    return 1
+                fi
+            fi
+        fi
+        
+        print_warning "Migration conflict resolution failed, but continuing..."
+        return 1
+    fi
+}
+
 # Function to set up the branding system
 setup_branding_system() {
     print_status "🚀 Setting up branding system..."
+    
+    # First resolve any migration conflicts
+    if ! resolve_migration_conflicts; then
+        print_warning "Migration conflict resolution failed, but continuing..."
+    fi
     
     # Run migrations to ensure branding tables exist
     print_status "Running database migrations..."

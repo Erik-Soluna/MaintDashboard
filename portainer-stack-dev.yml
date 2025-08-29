@@ -106,6 +106,10 @@ services:
       - SECURE_HSTS_PRELOAD=False
       - CSRF_TRUSTED_ORIGINS=http://dev.maintenance.errorlog.app,https://dev.maintenance.errorlog.app
       - SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https
+      # Migration Conflict Resolution
+      - MIGRATION_CONFLICT_RESOLUTION=True
+      - AUTO_MERGE_MIGRATIONS=True
+      - FORCE_MIGRATION_MERGE=False
       # Branding System Configuration
       - BRANDING_AUTO_SETUP=True
       - BRANDING_SITE_NAME=Maintenance Dashboard (Dev)
