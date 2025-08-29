@@ -171,14 +171,16 @@ def version_context(request):
 def logo_processor(request):
     """Add the active logo to the template context"""
     try:
-        # Check if the logo table exists
+        # Check if the logo table exists by trying to access it directly
         from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT name FROM information_schema.tables 
-                WHERE table_name = 'core_logo'
-            """)
-            logo_table_exists = cursor.fetchone() is not None
+        from django.db.utils import ProgrammingError
+        
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_logo LIMIT 1")
+                logo_table_exists = True
+        except (ProgrammingError, Exception):
+            logo_table_exists = False
         
         if logo_table_exists:
             from .models import Logo
@@ -196,18 +198,27 @@ def branding_processor(request):
         # Check if the branding tables exist by trying to access them
         # This prevents errors when migrations haven't been run yet
         from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT name FROM information_schema.tables 
-                WHERE table_name = 'core_brandingsettings'
-            """)
-            branding_table_exists = cursor.fetchone() is not None
-            
-            cursor.execute("""
-                SELECT name FROM information_schema.tables 
-                WHERE table_name = 'core_csscustomization'
-            """)
-            css_table_exists = cursor.fetchone() is not None
+        from django.db.utils import ProgrammingError
+        
+        branding_table_exists = False
+        css_table_exists = False
+        
+        try:
+            # Try to access the tables directly - this will fail if they don't exist
+            with connection.cursor() as cursor:
+                # Check branding table
+                cursor.execute("SELECT COUNT(*) FROM core_brandingsettings LIMIT 1")
+                branding_table_exists = True
+        except (ProgrammingError, Exception):
+            branding_table_exists = False
+        
+        try:
+            # Check CSS table
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
         
         branding = None
         css_customizations = []

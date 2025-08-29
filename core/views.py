@@ -4688,18 +4688,26 @@ def branding_settings(request):
     # Check if branding tables exist before trying to access them
     try:
         from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT name FROM information_schema.tables 
-                WHERE table_name = 'core_brandingsettings'
-            """)
-            branding_table_exists = cursor.fetchone() is not None
-            
-            cursor.execute("""
-                SELECT name FROM information_schema.tables 
-                WHERE table_name = 'core_csscustomization'
-            """)
-            css_table_exists = cursor.fetchone() is not None
+        from django.db.utils import ProgrammingError
+        
+        branding_table_exists = False
+        css_table_exists = False
+        
+        try:
+            # Check branding table
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_brandingsettings LIMIT 1")
+                branding_table_exists = True
+        except (ProgrammingError, Exception):
+            branding_table_exists = False
+        
+        try:
+            # Check CSS table
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
         
         branding = None
         css_customizations = []
@@ -4752,12 +4760,15 @@ def css_customization_list(request):
     # Check if CSS customization table exists
     try:
         from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT name FROM information_schema.tables 
-                WHERE table_name = 'core_csscustomization'
-            """)
-            css_table_exists = cursor.fetchone() is not None
+        from django.db.utils import ProgrammingError
+        
+        css_table_exists = False
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
         
         if not css_table_exists:
             messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
@@ -4781,12 +4792,15 @@ def css_customization_create(request):
     # Check if CSS customization table exists
     try:
         from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT name FROM information_schema.tables 
-                WHERE table_name = 'core_csscustomization'
-            """)
-            css_table_exists = cursor.fetchone() is not None
+        from django.db.utils import ProgrammingError
+        
+        css_table_exists = False
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
         
         if not css_table_exists:
             messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
@@ -4820,12 +4834,15 @@ def css_customization_edit(request, pk):
     # Check if CSS customization table exists
     try:
         from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT name FROM information_schema.tables 
-                WHERE table_name = 'core_csscustomization'
-            """)
-            css_table_exists = cursor.fetchone() is not None
+        from django.db.utils import ProgrammingError
+        
+        css_table_exists = False
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
         
         if not css_table_exists:
             messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
@@ -4864,12 +4881,15 @@ def css_customization_delete(request, pk):
     # Check if CSS customization table exists
     try:
         from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT name FROM information_schema.tables 
-                WHERE table_name = 'core_csscustomization'
-            """)
-            css_table_exists = cursor.fetchone() is not None
+        from django.db.utils import ProgrammingError
+        
+        css_table_exists = False
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
         
         if not css_table_exists:
             messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
@@ -4895,12 +4915,15 @@ def css_preview(request):
     # Check if CSS customization table exists
     try:
         from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT name FROM information_schema.tables 
-                WHERE table_name = 'core_csscustomization'
-            """)
-            css_table_exists = cursor.fetchone() is not None
+        from django.db.utils import ProgrammingError
+        
+        css_table_exists = False
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
         
         if not css_table_exists:
             messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
@@ -4937,12 +4960,15 @@ def css_toggle(request, pk):
     # Check if CSS customization table exists
     try:
         from django.db import connection
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT name FROM information_schema.tables 
-                WHERE table_name = 'core_csscustomization'
-            """)
-            css_table_exists = cursor.fetchone() is not None
+        from django.db.utils import ProgrammingError
+        
+        css_table_exists = False
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
         
         if not css_table_exists:
             messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
