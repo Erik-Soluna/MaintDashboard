@@ -21,9 +21,14 @@ def main():
         with connection.cursor() as cursor:
             print("\n1. Creating missing branding tables...")
             
-            # Create BrandingSettings table
+            # Drop existing tables if they exist to ensure clean schema
+            cursor.execute("DROP TABLE IF EXISTS core_brandingsettings CASCADE")
+            cursor.execute("DROP TABLE IF EXISTS core_csscustomization CASCADE")
+            print("   ✅ Dropped existing tables")
+            
+            # Create BrandingSettings table with correct schema
             cursor.execute('''
-                CREATE TABLE IF NOT EXISTS core_brandingsettings (
+                CREATE TABLE core_brandingsettings (
                     id SERIAL PRIMARY KEY,
                     site_name VARCHAR(200) DEFAULT 'Maintenance Dashboard',
                     site_tagline VARCHAR(300),
@@ -42,17 +47,18 @@ def main():
                     primary_color VARCHAR(7) DEFAULT '#4299e1',
                     secondary_color VARCHAR(7) DEFAULT '#2d3748',
                     accent_color VARCHAR(7) DEFAULT '#3182ce',
+                    logo_id INTEGER,
+                    favicon VARCHAR(100),
                     is_active BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    logo_id INTEGER
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
-            print("   ✅ BrandingSettings table created")
+            print("   ✅ BrandingSettings table created with correct schema")
             
             # Create CSSCustomization table
             cursor.execute('''
-                CREATE TABLE IF NOT EXISTS core_csscustomization (
+                CREATE TABLE core_csscustomization (
                     id SERIAL PRIMARY KEY,
                     name VARCHAR(100),
                     item_type VARCHAR(20),
