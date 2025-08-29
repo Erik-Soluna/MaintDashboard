@@ -34,16 +34,40 @@
     {% block extra_css %}{% endblock %}
     
     <style>
-                 :root {
+        :root {
              --primary-color: {{ primary_color }};
              --secondary-color: {{ secondary_color }};
-             --success-color: #48bb78;
-             --warning-color: #ed8936;
-             --danger-color: #f56565;
-             --info-color: {{ primary_color }};
+             --accent-color: {{ accent_color }};
+             --success-color: {{ success_color }};
+             --warning-color: {{ warning_color }};
+             --danger-color: {{ danger_color }};
+             --info-color: {{ info_color }};
              --light-color: #e2e8f0;
              --dark-color: #1a2238;
              --darker-color: #0f1419;
+             
+             /* Header and navigation colors */
+             --header-bg: {{ header_background_color }};
+             --header-text: {{ header_text_color }};
+             --header-border: {{ header_border_color }};
+             --nav-bg: {{ navigation_background_color }};
+             --nav-text: {{ navigation_text_color }};
+             --nav-hover: {{ navigation_hover_color }};
+             
+             /* Content area colors */
+             --content-bg: {{ content_background_color }};
+             --content-text: {{ content_text_color }};
+             --card-bg: {{ card_background_color }};
+             --card-border: {{ card_border_color }};
+             
+             /* Button and form colors */
+             --btn-primary-bg: {{ button_primary_color }};
+             --btn-primary-text: {{ button_primary_text_color }};
+             --btn-secondary-bg: {{ button_secondary_color }};
+             --btn-secondary-text: {{ button_secondary_text_color }};
+             --form-bg: {{ form_background_color }};
+             --form-border: {{ form_border_color }};
+             --form-text: {{ form_text_color }};
          }
         
         body {
@@ -51,12 +75,14 @@
             margin: 0;
             padding: 0;
             transition: background-color 0.3s ease, color 0.3s ease;
+            background-color: var(--content-bg);
+            color: var(--content-text);
         }
         
         /* Dark Theme (Default) */
         body, body.theme-dark {
-            background-color: #1a2238;
-            color: #e2e8f0;
+            background-color: var(--content-bg);
+            color: var(--content-text);
         }
         
         /* Light Theme */
@@ -79,34 +105,34 @@
         
         /* Dark Theme Variables */
         body, body.theme-dark {
-            --bg-primary: #2d3748;
-            --bg-secondary: #1a2238;
-            --bg-tertiary: #0f1419;
-            --text-primary: #e2e8f0;
+            --bg-primary: var(--card-bg);
+            --bg-secondary: var(--content-bg);
+            --bg-tertiary: var(--darker-color);
+            --text-primary: var(--content-text);
             --text-secondary: #a0aec0;
-            --border-color: #4a5568;
-            --header-bg: #0f1419;
-            --card-bg: #2d3748;
+            --border-color: var(--card-border);
+            --header-bg: var(--header-bg);
+            --card-bg: var(--card-bg);
         }
 
         /* Unified Header Styling */
         .main-header {
             background-color: var(--header-bg);
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--header-border);
             padding: 15px 20px;
         }
         
         .header-brand {
             font-size: 20px;
             font-weight: bold;
-            color: white;
+            color: var(--header-text);
             text-decoration: none;
             display: flex;
             align-items: center;
         }
         
         .header-brand:hover {
-            color: #4299e1;
+            color: var(--nav-hover);
             text-decoration: none;
         }
         
@@ -120,7 +146,7 @@
         .brand-text {
             font-size: 18px;
             font-weight: 600;
-            color: white;
+            color: var(--header-text);
         }
         
         .header-controls {
@@ -251,6 +277,137 @@
             color: white;
         }
         
+        /* Enhanced Button Styling with Branding Colors */
+        .btn-primary {
+            background-color: var(--btn-primary-bg);
+            border-color: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+            color: var(--btn-primary-text);
+        }
+        
+        .btn-secondary {
+            background-color: var(--btn-secondary-bg);
+            border-color: var(--btn-secondary-bg);
+            color: var(--btn-secondary-text);
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            color: var(--btn-secondary-text);
+        }
+        
+        .btn-success {
+            background-color: var(--success-color);
+            border-color: var(--success-color);
+            color: white;
+        }
+        
+        .btn-warning {
+            background-color: var(--warning-color);
+            border-color: var(--warning-color);
+            color: white;
+        }
+        
+        .btn-danger {
+            background-color: var(--danger-color);
+            border-color: var(--danger-color);
+            color: white;
+        }
+        
+        .btn-info {
+            background-color: var(--info-color);
+            border-color: var(--info-color);
+            color: white;
+        }
+        
+        /* Enhanced Form Styling with Branding Colors */
+        .form-control {
+            background-color: var(--form-bg);
+            color: var(--form-text);
+            border: 1px solid var(--form-border);
+        }
+        
+        .form-control:focus {
+            background-color: var(--form-bg);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+            color: var(--form-text);
+        }
+        
+        .form-label {
+            color: var(--form-text);
+            font-weight: 500;
+        }
+        
+        /* Enhanced Card Styling with Branding Colors */
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--content-text);
+        }
+        
+        .card-header {
+            background-color: var(--nav-bg);
+            border-bottom: 1px solid var(--card-border);
+            color: var(--nav-text);
+        }
+        
+        .card-body {
+            background-color: var(--card-bg);
+            color: var(--content-text);
+        }
+        
+        /* Enhanced Navigation Styling with Branding Colors */
+        .nav-tabs-custom {
+            border-bottom: 1px solid var(--card-border);
+            background-color: var(--nav-bg);
+            padding: 0 20px;
+        }
+        
+        .nav-tabs-custom .nav-link {
+            color: var(--nav-text);
+            border: none;
+            padding: 15px 25px;
+            font-weight: 500;
+            background: transparent;
+        }
+        
+        .nav-tabs-custom .nav-link.active {
+            color: var(--accent-color);
+            background-color: transparent;
+            border-bottom: 2px solid var(--accent-color);
+            font-weight: 600;
+        }
+        
+        .nav-tabs-custom .nav-link:hover {
+            color: var(--nav-hover);
+            background-color: var(--nav-bg);
+        }
+        
+        /* Enhanced Site Selector with Branding Colors */
+        .site-selector {
+            background-color: var(--nav-bg);
+            color: var(--nav-text);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 8px 12px;
+        }
+        
+        .site-selector:focus {
+            background-color: var(--nav-bg);
+            color: var(--nav-text);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+        }
+        
+        /* Enhanced Table Styling with Branding Colors */
         .table {
             background-color: var(--card-bg);
             color: var(--text-primary);
@@ -498,7 +655,7 @@
         /* Header positioning */
         .main-header {
             background-color: var(--header-bg);
-            border-bottom: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--header-border);
             padding: 15px 20px;
             position: relative;
             z-index: 1040;

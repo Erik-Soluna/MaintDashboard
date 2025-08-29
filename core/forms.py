@@ -275,11 +275,40 @@ class BrandingAppearanceForm(forms.ModelForm):
     
     class Meta:
         model = BrandingSettings
-        fields = ['primary_color', 'secondary_color', 'accent_color']
+        fields = [
+            'primary_color', 'secondary_color', 'accent_color',
+            'header_background_color', 'header_text_color', 'header_border_color',
+            'navigation_background_color', 'navigation_text_color', 'navigation_hover_color',
+            'content_background_color', 'content_text_color', 'card_background_color', 'card_border_color',
+            'button_primary_color', 'button_primary_text_color', 'button_secondary_color', 'button_secondary_text_color',
+            'form_background_color', 'form_border_color', 'form_text_color',
+            'success_color', 'warning_color', 'danger_color', 'info_color'
+        ]
         widgets = {
             'primary_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
             'secondary_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
             'accent_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'header_background_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'header_text_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'header_border_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'navigation_background_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'navigation_text_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'navigation_hover_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'content_background_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'content_text_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'card_background_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'card_border_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'button_primary_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'button_primary_text_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'button_secondary_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'button_secondary_text_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'form_background_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'form_border_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'form_text_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'success_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'warning_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'danger_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'info_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
         }
     
     def clean_primary_color(self):
@@ -296,6 +325,132 @@ class BrandingAppearanceForm(forms.ModelForm):
     
     def clean_accent_color(self):
         color = self.cleaned_data['accent_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_header_background_color(self):
+        color = self.cleaned_data['header_background_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_header_text_color(self):
+        color = self.cleaned_data['header_text_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_header_border_color(self):
+        color = self.cleaned_data['header_border_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_navigation_background_color(self):
+        color = self.cleaned_data['navigation_background_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_navigation_text_color(self):
+        color = self.cleaned_data['navigation_text_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_navigation_hover_color(self):
+        color = self.cleaned_data['navigation_hover_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_content_background_color(self):
+        color = self.cleaned_data['content_background_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_content_text_color(self):
+        color = self.cleaned_data['content_text_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_card_background_color(self):
+        color = self.cleaned_data['card_background_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_card_border_color(self):
+        color = self.cleaned_data['card_border_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_button_primary_color(self):
+        color = self.cleaned_data['button_primary_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_button_primary_text_color(self):
+        color = self.cleaned_data['button_primary_text_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_button_secondary_color(self):
+        color = self.cleaned_data['button_secondary_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_button_secondary_text_color(self):
+        color = self.cleaned_data['button_secondary_text_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_form_background_color(self):
+        color = self.cleaned_data['form_background_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_form_border_color(self):
+        color = self.cleaned_data['form_border_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_form_text_color(self):
+        color = self.cleaned_data['form_text_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_success_color(self):
+        color = self.cleaned_data['success_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_warning_color(self):
+        color = self.cleaned_data['warning_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_danger_color(self):
+        color = self.cleaned_data['danger_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_info_color(self):
+        color = self.cleaned_data['info_color']
         if not color.startswith('#'):
             color = '#' + color
         return color

@@ -661,6 +661,35 @@ class BrandingSettings(models.Model):
     secondary_color = models.CharField(max_length=7, default="#2d3748", help_text="Secondary color in hex format (#RRGGBB)")
     accent_color = models.CharField(max_length=7, default="#3182ce", help_text="Accent color in hex format (#RRGGBB)")
     
+    # Header and navigation colors
+    header_background_color = models.CharField(max_length=7, default="#0f1419", help_text="Header background color in hex format (#RRGGBB)")
+    header_text_color = models.CharField(max_length=7, default="#ffffff", help_text="Header text color in hex format (#RRGGBB)")
+    header_border_color = models.CharField(max_length=7, default="#4a5568", help_text="Header border color in hex format (#RRGGBB)")
+    navigation_background_color = models.CharField(max_length=7, default="#2d3748", help_text="Navigation background color in hex format (#RRGGBB)")
+    navigation_text_color = models.CharField(max_length=7, default="#e2e8f0", help_text="Navigation text color in hex format (#RRGGBB)")
+    navigation_hover_color = models.CharField(max_length=7, default="#4299e1", help_text="Navigation hover color in hex format (#RRGGBB)")
+    
+    # Content area colors
+    content_background_color = models.CharField(max_length=7, default="#1a2238", help_text="Main content background color in hex format (#RRGGBB)")
+    content_text_color = models.CharField(max_length=7, default="#e2e8f0", help_text="Main content text color in hex format (#RRGGBB)")
+    card_background_color = models.CharField(max_length=7, default="#2d3748", help_text="Card background color in hex format (#RRGGBB)")
+    card_border_color = models.CharField(max_length=7, default="#4a5568", help_text="Card border color in hex format (#RRGGBB)")
+    
+    # Button and form colors
+    button_primary_color = models.CharField(max_length=7, default="#4299e1", help_text="Primary button background color in hex format (#RRGGBB)")
+    button_primary_text_color = models.CharField(max_length=7, default="#ffffff", help_text="Primary button text color in hex format (#RRGGBB)")
+    button_secondary_color = models.CharField(max_length=7, default="#718096", help_text="Secondary button background color in hex format (#RRGGBB)")
+    button_secondary_text_color = models.CharField(max_length=7, default="#ffffff", help_text="Secondary button text color in hex format (#RRGGBB)")
+    form_background_color = models.CharField(max_length=7, default="#2d3748", help_text="Form background color in hex format (#RRGGBB)")
+    form_border_color = models.CharField(max_length=7, default="#4a5568", help_text="Form border color in hex format (#RRGGBB)")
+    form_text_color = models.CharField(max_length=7, default="#e2e8f0", help_text="Form text color in hex format (#RRGGBB)")
+    
+    # Status colors
+    success_color = models.CharField(max_length=7, default="#48bb78", help_text="Success color in hex format (#RRGGBB)")
+    warning_color = models.CharField(max_length=7, default="#ed8936", help_text="Warning color in hex format (#RRGGBB)")
+    danger_color = models.CharField(max_length=7, default="#f56565", help_text="Danger color in hex format (#RRGGBB)")
+    info_color = models.CharField(max_length=7, default="#4299e1", help_text="Info color in hex format (#RRGGBB)")
+    
     # Logo and favicon
     logo = models.ForeignKey(Logo, on_delete=models.SET_NULL, null=True, blank=True, help_text="Main site logo")
     favicon = models.ImageField(upload_to='favicons/', blank=True, help_text="Website favicon (16x16, 32x32, or 48x48 recommended)")
