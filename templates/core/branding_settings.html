@@ -570,11 +570,28 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Bootstrap tabs
     var triggerTabList = [].slice.call(document.querySelectorAll('#brandingTabs button'))
     triggerTabList.forEach(function (triggerEl) {
-        var tabTrigger = new bootstrap.Tab(triggerEl)
-        
         triggerEl.addEventListener('click', function (event) {
             event.preventDefault()
-            tabTrigger.show()
+            
+            // Remove active class from all tabs and content
+            document.querySelectorAll('#brandingTabs .nav-link').forEach(function(tab) {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-pane').forEach(function(content) {
+                content.classList.remove('show', 'active');
+            });
+            
+            // Add active class to clicked tab
+            this.classList.add('active');
+            
+            // Show corresponding content
+            var targetId = this.getAttribute('data-bs-target');
+            if (targetId) {
+                var targetContent = document.querySelector(targetId);
+                if (targetContent) {
+                    targetContent.classList.add('show', 'active');
+                }
+            }
         })
     })
 

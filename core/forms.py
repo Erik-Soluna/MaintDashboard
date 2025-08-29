@@ -191,6 +191,8 @@ class BrandingSettingsForm(forms.ModelForm):
             'window_title_prefix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., SOLUNA -'}),
             'window_title_suffix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., - Maintenance System'}),
             'header_brand_text': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Text displayed next to logo'}),
+            'logo': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'favicon': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
             'navigation_overview_label': forms.TextInput(attrs={'class': 'form-control'}),
             'navigation_equipment_label': forms.TextInput(attrs={'class': 'form-control'}),
             'navigation_maintenance_label': forms.TextInput(attrs={'class': 'form-control'}),
