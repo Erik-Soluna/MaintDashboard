@@ -4685,138 +4685,282 @@ def invalidate_cache_api(request):
 @login_required
 def branding_settings(request):
     """Branding settings management page"""
+    # Check if branding tables exist before trying to access them
     try:
-        branding = BrandingSettings.objects.get(is_active=True)
-    except BrandingSettings.DoesNotExist:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT name FROM information_schema.tables 
+                WHERE table_name = 'core_brandingsettings'
+            """)
+            branding_table_exists = cursor.fetchone() is not None
+            
+            cursor.execute("""
+                SELECT name FROM information_schema.tables 
+                WHERE table_name = 'core_csscustomization'
+            """)
+            css_table_exists = cursor.fetchone() is not None
+        
         branding = None
-    
-    if request.method == 'POST':
-        form = BrandingSettingsForm(request.POST, request.FILES, instance=branding)
-        if form.is_valid():
-            branding = form.save()
-            messages.success(request, 'Branding settings updated successfully!')
-            return redirect('core:branding_settings')
-    else:
-        form = BrandingSettingsForm(instance=branding)
-    
-    # Get CSS customizations for preview
-    css_customizations = CSSCustomization.objects.filter(is_active=True).order_by('-priority', 'order')
-    
-    context = {
-        'form': form,
-        'branding': branding,
-        'css_customizations': css_customizations,
-        'active_tab': 'branding'
-    }
-    return render(request, 'core/branding_settings.html', context)
+        css_customizations = []
+        
+        if branding_table_exists:
+            try:
+                branding = BrandingSettings.objects.get(is_active=True)
+            except BrandingSettings.DoesNotExist:
+                branding = None
+        
+        if css_table_exists:
+            try:
+                css_customizations = CSSCustomization.objects.filter(is_active=True).order_by('-priority', 'order')
+            except Exception:
+                css_customizations = []
+        
+        if request.method == 'POST':
+            if not branding_table_exists:
+                messages.error(request, 'Branding system is not yet set up. Please run database migrations first.')
+                return redirect('core:settings')
+            
+            form = BrandingSettingsForm(request.POST, request.FILES, instance=branding)
+            if form.is_valid():
+                branding = form.save()
+                messages.success(request, 'Branding settings updated successfully!')
+                return redirect('core:branding_settings')
+        else:
+            if branding_table_exists:
+                form = BrandingSettingsForm(instance=branding)
+            else:
+                form = None
+        
+        context = {
+            'form': form,
+            'branding': branding,
+            'css_customizations': css_customizations,
+            'active_tab': 'branding',
+            'tables_exist': branding_table_exists and css_table_exists
+        }
+        return render(request, 'core/branding_settings.html', context)
+        
+    except Exception as e:
+        # If anything goes wrong, show an error message
+        messages.error(request, f'Branding system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:settings')
 
 @login_required
 def css_customization_list(request):
     """List all CSS customizations"""
-    css_customizations = CSSCustomization.objects.all().order_by('-priority', 'order', 'name')
-    
-    context = {
-        'css_customizations': css_customizations,
-        'active_tab': 'branding'
-    }
-    return render(request, 'core/css_customization_list.html', context)
+    # Check if CSS customization table exists
+    try:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT name FROM information_schema.tables 
+                WHERE table_name = 'core_csscustomization'
+            """)
+            css_table_exists = cursor.fetchone() is not None
+        
+        if not css_table_exists:
+            messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
+            return redirect('core:branding_settings')
+        
+        css_customizations = CSSCustomization.objects.all().order_by('-priority', 'order', 'name')
+        
+        context = {
+            'css_customizations': css_customizations,
+            'active_tab': 'branding'
+        }
+        return render(request, 'core/css_customization_list.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:branding_settings')
 
 @login_required
 def css_customization_create(request):
     """Create a new CSS customization"""
-    if request.method == 'POST':
-        form = CSSCustomizationForm(request.POST)
-        if form.is_valid():
-            css_customization = form.save(commit=False)
-            css_customization.created_by = request.user
-            css_customization.save()
-            messages.success(request, 'CSS customization created successfully!')
-            return redirect('core:css_customization_list')
-    else:
-        form = CSSCustomizationForm()
-    
-    context = {
-        'form': form,
-        'active_tab': 'branding',
-        'is_create': True
-    }
-    return render(request, 'core/css_customization_form.html', context)
+    # Check if CSS customization table exists
+    try:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT name FROM information_schema.tables 
+                WHERE table_name = 'core_csscustomization'
+            """)
+            css_table_exists = cursor.fetchone() is not None
+        
+        if not css_table_exists:
+            messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
+            return redirect('core:branding_settings')
+        
+        if request.method == 'POST':
+            form = CSSCustomizationForm(request.POST)
+            if form.is_valid():
+                css_customization = form.save(commit=False)
+                css_customization.created_by = request.user
+                css_customization.save()
+                messages.success(request, 'CSS customization created successfully!')
+                return redirect('core:css_customization_list')
+        else:
+            form = CSSCustomizationForm()
+        
+        context = {
+            'form': form,
+            'active_tab': 'branding',
+            'is_create': True
+        }
+        return render(request, 'core/css_customization_form.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:branding_settings')
 
 @login_required
 def css_customization_edit(request, pk):
     """Edit an existing CSS customization"""
+    # Check if CSS customization table exists
     try:
-        css_customization = CSSCustomization.objects.get(pk=pk)
-    except CSSCustomization.DoesNotExist:
-        messages.error(request, 'CSS customization not found.')
-        return redirect('core:css_customization_list')
-    
-    if request.method == 'POST':
-        form = CSSCustomizationForm(request.POST, instance=css_customization)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'CSS customization updated successfully!')
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT name FROM information_schema.tables 
+                WHERE table_name = 'core_csscustomization'
+            """)
+            css_table_exists = cursor.fetchone() is not None
+        
+        if not css_table_exists:
+            messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
+            return redirect('core:branding_settings')
+        
+        try:
+            css_customization = CSSCustomization.objects.get(pk=pk)
+        except CSSCustomization.DoesNotExist:
+            messages.error(request, 'CSS customization not found.')
             return redirect('core:css_customization_list')
-    else:
-        form = CSSCustomizationForm(instance=css_customization)
-    
-    context = {
-        'form': form,
-        'css_customization': css_customization,
-        'active_tab': 'branding',
-        'is_create': False
-    }
-    return render(request, 'core/css_customization_form.html', context)
+        
+        if request.method == 'POST':
+            form = CSSCustomizationForm(request.POST, instance=css_customization)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'CSS customization updated successfully!')
+                return redirect('core:css_customization_list')
+        else:
+            form = CSSCustomizationForm(instance=css_customization)
+        
+        context = {
+            'form': form,
+            'css_customization': css_customization,
+            'active_tab': 'branding',
+            'is_create': False
+        }
+        return render(request, 'core/css_customization_form.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:branding_settings')
 
 @login_required
 def css_customization_delete(request, pk):
     """Delete a CSS customization"""
+    # Check if CSS customization table exists
     try:
-        css_customization = CSSCustomization.objects.get(pk=pk)
-        name = css_customization.name
-        css_customization.delete()
-        messages.success(request, f'CSS customization "{name}" deleted successfully!')
-    except CSSCustomization.DoesNotExist:
-        messages.error(request, 'CSS customization not found.')
-    
-    return redirect('core:css_customization_list')
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT name FROM information_schema.tables 
+                WHERE table_name = 'core_csscustomization'
+            """)
+            css_table_exists = cursor.fetchone() is not None
+        
+        if not css_table_exists:
+            messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
+            return redirect('core:branding_settings')
+        
+        try:
+            css_customization = CSSCustomization.objects.get(pk=pk)
+            name = css_customization.name
+            css_customization.delete()
+            messages.success(request, f'CSS customization "{name}" deleted successfully!')
+        except CSSCustomization.DoesNotExist:
+            messages.error(request, 'CSS customization not found.')
+        
+        return redirect('core:css_customization_list')
+        
+    except Exception as e:
+        messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:branding_settings')
 
 @login_required
 def css_preview(request):
     """Preview CSS changes in real-time"""
-    if request.method == 'POST':
-        form = CSSPreviewForm(request.POST)
-        if form.is_valid():
-            css_code = form.cleaned_data['css_code']
+    # Check if CSS customization table exists
+    try:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT name FROM information_schema.tables 
+                WHERE table_name = 'core_csscustomization'
+            """)
+            css_table_exists = cursor.fetchone() is not None
+        
+        if not css_table_exists:
+            messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
+            return redirect('core:branding_settings')
+        
+        if request.method == 'POST':
+            form = CSSPreviewForm(request.POST)
+            if form.is_valid():
+                css_code = form.cleaned_data['css_code']
+            else:
+                css_code = ''
         else:
+            form = CSSPreviewForm()
             css_code = ''
-    else:
-        form = CSSPreviewForm()
-        css_code = ''
-    
-    # Get active CSS customizations for comparison
-    active_css = CSSCustomization.objects.filter(is_active=True).order_by('-priority', 'order')
-    
-    context = {
-        'form': form,
-        'css_code': css_code,
-        'active_css': active_css,
-        'active_tab': 'branding'
-    }
-    return render(request, 'core/css_preview.html', context)
+        
+        # Get active CSS customizations for comparison
+        active_css = CSSCustomization.objects.filter(is_active=True).order_by('-priority', 'order')
+        
+        context = {
+            'form': form,
+            'css_code': css_code,
+            'active_css': active_css,
+            'active_tab': 'branding'
+        }
+        return render(request, 'core/css_preview.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:branding_settings')
 
 @login_required
 def css_toggle(request, pk):
     """Toggle CSS customization active status"""
+    # Check if CSS customization table exists
     try:
-        css_customization = CSSCustomization.objects.get(pk=pk)
-        css_customization.is_active = not css_customization.is_active
-        css_customization.save()
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT name FROM information_schema.tables 
+                WHERE table_name = 'core_csscustomization'
+            """)
+            css_table_exists = cursor.fetchone() is not None
         
-        status = 'activated' if css_customization.is_active else 'deactivated'
-        messages.success(request, f'CSS customization "{css_customization.name}" {status} successfully!')
-    except CSSCustomization.DoesNotExist:
-        messages.error(request, 'CSS customization not found.')
-    
-    return redirect('core:css_customization_list')
+        if not css_table_exists:
+            messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
+            return redirect('core:branding_settings')
+        
+        try:
+            css_customization = CSSCustomization.objects.get(pk=pk)
+            css_customization.is_active = not css_customization.is_active
+            css_customization.save()
+            
+            status = 'activated' if css_customization.is_active else 'deactivated'
+            messages.success(request, f'CSS customization "{css_customization.name}" {status} successfully!')
+        except CSSCustomization.DoesNotExist:
+            messages.error(request, 'CSS customization not found.')
+        
+        return redirect('core:css_customization_list')
+        
+    except Exception as e:
+        messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:branding_settings')
 

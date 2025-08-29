@@ -4,6 +4,34 @@
 
 {% block title %}Branding Settings - {{ branding.site_name|default:"Maintenance Dashboard" }}{% endblock %}
 
+{% block content %}
+{% if not tables_exist %}
+<div class="container-fluid">
+    <div class="alert alert-warning" role="alert">
+        <h4 class="alert-heading">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Branding System Not Yet Available
+        </h4>
+        <p class="mb-0">
+            The branding system requires database setup before it can be used. 
+            Please run the following commands on your server:
+        </p>
+        <hr>
+        <div class="bg-light p-3 rounded">
+            <code>python manage.py migrate</code><br>
+            <code>python manage.py setup_branding</code>
+        </div>
+        <hr>
+        <p class="mb-0">
+            <a href="{% url 'core:settings' %}" class="btn btn-primary">
+                <i class="fas fa-arrow-left me-1"></i>
+                Return to Settings
+            </a>
+        </p>
+    </div>
+</div>
+{% else %}
+
 {% block extra_css %}
 <style>
 .branding-container {
@@ -535,6 +563,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
