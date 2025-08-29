@@ -4,6 +4,8 @@
 
 {% block title %}Branding Settings - {{ branding.site_name|default:"Maintenance Dashboard" }}{% endblock %}
 
+{% block breadcrumb %}{% endblock %}
+
 {% block content %}
 {% if not tables_exist %}
 <div class="container-fluid">
@@ -432,6 +434,9 @@
                 </div>
 
                 <div class="text-center">
+                    <button type="button" class="btn btn-outline-secondary btn-lg me-3" onclick="resetToDefaults('basic')">
+                        <i class="fas fa-undo me-2"></i>Reset to Defaults
+                    </button>
                     <button type="submit" class="btn btn-primary btn-lg">
                         <i class="fas fa-save me-2"></i>Save Basic Settings
                     </button>
@@ -465,6 +470,9 @@
                 </div>
 
                 <div class="text-center">
+                    <button type="button" class="btn btn-outline-secondary btn-lg me-3" onclick="resetToDefaults('navigation')">
+                        <i class="fas fa-undo me-2"></i>Reset to Defaults
+                    </button>
                     <button type="submit" class="btn btn-primary btn-lg">
                         <i class="fas fa-save me-2"></i>Save Navigation Labels
                     </button>
@@ -647,6 +655,9 @@
                 </div>
 
                 <div class="text-center">
+                    <button type="button" class="btn btn-outline-secondary btn-lg me-3" onclick="resetToDefaults('appearance')">
+                        <i class="fas fa-undo me-2"></i>Reset to Defaults
+                    </button>
                     <button type="submit" class="btn btn-primary btn-lg">
                         <i class="fas fa-save me-2"></i>Save Appearance Settings
                     </button>
@@ -850,6 +861,91 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
         });
     });
+
+    // Default values for reset functionality
+    const defaultValues = {
+        basic: {
+            site_name: 'Maintenance Dashboard',
+            site_tagline: 'Professional maintenance management system',
+            window_title_prefix: '',
+            window_title_suffix: ' | Maintenance Dashboard',
+            header_brand_text: 'MaintDashboard',
+            footer_copyright_text: '© 2025 Maintenance Dashboard. All rights reserved.',
+            footer_powered_by_text: 'Powered by Soluna'
+        },
+        navigation: {
+            navigation_overview_label: 'Overview',
+            navigation_equipment_label: 'Equipment',
+            navigation_maintenance_label: 'Maintenance',
+            navigation_calendar_label: 'Calendar',
+            navigation_map_label: 'Map',
+            navigation_settings_label: 'Settings',
+            navigation_debug_label: 'Debug'
+        },
+        appearance: {
+            primary_color: '#4299e1',
+            secondary_color: '#2d3748',
+            accent_color: '#3182ce',
+            header_background_color: '#0f1419',
+            header_text_color: '#ffffff',
+            header_border_color: '#4a5568',
+            navigation_background_color: '#2d3748',
+            navigation_text_color: '#e2e8f0',
+            navigation_hover_color: '#4299e1',
+            content_background_color: '#1a2238',
+            content_text_color: '#e2e8f0',
+            card_background_color: '#2d3748',
+            card_border_color: '#4a5568',
+            button_primary_color: '#4299e1',
+            button_primary_text_color: '#ffffff',
+            button_secondary_color: '#718096',
+            button_secondary_text_color: '#ffffff',
+            form_background_color: '#2d3748',
+            form_border_color: '#4a5568',
+            form_text_color: '#e2e8f0',
+            success_color: '#48bb78',
+            warning_color: '#ed8936',
+            danger_color: '#f56565',
+            info_color: '#4299e1',
+            dropdown_background_color: '#2d3748',
+            dropdown_background_opacity: '0.95',
+            dropdown_text_color: '#e2e8f0',
+            dropdown_border_color: '#4a5568',
+            dropdown_hover_background_color: '#4a5568',
+            dropdown_hover_text_color: '#ffffff'
+        }
+    };
+
+    // Reset to defaults function
+    window.resetToDefaults = function(formType) {
+        if (confirm('Are you sure you want to reset all ' + formType + ' settings to their default values? This action cannot be undone.')) {
+            const defaults = defaultValues[formType];
+            if (defaults) {
+                Object.keys(defaults).forEach(function(fieldName) {
+                    const field = document.querySelector(`[name="${fieldName}"]`);
+                    if (field) {
+                        if (field.type === 'color') {
+                            field.value = defaults[fieldName];
+                        } else if (field.type === 'number') {
+                            field.value = defaults[fieldName];
+                        } else {
+                            field.value = defaults[fieldName];
+                        }
+                        
+                        // Trigger change event to update live preview
+                        field.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+                
+                // Show success message
+                if (typeof showMessage === 'function') {
+                    showMessage('Settings reset to defaults successfully!', 'success');
+                } else {
+                    alert('Settings reset to defaults successfully!');
+                }
+            }
+        }
+    };
 });
 </script>
 {% endblock %}
