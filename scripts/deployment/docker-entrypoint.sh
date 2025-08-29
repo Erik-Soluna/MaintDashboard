@@ -201,6 +201,15 @@ run_database_initialization() {
             --admin-password "${ADMIN_PASSWORD:-temppass123}" \
             ${FORCE_INIT_DATA:+--force}; then
             print_success "Database initialization completed successfully!"
+            
+            # Now set up the branding system
+            print_status "Setting up branding system..."
+            if setup_branding_system; then
+                print_success "Branding system setup completed successfully!"
+            else
+                print_warning "Branding system setup failed, but continuing..."
+            fi
+            
             return 0
         else
             print_warning "Database initialization failed, retrying in $RETRY_DELAY seconds..."
@@ -211,6 +220,111 @@ run_database_initialization() {
     
     print_error "Database initialization failed after $max_retries attempts"
     return 1
+}
+
+# Function to set up the branding system
+setup_branding_system() {
+    print_status "🚀 Setting up branding system..."
+    
+    # Run migrations to ensure branding tables exist
+    print_status "Running database migrations..."
+    if python manage.py migrate --noinput; then
+        print_success "Migrations completed successfully"
+    else
+        print_warning "Migrations failed, but continuing..."
+        return 1
+    fi
+    
+    # Check if branding system is already set up
+    print_status "Checking if branding system is already configured..."
+    if python manage.py shell -c "
+import os
+from django.db import connection
+from django.db.utils import ProgrammingError
+
+try:
+    with connection.cursor() as cursor:
+        cursor.execute('SELECT COUNT(*) FROM core_brandingsettings LIMIT 1')
+        branding_count = cursor.fetchone()[0]
+        
+        cursor.execute('SELECT COUNT(*) FROM core_csscustomization LIMIT 1')
+        css_count = cursor.fetchone()[0]
+        
+        if branding_count > 0 or css_count > 0:
+            print('Branding system already has data')
+            exit(0)
+        else:
+            print('Branding system tables exist but are empty')
+            exit(1)
+except ProgrammingError:
+    print('Branding system tables do not exist yet')
+    exit(1)
+except Exception as e:
+    print(f'Error checking branding system: {e}')
+    exit(1)
+" 2>/dev/null; then
+        print_success "Branding system is already configured"
+        return 0
+    fi
+    
+    # Set up default branding with environment variable customization
+    print_status "Setting up default branding configuration..."
+    
+    # Create a custom setup command using environment variables
+    if python manage.py shell -c "
+import os
+from django.core.management import call_command
+from django.conf import settings
+
+# Get branding environment variables with defaults
+branding_site_name = os.environ.get('BRANDING_SITE_NAME', 'Maintenance Dashboard')
+branding_site_tagline = os.environ.get('BRANDING_SITE_TAGLINE', 'Professional Maintenance Management System')
+branding_window_title_prefix = os.environ.get('BRANDING_WINDOW_TITLE_PREFIX', 'Maintenance Dashboard')
+branding_window_title_suffix = os.environ.get('BRANDING_WINDOW_TITLE_SUFFIX', '')
+branding_header_brand_text = os.environ.get('BRANDING_HEADER_BRAND_TEXT', 'Maintenance Dashboard')
+branding_primary_color = os.environ.get('BRANDING_PRIMARY_COLOR', '#4299e1')
+branding_secondary_color = os.environ.get('BRANDING_SECONDARY_COLOR', '#2d3748')
+branding_accent_color = os.environ.get('BRANDING_ACCENT_COLOR', '#3182ce')
+
+print(f'Setting up branding with custom values:')
+print(f'  Site Name: {branding_site_name}')
+print(f'  Site Tagline: {branding_site_tagline}')
+print(f'  Header Brand Text: {branding_header_brand_text}')
+print(f'  Primary Color: {branding_primary_color}')
+
+# Run the setup_branding command
+call_command('setup_branding', '--noinput')
+
+# Now customize the branding settings with environment variables
+try:
+    from core.models import BrandingSettings
+    branding = BrandingSettings.objects.get(is_active=True)
+    
+    # Update with environment variable values
+    branding.site_name = branding_site_name
+    branding.site_tagline = branding_site_tagline
+    branding.window_title_prefix = branding_window_title_prefix
+    branding.window_title_suffix = branding_window_title_suffix
+    branding.header_brand_text = branding_header_brand_text
+    branding.primary_color = branding_primary_color
+    branding.secondary_color = branding_secondary_color
+    branding.accent_color = branding_accent_color
+    branding.save()
+    
+    print('Branding settings customized with environment variables')
+    
+except Exception as e:
+    print(f'Warning: Could not customize branding settings: {e}')
+    print('Default branding will be used')
+
+print('Branding system setup completed successfully')
+" 2>/dev/null; then
+        print_success "Default branding configuration created successfully with custom values"
+        return 0
+    else
+        print_warning "Failed to create default branding configuration"
+        return 1
+    fi
 }
 
 # Function to run collectstatic with retry
