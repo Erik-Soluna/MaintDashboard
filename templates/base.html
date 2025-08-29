@@ -9,8 +9,13 @@
     <title>{% block title %}{{ window_title_prefix }}{% if window_title_prefix and window_title_prefix|length > 0 %} {% endif %}{{ site_name }}{% if window_title_suffix and window_title_suffix|length > 0 %} {% endif %}{{ window_title_suffix }}{% endblock %}</title>
     
     <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
-    <link rel="shortcut icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
+    {% if branding.favicon %}
+        <link rel="icon" type="image/x-icon" href="{{ branding.favicon.url }}">
+        <link rel="shortcut icon" type="image/x-icon" href="{{ branding.favicon.url }}">
+    {% else %}
+        <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
+        <link rel="shortcut icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
+    {% endif %}
     
     <!-- Bootstrap 4 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">

@@ -432,8 +432,21 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Current Logo Selection</label>
-                            {{ basic_form.logo }}
-                            <small class="form-text text-muted">Select from existing logos or upload a new one above</small>
+                            {% if basic_form.logo.queryset.count > 0 %}
+                                {{ basic_form.logo }}
+                                <small class="form-text text-muted">Select from existing logos or upload a new one above</small>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    No logos available. Upload a new logo above to get started.
+                                </div>
+                            {% endif %}
+                            {% if basic_form.logo.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    {{ basic_form.logo.errors.0 }}
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                     {% if branding.logo %}
