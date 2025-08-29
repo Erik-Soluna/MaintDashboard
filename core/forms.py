@@ -225,6 +225,81 @@ class BrandingSettingsForm(forms.ModelForm):
             color = '#' + color
         return color
 
+
+class BrandingBasicForm(forms.ModelForm):
+    """Form for basic branding settings only"""
+    
+    class Meta:
+        model = BrandingSettings
+        fields = [
+            'site_name', 'site_tagline', 'window_title_prefix', 'window_title_suffix',
+            'header_brand_text', 'logo', 'favicon',
+            'footer_copyright_text', 'footer_powered_by_text'
+        ]
+        widgets = {
+            'site_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter site name'}),
+            'site_tagline': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter optional tagline'}),
+            'window_title_prefix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., SOLUNA -'}),
+            'window_title_suffix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., - Maintenance System'}),
+            'header_brand_text': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Text displayed next to logo'}),
+            'logo': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'favicon': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'footer_copyright_text': forms.TextInput(attrs={'class': 'form-control'}),
+            'footer_powered_by_text': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+
+class BrandingNavigationForm(forms.ModelForm):
+    """Form for navigation labels only"""
+    
+    class Meta:
+        model = BrandingSettings
+        fields = [
+            'navigation_overview_label', 'navigation_equipment_label', 
+            'navigation_maintenance_label', 'navigation_calendar_label',
+            'navigation_map_label', 'navigation_settings_label', 'navigation_debug_label'
+        ]
+        widgets = {
+            'navigation_overview_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'navigation_equipment_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'navigation_maintenance_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'navigation_calendar_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'navigation_map_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'navigation_settings_label': forms.TextInput(attrs={'class': 'form-control'}),
+            'navigation_debug_label': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+
+class BrandingAppearanceForm(forms.ModelForm):
+    """Form for appearance/colors only"""
+    
+    class Meta:
+        model = BrandingSettings
+        fields = ['primary_color', 'secondary_color', 'accent_color']
+        widgets = {
+            'primary_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'secondary_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'accent_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+        }
+    
+    def clean_primary_color(self):
+        color = self.cleaned_data['primary_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_secondary_color(self):
+        color = self.cleaned_data['secondary_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+    
+    def clean_accent_color(self):
+        color = self.cleaned_data['accent_color']
+        if not color.startswith('#'):
+            color = '#' + color
+        return color
+
 class CSSCustomizationForm(forms.ModelForm):
     """Form for editing CSS customizations"""
     

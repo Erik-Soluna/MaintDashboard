@@ -11,7 +11,7 @@ from equipment.models import Equipment
 from maintenance.models import MaintenanceActivity
 from events.models import CalendarEvent
 from core.models import Location, EquipmentCategory, Role, Permission, UserProfile, Customer, BrandingSettings, CSSCustomization
-from core.forms import LocationForm, EquipmentCategoryForm, CustomerForm, BrandingSettingsForm, CSSCustomizationForm, CSSPreviewForm
+from core.forms import LocationForm, EquipmentCategoryForm, CustomerForm, BrandingSettingsForm, BrandingBasicForm, BrandingNavigationForm, BrandingAppearanceForm, CSSCustomizationForm, CSSPreviewForm
 from django.utils import timezone
 from django.db.models import Q, Count
 from datetime import datetime, timedelta, date
@@ -4729,19 +4729,45 @@ def branding_settings(request):
                 messages.error(request, 'Branding system is not yet set up. Please run database migrations first.')
                 return redirect('core:settings')
             
-            form = BrandingSettingsForm(request.POST, request.FILES, instance=branding)
+            # Determine which form was submitted based on the form action
+            form_type = request.POST.get('form_type', 'basic')
+            
+            if form_type == 'basic':
+                form = BrandingBasicForm(request.POST, request.FILES, instance=branding)
+                success_message = 'Basic branding settings updated successfully!'
+            elif form_type == 'navigation':
+                form = BrandingNavigationForm(request.POST, instance=branding)
+                success_message = 'Navigation labels updated successfully!'
+            elif form_type == 'appearance':
+                form = BrandingAppearanceForm(request.POST, instance=branding)
+                success_message = 'Appearance settings updated successfully!'
+            else:
+                # Fallback to full form
+                form = BrandingSettingsForm(request.POST, request.FILES, instance=branding)
+                success_message = 'Branding settings updated successfully!'
+            
             if form.is_valid():
                 branding = form.save()
-                messages.success(request, 'Branding settings updated successfully!')
+                messages.success(request, success_message)
                 return redirect('core:branding_settings')
         else:
             if branding_table_exists:
-                form = BrandingSettingsForm(instance=branding)
+                # Create all form instances for the different tabs
+                basic_form = BrandingBasicForm(instance=branding)
+                navigation_form = BrandingNavigationForm(instance=branding)
+                appearance_form = BrandingAppearanceForm(instance=branding)
+                full_form = BrandingSettingsForm(instance=branding)  # For backward compatibility
             else:
-                form = None
+                basic_form = None
+                navigation_form = None
+                appearance_form = None
+                full_form = None
         
         context = {
-            'form': form,
+            'basic_form': basic_form,
+            'navigation_form': navigation_form,
+            'appearance_form': appearance_form,
+            'full_form': full_form,  # For backward compatibility
             'branding': branding,
             'css_customizations': css_customizations,
             'active_tab': 'branding',

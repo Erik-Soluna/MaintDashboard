@@ -295,23 +295,24 @@
         <div class="tab-pane fade show active branding-tab-content" id="basic" role="tabpanel">
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
+                <input type="hidden" name="form_type" value="basic">
                 
                 <div class="branding-form-section">
                     <h4><i class="fas fa-info-circle me-2"></i>Site Information</h4>
                     <div class="row">
                         <div class="col-md-6">
-                            {{ form.site_name|as_crispy_field }}
+                            {{ basic_form.site_name|as_crispy_field }}
                         </div>
                         <div class="col-md-6">
-                            {{ form.site_tagline|as_crispy_field }}
+                            {{ basic_form.site_tagline|as_crispy_field }}
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6">
-                            {{ form.window_title_prefix|as_crispy_field }}
+                            {{ basic_form.window_title_prefix|as_crispy_field }}
                         </div>
                         <div class="col-md-6">
-                            {{ form.window_title_suffix|as_crispy_field }}
+                            {{ basic_form.window_title_suffix|as_crispy_field }}
                         </div>
                     </div>
                 </div>
@@ -320,15 +321,15 @@
                     <h4><i class="fas fa-image me-2"></i>Logo & Branding</h4>
                     <div class="row">
                         <div class="col-md-6">
-                            {{ form.header_brand_text|as_crispy_field }}
+                            {{ basic_form.header_brand_text|as_crispy_field }}
                         </div>
                         <div class="col-md-6">
-                            {{ form.logo|as_crispy_field }}
+                            {{ basic_form.logo|as_crispy_field }}
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-6">
-                            {{ form.favicon|as_crispy_field }}
+                            {{ basic_form.favicon|as_crispy_field }}
                         </div>
                     </div>
                 </div>
@@ -337,17 +338,17 @@
                     <h4><i class="fas fa-copyright me-2"></i>Footer Customization</h4>
                     <div class="row">
                         <div class="col-md-6">
-                            {{ form.footer_copyright_text|as_crispy_field }}
+                            {{ basic_form.footer_copyright_text|as_crispy_field }}
                         </div>
                         <div class="col-md-6">
-                            {{ form.footer_powered_by_text|as_crispy_field }}
+                            {{ basic_form.footer_powered_by_text|as_crispy_field }}
                         </div>
                     </div>
                 </div>
 
                 <div class="text-center">
                     <button type="submit" class="btn btn-primary btn-lg">
-                        <i class="fas fa-save me-2"></i>Save Branding Settings
+                        <i class="fas fa-save me-2"></i>Save Basic Settings
                     </button>
                 </div>
             </form>
@@ -357,6 +358,7 @@
         <div class="tab-pane fade branding-tab-content" id="navigation" role="tabpanel">
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
+                <input type="hidden" name="form_type" value="navigation">
                 
                 <div class="branding-form-section">
                     <h4><i class="fas fa-bars me-2"></i>Navigation Menu Labels</h4>
@@ -364,15 +366,15 @@
                     
                     <div class="row">
                         <div class="col-md-6">
-                            {{ form.navigation_overview_label|as_crispy_field }}
-                            {{ form.navigation_equipment_label|as_crispy_field }}
-                            {{ form.navigation_maintenance_label|as_crispy_field }}
+                            {{ navigation_form.navigation_overview_label|as_crispy_field }}
+                            {{ navigation_form.navigation_equipment_label|as_crispy_field }}
+                            {{ navigation_form.navigation_maintenance_label|as_crispy_field }}
                         </div>
                         <div class="col-md-6">
-                            {{ form.navigation_calendar_label|as_crispy_field }}
-                            {{ form.navigation_map_label|as_crispy_field }}
-                            {{ form.navigation_settings_label|as_crispy_field }}
-                            {{ form.navigation_debug_label|as_crispy_field }}
+                            {{ navigation_form.navigation_calendar_label|as_crispy_field }}
+                            {{ navigation_form.navigation_map_label|as_crispy_field }}
+                            {{ navigation_form.navigation_settings_label|as_crispy_field }}
+                            {{ navigation_form.navigation_debug_label|as_crispy_field }}
                         </div>
                     </div>
                 </div>
@@ -389,6 +391,7 @@
         <div class="tab-pane fade branding-tab-content" id="appearance" role="tabpanel">
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
+                <input type="hidden" name="form_type" value="appearance">
                 
                 <div class="branding-form-section">
                     <h4><i class="fas fa-palette me-2"></i>Theme Colors</h4>
@@ -397,15 +400,15 @@
                     <div class="color-picker-group">
                         <div class="color-picker-item">
                             <label>Primary Color</label>
-                            {{ form.primary_color }}
+                            {{ appearance_form.primary_color }}
                         </div>
                         <div class="color-picker-item">
                             <label>Secondary Color</label>
-                            {{ form.secondary_color }}
+                            {{ appearance_form.secondary_color }}
                         </div>
                         <div class="color-picker-item">
                             <label>Accent Color</label>
-                            {{ form.accent_color }}
+                            {{ appearance_form.accent_color }}
                         </div>
                     </div>
                 </div>
