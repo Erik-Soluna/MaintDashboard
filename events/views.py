@@ -731,6 +731,20 @@ def fetch_unified_events(request):
         equipment_filter = request.GET.get('equipment')
         event_type_filter = request.GET.get('event_type')
         site_id = request.GET.get('site_id')
+        target_timezone = request.GET.get('timezone', 'UTC')  # Get timezone from request
+        
+        # Helper function to convert datetime to target timezone
+        def convert_to_timezone(dt, tz_name):
+            if not dt:
+                return dt
+            try:
+                import pytz
+                target_tz = pytz.timezone(tz_name)
+                if timezone.is_naive(dt):
+                    dt = timezone.make_aware(dt)
+                return dt.astimezone(target_tz)
+            except Exception:
+                return dt
         
         calendar_events = []
         
@@ -872,11 +886,15 @@ def fetch_unified_events(request):
                     else:
                         bg_color = '#6c757d'
                     
+                    # Convert times to target timezone
+                    start_time_converted = convert_to_timezone(activity.scheduled_start, target_timezone)
+                    end_time_converted = convert_to_timezone(activity.scheduled_end, target_timezone)
+                    
                     calendar_event = {
                         'id': f'activity_{activity.id}',
                         'title': title,
-                        'start': activity.scheduled_start.isoformat(),
-                        'end': activity.scheduled_end.isoformat() if activity.scheduled_end else None,
+                        'start': start_time_converted.isoformat(),
+                        'end': end_time_converted.isoformat() if end_time_converted else None,
                         'allDay': False,
                         'backgroundColor': bg_color,
                         'borderColor': '#2d3748',
@@ -893,6 +911,7 @@ def fetch_unified_events(request):
                             'assigned_to': activity.assigned_to.get_full_name() if activity.assigned_to else 'Unassigned',
                             'is_completed': activity.status == 'completed',
                             'status': activity.status,
+                            'timezone': activity.timezone if hasattr(activity, 'timezone') else 'UTC',
                         }
                     }
                     

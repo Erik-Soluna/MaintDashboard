@@ -1092,10 +1092,13 @@ function initializeCalendar() {
     console.log('calendarEl:', calendarEl);
     console.log('eventsUrl:', eventsUrl);
 
+    // Get user's preferred timezone or default to Central Time
+    const userTimezone = localStorage.getItem('userTimezone') || 'America/Chicago';
+    
     var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         height: 'auto',
-        timeZone: 'America/Chicago', // Default timezone, will be updated by user selection
+        timeZone: userTimezone, // Use user's preferred timezone
         views: {
             dayGridWeek: {
                 dayMaxEvents: 8,
@@ -1123,7 +1126,8 @@ function initializeCalendar() {
                 equipment: getSelectedEquipment().join(','),
                 site_id: document.getElementById('site-selector').value,
                 event_type: document.getElementById('eventTypeFilter').value,
-                customer: document.getElementById('customerFilter').value
+                customer: document.getElementById('customerFilter').value,
+                timezone: document.getElementById('timezoneSelect').value
             };
             
             // Debug logging for filter parameters
@@ -2301,9 +2305,9 @@ function openCreateMaintenanceModal(selectedDate = null) {
     document.getElementById('maintenanceStartTime').value = '09:00';
     document.getElementById('maintenanceEndTime').value = '17:00';
     
-    // Set timezone to match calendar timezone
-    const calendarTimezone = document.getElementById('timezoneSelect').value;
-    document.getElementById('maintenanceTimezone').value = calendarTimezone;
+    // Set timezone to user's preferred timezone or calendar timezone
+    const userTimezone = localStorage.getItem('userTimezone') || document.getElementById('timezoneSelect').value;
+    document.getElementById('maintenanceTimezone').value = userTimezone;
     
     // Show the modal
     $('#createMaintenanceModal').modal('show');
@@ -2451,6 +2455,11 @@ function initializeTimezone() {
                 break;
             }
         }
+    }
+    
+    // Set calendar timezone to match user preference
+    if (window.calendar) {
+        window.calendar.setOption('timeZone', timezoneSelect.value);
     }
     
     // Save timezone preference to user profile
