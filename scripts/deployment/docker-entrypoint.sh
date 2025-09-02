@@ -195,6 +195,9 @@ run_database_initialization() {
             # For fresh databases, use aggressive approach to bypass conflicts entirely
             print_status "Using aggressive fresh database initialization..."
             
+            # Initialize nuclear option flag
+            goto_nuclear=false
+            
             # First, try to merge the conflicting migrations
             if python manage.py makemigrations --merge --noinput; then
                 print_success "Migration conflicts merged successfully"
@@ -263,7 +266,6 @@ run_database_initialization() {
                     
                     print_success "Fresh database initialized with ultimate nuclear option"
                 fi
-            fi
             else
                 # If we didn't need nuclear option, we're done
                 print_success "Fresh database initialization completed successfully"
