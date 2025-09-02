@@ -225,14 +225,14 @@ run_database_initialization() {
                 
                 # Nuclear option: Create django_migrations table manually and fake-apply all migrations
                 print_status "Creating django_migrations table manually..."
-                python manage.py dbshell -c "
+                echo "
                     CREATE TABLE IF NOT EXISTS django_migrations (
                         id SERIAL PRIMARY KEY,
                         app VARCHAR(255) NOT NULL,
                         name VARCHAR(255) NOT NULL,
                         applied TIMESTAMP WITH TIME ZONE NOT NULL
                     );
-                " || true
+                " | python manage.py dbshell || true
                 
                 # Try fake-initial again
                 if python manage.py migrate --fake-initial --noinput; then
@@ -519,6 +519,12 @@ except Exception as e:
 # Function to set up the branding system
 setup_branding_system() {
     print_status "🚀 Setting up branding system..."
+    
+    # Check if database is already properly initialized (nuclear option succeeded)
+    if echo "SELECT 1 FROM django_migrations WHERE app='core' AND name LIKE '%branding%' LIMIT 1;" | python manage.py dbshell > /dev/null 2>&1; then
+        print_success "Database already properly initialized, skipping migration attempts"
+        return 0
+    fi
     
     # First resolve any migration conflicts
     if ! resolve_migration_conflicts; then
