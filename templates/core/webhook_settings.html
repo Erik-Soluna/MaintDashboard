@@ -574,6 +574,71 @@
     transform: translateY(-4px) scale(1.01);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 }
+
+/* Collapsible Panel Styling */
+.collapsible-header {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.collapsible-header:hover {
+    background: linear-gradient(135deg, #5a6c7d 0%, #4a5568 100%);
+}
+
+.collapsible-icon {
+    transition: transform 0.3s ease;
+    color: #a0aec0;
+    font-size: 1.1rem;
+}
+
+.collapsible-icon.rotated {
+    transform: rotate(180deg);
+}
+
+.collapsible-content {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.collapsible-content.expanded {
+    display: block !important;
+    animation: slideDown 0.3s ease-out;
+}
+
+.collapsible-content.collapsed {
+    display: none !important;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        max-height: 1000px;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 1;
+        max-height: 1000px;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        max-height: 0;
+        transform: translateY(-10px);
+    }
+}
 </style>
 {% endblock %}
 
@@ -723,30 +788,38 @@
                     </div>
                 </div>
                 
-                <!-- Git Status Section -->
+                <!-- Git Status & Version Info Section -->
                 <div class="webhook-config-section">
-                    <h6><i class="fas fa-code-branch me-2"></i>Git Status & Auto-Update</h6>
+                    <h6><i class="fas fa-code-branch me-2"></i>Version & Git Status</h6>
                     <div class="git-status-info">
                         <div class="row">
-                            <div class="col-md-6">
-                                <strong><i class="fas fa-hashtag me-1"></i>Last Commit Hash:</strong>
+                            <div class="col-md-4">
+                                <strong><i class="fas fa-tag me-1"></i>Current Version:</strong>
+                                <span class="text-muted">{{ app_version|default:"Unknown" }}</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong><i class="fas fa-hashtag me-1"></i>Last Commit:</strong>
                                 <span class="text-muted">{{ debug_info.last_commit_hash|default:"Not tracked yet" }}</span>
                             </div>
-                            <div class="col-md-6">
-                                <strong><i class="fas fa-calendar me-1"></i>Last Update:</strong>
-                                <span class="text-muted">{{ debug_info.last_update_date|default:"Never" }}</span>
-                            </div>
-                        </div>
-                        <div class="row mt-2">
-                            <div class="col-md-6">
-                                <strong><i class="fas fa-search me-1"></i>Last Check:</strong>
-                                <span class="text-muted">{{ debug_info.last_check_date|default:"Never" }}</span>
-                            </div>
-                            <div class="col-md-6">
-                                <strong><i class="fas fa-sync-alt me-1"></i>Auto-Update Status:</strong>
+                            <div class="col-md-4">
+                                <strong><i class="fas fa-sync-alt me-1"></i>Auto-Update:</strong>
                                 <span class="badge {% if polling_frequency == 'disabled' %}bg-secondary{% else %}bg-success{% endif %}">
                                     {% if polling_frequency == 'disabled' %}Disabled{% else %}Active{% endif %}
                                 </span>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-4">
+                                <strong><i class="fas fa-calendar me-1"></i>Last Update:</strong>
+                                <span class="text-muted">{{ debug_info.last_update_date|default:"Never" }}</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong><i class="fas fa-search me-1"></i>Last Check:</strong>
+                                <span class="text-muted">{{ debug_info.last_check_date|default:"Never" }}</span>
+                            </div>
+                            <div class="col-md-4">
+                                <strong><i class="fas fa-clock me-1"></i>Polling:</strong>
+                                <span class="text-muted">{{ polling_frequency|title }}</span>
                             </div>
                         </div>
                     </div>
@@ -793,13 +866,14 @@
 
     <!-- Setup Instructions Card -->
     <div class="webhook-card">
-        <div class="webhook-card-header">
+        <div class="webhook-card-header collapsible-header" onclick="toggleCollapsible('setup-instructions')">
             <h5>
                 <i class="fas fa-book me-2"></i>
-                Setup Instructions
+                Setup Instructions & Documentation
             </h5>
+            <i class="fas fa-chevron-down collapsible-icon" id="setup-instructions-icon"></i>
         </div>
-        <div class="webhook-card-body">
+        <div class="webhook-card-body collapsible-content" id="setup-instructions" style="display: none;">
             <div class="webhook-config-section">
                 <h6><i class="fas fa-lightbulb me-2"></i>How Webhooks Work</h6>
                 <div class="alert alert-info">
@@ -1095,6 +1169,28 @@ function copyToClipboard(text) {
         console.error('Could not copy text: ', err);
         alert('Failed to copy to clipboard');
     });
+}
+
+// Collapsible panel functionality
+function toggleCollapsible(panelId) {
+    const content = document.getElementById(panelId);
+    const icon = document.getElementById(panelId + '-icon');
+    
+    if (content.style.display === 'none' || content.classList.contains('collapsed')) {
+        // Expand
+        content.style.display = 'block';
+        content.classList.remove('collapsed');
+        content.classList.add('expanded');
+        icon.classList.add('rotated');
+    } else {
+        // Collapse
+        content.classList.remove('expanded');
+        content.classList.add('collapsed');
+        icon.classList.remove('rotated');
+        setTimeout(() => {
+            content.style.display = 'none';
+        }, 300);
+    }
 }
 </script>
 {% endblock %} 
