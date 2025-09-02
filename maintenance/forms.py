@@ -225,7 +225,7 @@ class MaintenanceActivityForm(forms.ModelForm):
         fields = [
             'equipment', 'activity_type', 'title', 'description',
             'status', 'priority', 'assigned_to',
-            'scheduled_start', 'scheduled_end',
+            'scheduled_start', 'scheduled_end', 'timezone',
             'required_status', 'tools_required', 'parts_required',
             'safety_notes'
         ]
@@ -322,8 +322,9 @@ class MaintenanceActivityForm(forms.ModelForm):
             Fieldset(
                 'Scheduling',
                 Row(
-                    Column('scheduled_start', css_class='form-group col-md-6 mb-0'),
-                    Column('scheduled_end', css_class='form-group col-md-6 mb-0'),
+                    Column('scheduled_start', css_class='form-group col-md-4 mb-0'),
+                    Column('scheduled_end', css_class='form-group col-md-4 mb-0'),
+                    Column('timezone', css_class='form-group col-md-4 mb-0'),
                 ),
             ),
             Fieldset(

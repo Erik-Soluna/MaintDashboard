@@ -941,7 +941,7 @@
                         </div>
                         
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group mb-3">
                                     <label for="maintenanceStartDate" class="text-white">Start Date *</label>
                                     <input type="date" class="form-control bg-dark text-white border-secondary" id="maintenanceStartDate" name="scheduled_start" required>
@@ -951,7 +951,7 @@
                                     <input type="time" class="form-control bg-dark text-white border-secondary" id="maintenanceStartTime" name="start_time">
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group mb-3">
                                     <label for="maintenanceEndDate" class="text-white">End Date *</label>
                                     <input type="date" class="form-control bg-dark text-white border-secondary" id="maintenanceEndDate" name="scheduled_end" required>
@@ -959,6 +959,25 @@
                                 <div class="form-group mb-3">
                                     <label for="maintenanceEndTime" class="text-white">End Time</label>
                                     <input type="time" class="form-control bg-dark text-white border-secondary" id="maintenanceEndTime" name="end_time">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group mb-3">
+                                    <label for="maintenanceTimezone" class="text-white">Timezone *</label>
+                                    <select class="form-control bg-dark text-white border-secondary" id="maintenanceTimezone" name="timezone" required>
+                                        <option value="UTC">UTC</option>
+                                        <option value="America/New_York">Eastern Time</option>
+                                        <option value="America/Chicago" selected>Central Time</option>
+                                        <option value="America/Denver">Mountain Time</option>
+                                        <option value="America/Los_Angeles">Pacific Time</option>
+                                        <option value="America/Anchorage">Alaska Time</option>
+                                        <option value="Pacific/Honolulu">Hawaii Time</option>
+                                        <option value="Europe/London">London (GMT)</option>
+                                        <option value="Europe/Paris">Paris (CET)</option>
+                                        <option value="Asia/Tokyo">Tokyo (JST)</option>
+                                        <option value="Australia/Sydney">Sydney (AEST)</option>
+                                    </select>
+                                    <small class="text-muted">Timezone for the scheduled times</small>
                                 </div>
                             </div>
                         </div>
@@ -1833,10 +1852,12 @@ function displayMaintenanceDetails(activity) {
                         <div class="mb-2">
                             <small class="text-muted">Start:</small><br>
                             <span class="text-white">${formatDateTime(activity.scheduled_start)}</span>
+                            ${activity.timezone ? `<br><small class="text-info">(${getTimezoneDisplayName(activity.timezone)})</small>` : ''}
                         </div>
                         <div class="mb-2">
                             <small class="text-muted">End:</small><br>
                             <span class="text-white">${formatDateTime(activity.scheduled_end)}</span>
+                            ${activity.timezone ? `<br><small class="text-info">(${getTimezoneDisplayName(activity.timezone)})</small>` : ''}
                         </div>
                         ${activity.actual_start ? `
                         <div class="mb-2">
@@ -2280,6 +2301,10 @@ function openCreateMaintenanceModal(selectedDate = null) {
     document.getElementById('maintenanceStartTime').value = '09:00';
     document.getElementById('maintenanceEndTime').value = '17:00';
     
+    // Set timezone to match calendar timezone
+    const calendarTimezone = document.getElementById('timezoneSelect').value;
+    document.getElementById('maintenanceTimezone').value = calendarTimezone;
+    
     // Show the modal
     $('#createMaintenanceModal').modal('show');
 }
@@ -2306,6 +2331,7 @@ function submitMaintenanceForm() {
         status: formData.get('status'),
         scheduled_start: scheduledStart,
         scheduled_end: scheduledEnd,
+        timezone: formData.get('timezone'),
         activity_type: formData.get('activity_type'),
         equipment: formData.get('equipment') || null,
         assigned_to: formData.get('assigned_to') || null

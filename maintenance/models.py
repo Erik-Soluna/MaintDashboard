@@ -189,6 +189,27 @@ class MaintenanceActivity(TimeStampedModel):
     actual_start = models.DateTimeField(null=True, blank=True)
     actual_end = models.DateTimeField(null=True, blank=True)
     
+    # Timezone for the scheduled times
+    TIMEZONE_CHOICES = [
+        ('UTC', 'UTC'),
+        ('America/New_York', 'Eastern Time (ET)'),
+        ('America/Chicago', 'Central Time (CT)'),
+        ('America/Denver', 'Mountain Time (MT)'),
+        ('America/Los_Angeles', 'Pacific Time (PT)'),
+        ('America/Anchorage', 'Alaska Time (AKT)'),
+        ('Pacific/Honolulu', 'Hawaii Time (HST)'),
+        ('Europe/London', 'London (GMT)'),
+        ('Europe/Paris', 'Paris (CET)'),
+        ('Asia/Tokyo', 'Tokyo (JST)'),
+        ('Australia/Sydney', 'Sydney (AEST)'),
+    ]
+    timezone = models.CharField(
+        max_length=50,
+        choices=TIMEZONE_CHOICES,
+        default='America/Chicago',
+        help_text="Timezone for the scheduled maintenance times"
+    )
+    
     # Assignment
     assigned_to = models.ForeignKey(
         User,
@@ -234,6 +255,55 @@ class MaintenanceActivity(TimeStampedModel):
         if dt and isinstance(dt, datetime.datetime) and timezone.is_naive(dt):
             return timezone.make_aware(dt)
         return dt
+    
+    def get_scheduled_start_in_timezone(self, target_timezone=None):
+        """Get scheduled start time in the specified timezone."""
+        if not self.scheduled_start:
+            return None
+        
+        if target_timezone is None:
+            target_timezone = self.timezone
+        
+        try:
+            import pytz
+            # Convert to target timezone
+            target_tz = pytz.timezone(target_timezone)
+            return self.scheduled_start.astimezone(target_tz)
+        except Exception:
+            return self.scheduled_start
+    
+    def get_scheduled_end_in_timezone(self, target_timezone=None):
+        """Get scheduled end time in the specified timezone."""
+        if not self.scheduled_end:
+            return None
+        
+        if target_timezone is None:
+            target_timezone = self.timezone
+        
+        try:
+            import pytz
+            # Convert to target timezone
+            target_tz = pytz.timezone(target_timezone)
+            return self.scheduled_end.astimezone(target_tz)
+        except Exception:
+            return self.scheduled_end
+    
+    def get_timezone_display_name(self):
+        """Get human-readable timezone name."""
+        timezone_display_names = {
+            'UTC': 'UTC',
+            'America/New_York': 'Eastern Time',
+            'America/Chicago': 'Central Time',
+            'America/Denver': 'Mountain Time',
+            'America/Los_Angeles': 'Pacific Time',
+            'America/Anchorage': 'Alaska Time',
+            'Pacific/Honolulu': 'Hawaii Time',
+            'Europe/London': 'London (GMT)',
+            'Europe/Paris': 'Paris (CET)',
+            'Asia/Tokyo': 'Tokyo (JST)',
+            'Australia/Sydney': 'Sydney (AEST)'
+        }
+        return timezone_display_names.get(self.timezone, self.timezone)
 
     def clean(self):
         """Custom validation for maintenance activity."""
