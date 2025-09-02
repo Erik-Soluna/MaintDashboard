@@ -1,8 +1,8 @@
 # Timezone Migration Guide
 
-## 🚨 **URGENT: Database Migration Required**
+## 🚨 **AUTOMATIC: Database Migration Handled by Portainer**
 
-The timezone feature has been deployed but requires a database migration to be run on the server.
+The timezone feature has been deployed and **will automatically run the required database migration** when the Portainer stack starts up.
 
 ### **Error Details**
 ```
@@ -10,9 +10,44 @@ ProgrammingError: column maintenance_maintenanceactivity.timezone does not exist
 ```
 
 ### **Root Cause**
-The `timezone` field was added to the `MaintenanceActivity` model but the database migration hasn't been applied yet.
+The `timezone` field was added to the `MaintenanceActivity` model. The migration will run automatically on next container startup.
 
-## 🔧 **Migration Steps**
+### **✅ AUTOMATIC SOLUTION**
+**The migration is now handled automatically by the Portainer startup process!** 
+
+The `docker-entrypoint.sh` script has been updated to:
+1. Run all Django migrations (`python manage.py migrate --noinput`)
+2. Specifically ensure maintenance app migrations are applied (`python manage.py migrate maintenance --noinput`)
+3. This happens every time the container starts up
+
+**No manual intervention required** - just restart your Portainer stack and the migration will run automatically.
+
+## 🚀 **Automatic Migration (Recommended)**
+
+### **For Portainer Deployments:**
+The migration will run automatically when you restart your Portainer stack:
+
+1. **In Portainer UI:**
+   - Go to your stack
+   - Click "Recreate/Update" or "Restart"
+   - The migration will run during container startup
+
+2. **Via Portainer API:**
+   ```bash
+   # Restart the stack to trigger migration
+   curl -X POST "https://your-portainer/api/stacks/{stack_id}/restart" \
+        -H "X-API-Key: your-api-key"
+   ```
+
+3. **What happens automatically:**
+   - Container starts up
+   - Database connection is established
+   - Django migrations run (`python manage.py migrate --noinput`)
+   - Maintenance app migrations run (`python manage.py migrate maintenance --noinput`)
+   - Timezone field is added to the database
+   - Application starts normally
+
+## 🔧 **Manual Migration Steps (If Needed)**
 
 ### **Option 1: Run Migration Script (Recommended)**
 

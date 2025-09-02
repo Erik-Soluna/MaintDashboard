@@ -327,13 +327,21 @@ setup_branding_system() {
         print_warning "Migration conflict resolution failed, but continuing..."
     fi
     
-    # Run migrations to ensure branding tables exist
+    # Run migrations to ensure all tables exist
     print_status "Running database migrations..."
     if python manage.py migrate --noinput; then
         print_success "Migrations completed successfully"
     else
         print_warning "Migrations failed, but continuing..."
         return 1
+    fi
+    
+    # Ensure maintenance app migrations are applied (including timezone field)
+    print_status "Ensuring maintenance app migrations are applied..."
+    if python manage.py migrate maintenance --noinput; then
+        print_success "Maintenance app migrations completed successfully"
+    else
+        print_warning "Maintenance app migrations failed, but continuing..."
     fi
     
     # Check if branding system is already set up
