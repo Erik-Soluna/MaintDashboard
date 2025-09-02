@@ -338,9 +338,24 @@ except Exception as e:
             print_success "Timezone field verification successful"
             return 0
         else
-            print_warning "Timezone field still missing, attempting manual SQL fix..."
+            print_warning "Timezone field still missing, attempting aggressive fix..."
             
-            # Manual SQL fix as last resort
+            # Try aggressive fake-initial approach
+            print_status "Attempting aggressive fake-initial migration..."
+            if python manage.py migrate --fake-initial 2>/dev/null; then
+                print_success "Aggressive fake-initial migration successful"
+            else
+                print_warning "Aggressive fake-initial failed, trying individual apps..."
+                
+                # Try each app individually
+                python manage.py migrate core --fake-initial 2>/dev/null || print_warning "Core fake-initial failed"
+                python manage.py migrate maintenance --fake-initial 2>/dev/null || print_warning "Maintenance fake-initial failed"
+                python manage.py migrate equipment --fake-initial 2>/dev/null || print_warning "Equipment fake-initial failed"
+                python manage.py migrate events --fake-initial 2>/dev/null || print_warning "Events fake-initial failed"
+            fi
+            
+            # Manual SQL fix as absolute last resort
+            print_status "Attempting manual SQL fix..."
             if python manage.py shell -c "
 from django.db import connection
 try:
