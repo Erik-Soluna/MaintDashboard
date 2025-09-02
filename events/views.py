@@ -734,9 +734,11 @@ def fetch_unified_events(request):
         
         calendar_events = []
         
-        # Fetch Calendar Events
+        # Fetch Calendar Events (excluding those that are duplicates of maintenance activities)
         try:
-            events = CalendarEvent.objects.select_related('equipment', 'equipment__location')
+            events = CalendarEvent.objects.select_related('equipment', 'equipment__location').filter(
+                maintenance_activity__isnull=True  # Exclude events that are duplicates of maintenance activities
+            )
             
             # Date filtering
             if start_date and end_date:

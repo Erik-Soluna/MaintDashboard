@@ -1097,19 +1097,28 @@ function initializeCalendar() {
             
             console.log('Event clicked:', eventId, 'Type:', eventType);
             
-            // All events on the calendar are now maintenance activities
+            // Handle different event types
             if (eventType === 'maintenance' || eventId.startsWith('activity_')) {
-                // Remove 'activity_' prefix for activity ID
+                // This is a maintenance activity - remove 'activity_' prefix for activity ID
                 var actualActivityId = eventId.replace('activity_', '');
                 console.log('Opening maintenance modal for ID:', actualActivityId);
                 openMaintenanceDetailsModal(actualActivityId);
+            } else if (eventType === 'event' || eventId.startsWith('event_')) {
+                // This is a calendar event - redirect to event detail page
+                var actualEventId = eventId.replace('event_', '');
+                console.log('Redirecting to event detail page for ID:', actualEventId);
+                window.location.href = `/events/events/${actualEventId}/`;
             } else {
-                console.log('Unknown event type:', eventType);
-                // Try to determine if it's a maintenance activity by checking the ID format
+                console.log('Unknown event type:', eventType, 'ID:', eventId);
+                // Fallback: try to determine by ID format
                 if (eventId.startsWith('activity_')) {
                     var actualActivityId = eventId.replace('activity_', '');
-                    console.log('Detected maintenance activity, opening modal for ID:', actualActivityId);
+                    console.log('Detected maintenance activity by ID format, opening modal for ID:', actualActivityId);
                     openMaintenanceDetailsModal(actualActivityId);
+                } else if (eventId.startsWith('event_')) {
+                    var actualEventId = eventId.replace('event_', '');
+                    console.log('Detected calendar event by ID format, redirecting to event detail page for ID:', actualEventId);
+                    window.location.href = `/events/events/${actualEventId}/`;
                 } else {
                     console.log('Could not determine event type, treating as maintenance activity');
                     openMaintenanceDetailsModal(eventId);
@@ -1155,9 +1164,9 @@ function initializeCalendar() {
                 info.el.style.textDecoration = 'line-through';
             }
             
-            // All events on the calendar are now maintenance activities
+            // Add appropriate icons and styling based on event type
             if (info.event.extendedProps.type === 'maintenance' || info.event.id.startsWith('activity_')) {
-                // Add a small maintenance icon or indicator
+                // Add a small maintenance icon for maintenance activities
                 const maintenanceIcon = document.createElement('span');
                 maintenanceIcon.innerHTML = '🔧';
                 maintenanceIcon.style.fontSize = '10px';
@@ -1173,6 +1182,23 @@ function initializeCalendar() {
                 // Add hover effect to show it's clickable for details
                 info.el.style.cursor = 'pointer';
                 info.el.title = `${info.event.title} (Maintenance Activity - Click for details)`;
+            } else if (info.event.extendedProps.type === 'event' || info.event.id.startsWith('event_')) {
+                // Add a small event icon for calendar events
+                const eventIcon = document.createElement('span');
+                eventIcon.innerHTML = '📅';
+                eventIcon.style.fontSize = '10px';
+                eventIcon.style.marginLeft = '2px';
+                eventIcon.title = 'Calendar Event';
+                
+                // Insert the icon after the event title
+                const eventTitle = info.el.querySelector('.fc-event-title');
+                if (eventTitle) {
+                    eventTitle.appendChild(eventIcon);
+                }
+                
+                // Add hover effect to show it's clickable for details
+                info.el.style.cursor = 'pointer';
+                info.el.title = `${info.event.title} (Calendar Event - Click for details)`;
             }
             
             // Apply legend visibility filtering
