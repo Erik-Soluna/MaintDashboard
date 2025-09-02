@@ -54,6 +54,11 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
+      args:
+        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-414}
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-11e13c5}
+        GIT_BRANCH: ${GIT_BRANCH:-latest}
+        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-2025-09-02}
     container_name: maintenance_web_prod
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["web"]
@@ -149,6 +154,11 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
+      args:
+        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-414}
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-11e13c5}
+        GIT_BRANCH: ${GIT_BRANCH:-latest}
+        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-2025-09-02}
     container_name: maintenance_celery_prod
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["celery"]
@@ -194,6 +204,11 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
+      args:
+        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-414}
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-11e13c5}
+        GIT_BRANCH: ${GIT_BRANCH:-latest}
+        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-2025-09-02}
     container_name: maintenance_celery_beat_prod
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["celery-beat"]
