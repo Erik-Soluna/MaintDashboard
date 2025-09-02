@@ -187,10 +187,25 @@ run_database_initialization() {
         if python manage.py ensure_database; then
             print_success "Database tables check completed successfully!"
         else
-            print_warning "Database tables check failed, retrying in $RETRY_DELAY seconds..."
-            sleep $RETRY_DELAY
-            retry_count=$((retry_count + 1))
-            continue
+            print_warning "Database tables check failed, attempting fresh database initialization..."
+            
+            # For fresh databases, try to resolve conflicts first
+            if resolve_migration_conflicts; then
+                print_success "Migration conflicts resolved, retrying database check..."
+                if python manage.py ensure_database; then
+                    print_success "Database tables check completed successfully after conflict resolution!"
+                else
+                    print_warning "Database tables check still failed after conflict resolution, retrying in $RETRY_DELAY seconds..."
+                    sleep $RETRY_DELAY
+                    retry_count=$((retry_count + 1))
+                    continue
+                fi
+            else
+                print_warning "Failed to resolve migration conflicts, retrying in $RETRY_DELAY seconds..."
+                sleep $RETRY_DELAY
+                retry_count=$((retry_count + 1))
+                continue
+            fi
         fi
         
         # Then run the standard initialization
@@ -264,6 +279,39 @@ resolve_migration_conflicts() {
     fi
     
     print_warning "Migration conflicts detected, attempting to resolve..."
+    
+    # Check if this is a fresh database (no django_migrations table)
+    if ! python manage.py dbshell -c "SELECT 1 FROM django_migrations LIMIT 1;" > /dev/null 2>&1; then
+        print_status "Fresh database detected, using fake-initial approach..."
+        
+        # For fresh databases, use fake-initial to bypass conflicts
+        if python manage.py migrate --fake-initial --noinput; then
+            print_success "Fresh database initialized with fake-initial migrations"
+            return 0
+        else
+            print_warning "Fake-initial failed, trying aggressive fresh database approach..."
+            
+            # Try to fake-apply all migrations individually
+            print_status "Attempting to fake-apply all migrations individually..."
+            python manage.py migrate admin --fake-initial --noinput || true
+            python manage.py migrate auth --fake-initial --noinput || true
+            python manage.py migrate contenttypes --fake-initial --noinput || true
+            python manage.py migrate sessions --fake-initial --noinput || true
+            python manage.py migrate core --fake-initial --noinput || true
+            python manage.py migrate equipment --fake-initial --noinput || true
+            python manage.py migrate maintenance --fake-initial --noinput || true
+            python manage.py migrate events --fake-initial --noinput || true
+            python manage.py migrate django_celery_beat --fake-initial --noinput || true
+            
+            # Now try to run migrations normally
+            if python manage.py migrate --noinput; then
+                print_success "Fresh database initialized with individual fake-initial migrations"
+                return 0
+            else
+                print_warning "Individual fake-initial also failed, trying standard merge approach..."
+            fi
+        fi
+    fi
     
     # Try to merge conflicting migrations
     print_status "Attempting to merge conflicting migrations..."
