@@ -3,7 +3,7 @@ Admin interface for equipment models.
 """
 
 from django.contrib import admin
-from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentCustomValue
+from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentCustomValue, EquipmentCategoryConditionalField
 
 
 class EquipmentDocumentInline(admin.TabularInline):
@@ -185,6 +185,47 @@ class EquipmentCustomValueAdmin(admin.ModelAdmin):
     def get_display_value(self, obj):
         return obj.get_display_value()
     get_display_value.short_description = 'Value'
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(EquipmentCategoryConditionalField)
+class EquipmentCategoryConditionalFieldAdmin(admin.ModelAdmin):
+    list_display = [
+        'target_category', 'field', 'source_category', 'is_active', 'get_effective_label'
+    ]
+    list_filter = [
+        'target_category', 'source_category', 'is_active', 'created_at'
+    ]
+    search_fields = [
+        'target_category__name', 'source_category__name', 'field__label', 'field__name'
+    ]
+    readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+    
+    fieldsets = (
+        ('Field Assignment', {
+            'fields': ('source_category', 'target_category', 'field', 'is_active')
+        }),
+        ('Field Overrides', {
+            'fields': (
+                'override_label', 'override_help_text', 'override_required',
+                'override_default_value', 'override_sort_order', 'override_field_group'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Audit Information', {
+            'fields': ('created_at', 'updated_at', 'created_by', 'updated_by'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_effective_label(self, obj):
+        return obj.get_effective_label()
+    get_effective_label.short_description = 'Effective Label'
     
     def save_model(self, request, obj, form, change):
         if not change:

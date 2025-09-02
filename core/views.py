@@ -721,6 +721,134 @@ def equipment_items_settings(request):
 
 @login_required
 @user_passes_test(is_staff_or_superuser)
+def equipment_conditional_fields_settings(request):
+    """Equipment conditional fields management view."""
+    from equipment.models import EquipmentCategoryField, EquipmentCategoryConditionalField
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'create_conditional_field':
+            source_category_id = request.POST.get('source_category')
+            target_category_id = request.POST.get('target_category')
+            field_id = request.POST.get('field')
+            
+            try:
+                source_category = EquipmentCategory.objects.get(id=source_category_id)
+                target_category = EquipmentCategory.objects.get(id=target_category_id)
+                field = EquipmentCategoryField.objects.get(id=field_id)
+                
+                # Check if assignment already exists
+                existing = EquipmentCategoryConditionalField.objects.filter(
+                    target_category=target_category,
+                    field=field
+                ).first()
+                
+                if existing:
+                    messages.warning(request, f'Field "{field.label}" is already assigned to "{target_category.name}".')
+                else:
+                    conditional_field = EquipmentCategoryConditionalField.objects.create(
+                        source_category=source_category,
+                        target_category=target_category,
+                        field=field,
+                        created_by=request.user
+                    )
+                    messages.success(request, f'Field "{field.label}" from "{source_category.name}" assigned to "{target_category.name}".')
+                    
+            except (EquipmentCategory.DoesNotExist, EquipmentCategoryField.DoesNotExist):
+                messages.error(request, 'Invalid category or field selection.')
+        
+        elif action == 'delete_conditional_field':
+            conditional_field_id = request.POST.get('conditional_field_id')
+            try:
+                conditional_field = EquipmentCategoryConditionalField.objects.get(id=conditional_field_id)
+                field_label = conditional_field.field.label
+                target_category_name = conditional_field.target_category.name
+                conditional_field.delete()
+                messages.success(request, f'Conditional field "{field_label}" removed from "{target_category_name}".')
+            except EquipmentCategoryConditionalField.DoesNotExist:
+                messages.error(request, 'Conditional field not found.')
+        
+        elif action == 'toggle_conditional_field':
+            conditional_field_id = request.POST.get('conditional_field_id')
+            try:
+                conditional_field = EquipmentCategoryConditionalField.objects.get(id=conditional_field_id)
+                conditional_field.is_active = not conditional_field.is_active
+                conditional_field.save()
+                status = 'enabled' if conditional_field.is_active else 'disabled'
+                messages.success(request, f'Conditional field "{conditional_field.field.label}" {status}.')
+            except EquipmentCategoryConditionalField.DoesNotExist:
+                messages.error(request, 'Conditional field not found.')
+        
+        return redirect('core:equipment_conditional_fields_settings')
+    
+    # Get all categories with their custom fields
+    categories = EquipmentCategory.objects.filter(is_active=True).prefetch_related('custom_fields').order_by('name')
+    
+    # Get all conditional field assignments
+    conditional_fields = EquipmentCategoryConditionalField.objects.select_related(
+        'source_category', 'target_category', 'field'
+    ).order_by('target_category__name', 'field__label')
+    
+    # Group conditional fields by target category
+    conditional_fields_by_category = {}
+    for cf in conditional_fields:
+        target_name = cf.target_category.name
+        if target_name not in conditional_fields_by_category:
+            conditional_fields_by_category[target_name] = []
+        conditional_fields_by_category[target_name].append(cf)
+    
+    context = {
+        'categories': categories,
+        'conditional_fields': conditional_fields,
+        'conditional_fields_by_category': conditional_fields_by_category,
+    }
+    return render(request, 'core/equipment_conditional_fields_settings.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def category_fields_api(request, category_id):
+    """API endpoint to get fields for a specific equipment category."""
+    from equipment.models import EquipmentCategoryField
+    
+    try:
+        category = EquipmentCategory.objects.get(id=category_id)
+        fields = EquipmentCategoryField.objects.filter(
+            category=category,
+            is_active=True
+        ).order_by('sort_order')
+        
+        fields_data = []
+        for field in fields:
+            fields_data.append({
+                'id': field.id,
+                'name': field.name,
+                'label': field.label,
+                'field_type': field.field_type,
+                'required': field.required,
+                'help_text': field.help_text,
+                'field_group': field.field_group or 'General',
+            })
+        
+        return JsonResponse({
+            'status': 'success',
+            'category': {
+                'id': category.id,
+                'name': category.name,
+            },
+            'fields': fields_data,
+        })
+        
+    except EquipmentCategory.DoesNotExist:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Category not found'
+        }, status=404)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
 def user_management(request):
     """Enhanced user management view with role assignment."""
     if request.method == 'POST':

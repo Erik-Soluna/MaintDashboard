@@ -28,6 +28,7 @@ urlpatterns = [
     path('map/', views.map_view, name='map_view'),
     path('locations/settings/', views.locations_settings, name='locations_settings'),
     path('equipment-items/settings/', views.equipment_items_settings, name='equipment_items_settings'),
+    path('equipment-conditional-fields/settings/', views.equipment_conditional_fields_settings, name='equipment_conditional_fields_settings'),
     path('equipment-categories/settings/', views.equipment_categories_settings, name='equipment_categories_settings'),
     
     # Debug and utility URLs
@@ -67,6 +68,7 @@ urlpatterns = [
     path('api/roles/', views.roles_api, name='roles_api'),
     path('api/roles/<int:role_id>/', views.role_detail_api, name='role_detail_api'),
     path('api/endpoint-metrics/', views.endpoint_metrics_api, name='endpoint_metrics_api'),
+    path('api/categories/<int:category_id>/fields/', views.category_fields_api, name='category_fields_api'),
     path('api/playwright-debug/', views.playwright_debug_api, name='playwright_debug_api'),
     path('api/playwright/natural-language/', views.run_natural_language_test_api, name='run_natural_language_test_api'),
     path('api/playwright/rbac-suite/', views.run_rbac_test_suite_api, name='run_rbac_test_suite_api'),

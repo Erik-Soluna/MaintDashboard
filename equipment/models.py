@@ -346,6 +346,92 @@ class Equipment(TimeStampedModel):
             groups[group].append(field)
         return groups
 
+    def get_conditional_fields(self):
+        """Get conditional fields assigned to this equipment's category."""
+        if not self.category:
+            return EquipmentCategoryConditionalField.objects.none()
+        
+        return EquipmentCategoryConditionalField.objects.filter(
+            target_category=self.category,
+            is_active=True
+        ).select_related('field', 'source_category').order_by('override_sort_order', 'field__sort_order')
+
+    def get_all_custom_fields(self):
+        """Get both native and conditional custom fields for this equipment."""
+        # Get native fields from the equipment's category
+        native_fields = self.get_custom_fields()
+        
+        # Get conditional fields assigned to this category
+        conditional_fields = self.get_conditional_fields()
+        
+        # Create a combined list with conditional field overrides
+        all_fields = []
+        
+        # Add native fields
+        for field in native_fields:
+            all_fields.append({
+                'field': field,
+                'is_conditional': False,
+                'source_category': field.category,
+                'effective_label': field.label,
+                'effective_help_text': field.help_text,
+                'effective_required': field.required,
+                'effective_default_value': field.default_value,
+                'effective_sort_order': field.sort_order,
+                'effective_field_group': field.field_group or 'General',
+            })
+        
+        # Add conditional fields
+        for conditional in conditional_fields:
+            all_fields.append({
+                'field': conditional.field,
+                'is_conditional': True,
+                'source_category': conditional.source_category,
+                'effective_label': conditional.get_effective_label(),
+                'effective_help_text': conditional.get_effective_help_text(),
+                'effective_required': conditional.get_effective_required(),
+                'effective_default_value': conditional.get_effective_default_value(),
+                'effective_sort_order': conditional.get_effective_sort_order(),
+                'effective_field_group': conditional.get_effective_field_group(),
+            })
+        
+        # Sort by effective sort order
+        all_fields.sort(key=lambda x: x['effective_sort_order'])
+        return all_fields
+
+    def get_all_custom_fields_by_group(self):
+        """Get all custom fields (native and conditional) grouped by field_group."""
+        fields = self.get_all_custom_fields()
+        groups = {}
+        for field_info in fields:
+            group = field_info['effective_field_group']
+            if group not in groups:
+                groups[group] = []
+            groups[group].append(field_info)
+        return groups
+
+    def get_conditional_value(self, field_name):
+        """Get the value of a conditional field by name."""
+        try:
+            conditional = self.get_conditional_fields().get(field__name=field_name)
+            value_obj = self.custom_values.filter(field=conditional.field).first()
+            if value_obj:
+                return value_obj.get_display_value()
+            return conditional.get_effective_default_value()
+        except EquipmentCategoryConditionalField.DoesNotExist:
+            return None
+
+    def set_conditional_value(self, field_name, value):
+        """Set the value of a conditional field by name."""
+        try:
+            conditional = self.get_conditional_fields().get(field__name=field_name)
+            value_obj, created = self.custom_values.get_or_create(field=conditional.field)
+            value_obj.set_value(value)
+            value_obj.save()
+            return value_obj
+        except EquipmentCategoryConditionalField.DoesNotExist:
+            return None
+
 
 class EquipmentDocument(TimeStampedModel):
     """
@@ -728,3 +814,120 @@ class EquipmentCustomValue(TimeStampedModel):
         else:
             self.value = str(value) if value is not None else ""
             self.values_json = ""
+
+
+class EquipmentCategoryConditionalField(TimeStampedModel):
+    """
+    Conditional field assignments for equipment categories.
+    This allows configuring which fields are available for specific equipment categories.
+    For example: "oil_type" field only for "Transformers" category, not for "Switchgear".
+    """
+    
+    source_category = models.ForeignKey(
+        EquipmentCategory,
+        on_delete=models.CASCADE,
+        related_name='conditional_field_sources',
+        help_text="Equipment category that provides the field"
+    )
+    
+    target_category = models.ForeignKey(
+        EquipmentCategory,
+        on_delete=models.CASCADE,
+        related_name='conditional_field_targets',
+        help_text="Equipment category that receives the field"
+    )
+    
+    field = models.ForeignKey(
+        EquipmentCategoryField,
+        on_delete=models.CASCADE,
+        related_name='conditional_assignments',
+        help_text="The field to conditionally assign"
+    )
+    
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Is this conditional field assignment active?"
+    )
+    
+    # Optional: Override field properties for the target category
+    override_label = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Override the field label for this category (optional)"
+    )
+    
+    override_help_text = models.TextField(
+        blank=True,
+        help_text="Override the help text for this category (optional)"
+    )
+    
+    override_required = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="Override the required setting for this category (optional)"
+    )
+    
+    override_default_value = models.TextField(
+        blank=True,
+        help_text="Override the default value for this category (optional)"
+    )
+    
+    override_sort_order = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Override the sort order for this category (optional)"
+    )
+    
+    override_field_group = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Override the field group for this category (optional)"
+    )
+
+    class Meta:
+        verbose_name = "Equipment Category Conditional Field"
+        verbose_name_plural = "Equipment Category Conditional Fields"
+        ordering = ['target_category', 'override_sort_order', 'field__sort_order']
+        unique_together = ['target_category', 'field']
+        indexes = [
+            models.Index(fields=['source_category', 'target_category']),
+            models.Index(fields=['target_category', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.target_category.name} ← {self.field.label} (from {self.source_category.name})"
+
+    def clean(self):
+        """Validate conditional field assignment."""
+        if self.source_category == self.target_category:
+            raise ValidationError("Source and target categories cannot be the same.")
+        
+        # Ensure the field belongs to the source category
+        if self.field.category != self.source_category:
+            raise ValidationError("Field must belong to the source category.")
+
+    def get_effective_label(self):
+        """Get the effective label (original or override)."""
+        return self.override_label or self.field.label
+
+    def get_effective_help_text(self):
+        """Get the effective help text (original or override)."""
+        return self.override_help_text or self.field.help_text
+
+    def get_effective_required(self):
+        """Get the effective required setting (original or override)."""
+        if self.override_required is not None:
+            return self.override_required
+        return self.field.required
+
+    def get_effective_default_value(self):
+        """Get the effective default value (original or override)."""
+        return self.override_default_value or self.field.default_value
+
+    def get_effective_sort_order(self):
+        """Get the effective sort order (original or override)."""
+        return self.override_sort_order or self.field.sort_order
+
+    def get_effective_field_group(self):
+        """Get the effective field group (original or override)."""
+        return self.override_field_group or self.field.field_group or 'General'
