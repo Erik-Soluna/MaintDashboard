@@ -4391,6 +4391,13 @@ def comprehensive_health_check(request):
     try:
         health_data = get_comprehensive_system_health()
         return JsonResponse(health_data)
+    except Exception as e:
+        logger.error(f"Error in comprehensive health check: {str(e)}")
+        return JsonResponse({
+            'error': str(e),
+            'status': 'error',
+            'timestamp': timezone.now().isoformat()
+        }, status=500)
 
 
 @login_required
@@ -4400,12 +4407,6 @@ def health_check_view(request):
         return render(request, 'core/access_denied.html', {'message': 'Access denied'})
     
     return render(request, 'core/health_check.html')
-    except Exception as e:
-        return JsonResponse({
-            'timestamp': timezone.now().isoformat(),
-            'overall_status': 'error',
-            'error': str(e)
-        }, status=500)
 
 
 @login_required
