@@ -1904,14 +1904,6 @@ def health_check_view(request):
         return render(request, 'core/access_denied.html', {'message': 'Access denied'})
     
     return render(request, 'core/health_check.html')
-        
-    except Exception as e:
-        logger.error(f"Error in health check API: {str(e)}")
-        return JsonResponse({
-            'timestamp': timezone.now().isoformat(),
-            'status': 'error',
-            'error': str(e)
-        }, status=500)
 
 
 @csrf_exempt
