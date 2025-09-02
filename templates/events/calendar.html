@@ -1091,6 +1091,8 @@ function initializeCalendar() {
     console.log('initializeCalendar called');
     console.log('calendarEl:', calendarEl);
     console.log('eventsUrl:', eventsUrl);
+    console.log('FullCalendar available:', typeof FullCalendar !== 'undefined');
+    console.log('FullCalendar.Calendar available:', typeof FullCalendar !== 'undefined' && typeof FullCalendar.Calendar !== 'undefined');
 
     // Get user's preferred timezone or default to Central Time
     const userTimezone = localStorage.getItem('userTimezone') || 'America/Chicago';
