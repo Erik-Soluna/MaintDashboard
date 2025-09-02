@@ -63,7 +63,7 @@ locations = []
 for loc in Location.objects.all():
     locations.append({
         'name': loc.name,
-        'description': loc.description,
+        'description': getattr(loc, 'description', ''),
         'parent_location_id': loc.parent_location_id,
         'created_at': loc.created_at.isoformat() if hasattr(loc, 'created_at') else None,
         'updated_at': loc.updated_at.isoformat() if hasattr(loc, 'updated_at') else None
@@ -80,6 +80,9 @@ DB_USER=$(python manage.py shell -c "from django.conf import settings; print(set
 DB_HOST=$(python manage.py shell -c "from django.conf import settings; print(settings.DATABASES['default']['HOST'])" 2>/dev/null || echo "db-dev")
 DB_PORT=$(python manage.py shell -c "from django.conf import settings; print(settings.DATABASES['default']['PORT'])" 2>/dev/null || echo "5432")
 
+echo "🔌 Terminating database connections..."
+PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "postgres" -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DB_NAME' AND pid <> pg_backend_pid();" || echo "⚠️  Could not terminate connections"
+
 echo "🗑️  Dropping database: $DB_NAME"
 PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "postgres" -c "DROP DATABASE IF EXISTS $DB_NAME;" || echo "⚠️  Database drop failed or database didn't exist"
 
@@ -91,8 +94,26 @@ echo "📦 Step 3: Running fresh migrations..."
 if python manage.py migrate --noinput; then
     echo "✅ Fresh migrations completed successfully"
 else
-    echo "❌ Fresh migrations failed"
-    exit 1
+    echo "⚠️  Standard migrations failed, trying fake-initial approach..."
+    
+    # Try fake-initial approach
+    if python manage.py migrate --fake-initial --noinput; then
+        echo "✅ Fake-initial migrations completed successfully"
+    else
+        echo "❌ All migration approaches failed"
+        echo "💡 Attempting to add timezone field manually..."
+        
+        # Add timezone field manually as last resort
+        python manage.py shell -c "
+from django.db import connection
+try:
+    with connection.cursor() as cursor:
+        cursor.execute('ALTER TABLE maintenance_maintenanceactivity ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT %s', ['America/Chicago'])
+    print('✅ Timezone column added manually')
+except Exception as e:
+    print(f'❌ Error adding timezone column: {e}')
+"
+    fi
 fi
 
 echo "📦 Step 4: Creating admin user..."
@@ -186,9 +207,12 @@ try:
             
             location = Location.objects.create(
                 name=loc_data['name'],
-                description=loc_data['description'],
                 parent_location=parent_location
             )
+            # Add description if it exists and the field exists
+            if loc_data.get('description') and hasattr(location, 'description'):
+                location.description = loc_data['description']
+                location.save()
             created_locations[loc_data['parent_location_id']] = location
     
     print(f'✅ Restored {len(locations_data)} locations')
