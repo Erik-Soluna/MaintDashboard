@@ -108,4 +108,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
 ENTRYPOINT ["./scripts/deployment/docker-entrypoint.sh"]
 
 # Default command
-CMD ["web"]
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

@@ -61,7 +61,7 @@ services:
         GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-2025-09-02}
     container_name: maintenance_web_prod
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
-    command: ["web"]
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
