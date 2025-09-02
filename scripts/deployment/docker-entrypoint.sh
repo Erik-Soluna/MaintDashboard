@@ -185,10 +185,8 @@ run_database_initialization() {
             continue
         fi
         
-        # Run comprehensive database check and initialization
-        print_status "Running comprehensive database check and initialization..."
-        
-        # First, check if this is a fresh database and handle it specially
+        # FIRST: Check if this is a fresh database and handle it specially
+        print_status "DEBUG: Checking if django_migrations table exists..."
         if ! echo "SELECT 1 FROM django_migrations LIMIT 1;" | python manage.py dbshell > /dev/null 2>&1; then
             print_status "Fresh database detected, using clean slate approach..."
             
@@ -211,8 +209,13 @@ run_database_initialization() {
             
             # Create fresh initial migrations from current models
             print_status "Creating fresh initial migrations from models..."
+            print_status "DEBUG: Listing migration files before makemigrations..."
+            find . -path "*/migrations/*.py" -not -name "__init__.py" | head -10 || true
+            
             if python manage.py makemigrations --noinput; then
                 print_success "Fresh initial migrations created successfully"
+                print_status "DEBUG: Listing migration files after makemigrations..."
+                find . -path "*/migrations/*.py" -not -name "__init__.py" | head -10 || true
                 
                 # Apply the fresh migrations
                 if python manage.py migrate --noinput; then
