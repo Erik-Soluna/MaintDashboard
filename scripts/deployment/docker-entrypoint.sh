@@ -207,14 +207,18 @@ run_database_initialization() {
                     if python manage.py migrate --noinput; then
                         print_success "Fresh database initialized with direct migrations"
                     else
-                        print_warning "All migration approaches failed, retrying in $RETRY_DELAY seconds..."
-                        sleep $RETRY_DELAY
-                        retry_count=$((retry_count + 1))
-                        continue
+                        print_warning "All migration approaches failed, trying nuclear option immediately..."
+                        # Skip retry and go directly to nuclear option
+                        goto_nuclear=true
                     fi
                 fi
             else
                 print_warning "Migration merge failed, trying nuclear option..."
+                goto_nuclear=true
+            fi
+            
+            # If we need to go to nuclear option, do it now
+            if [ "$goto_nuclear" = "true" ]; then
                 
                 # Nuclear option: Create django_migrations table manually and fake-apply all migrations
                 print_status "Creating django_migrations table manually..."
@@ -259,6 +263,10 @@ run_database_initialization() {
                     
                     print_success "Fresh database initialized with ultimate nuclear option"
                 fi
+            fi
+            else
+                # If we didn't need nuclear option, we're done
+                print_success "Fresh database initialization completed successfully"
             fi
         else
             # Existing database - use standard approach
