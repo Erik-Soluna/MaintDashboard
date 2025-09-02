@@ -81,7 +81,12 @@ ensure_database_exists() {
         # Use postgres superuser for database operations
         DB_CREATE_USER="postgres"
         DB_CREATE_PASSWORD="${POSTGRES_PASSWORD:-SecureProdPassword2024!}"
+    elif [ "$DB_USER" = "maintenance_user_dev" ]; then
+        # For dev environment, the database user is also the superuser
+        DB_CREATE_USER="$DB_USER"
+        DB_CREATE_PASSWORD="$DB_PASSWORD"
     else
+        # Fallback for other configurations
         DB_CREATE_USER="$DB_USER"
         DB_CREATE_PASSWORD="$DB_PASSWORD"
     fi
@@ -157,18 +162,18 @@ run_database_initialization() {
         
         # Test direct connection to postgres container
         print_status "🔍 TESTING DIRECT POSTGRES CONNECTION:"
-        print_status "  Testing with user: postgres"
-        print_status "  Testing with password: ${POSTGRES_PASSWORD:0:10}..."
+        print_status "  Testing with user: ${DB_USER:-maintenance_user}"
+        print_status "  Testing with password: ${DB_PASSWORD:0:10}..."
         
-        if PGPASSWORD="$POSTGRES_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "postgres" -d "postgres" -c "SELECT version();" > /dev/null 2>&1; then
-            print_success "✅ Direct postgres connection successful!"
+        if PGPASSWORD="$DB_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "${DB_USER:-maintenance_user}" -d "${DB_NAME:-maintenance_dashboard}" -c "SELECT version();" > /dev/null 2>&1; then
+            print_success "✅ Direct database connection successful!"
         else
-            print_error "❌ Direct postgres connection failed!"
-            print_status "  Trying to connect with default password..."
-            if PGPASSWORD="SecureProdPassword2024!" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "postgres" -d "postgres" -c "SELECT version();" > /dev/null 2>&1; then
-                print_success "✅ Direct postgres connection successful with default password!"
+            print_error "❌ Direct database connection failed!"
+            print_status "  Trying to connect with postgres superuser..."
+            if PGPASSWORD="$POSTGRES_PASSWORD" psql -h "${DB_HOST:-db}" -p "${DB_PORT:-5432}" -U "postgres" -d "postgres" -c "SELECT version();" > /dev/null 2>&1; then
+                print_success "✅ Direct postgres superuser connection successful!"
             else
-                print_error "❌ Direct postgres connection failed with default password too!"
+                print_error "❌ Direct postgres superuser connection failed too!"
             fi
         fi
         
