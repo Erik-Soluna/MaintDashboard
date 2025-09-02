@@ -1887,6 +1887,14 @@ def health_check_api(request):
         health_data['overall_status'] = overall_status
         
         return JsonResponse(health_data)
+        
+    except Exception as e:
+        logger.error(f"Error in health check API: {str(e)}")
+        return JsonResponse({
+            'error': str(e),
+            'status': 'error',
+            'timestamp': timezone.now().isoformat()
+        }, status=500)
 
 
 @login_required
