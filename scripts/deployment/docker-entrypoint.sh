@@ -190,18 +190,28 @@ initialize_fresh_database() {
     find . -path "*/migrations/*.py" -not -name "__init__.py" -delete 2>/dev/null || true
     find . -path "*/migrations/*.pyc" -delete 2>/dev/null || true
     
-    # Clean up all existing tables for a completely fresh start
-    print_status "🧹 Cleaning up all existing tables for fresh start..."
-    echo "
-        DO \$\$
-        DECLARE
-            r RECORD;
-        BEGIN
-            FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
-                EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
-            END LOOP;
-        END \$\$;
-    " | python manage.py dbshell > /dev/null 2>&1 || true
+    # Drop and recreate the entire database for a completely fresh start
+    print_status "🧹 Dropping and recreating database for completely fresh start..."
+    
+    # Drop the database (connect to postgres database first)
+    if PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "postgres" -d "postgres" -c "DROP DATABASE IF EXISTS \"$DB_NAME\";" > /dev/null 2>&1; then
+        print_success "✅ Database '$DB_NAME' dropped successfully"
+    else
+        print_warning "⚠️ Failed to drop database, trying alternative approach..."
+        # Alternative: terminate connections and drop
+        PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "postgres" -d "postgres" -c "
+            SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DB_NAME' AND pid <> pg_backend_pid();
+            DROP DATABASE IF EXISTS \"$DB_NAME\";
+        " > /dev/null 2>&1 || true
+    fi
+    
+    # Recreate the database
+    if PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "postgres" -d "postgres" -c "CREATE DATABASE \"$DB_NAME\";" > /dev/null 2>&1; then
+        print_success "✅ Database '$DB_NAME' recreated successfully"
+    else
+        print_error "❌ Failed to recreate database"
+        exit 1
+    fi
     
     print_status "📝 Creating fresh initial migrations..."
     if python manage.py makemigrations --noinput; then
