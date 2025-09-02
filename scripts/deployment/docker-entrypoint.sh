@@ -120,8 +120,25 @@ ensure_database_exists() {
 
 # Initialize database
 initialize_database() {
-    # Check if this is a fresh database
-    if ! echo "SELECT 1 FROM django_migrations LIMIT 1;" | python manage.py dbshell > /dev/null 2>&1; then
+    # Check if this is a fresh database by looking for both django_migrations table AND actual data
+    local has_migrations_table=false
+    local has_actual_tables=false
+    
+    # Check if django_migrations table exists
+    if echo "SELECT 1 FROM django_migrations LIMIT 1;" | python manage.py dbshell > /dev/null 2>&1; then
+        has_migrations_table=true
+    fi
+    
+    # Check if we have actual application tables (not just Django system tables)
+    if echo "SELECT 1 FROM core_userprofile LIMIT 1;" | python manage.py dbshell > /dev/null 2>&1; then
+        has_actual_tables=true
+    fi
+    
+    # If we have migrations table but no actual tables, it's a corrupted state - treat as fresh
+    if [ "$has_migrations_table" = "true" ] && [ "$has_actual_tables" = "false" ]; then
+        print_status "🆕 Corrupted database state detected - using clean initialization"
+        initialize_fresh_database
+    elif [ "$has_migrations_table" = "false" ]; then
         print_status "🆕 Fresh database detected - using clean initialization"
         initialize_fresh_database
     else
@@ -151,6 +168,10 @@ initialize_fresh_database() {
     # Remove all migration files except __init__.py
     find . -path "*/migrations/*.py" -not -name "__init__.py" -delete 2>/dev/null || true
     find . -path "*/migrations/*.pyc" -delete 2>/dev/null || true
+    
+    # Clean up any corrupted django_migrations table
+    print_status "🧹 Cleaning up corrupted migration state..."
+    echo "DROP TABLE IF EXISTS django_migrations CASCADE;" | python manage.py dbshell > /dev/null 2>&1 || true
     
     print_status "📝 Creating fresh initial migrations..."
     if python manage.py makemigrations --noinput; then
