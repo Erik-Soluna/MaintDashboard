@@ -1093,11 +1093,29 @@ function initializeCalendar() {
     console.log('eventsUrl:', eventsUrl);
     console.log('FullCalendar available:', typeof FullCalendar !== 'undefined');
     console.log('FullCalendar.Calendar available:', typeof FullCalendar !== 'undefined' && typeof FullCalendar.Calendar !== 'undefined');
+    
+    // Check if calendar element exists
+    if (!calendarEl) {
+        console.error('Calendar element not found!');
+        return;
+    }
+    
+    // Check if FullCalendar is loaded
+    if (typeof FullCalendar === 'undefined') {
+        console.error('FullCalendar library not loaded!');
+        return;
+    }
+    
+    if (typeof FullCalendar.Calendar === 'undefined') {
+        console.error('FullCalendar.Calendar constructor not available!');
+        return;
+    }
 
     // Get user's preferred timezone or default to Central Time
     const userTimezone = localStorage.getItem('userTimezone') || 'America/Chicago';
     
-    var calendar = new FullCalendar.Calendar(calendarEl, {
+    try {
+        var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         height: 'auto',
         timeZone: userTimezone, // Use user's preferred timezone
@@ -1275,15 +1293,21 @@ function initializeCalendar() {
             // Apply legend visibility filtering
             applyLegendVisibilityToEvent(info.event);
         }
-    });
-    calendar.render();
-    window.calendar = calendar;
-    updateActiveFilters();
-    
-    // Apply initial filtering after a short delay to ensure events are loaded
-    setTimeout(() => {
-        applyClientSideFiltering();
-    }, 1000);
+        });
+        calendar.render();
+        window.calendar = calendar;
+        updateActiveFilters();
+        
+        // Apply initial filtering after a short delay to ensure events are loaded
+        setTimeout(() => {
+            applyClientSideFiltering();
+        }, 1000);
+        
+        console.log('Calendar initialized successfully');
+    } catch (error) {
+        console.error('Error initializing calendar:', error);
+        console.error('Error details:', error.message, error.stack);
+    }
 }
 
 function updateCalendar() {
@@ -2459,10 +2483,10 @@ function initializeTimezone() {
         }
     }
     
-    // Set calendar timezone to match user preference
-    if (window.calendar) {
-        window.calendar.setOption('timeZone', timezoneSelect.value);
-    }
+         // Set calendar timezone to match user preference
+     if (window.calendar && window.calendar.setOption) {
+         window.calendar.setOption('timeZone', timezoneSelect.value);
+     }
     
     // Save timezone preference to user profile
     saveTimezonePreference(timezoneSelect.value);
@@ -2472,12 +2496,12 @@ function changeTimezone() {
     const timezoneSelect = document.getElementById('timezoneSelect');
     const selectedTimezone = timezoneSelect.value;
     
-    // Update calendar timezone if it exists
-    if (window.calendar) {
-        window.calendar.setOption('timeZone', selectedTimezone);
-        // Refresh events to show in new timezone
-        window.calendar.refetchEvents();
-    }
+         // Update calendar timezone if it exists
+     if (window.calendar && window.calendar.setOption) {
+         window.calendar.setOption('timeZone', selectedTimezone);
+         // Refresh events to show in new timezone
+         window.calendar.refetchEvents();
+     }
     
     // Save timezone preference
     saveTimezonePreference(selectedTimezone);
