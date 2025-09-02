@@ -187,29 +187,46 @@ run_database_initialization() {
         if ! python manage.py dbshell -c "SELECT 1 FROM django_migrations LIMIT 1;" > /dev/null 2>&1; then
             print_status "Fresh database detected, using fake-initial approach..."
             
-            # For fresh databases, use fake-initial to bypass conflicts entirely
-            if python manage.py migrate --fake-initial --noinput; then
-                print_success "Fresh database initialized with fake-initial migrations"
-            else
-                print_warning "Fake-initial failed, trying individual app approach..."
-                
-                # Try to fake-apply all migrations individually
-                print_status "Attempting to fake-apply all migrations individually..."
-                python manage.py migrate admin --fake-initial --noinput || true
-                python manage.py migrate auth --fake-initial --noinput || true
-                python manage.py migrate contenttypes --fake-initial --noinput || true
-                python manage.py migrate sessions --fake-initial --noinput || true
-                python manage.py migrate core --fake-initial --noinput || true
-                python manage.py migrate equipment --fake-initial --noinput || true
-                python manage.py migrate maintenance --fake-initial --noinput || true
-                python manage.py migrate events --fake-initial --noinput || true
-                python manage.py migrate django_celery_beat --fake-initial --noinput || true
-                
-                # Now try to run migrations normally
-                if python manage.py migrate --noinput; then
-                    print_success "Fresh database initialized with individual fake-initial migrations"
+            # For fresh databases, use aggressive approach to bypass conflicts entirely
+            print_status "Using aggressive fresh database initialization..."
+            
+            # First, try to merge the conflicting migrations
+            if python manage.py makemigrations --merge --noinput; then
+                print_success "Migration conflicts merged successfully"
+                # Now try fake-initial
+                if python manage.py migrate --fake-initial --noinput; then
+                    print_success "Fresh database initialized with merged migrations"
                 else
-                    print_warning "Individual fake-initial also failed, retrying in $RETRY_DELAY seconds..."
+                    print_warning "Fake-initial still failed after merge, trying direct approach..."
+                    # Try direct migration without fake-initial
+                    if python manage.py migrate --noinput; then
+                        print_success "Fresh database initialized with direct migrations"
+                    else
+                        print_warning "All migration approaches failed, retrying in $RETRY_DELAY seconds..."
+                        sleep $RETRY_DELAY
+                        retry_count=$((retry_count + 1))
+                        continue
+                    fi
+                fi
+            else
+                print_warning "Migration merge failed, trying nuclear option..."
+                
+                # Nuclear option: Create django_migrations table manually and fake-apply all migrations
+                print_status "Creating django_migrations table manually..."
+                python manage.py dbshell -c "
+                    CREATE TABLE IF NOT EXISTS django_migrations (
+                        id SERIAL PRIMARY KEY,
+                        app VARCHAR(255) NOT NULL,
+                        name VARCHAR(255) NOT NULL,
+                        applied TIMESTAMP WITH TIME ZONE NOT NULL
+                    );
+                " || true
+                
+                # Try fake-initial again
+                if python manage.py migrate --fake-initial --noinput; then
+                    print_success "Fresh database initialized with manual migrations table"
+                else
+                    print_warning "Manual approach also failed, retrying in $RETRY_DELAY seconds..."
                     sleep $RETRY_DELAY
                     retry_count=$((retry_count + 1))
                     continue
