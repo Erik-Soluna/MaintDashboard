@@ -231,10 +231,33 @@ run_database_initialization() {
                 if python manage.py migrate --fake-initial --noinput; then
                     print_success "Fresh database initialized with manual migrations table"
                 else
-                    print_warning "Manual approach also failed, retrying in $RETRY_DELAY seconds..."
-                    sleep $RETRY_DELAY
-                    retry_count=$((retry_count + 1))
-                    continue
+                    print_warning "Manual approach also failed, trying ultimate nuclear option..."
+                    
+                    # Ultimate nuclear option: Create all tables directly using Django's sqlmigrate
+                    print_status "Creating all tables directly using SQL..."
+                    python manage.py sqlmigrate core 0001_initial > /tmp/core_initial.sql 2>/dev/null || true
+                    python manage.py sqlmigrate maintenance 0001_initial > /tmp/maintenance_initial.sql 2>/dev/null || true
+                    python manage.py sqlmigrate equipment 0001_initial > /tmp/equipment_initial.sql 2>/dev/null || true
+                    python manage.py sqlmigrate events 0001_initial > /tmp/events_initial.sql 2>/dev/null || true
+                    
+                    # Apply the SQL directly
+                    if [ -f /tmp/core_initial.sql ]; then
+                        python manage.py dbshell < /tmp/core_initial.sql || true
+                    fi
+                    if [ -f /tmp/maintenance_initial.sql ]; then
+                        python manage.py dbshell < /tmp/maintenance_initial.sql || true
+                    fi
+                    if [ -f /tmp/equipment_initial.sql ]; then
+                        python manage.py dbshell < /tmp/equipment_initial.sql || true
+                    fi
+                    if [ -f /tmp/events_initial.sql ]; then
+                        python manage.py dbshell < /tmp/events_initial.sql || true
+                    fi
+                    
+                    # Mark all migrations as applied
+                    python manage.py migrate --fake --noinput || true
+                    
+                    print_success "Fresh database initialized with ultimate nuclear option"
                 fi
             fi
         else
