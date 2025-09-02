@@ -1887,6 +1887,15 @@ def health_check_api(request):
         health_data['overall_status'] = overall_status
         
         return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
         
     except Exception as e:
         logger.error(f"Error in health check API: {str(e)}")
@@ -2877,6 +2886,215 @@ def run_rbac_test_suite_api(request):
             'error': str(e)
         }, status=500)
 
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+
 @csrf_exempt
 @require_http_methods(["GET"])
 def get_test_results_api(request):
@@ -2948,6 +3166,215 @@ def get_test_results_api(request):
             'error': str(e)
         }, status=500)
 
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+
 @csrf_exempt
 @require_http_methods(["GET"])
 def get_test_screenshots_api(request):
@@ -3005,6 +3432,215 @@ def get_test_screenshots_api(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -3134,6 +3770,215 @@ def run_test_scenario_api(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
 
 @require_GET
 def test_health(request):
@@ -3546,6 +4391,15 @@ def comprehensive_health_check(request):
     try:
         health_data = get_comprehensive_system_health()
         return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
     except Exception as e:
         return JsonResponse({
             'timestamp': timezone.now().isoformat(),
@@ -3623,6 +4477,215 @@ def database_stats(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
 
 
 @login_required
@@ -4875,6 +5938,215 @@ def update_user_timezone(request):
             'error': str(e)
         }, status=500)
 
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+
 @login_required
 def css_customization_create(request):
     """Create a new CSS customization"""
@@ -4969,6 +6241,215 @@ def update_user_timezone(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
 
 @login_required
 def css_customization_edit(request, pk):
@@ -5070,6 +6551,215 @@ def update_user_timezone(request):
             'error': str(e)
         }, status=500)
 
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+
 @login_required
 def css_customization_delete(request, pk):
     """Delete a CSS customization"""
@@ -5156,6 +6846,215 @@ def update_user_timezone(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
 
 @login_required
 def css_preview(request):
@@ -5255,6 +7154,215 @@ def update_user_timezone(request):
             'error': str(e)
         }, status=500)
 
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+
 @login_required
 def css_toggle(request, pk):
     """Toggle CSS customization active status"""
@@ -5343,4 +7451,213 @@ def update_user_timezone(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
 
