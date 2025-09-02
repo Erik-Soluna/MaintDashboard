@@ -124,14 +124,29 @@ initialize_database() {
     local has_migrations_table=false
     local has_actual_tables=false
     
+    print_status "🔍 DEBUG: Checking database state..."
+    
     # Check if django_migrations table exists
     if echo "SELECT 1 FROM django_migrations LIMIT 1;" | python manage.py dbshell > /dev/null 2>&1; then
         has_migrations_table=true
+        print_status "🔍 DEBUG: django_migrations table exists"
+    else
+        print_status "🔍 DEBUG: django_migrations table does not exist"
     fi
     
     # Check if we have actual application tables (not just Django system tables)
     if echo "SELECT 1 FROM core_userprofile LIMIT 1;" | python manage.py dbshell > /dev/null 2>&1; then
         has_actual_tables=true
+        print_status "🔍 DEBUG: core_userprofile table exists"
+    else
+        print_status "🔍 DEBUG: core_userprofile table does not exist"
+    fi
+    
+    # Also check for other key application tables
+    if echo "SELECT 1 FROM maintenance_maintenanceactivity LIMIT 1;" | python manage.py dbshell > /dev/null 2>&1; then
+        print_status "🔍 DEBUG: maintenance_maintenanceactivity table exists"
+    else
+        print_status "🔍 DEBUG: maintenance_maintenanceactivity table does not exist"
     fi
     
     # If we have migrations table but no actual tables, it's a corrupted state - treat as fresh
@@ -142,8 +157,14 @@ initialize_database() {
         print_status "🆕 Fresh database detected - using clean initialization"
         initialize_fresh_database
     else
-        print_status "🔄 Existing database detected - running migrations"
-        run_migrations
+        print_status "🔄 Existing database detected - testing migrations first..."
+        # Try to run migrations, but if they fail with conflicts, use clean initialization
+        if python manage.py migrate --noinput > /dev/null 2>&1; then
+            print_success "✅ Migrations completed successfully"
+        else
+            print_warning "⚠️ Migration conflicts detected - using clean initialization instead"
+            initialize_fresh_database
+        fi
     fi
     
     # Create admin user and initial data
