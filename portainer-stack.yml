@@ -93,6 +93,15 @@ services:
       - SECURE_HSTS_PRELOAD=True
       - CSRF_TRUSTED_ORIGINS=https://maintenance.errorlog.app,https://www.maintenance.errorlog.app
       - SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https
+      # Migration Conflict Resolution
+      - MIGRATION_CONFLICT_RESOLUTION=True
+      - AUTO_MERGE_MIGRATIONS=True
+      - FORCE_MIGRATION_MERGE=False
+      # Fresh Database Initialization
+      - MAX_RETRIES=30
+      - RETRY_DELAY=5
+      - SKIP_DB_INIT=False
+      - SKIP_COLLECTSTATIC=False
       # Branding System Configuration
       - BRANDING_AUTO_SETUP=${BRANDING_AUTO_SETUP:-True}
       - BRANDING_SITE_NAME=${BRANDING_SITE_NAME:-Maintenance Dashboard}
@@ -179,6 +188,11 @@ services:
       - CELERY_WORKER_CONCURRENCY=2
       - CELERY_WORKER_MAX_TASKS_PER_CHILD=1000
       - CELERY_WORKER_PREFETCH_MULTIPLIER=1
+      # Migration Conflict Resolution
+      - MIGRATION_CONFLICT_RESOLUTION=True
+      - MAX_RETRIES=30
+      - RETRY_DELAY=5
+      - SKIP_DB_INIT=False
     depends_on:
       db:
         condition: service_healthy
@@ -225,6 +239,11 @@ services:
       # Celery Beat Production Settings
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      # Migration Conflict Resolution
+      - MIGRATION_CONFLICT_RESOLUTION=True
+      - MAX_RETRIES=30
+      - RETRY_DELAY=5
+      - SKIP_DB_INIT=False
     depends_on:
       db:
         condition: service_healthy
