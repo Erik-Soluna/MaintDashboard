@@ -190,9 +190,18 @@ initialize_fresh_database() {
     find . -path "*/migrations/*.py" -not -name "__init__.py" -delete 2>/dev/null || true
     find . -path "*/migrations/*.pyc" -delete 2>/dev/null || true
     
-    # Clean up any corrupted django_migrations table
-    print_status "🧹 Cleaning up corrupted migration state..."
-    echo "DROP TABLE IF EXISTS django_migrations CASCADE;" | python manage.py dbshell > /dev/null 2>&1 || true
+    # Clean up all existing tables for a completely fresh start
+    print_status "🧹 Cleaning up all existing tables for fresh start..."
+    echo "
+        DO \$\$
+        DECLARE
+            r RECORD;
+        BEGIN
+            FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = current_schema()) LOOP
+                EXECUTE 'DROP TABLE IF EXISTS ' || quote_ident(r.tablename) || ' CASCADE';
+            END LOOP;
+        END \$\$;
+    " | python manage.py dbshell > /dev/null 2>&1 || true
     
     print_status "📝 Creating fresh initial migrations..."
     if python manage.py makemigrations --noinput; then
