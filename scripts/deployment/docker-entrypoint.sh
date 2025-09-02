@@ -228,8 +228,8 @@ resolve_migration_conflicts() {
     
     # Check if migration conflict resolution is enabled
     if [ "${MIGRATION_CONFLICT_RESOLUTION:-false}" != "true" ]; then
-        print_status "Migration conflict resolution disabled, skipping..."
-        return 0
+        print_status "Migration conflict resolution disabled, but attempting to resolve conflicts anyway..."
+        # Don't return, continue with conflict resolution
     fi
     
     # Check for conflicts using multiple detection methods
@@ -276,8 +276,23 @@ resolve_migration_conflicts() {
             print_success "Merged migrations applied successfully"
             return 0
         else
-            print_warning "Failed to apply merged migrations"
-            return 1
+            print_warning "Failed to apply merged migrations, trying individual app migrations..."
+            
+            # Try migrating each app individually
+            print_status "Attempting individual app migrations..."
+            python manage.py migrate core --noinput || print_warning "Core migrations failed"
+            python manage.py migrate maintenance --noinput || print_warning "Maintenance migrations failed"
+            python manage.py migrate equipment --noinput || print_warning "Equipment migrations failed"
+            python manage.py migrate events --noinput || print_warning "Events migrations failed"
+            
+            # Final attempt
+            if python manage.py migrate --noinput; then
+                print_success "Individual app migrations completed successfully"
+                return 0
+            else
+                print_warning "Individual app migrations also failed"
+                return 1
+            fi
         fi
     else
         print_warning "Migration merge failed, attempting alternative resolution..."
@@ -341,7 +356,22 @@ setup_branding_system() {
     if python manage.py migrate maintenance --noinput; then
         print_success "Maintenance app migrations completed successfully"
     else
-        print_warning "Maintenance app migrations failed, but continuing..."
+        print_warning "Maintenance app migrations failed, attempting to resolve conflicts..."
+        
+        # Try to merge maintenance migrations specifically
+        print_status "Attempting to merge maintenance migrations..."
+        if python manage.py makemigrations maintenance --merge --noinput; then
+            print_success "Maintenance migrations merged successfully"
+            
+            # Try to apply the merged migrations
+            if python manage.py migrate maintenance --noinput; then
+                print_success "Merged maintenance migrations applied successfully"
+            else
+                print_warning "Failed to apply merged maintenance migrations"
+            fi
+        else
+            print_warning "Failed to merge maintenance migrations, but continuing..."
+        fi
     fi
     
     # Check if branding system is already set up
