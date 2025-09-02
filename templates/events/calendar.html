@@ -1295,7 +1295,12 @@ function initializeCalendar() {
         }
         });
         calendar.render();
+        console.log('Calendar rendered successfully');
+        console.log('Calendar object:', calendar);
+        console.log('Calendar methods:', Object.getOwnPropertyNames(calendar));
+        console.log('Calendar.setOption available:', typeof calendar.setOption);
         window.calendar = calendar;
+        console.log('window.calendar set to:', window.calendar);
         updateActiveFilters();
         
         // Apply initial filtering after a short delay to ensure events are loaded
@@ -2485,10 +2490,18 @@ function initializeTimezone() {
         }
     }
     
-         // Set calendar timezone to match user preference
-     if (window.calendar && window.calendar.setOption) {
-         window.calendar.setOption('timeZone', timezoneSelect.value);
-     }
+             // Set calendar timezone to match user preference
+    console.log('initializeTimezone: window.calendar =', window.calendar);
+    console.log('initializeTimezone: window.calendar type =', typeof window.calendar);
+    if (window.calendar) {
+        console.log('initializeTimezone: window.calendar methods =', Object.getOwnPropertyNames(window.calendar));
+        console.log('initializeTimezone: window.calendar.setOption =', typeof window.calendar.setOption);
+    }
+    if (window.calendar && window.calendar.setOption) {
+        window.calendar.setOption('timeZone', timezoneSelect.value);
+    } else {
+        console.warn('initializeTimezone: Calendar not ready or setOption not available');
+    }
     
     // Save timezone preference to user profile
     saveTimezonePreference(timezoneSelect.value);
@@ -2498,12 +2511,19 @@ function changeTimezone() {
     const timezoneSelect = document.getElementById('timezoneSelect');
     const selectedTimezone = timezoneSelect.value;
     
-         // Update calendar timezone if it exists
-     if (window.calendar && window.calendar.setOption) {
-         window.calendar.setOption('timeZone', selectedTimezone);
-         // Refresh events to show in new timezone
-         window.calendar.refetchEvents();
-     }
+             // Update calendar timezone if it exists
+    console.log('changeTimezone: window.calendar =', window.calendar);
+    if (window.calendar) {
+        console.log('changeTimezone: window.calendar methods =', Object.getOwnPropertyNames(window.calendar));
+        console.log('changeTimezone: window.calendar.setOption =', typeof window.calendar.setOption);
+    }
+    if (window.calendar && window.calendar.setOption) {
+        window.calendar.setOption('timeZone', selectedTimezone);
+        // Refresh events to show in new timezone
+        window.calendar.refetchEvents();
+    } else {
+        console.warn('changeTimezone: Calendar not ready or setOption not available');
+    }
     
     // Save timezone preference
     saveTimezonePreference(selectedTimezone);
