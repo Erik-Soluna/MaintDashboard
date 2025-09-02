@@ -61,6 +61,7 @@ urlpatterns = [
     path('api/equipment-items/', views.equipment_items_api, name='equipment_items_api'),
     path('api/users/', views.users_api, name='users_api'),
     path('api/invalidate-cache/', views.invalidate_cache_api, name='invalidate_cache_api'),
+    path('api/update-timezone/', views.update_user_timezone, name='update_user_timezone'),
     path('api/roles/', views.roles_api, name='roles_api'),
     path('api/roles/<int:role_id>/', views.role_detail_api, name='role_detail_api'),
     path('api/endpoint-metrics/', views.endpoint_metrics_api, name='endpoint_metrics_api'),

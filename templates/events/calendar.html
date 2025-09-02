@@ -55,6 +55,31 @@
     color: white;
 }
 
+.timezone-selector {
+    min-width: 150px;
+}
+
+.timezone-selector select {
+    background-color: #2d3748;
+    border: 1px solid #4a5568;
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.timezone-selector select:focus {
+    background-color: #2d3748;
+    border-color: #4299e1;
+    color: white;
+    box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.25);
+}
+
+.timezone-selector select option {
+    background-color: #2d3748;
+    color: white;
+}
+
 .filter-section {
     background-color: #0f1419;
     padding: 15px 20px;
@@ -691,6 +716,23 @@
             </div>
             
             <div class="d-flex align-items-center gap-2">
+                <!-- Timezone Selector -->
+                <div class="timezone-selector">
+                    <select id="timezoneSelect" class="form-select form-select-sm" onchange="changeTimezone()">
+                        <option value="UTC">UTC</option>
+                        <option value="America/New_York">Eastern Time</option>
+                        <option value="America/Chicago" selected>Central Time</option>
+                        <option value="America/Denver">Mountain Time</option>
+                        <option value="America/Los_Angeles">Pacific Time</option>
+                        <option value="America/Anchorage">Alaska Time</option>
+                        <option value="Pacific/Honolulu">Hawaii Time</option>
+                        <option value="Europe/London">London (GMT)</option>
+                        <option value="Europe/Paris">Paris (CET)</option>
+                        <option value="Asia/Tokyo">Tokyo (JST)</option>
+                        <option value="Australia/Sydney">Sydney (AEST)</option>
+                    </select>
+                </div>
+                
                 <button type="button" class="btn btn-outline-success btn-sm" onclick="openCreateMaintenanceModal()">
                     <i class="fas fa-tools"></i>
                     Add Maintenance Activity
@@ -1007,6 +1049,9 @@ document.addEventListener('DOMContentLoaded', function() {
     var calendarView = '{{ calendar_view }}';
     var viewMode = '{{ view_mode }}';
     
+    // Initialize timezone detection and selection
+    initializeTimezone();
+    
     // Initialize equipment multiselect
     initializeEquipmentMultiselect();
     
@@ -1031,6 +1076,7 @@ function initializeCalendar() {
     var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         height: 'auto',
+        timeZone: 'America/Chicago', // Default timezone, will be updated by user selection
         views: {
             dayGridWeek: {
                 dayMaxEvents: 8,
@@ -2349,5 +2395,166 @@ function completeMaintenanceActivity(activityId) {
         alert('Error completing maintenance activity: ' + error.message);
     });
 }
+
+// Timezone Management Functions
+function initializeTimezone() {
+    // Try to get user's timezone from browser
+    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const timezoneSelect = document.getElementById('timezoneSelect');
+    
+    // Check if user's timezone is in our list
+    const timezoneOptions = Array.from(timezoneSelect.options).map(option => option.value);
+    if (timezoneOptions.includes(userTimezone)) {
+        timezoneSelect.value = userTimezone;
+    } else {
+        // Try to find a matching timezone based on common patterns
+        const timezoneMap = {
+            'America/New_York': ['America/New_York', 'America/Detroit', 'America/Toronto'],
+            'America/Chicago': ['America/Chicago', 'America/Denver', 'America/Mexico_City'],
+            'America/Denver': ['America/Denver', 'America/Phoenix', 'America/Edmonton'],
+            'America/Los_Angeles': ['America/Los_Angeles', 'America/Vancouver', 'America/Tijuana'],
+            'Europe/London': ['Europe/London', 'Europe/Dublin'],
+            'Europe/Paris': ['Europe/Paris', 'Europe/Berlin', 'Europe/Rome'],
+            'Asia/Tokyo': ['Asia/Tokyo', 'Asia/Seoul'],
+            'Australia/Sydney': ['Australia/Sydney', 'Australia/Melbourne']
+        };
+        
+        for (const [defaultTz, variants] of Object.entries(timezoneMap)) {
+            if (variants.includes(userTimezone)) {
+                timezoneSelect.value = defaultTz;
+                break;
+            }
+        }
+    }
+    
+    // Save timezone preference to user profile
+    saveTimezonePreference(timezoneSelect.value);
+}
+
+function changeTimezone() {
+    const timezoneSelect = document.getElementById('timezoneSelect');
+    const selectedTimezone = timezoneSelect.value;
+    
+    // Update calendar timezone if it exists
+    if (window.calendar) {
+        window.calendar.setOption('timeZone', selectedTimezone);
+        // Refresh events to show in new timezone
+        window.calendar.refetchEvents();
+    }
+    
+    // Save timezone preference
+    saveTimezonePreference(selectedTimezone);
+    
+    // Show timezone change notification
+    showTimezoneNotification(selectedTimezone);
+}
+
+function saveTimezonePreference(timezone) {
+    // Save to localStorage for immediate use
+    localStorage.setItem('userTimezone', timezone);
+    
+    // Save to user profile via AJAX
+    fetch('{% url "core:update_user_timezone" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            timezone: timezone
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Timezone preference saved successfully');
+        } else {
+            console.warn('Failed to save timezone preference:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error saving timezone preference:', error);
+    });
+}
+
+function showTimezoneNotification(timezone) {
+    // Create a temporary notification
+    const notification = document.createElement('div');
+    notification.className = 'timezone-notification';
+    notification.innerHTML = `
+        <i class="fas fa-clock me-2"></i>
+        Calendar timezone changed to ${getTimezoneDisplayName(timezone)}
+    `;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        z-index: 9999;
+        font-size: 14px;
+        font-weight: 500;
+        animation: slideInRight 0.3s ease-out;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Remove notification after 3 seconds
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease-in';
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, 3000);
+}
+
+function getTimezoneDisplayName(timezone) {
+    const displayNames = {
+        'UTC': 'UTC',
+        'America/New_York': 'Eastern Time',
+        'America/Chicago': 'Central Time',
+        'America/Denver': 'Mountain Time',
+        'America/Los_Angeles': 'Pacific Time',
+        'America/Anchorage': 'Alaska Time',
+        'Pacific/Honolulu': 'Hawaii Time',
+        'Europe/London': 'London (GMT)',
+        'Europe/Paris': 'Paris (CET)',
+        'Asia/Tokyo': 'Tokyo (JST)',
+        'Australia/Sydney': 'Sydney (AEST)'
+    };
+    return displayNames[timezone] || timezone;
+}
+
+// Add CSS animations for timezone notification
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOutRight {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
 </script>
 {% endblock %}

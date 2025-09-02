@@ -4822,6 +4822,59 @@ def css_customization_list(request):
         messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
         return redirect('core:branding_settings')
 
+
+@login_required
+@require_http_methods(["POST"])
+def update_user_timezone(request):
+    """API endpoint to update user's timezone preference."""
+    try:
+        data = json.loads(request.body)
+        timezone = data.get('timezone')
+        
+        if not timezone:
+            return JsonResponse({
+                'success': False,
+                'error': 'Timezone is required'
+            }, status=400)
+        
+        # Validate timezone against allowed choices
+        valid_timezones = [choice[0] for choice in UserProfile.TIMEZONE_CHOICES]
+        if timezone not in valid_timezones:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid timezone: {timezone}'
+            }, status=400)
+        
+        # Get or create user profile
+        user_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'timezone': timezone}
+        )
+        
+        if not created:
+            user_profile.timezone = timezone
+            user_profile.save()
+        
+        logger.info(f"Updated timezone for user {request.user.username} to {timezone}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Timezone updated to {timezone}',
+            'timezone': timezone
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error updating user timezone: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
 @login_required
 def css_customization_create(request):
     """Create a new CSS customization"""
@@ -4863,6 +4916,59 @@ def css_customization_create(request):
     except Exception as e:
         messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
         return redirect('core:branding_settings')
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_user_timezone(request):
+    """API endpoint to update user's timezone preference."""
+    try:
+        data = json.loads(request.body)
+        timezone = data.get('timezone')
+        
+        if not timezone:
+            return JsonResponse({
+                'success': False,
+                'error': 'Timezone is required'
+            }, status=400)
+        
+        # Validate timezone against allowed choices
+        valid_timezones = [choice[0] for choice in UserProfile.TIMEZONE_CHOICES]
+        if timezone not in valid_timezones:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid timezone: {timezone}'
+            }, status=400)
+        
+        # Get or create user profile
+        user_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'timezone': timezone}
+        )
+        
+        if not created:
+            user_profile.timezone = timezone
+            user_profile.save()
+        
+        logger.info(f"Updated timezone for user {request.user.username} to {timezone}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Timezone updated to {timezone}',
+            'timezone': timezone
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error updating user timezone: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 @login_required
 def css_customization_edit(request, pk):
@@ -4911,6 +5017,59 @@ def css_customization_edit(request, pk):
         messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
         return redirect('core:branding_settings')
 
+
+@login_required
+@require_http_methods(["POST"])
+def update_user_timezone(request):
+    """API endpoint to update user's timezone preference."""
+    try:
+        data = json.loads(request.body)
+        timezone = data.get('timezone')
+        
+        if not timezone:
+            return JsonResponse({
+                'success': False,
+                'error': 'Timezone is required'
+            }, status=400)
+        
+        # Validate timezone against allowed choices
+        valid_timezones = [choice[0] for choice in UserProfile.TIMEZONE_CHOICES]
+        if timezone not in valid_timezones:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid timezone: {timezone}'
+            }, status=400)
+        
+        # Get or create user profile
+        user_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'timezone': timezone}
+        )
+        
+        if not created:
+            user_profile.timezone = timezone
+            user_profile.save()
+        
+        logger.info(f"Updated timezone for user {request.user.username} to {timezone}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Timezone updated to {timezone}',
+            'timezone': timezone
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error updating user timezone: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
 @login_required
 def css_customization_delete(request, pk):
     """Delete a CSS customization"""
@@ -4944,6 +5103,59 @@ def css_customization_delete(request, pk):
     except Exception as e:
         messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
         return redirect('core:branding_settings')
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_user_timezone(request):
+    """API endpoint to update user's timezone preference."""
+    try:
+        data = json.loads(request.body)
+        timezone = data.get('timezone')
+        
+        if not timezone:
+            return JsonResponse({
+                'success': False,
+                'error': 'Timezone is required'
+            }, status=400)
+        
+        # Validate timezone against allowed choices
+        valid_timezones = [choice[0] for choice in UserProfile.TIMEZONE_CHOICES]
+        if timezone not in valid_timezones:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid timezone: {timezone}'
+            }, status=400)
+        
+        # Get or create user profile
+        user_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'timezone': timezone}
+        )
+        
+        if not created:
+            user_profile.timezone = timezone
+            user_profile.save()
+        
+        logger.info(f"Updated timezone for user {request.user.username} to {timezone}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Timezone updated to {timezone}',
+            'timezone': timezone
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error updating user timezone: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 @login_required
 def css_preview(request):
@@ -4990,6 +5202,59 @@ def css_preview(request):
         messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
         return redirect('core:branding_settings')
 
+
+@login_required
+@require_http_methods(["POST"])
+def update_user_timezone(request):
+    """API endpoint to update user's timezone preference."""
+    try:
+        data = json.loads(request.body)
+        timezone = data.get('timezone')
+        
+        if not timezone:
+            return JsonResponse({
+                'success': False,
+                'error': 'Timezone is required'
+            }, status=400)
+        
+        # Validate timezone against allowed choices
+        valid_timezones = [choice[0] for choice in UserProfile.TIMEZONE_CHOICES]
+        if timezone not in valid_timezones:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid timezone: {timezone}'
+            }, status=400)
+        
+        # Get or create user profile
+        user_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'timezone': timezone}
+        )
+        
+        if not created:
+            user_profile.timezone = timezone
+            user_profile.save()
+        
+        logger.info(f"Updated timezone for user {request.user.username} to {timezone}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Timezone updated to {timezone}',
+            'timezone': timezone
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error updating user timezone: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
 @login_required
 def css_toggle(request, pk):
     """Toggle CSS customization active status"""
@@ -5025,4 +5290,57 @@ def css_toggle(request, pk):
     except Exception as e:
         messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
         return redirect('core:branding_settings')
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_user_timezone(request):
+    """API endpoint to update user's timezone preference."""
+    try:
+        data = json.loads(request.body)
+        timezone = data.get('timezone')
+        
+        if not timezone:
+            return JsonResponse({
+                'success': False,
+                'error': 'Timezone is required'
+            }, status=400)
+        
+        # Validate timezone against allowed choices
+        valid_timezones = [choice[0] for choice in UserProfile.TIMEZONE_CHOICES]
+        if timezone not in valid_timezones:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid timezone: {timezone}'
+            }, status=400)
+        
+        # Get or create user profile
+        user_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'timezone': timezone}
+        )
+        
+        if not created:
+            user_profile.timezone = timezone
+            user_profile.save()
+        
+        logger.info(f"Updated timezone for user {request.user.username} to {timezone}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Timezone updated to {timezone}',
+            'timezone': timezone
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error updating user timezone: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
