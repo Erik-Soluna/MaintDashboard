@@ -189,34 +189,41 @@ run_database_initialization() {
         print_status "Running comprehensive database check and initialization..."
         
         # First, check if this is a fresh database and handle it specially
-        if ! python manage.py dbshell -c "SELECT 1 FROM django_migrations LIMIT 1;" > /dev/null 2>&1; then
-            print_status "Fresh database detected, using fake-initial approach..."
+        if ! echo "SELECT 1 FROM django_migrations LIMIT 1;" | python manage.py dbshell > /dev/null 2>&1; then
+            print_status "Fresh database detected, using clean slate approach..."
             
-            # For fresh databases, use aggressive approach to bypass conflicts entirely
-            print_status "Using aggressive fresh database initialization..."
+            # For fresh databases, use clean slate approach - no migrations needed!
+            print_status "Using clean slate fresh database initialization..."
             
             # Initialize nuclear option flag
             goto_nuclear=false
             
-            # First, try to merge the conflicting migrations
-            if python manage.py makemigrations --merge --noinput; then
-                print_success "Migration conflicts merged successfully"
-                # Now try fake-initial
-                if python manage.py migrate --fake-initial --noinput; then
-                    print_success "Fresh database initialized with merged migrations"
+            # Clean slate approach: Delete all migration files and recreate from models
+            print_status "Cleaning migration files for fresh start..."
+            
+            # Backup existing migrations
+            mkdir -p /tmp/migration_backup
+            cp -r */migrations /tmp/migration_backup/ 2>/dev/null || true
+            
+            # Remove all migration files except __init__.py
+            find . -path "*/migrations/*.py" -not -name "__init__.py" -delete 2>/dev/null || true
+            find . -path "*/migrations/*.pyc" -delete 2>/dev/null || true
+            
+            # Create fresh initial migrations from current models
+            print_status "Creating fresh initial migrations from models..."
+            if python manage.py makemigrations --noinput; then
+                print_success "Fresh initial migrations created successfully"
+                
+                # Apply the fresh migrations
+                if python manage.py migrate --noinput; then
+                    print_success "Fresh database initialized with clean migrations"
+                    return 0
                 else
-                    print_warning "Fake-initial still failed after merge, trying direct approach..."
-                    # Try direct migration without fake-initial
-                    if python manage.py migrate --noinput; then
-                        print_success "Fresh database initialized with direct migrations"
-                    else
-                        print_warning "All migration approaches failed, trying nuclear option immediately..."
-                        # Skip retry and go directly to nuclear option
-                        goto_nuclear=true
-                    fi
+                    print_warning "Fresh migration application failed, trying nuclear option..."
+                    goto_nuclear=true
                 fi
             else
-                print_warning "Migration merge failed, trying nuclear option..."
+                print_warning "Fresh migration creation failed, trying nuclear option..."
                 goto_nuclear=true
             fi
             
