@@ -202,7 +202,7 @@ class Command(BaseCommand):
             raise CommandError(f'Admin user creation failed: {str(e)}')
 
     def _create_initial_data(self, force=False):
-        """Create initial data like categories and locations."""
+        """Create initial data like categories, locations, and activity types."""
         self.stdout.write('🏗️  Creating initial data...')
         
         try:
@@ -242,15 +242,19 @@ class Command(BaseCommand):
                     },
                 ]
 
+                created_categories = {}
                 for cat_data in categories:
                     category, created = EquipmentCategory.objects.get_or_create(
                         name=cat_data['name'],
                         defaults={'description': cat_data['description']}
                     )
+                    created_categories[category.name] = category
                     if created:
                         self.stdout.write(f'     Created category: {category.name}')
             else:
                 self.stdout.write('   ⚠️  Equipment categories already exist, skipping...')
+                # Get existing categories for activity type creation
+                created_categories = {cat.name: cat for cat in EquipmentCategory.objects.all()}
 
             # Create default locations only if none exist
             if existing_locations == 0:
@@ -307,9 +311,257 @@ class Command(BaseCommand):
             else:
                 self.stdout.write('   ⚠️  Locations already exist, skipping...')
 
+            # Create default activity type categories and activity types
+            self._create_default_activity_types(force)
+
             self.stdout.write(
                 self.style.SUCCESS('   ✅ Initial data creation completed')
             )
 
         except Exception as e:
             raise CommandError(f'Initial data creation failed: {str(e)}')
+
+    def _create_default_activity_types(self, force=False):
+        """Create default activity type categories and activity types."""
+        try:
+            from maintenance.models import ActivityTypeCategory, MaintenanceActivityType
+            
+            # Check if activity types already exist
+            existing_activity_types = MaintenanceActivityType.objects.count()
+            if existing_activity_types > 0 and not force:
+                self.stdout.write('   ⚠️  Activity types already exist, skipping creation...')
+                return
+
+            self.stdout.write('   Creating default activity type categories...')
+            
+            # Create activity type categories
+            category_data = [
+                {
+                    'name': 'Preventive Maintenance',
+                    'description': 'Regular preventive maintenance activities to prevent equipment failure',
+                    'color': '#28a745',
+                    'icon': 'fas fa-shield-alt',
+                    'sort_order': 1,
+                },
+                {
+                    'name': 'Inspection',
+                    'description': 'Visual and testing checks to assess equipment condition',
+                    'color': '#17a2b8',
+                    'icon': 'fas fa-search',
+                    'sort_order': 2,
+                },
+                {
+                    'name': 'Testing',
+                    'description': 'Functional and performance testing activities',
+                    'color': '#ffc107',
+                    'icon': 'fas fa-flask',
+                    'sort_order': 3,
+                },
+                {
+                    'name': 'Corrective Maintenance',
+                    'description': 'Repair and fix activities to restore equipment function',
+                    'color': '#dc3545',
+                    'icon': 'fas fa-wrench',
+                    'sort_order': 4,
+                },
+                {
+                    'name': 'Calibration',
+                    'description': 'Calibration and adjustment activities',
+                    'color': '#6f42c1',
+                    'icon': 'fas fa-cogs',
+                    'sort_order': 5,
+                },
+                {
+                    'name': 'Cleaning',
+                    'description': 'Cleaning and housekeeping activities',
+                    'color': '#fd7e14',
+                    'icon': 'fas fa-broom',
+                    'sort_order': 6,
+                },
+            ]
+
+            created_categories = {}
+            for cat_data in category_data:
+                category, created = ActivityTypeCategory.objects.get_or_create(
+                    name=cat_data['name'],
+                    defaults={
+                        'description': cat_data['description'],
+                        'color': cat_data['color'],
+                        'icon': cat_data['icon'],
+                        'sort_order': cat_data['sort_order'],
+                        'is_active': True,
+                        'is_global': True,
+                    }
+                )
+                created_categories[cat_data['name']] = category
+                if created:
+                    self.stdout.write(f'     Created activity category: {category.name}')
+
+            # Create default activity types
+            self.stdout.write('   Creating default activity types...')
+            
+            activity_types_data = [
+                # Preventive Maintenance
+                {
+                    'name': 'PM-001',
+                    'category': created_categories['Preventive Maintenance'],
+                    'description': 'Regular preventive maintenance inspection and service',
+                    'estimated_duration_hours': 4,
+                    'frequency_days': 90,
+                    'is_mandatory': True,
+                    'tools_required': 'Basic hand tools, inspection equipment',
+                    'parts_required': 'Lubricants, filters (as needed)',
+                    'safety_notes': 'Follow lockout/tagout procedures, wear appropriate PPE',
+                },
+                {
+                    'name': 'PM-002',
+                    'category': created_categories['Preventive Maintenance'],
+                    'description': 'Annual comprehensive maintenance and inspection',
+                    'estimated_duration_hours': 8,
+                    'frequency_days': 365,
+                    'is_mandatory': True,
+                    'tools_required': 'Complete tool set, testing equipment',
+                    'parts_required': 'Complete maintenance kit, replacement parts',
+                    'safety_notes': 'Full lockout/tagout, safety briefing required',
+                },
+                {
+                    'name': 'PM-003',
+                    'category': created_categories['Preventive Maintenance'],
+                    'description': 'Quarterly preventive maintenance check',
+                    'estimated_duration_hours': 2,
+                    'frequency_days': 90,
+                    'is_mandatory': True,
+                    'tools_required': 'Basic inspection tools',
+                    'parts_required': 'Cleaning supplies, basic lubricants',
+                    'safety_notes': 'Standard safety procedures apply',
+                },
+                
+                # Inspection
+                {
+                    'name': 'INS-001',
+                    'category': created_categories['Inspection'],
+                    'description': 'Monthly operational inspection',
+                    'estimated_duration_hours': 1,
+                    'frequency_days': 30,
+                    'is_mandatory': True,
+                    'tools_required': 'Visual inspection tools',
+                    'parts_required': 'None',
+                    'safety_notes': 'Visual inspection only, no physical contact required',
+                },
+                {
+                    'name': 'INS-002',
+                    'category': created_categories['Inspection'],
+                    'description': 'Annual detailed inspection',
+                    'estimated_duration_hours': 3,
+                    'frequency_days': 365,
+                    'is_mandatory': True,
+                    'tools_required': 'Detailed inspection equipment',
+                    'parts_required': 'Inspection forms, measurement tools',
+                    'safety_notes': 'Follow detailed inspection procedures',
+                },
+                
+                # Testing
+                {
+                    'name': 'TEST-001',
+                    'category': created_categories['Testing'],
+                    'description': 'Functional testing and verification',
+                    'estimated_duration_hours': 2,
+                    'frequency_days': 180,
+                    'is_mandatory': True,
+                    'tools_required': 'Testing equipment, multimeter',
+                    'parts_required': 'Test leads, calibration standards',
+                    'safety_notes': 'Ensure proper test setup and safety measures',
+                },
+                {
+                    'name': 'TEST-002',
+                    'category': created_categories['Testing'],
+                    'description': 'Performance testing and analysis',
+                    'estimated_duration_hours': 4,
+                    'frequency_days': 365,
+                    'is_mandatory': True,
+                    'tools_required': 'Performance testing equipment',
+                    'parts_required': 'Test software, analysis tools',
+                    'safety_notes': 'Performance testing requires careful monitoring',
+                },
+                
+                # Corrective Maintenance
+                {
+                    'name': 'CM-001',
+                    'category': created_categories['Corrective Maintenance'],
+                    'description': 'Emergency repair and troubleshooting',
+                    'estimated_duration_hours': 6,
+                    'frequency_days': 0,  # As needed
+                    'is_mandatory': False,
+                    'tools_required': 'Emergency repair kit',
+                    'parts_required': 'Emergency spare parts',
+                    'safety_notes': 'Emergency procedures, safety first',
+                },
+                
+                # Calibration
+                {
+                    'name': 'CAL-001',
+                    'category': created_categories['Calibration'],
+                    'description': 'Equipment calibration and adjustment',
+                    'estimated_duration_hours': 3,
+                    'frequency_days': 365,
+                    'is_mandatory': True,
+                    'tools_required': 'Calibration equipment',
+                    'parts_required': 'Calibration standards',
+                    'safety_notes': 'Precision work, follow calibration procedures',
+                },
+                
+                # Cleaning
+                {
+                    'name': 'CLN-001',
+                    'category': created_categories['Cleaning'],
+                    'description': 'Regular cleaning and maintenance',
+                    'estimated_duration_hours': 1,
+                    'frequency_days': 30,
+                    'is_mandatory': True,
+                    'tools_required': 'Cleaning supplies',
+                    'parts_required': 'Cleaning materials',
+                    'safety_notes': 'Use appropriate cleaning materials',
+                },
+            ]
+
+            created_activity_types = []
+            for at_data in activity_types_data:
+                activity_type, created = MaintenanceActivityType.objects.get_or_create(
+                    name=at_data['name'],
+                    defaults={
+                        'category': at_data['category'],
+                        'description': at_data['description'],
+                        'estimated_duration_hours': at_data['estimated_duration_hours'],
+                        'frequency_days': at_data['frequency_days'],
+                        'is_mandatory': at_data['is_mandatory'],
+                        'is_active': True,
+                        'tools_required': at_data['tools_required'],
+                        'parts_required': at_data['parts_required'],
+                        'safety_notes': at_data['safety_notes'],
+                    }
+                )
+                created_activity_types.append(activity_type)
+                if created:
+                    self.stdout.write(f'     Created activity type: {activity_type.name} ({activity_type.category.name})')
+
+            # Associate activity types with equipment categories
+            self.stdout.write('   Associating activity types with equipment categories...')
+            equipment_categories = EquipmentCategory.objects.all()
+            
+            for activity_type in created_activity_types:
+                # Associate with all equipment categories by default
+                activity_type.applicable_equipment_categories.set(equipment_categories)
+                self.stdout.write(f'     Associated {activity_type.name} with all equipment categories')
+
+            self.stdout.write(
+                self.style.SUCCESS(f'   ✅ Created {len(created_categories)} activity categories and {len(created_activity_types)} activity types')
+            )
+
+        except ImportError:
+            self.stdout.write(
+                self.style.WARNING('   ⚠️  Maintenance app not available, skipping activity type creation')
+            )
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'   ❌ Error creating activity types: {str(e)}')
+            )

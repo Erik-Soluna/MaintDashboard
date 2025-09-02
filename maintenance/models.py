@@ -507,22 +507,15 @@ class MaintenanceSchedule(TimeStampedModel):
         if not self.is_active:
             return None
             
-        # Calculate next due date
-        last_activity = MaintenanceActivity.objects.filter(
-            equipment=self.equipment,
-            activity_type=self.activity_type,
-            status='completed'
-        ).order_by('-actual_end').first()
-        
-        if last_activity and last_activity.actual_end:
-            next_date = last_activity.actual_end.date() + timedelta(days=self.get_frequency_in_days())
-        else:
-            next_date = self.start_date
+        # Calculate next due date based on schedule
+        next_date = self._calculate_next_due_date()
+        if not next_date:
+            return None
             
         # Check if we should generate the activity
         advance_date = timezone.now().date() + timedelta(days=self.advance_notice_days)
         if next_date <= advance_date:
-            # Check if activity already exists
+            # Check if activity already exists for this date
             existing = MaintenanceActivity.objects.filter(
                 equipment=self.equipment,
                 activity_type=self.activity_type,
@@ -530,6 +523,7 @@ class MaintenanceSchedule(TimeStampedModel):
             ).exists()
             
             if not existing:
+                # Create the maintenance activity
                 activity = MaintenanceActivity.objects.create(
                     equipment=self.equipment,
                     activity_type=self.activity_type,
@@ -573,11 +567,79 @@ class MaintenanceSchedule(TimeStampedModel):
                     logger = logging.getLogger(__name__)
                     logger.error(f"Error creating calendar event for scheduled activity {activity.id}: {str(e)}")
                 
+                # Update last generated date
                 self.last_generated = next_date
                 self.save()
                 
                 return activity
         return None
+
+    def _calculate_next_due_date(self):
+        """Calculate the next due date for this schedule."""
+        # Get the most recent completed activity for this equipment and activity type
+        last_completed_activity = MaintenanceActivity.objects.filter(
+            equipment=self.equipment,
+            activity_type=self.activity_type,
+            status='completed',
+            actual_end__isnull=False
+        ).order_by('-actual_end').first()
+        
+        if last_completed_activity and last_completed_activity.actual_end:
+            # Calculate next date based on last completion date
+            next_date = last_completed_activity.actual_end.date() + timedelta(days=self.get_frequency_in_days())
+        else:
+            # No completed activities, calculate from schedule start date
+            if self.start_date:
+                # Calculate how many cycles have passed since start date
+                days_since_start = (timezone.now().date() - self.start_date).days
+                if days_since_start < 0:
+                    # Start date is in the future, use start date
+                    next_date = self.start_date
+                else:
+                    # Calculate next occurrence based on frequency
+                    frequency_days = self.get_frequency_in_days()
+                    if frequency_days > 0:
+                        cycles_passed = days_since_start // frequency_days
+                        next_date = self.start_date + timedelta(days=(cycles_passed + 1) * frequency_days)
+                    else:
+                        # No frequency set, use start date
+                        next_date = self.start_date
+            else:
+                # No start date, use today
+                next_date = timezone.now().date()
+        
+        # Check if end date is set and we've passed it
+        if self.end_date and next_date > self.end_date:
+            return None
+            
+        return next_date
+
+    def get_next_due_date(self):
+        """Get the next due date for this schedule."""
+        return self._calculate_next_due_date()
+
+    def get_last_completed_date(self):
+        """Get the date of the last completed activity."""
+        last_completed = MaintenanceActivity.objects.filter(
+            equipment=self.equipment,
+            activity_type=self.activity_type,
+            status='completed',
+            actual_end__isnull=False
+        ).order_by('-actual_end').first()
+        
+        return last_completed.actual_end.date() if last_completed else None
+
+    def get_upcoming_activities(self, days_ahead=30):
+        """Get upcoming activities for this schedule within the specified days."""
+        from_date = timezone.now().date()
+        to_date = from_date + timedelta(days=days_ahead)
+        
+        return MaintenanceActivity.objects.filter(
+            equipment=self.equipment,
+            activity_type=self.activity_type,
+            scheduled_start__date__gte=from_date,
+            scheduled_start__date__lte=to_date
+        ).order_by('scheduled_start')
 
 
 class MaintenanceTimelineEntry(TimeStampedModel):

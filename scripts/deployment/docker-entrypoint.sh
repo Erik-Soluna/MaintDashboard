@@ -175,6 +175,12 @@ initialize_database() {
         --admin-password "$ADMIN_PASSWORD" \
         --force
     
+    # Generate initial maintenance schedules for existing equipment
+    print_status "📅 Generating initial maintenance schedules..."
+    python manage.py generate_initial_schedules \
+        --start-date "$(date +%Y-%m-%d)" \
+        || print_warning "⚠️  Schedule generation failed, continuing..."
+    
     print_success "✅ Database initialization completed successfully!"
 }
 
