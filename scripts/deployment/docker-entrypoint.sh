@@ -426,6 +426,11 @@ reset_problematic_migrations() {
     # Check if django_migrations table is empty (this is the root cause)
     local migration_count=$(echo "SELECT COUNT(*) FROM django_migrations;" | python manage.py dbshell 2>/dev/null | grep -E '^[0-9]+$' | head -1 || echo "0")
     
+    # Handle empty migration_count
+    if [ -z "$migration_count" ] || [ "$migration_count" = "" ]; then
+        migration_count=0
+    fi
+    
     if [ "$migration_count" -eq 0 ]; then
         print_warning "⚠️ django_migrations table is empty - this is the root cause!"
         print_status "🔧 Attempting to populate django_migrations table..."
@@ -527,8 +532,14 @@ fix_brandingsettings_keyerror() {
     # Create a Python script to fix the KeyError
     cat > /tmp/fix_brandingsettings.py << 'EOF'
 import os
+import sys
 import django
-from django.conf import settings
+
+# Change to the Django project directory
+os.chdir('/app')
+
+# Add the project directory to Python path
+sys.path.insert(0, '/app')
 
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
@@ -641,8 +652,14 @@ fix_merge_migration_keyerror() {
     # Create a Python script to fix the merge migration KeyError
     cat > /tmp/fix_merge_keyerror.py << 'EOF'
 import os
+import sys
 import django
-from django.conf import settings
+
+# Change to the Django project directory
+os.chdir('/app')
+
+# Add the project directory to Python path
+sys.path.insert(0, '/app')
 
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
@@ -752,9 +769,14 @@ force_django_model_recognition() {
     # Create a comprehensive Python script to force Django model recognition
     cat > /tmp/force_model_recognition.py << 'EOF'
 import os
-import django
-from django.conf import settings
 import sys
+import django
+
+# Change to the Django project directory
+os.chdir('/app')
+
+# Add the project directory to Python path
+sys.path.insert(0, '/app')
 
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
@@ -877,8 +899,14 @@ populate_migrations_table() {
     # Create a comprehensive Python script to populate the migrations table
     cat > /tmp/populate_migrations.py << 'EOF'
 import os
+import sys
 import django
-from django.conf import settings
+
+# Change to the Django project directory
+os.chdir('/app')
+
+# Add the project directory to Python path
+sys.path.insert(0, '/app')
 
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
@@ -1014,8 +1042,14 @@ bypass_migration_system() {
         # Create a temporary Python script to mark migrations as applied
         cat > /tmp/mark_migrations.py << 'EOF'
 import os
+import sys
 import django
-from django.conf import settings
+
+# Change to the Django project directory
+os.chdir('/app')
+
+# Add the project directory to Python path
+sys.path.insert(0, '/app')
 
 # Setup Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
