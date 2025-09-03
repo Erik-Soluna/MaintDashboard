@@ -32,14 +32,4 @@ class Migration(migrations.Migration):
                 max_length=50,
             ),
         ),
-        migrations.AlterField(
-            model_name="userprofile",
-            name="theme_preference",
-            field=models.CharField(
-                choices=[("dark", "Dark Theme"), ("light", "Light Theme")],
-                default="light",
-                help_text="User interface theme preference",
-                max_length=10,
-            ),
-        ),
     ]

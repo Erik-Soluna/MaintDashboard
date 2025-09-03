@@ -20,7 +20,7 @@ def reverse_func(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('maintenance', '0003_remove_maintenancereport_maintenance_activit_da135f_idx_and_more'),
+        ('maintenance', '0002_add_timeline_entry_types'),
     ]
 
     operations = [
