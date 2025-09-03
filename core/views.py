@@ -724,6 +724,41 @@ def equipment_items_settings(request):
 def equipment_conditional_fields_settings(request):
     """Equipment conditional fields management view."""
     from equipment.models import EquipmentCategoryField, EquipmentCategoryConditionalField
+    from django.db import connection
+    
+    # Check if the conditional fields table exists
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'equipment_equipmentcategoryconditionalfield'
+                );
+            """)
+            table_exists = cursor.fetchone()[0]
+            
+        if not table_exists:
+            messages.error(request, 'Conditional fields table does not exist. Please run migrations.')
+            # Return a simplified context without conditional fields
+            categories = EquipmentCategory.objects.filter(is_active=True).prefetch_related('custom_fields').order_by('name')
+            context = {
+                'categories': categories,
+                'conditional_fields': [],
+                'conditional_fields_by_category': {},
+                'table_missing': True,
+            }
+            return render(request, 'core/equipment_conditional_fields_settings.html', context)
+            
+    except Exception as e:
+        messages.error(request, f'Database error: {str(e)}')
+        categories = EquipmentCategory.objects.filter(is_active=True).prefetch_related('custom_fields').order_by('name')
+        context = {
+            'categories': categories,
+            'conditional_fields': [],
+            'conditional_fields_by_category': {},
+            'table_missing': True,
+        }
+        return render(request, 'core/equipment_conditional_fields_settings.html', context)
     
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -785,23 +820,30 @@ def equipment_conditional_fields_settings(request):
     # Get all categories with their custom fields
     categories = EquipmentCategory.objects.filter(is_active=True).prefetch_related('custom_fields').order_by('name')
     
-    # Get all conditional field assignments
-    conditional_fields = EquipmentCategoryConditionalField.objects.select_related(
-        'source_category', 'target_category', 'field'
-    ).order_by('target_category__name', 'field__label')
-    
-    # Group conditional fields by target category
-    conditional_fields_by_category = {}
-    for cf in conditional_fields:
-        target_name = cf.target_category.name
-        if target_name not in conditional_fields_by_category:
-            conditional_fields_by_category[target_name] = []
-        conditional_fields_by_category[target_name].append(cf)
+    # Get all conditional field assignments with error handling
+    try:
+        conditional_fields = EquipmentCategoryConditionalField.objects.select_related(
+            'source_category', 'target_category', 'field'
+        ).order_by('target_category__name', 'field__label')
+        
+        # Group conditional fields by target category
+        conditional_fields_by_category = {}
+        for cf in conditional_fields:
+            target_name = cf.target_category.name
+            if target_name not in conditional_fields_by_category:
+                conditional_fields_by_category[target_name] = []
+            conditional_fields_by_category[target_name].append(cf)
+            
+    except Exception as e:
+        messages.error(request, f'Error loading conditional fields: {str(e)}')
+        conditional_fields = []
+        conditional_fields_by_category = {}
     
     context = {
         'categories': categories,
         'conditional_fields': conditional_fields,
         'conditional_fields_by_category': conditional_fields_by_category,
+        'table_missing': False,
     }
     return render(request, 'core/equipment_conditional_fields_settings.html', context)
 

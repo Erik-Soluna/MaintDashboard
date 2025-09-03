@@ -65,7 +65,24 @@
         </h5>
     </div>
     <div class="card-body">
-        {% if conditional_fields_by_category %}
+        {% if table_missing %}
+            <div class="alert alert-warning" role="alert">
+                <h6 class="alert-heading">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Database Table Missing
+                </h6>
+                <p class="mb-2">The conditional fields table is not available. This usually means the database migration hasn't been applied.</p>
+                <hr>
+                <p class="mb-0">
+                    <strong>To fix this:</strong>
+                    <ol class="mb-0 mt-2">
+                        <li>Run the migration: <code>python manage.py migrate equipment</code></li>
+                        <li>Or restart the Docker container to trigger automatic migration</li>
+                        <li>Refresh this page after the migration completes</li>
+                    </ol>
+                </p>
+            </div>
+        {% elif conditional_fields_by_category %}
             {% for target_category_name, conditional_fields in conditional_fields_by_category.items %}
             <div class="mb-4">
                 <h6 class="text-primary mb-3">
