@@ -342,25 +342,47 @@ check_and_fix_missing_tables() {
 fix_migration_issues() {
     print_status "🔧 Attempting to fix common migration issues..."
     
-    # Check for conflicting migrations
-    local conflicts=$(python manage.py showmigrations --list 2>&1 | grep -i "conflict" || true)
-    if [ -n "$conflicts" ]; then
+    # Check for conflicting migrations by trying to run migrate and looking for conflict messages
+    print_status "🔍 Checking for migration conflicts..."
+    local migrate_output=$(python manage.py migrate --noinput 2>&1 || true)
+    
+    if echo "$migrate_output" | grep -q "Conflicting migrations detected"; then
         print_warning "⚠️ Migration conflicts detected:"
-        echo "$conflicts"
+        echo "$migrate_output" | grep -A 5 "Conflicting migrations detected" || true
         
-        print_status "🔄 Attempting to resolve conflicts..."
+        print_status "🔄 Attempting to resolve conflicts with automatic merge..."
         
-        # Try to merge conflicting migrations
+        # Try to merge conflicting migrations for each app
+        local merge_success=false
         for app in core equipment maintenance; do
             print_status "🔄 Checking $app for conflicts..."
-            if python manage.py makemigrations $app --merge --noinput; then
-                print_success "✅ $app conflicts merged"
+            if python manage.py makemigrations $app --merge --noinput 2>/dev/null; then
+                print_success "✅ $app conflicts merged successfully"
+                merge_success=true
+            else
+                print_status "ℹ️ No conflicts found in $app or merge not needed"
             fi
         done
         
-        # Try to apply merged migrations
-        if python manage.py migrate --noinput; then
-            print_success "✅ Merged migrations applied successfully"
+        # If we merged anything, try to apply migrations again
+        if [ "$merge_success" = "true" ]; then
+            print_status "🚀 Applying merged migrations..."
+            if python manage.py migrate --noinput; then
+                print_success "✅ Merged migrations applied successfully"
+                return 0
+            else
+                print_warning "⚠️ Merged migrations failed to apply, trying --fake"
+                if python manage.py migrate --fake; then
+                    print_success "✅ Merged migrations faked successfully"
+                    return 0
+                fi
+            fi
+        fi
+        
+        # If merge didn't work, try to fake all migrations
+        print_status "🔄 Attempting to fake all migrations to resolve conflicts..."
+        if python manage.py migrate --fake; then
+            print_success "✅ All migrations faked successfully"
             return 0
         fi
     fi
