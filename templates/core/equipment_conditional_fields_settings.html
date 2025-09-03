@@ -187,14 +187,12 @@
                                 <label for="source_category" class="form-label">
                                     Source Category <span class="text-danger">*</span>
                                 </label>
-                                <select class="form-select" id="source_category" name="source_category" required>
-                                    <option value="">Select source category...</option>
-                                    {% for category in categories %}
-                                        {% if category.custom_fields.exists %}
-                                        <option value="{{ category.id }}">{{ category.name }}</option>
-                                        {% endif %}
-                                    {% endfor %}
-                                </select>
+                                                                 <select class="form-select" id="source_category" name="source_category" required>
+                                     <option value="">Select source category...</option>
+                                     {% for category in categories %}
+                                         <option value="{{ category.id }}">{{ category.name }}</option>
+                                     {% endfor %}
+                                 </select>
                                 <small class="form-text text-muted">Category that provides the field</small>
                             </div>
                         </div>
@@ -224,12 +222,21 @@
                         <small class="form-text text-muted">Field from the source category to assign</small>
                     </div>
                     
-                    <div class="alert alert-info mt-3">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>How it works:</strong> When you assign a field from one category to another, 
-                        equipment of the target category will have access to that field. The field will appear 
-                        in equipment forms with a note indicating its source category.
-                    </div>
+                                         <div class="alert alert-info mt-3">
+                         <i class="fas fa-info-circle me-2"></i>
+                         <strong>How it works:</strong> When you assign a field from one category to another, 
+                         equipment of the target category will have access to that field. The field will appear 
+                         in equipment forms with a note indicating its source category.
+                     </div>
+                     
+                     <div class="alert alert-warning mt-3">
+                         <i class="fas fa-exclamation-triangle me-2"></i>
+                         <strong>Note:</strong> To create conditional field assignments, you first need to create 
+                         custom fields for your equipment categories. Go to 
+                         <a href="{% url 'admin:equipment_equipmentcategoryfield_changelist' %}" target="_blank">
+                             Equipment Category Fields
+                         </a> in the admin to create custom fields for your categories.
+                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -247,29 +254,36 @@ $(document).ready(function() {
     // Initialize tooltips
     $('[data-toggle="tooltip"]').tooltip();
     
-    // Handle source category change to populate fields
-    $('#source_category').change(function() {
-        const sourceCategoryId = $(this).val();
-        const fieldSelect = $('#field');
-        
-        if (sourceCategoryId) {
-            // Fetch fields for the selected source category
-            $.get(`/core/api/categories/${sourceCategoryId}/fields/`, function(data) {
-                fieldSelect.empty();
-                fieldSelect.append('<option value="">Select field...</option>');
-                
-                data.fields.forEach(function(field) {
-                    fieldSelect.append(`<option value="${field.id}">${field.label} (${field.field_type})</option>`);
-                });
-            }).fail(function() {
-                fieldSelect.empty();
-                fieldSelect.append('<option value="">Error loading fields...</option>');
-            });
-        } else {
-            fieldSelect.empty();
-            fieldSelect.append('<option value="">Select a source category first...</option>');
-        }
-    });
+         // Handle source category change to populate fields
+     $('#source_category').change(function() {
+         const sourceCategoryId = $(this).val();
+         const fieldSelect = $('#field');
+         
+         if (sourceCategoryId) {
+             // Fetch fields for the selected source category
+             $.get(`/core/api/categories/${sourceCategoryId}/fields/`, function(data) {
+                 fieldSelect.empty();
+                 
+                 if (data.fields && data.fields.length > 0) {
+                     fieldSelect.append('<option value="">Select field...</option>');
+                     data.fields.forEach(function(field) {
+                         fieldSelect.append(`<option value="${field.id}">${field.label} (${field.field_type})</option>`);
+                     });
+                 } else {
+                     fieldSelect.append('<option value="">No custom fields available for this category</option>');
+                     fieldSelect.prop('disabled', true);
+                 }
+             }).fail(function() {
+                 fieldSelect.empty();
+                 fieldSelect.append('<option value="">Error loading fields...</option>');
+                 fieldSelect.prop('disabled', true);
+             });
+         } else {
+             fieldSelect.empty();
+             fieldSelect.append('<option value="">Select a source category first...</option>');
+             fieldSelect.prop('disabled', true);
+         }
+     });
     
     // Prevent same source and target category
     $('#target_category').change(function() {
