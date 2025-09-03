@@ -83,7 +83,8 @@ RUN chmod +x /app/scripts/deployment/docker-entrypoint.sh \
     && chmod +x /app/scripts/database/init_database.sh \
     && chmod +x /app/scripts/database/auto_init_database.py \
     && chmod +x /app/scripts/database/ensure-database.sh \
-    && chmod +x /app/scripts/database/ensure_database.sh
+    && chmod +x /app/scripts/database/ensure_database.sh \
+    && chmod +x /app/scripts/deployment/fix_missing_tables.py
 
 # Collect static files (but allow override via environment variable)
 RUN python manage.py collectstatic --noinput || echo "Static files collection failed, will retry at runtime"
