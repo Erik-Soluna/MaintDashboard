@@ -10,6 +10,7 @@ import io
 import os
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
@@ -1543,7 +1544,6 @@ def generate_maintenance_insights(equipment, activities):
 @staff_member_required
 def category_fields_management(request, category_id):
     """Custom view for managing fields within a category."""
-    from django.contrib.admin.views.decorators import staff_member_required
     from django.db import transaction
     
     category = get_object_or_404(EquipmentCategory, id=category_id)
