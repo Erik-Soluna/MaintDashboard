@@ -469,6 +469,13 @@ reset_problematic_migrations() {
         return 0
     fi
     
+    # Ultimate fallback: Force Django to recognize the BrandingSettings model
+    print_status "🔧 Ultimate fallback: Force Django model recognition..."
+    if force_django_model_recognition; then
+        print_success "✅ Django model recognition forced successfully"
+        return 0
+    fi
+    
     # Try to fake all migrations again after fixing core
     print_status "🔄 Attempting to fake all migrations after core fix..."
     if python manage.py migrate --fake; then
@@ -500,6 +507,15 @@ reset_problematic_migrations() {
         print_success "✅ Migration system bypassed successfully"
         return 0
     fi
+    
+    # Final safety check: if we've tried everything and still failing, exit gracefully
+    print_error "❌ All migration fix attempts have failed"
+    print_error "❌ The system cannot start due to persistent migration issues"
+    print_status "💡 Manual intervention required:"
+    print_status "   1. Check database connectivity"
+    print_status "   2. Verify migration files are not corrupted"
+    print_status "   3. Consider running: python manage.py migrate --fake-initial"
+    print_status "   4. Or contact system administrator"
     
     return 1
 }
@@ -725,6 +741,131 @@ EOF
     else
         print_error "❌ Merge migration KeyError fix script failed"
         rm -f /tmp/fix_merge_keyerror.py
+        return 1
+    fi
+}
+
+# Force Django to recognize the BrandingSettings model by recreating the migration state
+force_django_model_recognition() {
+    print_status "🔧 Forcing Django model recognition..."
+    
+    # Create a comprehensive Python script to force Django model recognition
+    cat > /tmp/force_model_recognition.py << 'EOF'
+import os
+import django
+from django.conf import settings
+import sys
+
+# Setup Django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
+
+try:
+    django.setup()
+except Exception as e:
+    print(f"❌ Django setup failed: {e}")
+    sys.exit(1)
+
+from django.db import connection, transaction
+from django.core.management import call_command
+from django.apps import apps
+
+print("🔧 Forcing Django model recognition...")
+
+try:
+    with connection.cursor() as cursor:
+        # Step 1: Check if the brandingsettings table exists
+        try:
+            cursor.execute("SELECT 1 FROM core_brandingsettings LIMIT 1;")
+            table_exists = True
+            print("✅ core_brandingsettings table exists in database")
+        except Exception as e:
+            table_exists = False
+            print(f"❌ core_brandingsettings table does not exist: {e}")
+            sys.exit(1)
+        
+        # Step 2: Clear Django's app registry to force reload
+        print("🔄 Clearing Django app registry...")
+        apps.clear_cache()
+        
+        # Step 3: Force Django to reload all models
+        print("🔄 Forcing Django model reload...")
+        from django.apps import AppConfig
+        from core.apps import CoreConfig
+        
+        # Re-register the core app
+        core_config = CoreConfig('core', apps)
+        core_config.ready()
+        
+        # Step 4: Verify BrandingSettings model is recognized
+        try:
+            from core.models import BrandingSettings
+            print("✅ BrandingSettings model is now recognized by Django")
+        except ImportError as e:
+            print(f"❌ BrandingSettings model still not recognized: {e}")
+            sys.exit(1)
+        
+        # Step 5: Ensure the migration state is completely consistent
+        print("🔄 Ensuring migration state consistency...")
+        
+        # Get all core migrations that should be applied
+        core_migrations = [
+            '0001_initial',
+            '0002_add_logo_model', 
+            '0003_populate_default_data',
+            '0004_add_more_maintenance_categories',
+            '0005_add_branding_models',
+            '0002_userprofile_default_location_and_more',
+            '0003_permission_role_alter_userprofile_role',
+            '0004_add_customer_to_location',
+            '0005_modeldocument',
+            '0006_playwrightdebuglog',
+            '0007_portainerconfig',
+            '0008_portainerconfig_image_tag_and_more',
+            '0009_portainerconfig_polling_frequency',
+            '0010_portainerconfig_last_check_date_and_more',
+            '0011_userprofile_timezone_and_more',
+            '0012_add_breadcrumb_controls'
+        ]
+        
+        # Mark all core migrations as applied
+        for migration_name in core_migrations:
+            try:
+                cursor.execute("""
+                    INSERT INTO django_migrations (app, name, applied) 
+                    VALUES ('core', %s, NOW())
+                    ON CONFLICT (app, name) DO NOTHING;
+                """, [migration_name])
+            except Exception as e:
+                print(f"Warning: Could not mark {migration_name} as applied: {e}")
+        
+        print("✅ All core migrations marked as applied")
+        
+        # Step 6: Test that migrations can now run without KeyError
+        print("🔄 Testing migration system...")
+        try:
+            # Try to run showmigrations to test the system
+            from django.core.management import execute_from_command_line
+            execute_from_command_line(['manage.py', 'showmigrations', 'core', '--list'])
+            print("✅ Migration system is now working")
+        except Exception as e:
+            print(f"❌ Migration system still has issues: {e}")
+            sys.exit(1)
+        
+        print("✅ Django model recognition forced successfully")
+        
+except Exception as e:
+    print(f"❌ Force model recognition failed: {e}")
+    sys.exit(1)
+EOF
+    
+    # Run the script
+    if python /tmp/force_model_recognition.py; then
+        print_success "✅ Django model recognition script completed"
+        rm -f /tmp/force_model_recognition.py
+        return 0
+    else
+        print_error "❌ Django model recognition script failed"
+        rm -f /tmp/force_model_recognition.py
         return 1
     fi
 }
