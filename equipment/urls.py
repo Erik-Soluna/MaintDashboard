@@ -35,4 +35,7 @@ urlpatterns = [
     path('export/csv/', views.export_equipment_csv, name='export_equipment_csv'),
     path('locations/import/csv/', views.import_locations_csv, name='import_locations_csv'),
     path('locations/export/csv/', views.export_locations_csv, name='export_locations_csv'),
+    
+    # Custom Field Management
+    path('categories/<int:category_id>/fields/', views.category_fields_management, name='category_fields_management'),
 ]

@@ -27,7 +27,7 @@ except ImportError:
     PyPDF2 = None
     PYPDF2_AVAILABLE = False
 
-from .models import Equipment, EquipmentDocument, EquipmentComponent
+from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField
 from core.models import EquipmentCategory, Location
 from core.logging_utils import log_error, log_view_access, log_api_call
 from maintenance.models import MaintenanceReport
@@ -1536,3 +1536,228 @@ def generate_maintenance_insights(equipment, activities):
         insights.append("📋 Warranty has expired - consider extended warranty options")
     
     return insights
+
+
+# Custom Field Management Views
+@login_required
+@staff_member_required
+def category_fields_management(request, category_id):
+    """Custom view for managing fields within a category."""
+    from django.contrib.admin.views.decorators import staff_member_required
+    from django.db import transaction
+    
+    category = get_object_or_404(EquipmentCategory, id=category_id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'add_field':
+            return add_custom_field(request, category)
+        elif action == 'edit_field':
+            return edit_custom_field(request, category)
+        elif action == 'delete_field':
+            return delete_custom_field(request, category)
+        elif action == 'reorder_fields':
+            return reorder_fields(request, category)
+    
+    # Get all fields for this category
+    fields = category.custom_fields.all().order_by('sort_order', 'label')
+    
+    context = {
+        'category': category,
+        'fields': fields,
+        'field_types': EquipmentCategoryField.FIELD_TYPE_CHOICES,
+    }
+    
+    return render(request, 'equipment/category_fields_management.html', context)
+
+
+@login_required
+@staff_member_required
+@require_http_methods(["POST"])
+def add_custom_field(request, category):
+    """Add a new custom field to a category."""
+    from django.db import transaction
+    
+    try:
+        with transaction.atomic():
+            name = request.POST.get('name', '').strip()
+            label = request.POST.get('label', '').strip()
+            field_type = request.POST.get('field_type', 'text')
+            required = request.POST.get('required') == 'on'
+            help_text = request.POST.get('help_text', '').strip()
+            choices = request.POST.get('choices', '').strip()
+            
+            # Validation
+            if not name or not label:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Name and label are required'
+                })
+            
+            # Check for duplicate names
+            if EquipmentCategoryField.objects.filter(category=category, name=name).exists():
+                return JsonResponse({
+                    'success': False,
+                    'message': f'A field with name "{name}" already exists'
+                })
+            
+            # Create the field
+            field = EquipmentCategoryField.objects.create(
+                category=category,
+                name=name,
+                label=label,
+                field_type=field_type,
+                required=required,
+                help_text=help_text,
+                choices=choices,
+                created_by=request.user,
+                updated_by=request.user
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Field "{label}" added successfully',
+                'field': {
+                    'id': field.id,
+                    'name': field.name,
+                    'label': field.label,
+                    'field_type': field.get_field_type_display(),
+                    'required': field.required,
+                    'help_text': field.help_text,
+                    'choices': field.choices,
+                    'sort_order': field.sort_order,
+                }
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error adding field: {str(e)}'
+        })
+
+
+@login_required
+@staff_member_required
+@require_http_methods(["POST"])
+def edit_custom_field(request, category):
+    """Edit an existing custom field."""
+    from django.db import transaction
+    
+    try:
+        with transaction.atomic():
+            field_id = request.POST.get('field_id')
+            field = get_object_or_404(EquipmentCategoryField, id=field_id, category=category)
+            
+            name = request.POST.get('name', '').strip()
+            label = request.POST.get('label', '').strip()
+            field_type = request.POST.get('field_type', 'text')
+            required = request.POST.get('required') == 'on'
+            help_text = request.POST.get('help_text', '').strip()
+            choices = request.POST.get('choices', '').strip()
+            
+            # Validation
+            if not name or not label:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Name and label are required'
+                })
+            
+            # Check for duplicate names (excluding current field)
+            if EquipmentCategoryField.objects.filter(
+                category=category, name=name
+            ).exclude(id=field_id).exists():
+                return JsonResponse({
+                    'success': False,
+                    'message': f'A field with name "{name}" already exists'
+                })
+            
+            # Update the field
+            field.name = name
+            field.label = label
+            field.field_type = field_type
+            field.required = required
+            field.help_text = help_text
+            field.choices = choices
+            field.updated_by = request.user
+            field.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Field "{label}" updated successfully',
+                'field': {
+                    'id': field.id,
+                    'name': field.name,
+                    'label': field.label,
+                    'field_type': field.get_field_type_display(),
+                    'required': field.required,
+                    'help_text': field.help_text,
+                    'choices': field.choices,
+                    'sort_order': field.sort_order,
+                }
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error updating field: {str(e)}'
+        })
+
+
+@login_required
+@staff_member_required
+@require_http_methods(["POST"])
+def delete_custom_field(request, category):
+    """Delete a custom field."""
+    from django.db import transaction
+    
+    try:
+        with transaction.atomic():
+            field_id = request.POST.get('field_id')
+            field = get_object_or_404(EquipmentCategoryField, id=field_id, category=category)
+            
+            field_name = field.label
+            field.delete()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Field "{field_name}" deleted successfully'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error deleting field: {str(e)}'
+        })
+
+
+@login_required
+@staff_member_required
+@require_http_methods(["POST"])
+def reorder_fields(request, category):
+    """Reorder fields within a category."""
+    from django.db import transaction
+    
+    try:
+        with transaction.atomic():
+            field_orders = json.loads(request.POST.get('field_orders', '[]'))
+            
+            for order_data in field_orders:
+                field_id = order_data.get('field_id')
+                sort_order = order_data.get('sort_order')
+                
+                if field_id and sort_order is not None:
+                    EquipmentCategoryField.objects.filter(
+                        id=field_id, category=category
+                    ).update(sort_order=sort_order)
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Field order updated successfully'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error reordering fields: {str(e)}'
+        })

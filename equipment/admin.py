@@ -3,7 +3,12 @@ Admin interface for equipment models.
 """
 
 from django.contrib import admin
-from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentCustomValue, EquipmentCategoryConditionalField
+from django.utils.html import format_html
+from django.urls import path, reverse
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.http import JsonResponse
+from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentCustomValue, EquipmentCategoryConditionalField, EquipmentCategory
 
 
 class EquipmentDocumentInline(admin.TabularInline):
@@ -191,6 +196,65 @@ class EquipmentCustomValueAdmin(admin.ModelAdmin):
             obj.created_by = request.user
         obj.updated_by = request.user
         super().save_model(request, obj, form, change)
+
+
+class EquipmentCategoryFieldInline(admin.TabularInline):
+    model = EquipmentCategoryField
+    extra = 0
+    fields = ['name', 'label', 'field_type', 'required', 'help_text', 'is_active', 'sort_order']
+    readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+
+
+@admin.register(EquipmentCategory)
+class EquipmentCategoryAdmin(admin.ModelAdmin):
+    list_display = [
+        'name', 'description', 'get_field_count', 'is_active', 'created_at'
+    ]
+    list_filter = ['is_active', 'created_at']
+    search_fields = ['name', 'description']
+    readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+    inlines = [EquipmentCategoryFieldInline]
+    
+    fieldsets = (
+        ('Category Information', {
+            'fields': ('name', 'description', 'is_active')
+        }),
+        ('Audit Information', {
+            'fields': ('created_at', 'updated_at', 'created_by', 'updated_by'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_field_count(self, obj):
+        """Get the number of custom fields for this category."""
+        count = obj.custom_fields.count()
+        if count > 0:
+            return format_html(
+                '<a href="{}" target="_blank">{} fields</a> | <a href="{}" class="text-success">Manage</a>',
+                reverse('admin:equipment_equipmentcategoryfield_changelist') + f'?category__id__exact={obj.id}',
+                count,
+                reverse('equipment:category_fields_management', args=[obj.id])
+            )
+        return format_html(
+            '<span class="text-muted">0 fields</span> | <a href="{}" class="text-success">Add Fields</a>',
+            reverse('equipment:category_fields_management', args=[obj.id])
+        )
+    get_field_count.short_description = 'Custom Fields'
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+        
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for instance in instances:
+            if not instance.pk:  # New instance
+                instance.created_by = request.user
+            instance.updated_by = request.user
+            instance.save()
+        formset.save_m2m()
 
 
 @admin.register(EquipmentCategoryConditionalField)
