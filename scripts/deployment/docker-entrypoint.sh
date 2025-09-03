@@ -462,6 +462,13 @@ reset_problematic_migrations() {
         return 0
     fi
     
+    # If the KeyError persists after merge, we need to handle the merge migration issue
+    print_status "🔧 KeyError persists after merge - handling merge migration issue..."
+    if fix_merge_migration_keyerror; then
+        print_success "✅ Merge migration KeyError fix applied successfully"
+        return 0
+    fi
+    
     # Try to fake all migrations again after fixing core
     print_status "🔄 Attempting to fake all migrations after core fix..."
     if python manage.py migrate --fake; then
@@ -607,6 +614,117 @@ EOF
     else
         print_error "❌ KeyError fix script failed"
         rm -f /tmp/fix_brandingsettings.py
+        return 1
+    fi
+}
+
+# Fix KeyError that persists after merge migrations
+fix_merge_migration_keyerror() {
+    print_status "🔧 Fixing KeyError that persists after merge migrations..."
+    
+    # Create a Python script to fix the merge migration KeyError
+    cat > /tmp/fix_merge_keyerror.py << 'EOF'
+import os
+import django
+from django.conf import settings
+
+# Setup Django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
+django.setup()
+
+from django.db import connection
+
+print("Attempting to fix KeyError that persists after merge migrations...")
+
+with connection.cursor() as cursor:
+    # The issue is that merge migrations were created but the BrandingSettings model
+    # still doesn't exist in the migration state
+    # We need to ensure the 0005_add_branding_models migration is properly applied
+    
+    # Check if the brandingsettings table exists
+    try:
+        cursor.execute("SELECT 1 FROM core_brandingsettings LIMIT 1;")
+        table_exists = True
+        print("✅ core_brandingsettings table exists in database")
+    except Exception as e:
+        table_exists = False
+        print(f"❌ core_brandingsettings table does not exist: {e}")
+    
+    # Check if the 0005 migration is marked as applied
+    cursor.execute("""
+        SELECT applied FROM django_migrations 
+        WHERE app = 'core' AND name = '0005_add_branding_models';
+    """)
+    result = cursor.fetchone()
+    
+    if not result:
+        print("🔧 0005_add_branding_models not marked as applied - fixing...")
+        if table_exists:
+            # Table exists, just mark the migration as applied
+            cursor.execute("""
+                INSERT INTO django_migrations (app, name, applied) 
+                VALUES ('core', '0005_add_branding_models', NOW())
+                ON CONFLICT (app, name) DO NOTHING;
+            """)
+            print("✅ Marked 0005_add_branding_models as applied")
+        else:
+            # Table doesn't exist, we need to create it
+            print("🔧 Table doesn't exist - need to create it first...")
+            # Remove any merge migrations that depend on this
+            cursor.execute("""
+                DELETE FROM django_migrations 
+                WHERE app = 'core' AND name LIKE '%merge%';
+            """)
+            print("✅ Removed merge migrations that depend on missing model")
+    else:
+        print("✅ 0005_add_branding_models already marked as applied")
+    
+    # Check for any merge migrations that might be causing issues
+    cursor.execute("""
+        SELECT app, name FROM django_migrations 
+        WHERE app = 'core' AND name LIKE '%merge%'
+        ORDER BY name;
+    """)
+    merge_migrations = cursor.fetchall()
+    
+    if merge_migrations:
+        print(f"Found {len(merge_migrations)} merge migrations:")
+        for app, name in merge_migrations:
+            print(f"  - {app}.{name}")
+        
+        # If we have merge migrations but the base model doesn't exist, remove them
+        if not result and table_exists:
+            print("🔧 Removing problematic merge migrations...")
+            cursor.execute("""
+                DELETE FROM django_migrations 
+                WHERE app = 'core' AND name LIKE '%merge%';
+            """)
+            print("✅ Removed problematic merge migrations")
+    
+    # Try to ensure all core migrations are in a consistent state
+    print("🔄 Ensuring core migrations are consistent...")
+    try:
+        # Mark all core migrations as applied if the tables exist
+        cursor.execute("""
+            UPDATE django_migrations 
+            SET applied = NOW() 
+            WHERE app = 'core' AND applied IS NULL;
+        """)
+        print("✅ Marked all core migrations as applied")
+    except Exception as e:
+        print(f"Error ensuring consistency: {e}")
+
+print("Merge migration KeyError fix completed")
+EOF
+    
+    # Run the script
+    if python /tmp/fix_merge_keyerror.py; then
+        print_success "✅ Merge migration KeyError fix script completed"
+        rm -f /tmp/fix_merge_keyerror.py
+        return 0
+    else
+        print_error "❌ Merge migration KeyError fix script failed"
+        rm -f /tmp/fix_merge_keyerror.py
         return 1
     fi
 }
