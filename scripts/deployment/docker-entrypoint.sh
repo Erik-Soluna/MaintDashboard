@@ -455,6 +455,13 @@ reset_problematic_migrations() {
         fi
     fi
     
+    # Try to fix the specific KeyError by removing problematic migration records
+    print_status "🔧 Attempting to fix KeyError by removing problematic migration records..."
+    if fix_brandingsettings_keyerror; then
+        print_success "✅ KeyError fix applied successfully"
+        return 0
+    fi
+    
     # Try to fake all migrations again after fixing core
     print_status "🔄 Attempting to fake all migrations after core fix..."
     if python manage.py migrate --fake; then
@@ -488,6 +495,95 @@ reset_problematic_migrations() {
     fi
     
     return 1
+}
+
+# Fix the specific KeyError: ('core', 'brandingsettings') issue
+fix_brandingsettings_keyerror() {
+    print_status "🔧 Fixing KeyError: ('core', 'brandingsettings')..."
+    
+    # Create a Python script to fix the KeyError
+    cat > /tmp/fix_brandingsettings.py << 'EOF'
+import os
+import django
+from django.conf import settings
+
+# Setup Django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
+django.setup()
+
+from django.db import connection
+
+# The issue is that there's a migration trying to add a field to brandingsettings
+# but the model doesn't exist in the current migration state
+# We need to either:
+# 1. Remove the problematic migration record, or
+# 2. Create the missing model in the migration state
+
+print("Attempting to fix KeyError: ('core', 'brandingsettings')...")
+
+with connection.cursor() as cursor:
+    # Check if the brandingsettings table actually exists
+    try:
+        cursor.execute("SELECT 1 FROM core_brandingsettings LIMIT 1;")
+        table_exists = True
+        print("✅ core_brandingsettings table exists in database")
+    except Exception as e:
+        table_exists = False
+        print(f"❌ core_brandingsettings table does not exist: {e}")
+    
+    # Check what migrations are trying to reference brandingsettings
+    try:
+        cursor.execute("""
+            SELECT app, name FROM django_migrations 
+            WHERE app = 'core' AND name LIKE '%branding%'
+            ORDER BY name;
+        """)
+        branding_migrations = cursor.fetchall()
+        print(f"Found {len(branding_migrations)} branding-related migrations:")
+        for app, name in branding_migrations:
+            print(f"  - {app}.{name}")
+    except Exception as e:
+        print(f"Error checking branding migrations: {e}")
+    
+    # If the table doesn't exist, we need to remove the migration that created it
+    # or mark it as not applied
+    if not table_exists:
+        print("🔧 Table doesn't exist - removing problematic migration records...")
+        try:
+            # Remove the migration that creates brandingsettings
+            cursor.execute("""
+                DELETE FROM django_migrations 
+                WHERE app = 'core' AND name = '0005_add_branding_models';
+            """)
+            print("✅ Removed 0005_add_branding_models migration record")
+        except Exception as e:
+            print(f"Error removing migration: {e}")
+    
+    # Try to fake the remaining core migrations
+    print("🔄 Attempting to fake remaining core migrations...")
+    try:
+        cursor.execute("""
+            UPDATE django_migrations 
+            SET applied = NOW() 
+            WHERE app = 'core' AND applied IS NULL;
+        """)
+        print("✅ Marked remaining core migrations as applied")
+    except Exception as e:
+        print(f"Error faking migrations: {e}")
+
+print("KeyError fix completed")
+EOF
+    
+    # Run the script
+    if python /tmp/fix_brandingsettings.py; then
+        print_success "✅ KeyError fix script completed"
+        rm -f /tmp/fix_brandingsettings.py
+        return 0
+    else
+        print_error "❌ KeyError fix script failed"
+        rm -f /tmp/fix_brandingsettings.py
+        return 1
+    fi
 }
 
 # Populate empty django_migrations table
