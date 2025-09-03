@@ -545,12 +545,14 @@ with connection.cursor() as cursor:
     except Exception as e:
         print(f"Error checking branding migrations: {e}")
     
-    # If the table doesn't exist, we need to remove the migration that created it
-    # or mark it as not applied
+    # The issue is that migration 0012 tries to add fields to brandingsettings
+    # but the model doesn't exist in the migration state
+    # We need to ensure the brandingsettings model is created first
+    
     if not table_exists:
-        print("🔧 Table doesn't exist - removing problematic migration records...")
+        print("🔧 Table doesn't exist - need to create it first...")
         try:
-            # Remove the migration that creates brandingsettings
+            # Remove the migration that creates brandingsettings so it can be recreated
             cursor.execute("""
                 DELETE FROM django_migrations 
                 WHERE app = 'core' AND name = '0005_add_branding_models';
@@ -558,6 +560,29 @@ with connection.cursor() as cursor:
             print("✅ Removed 0005_add_branding_models migration record")
         except Exception as e:
             print(f"Error removing migration: {e}")
+    else:
+        print("🔧 Table exists but model missing from migration state - fixing dependencies...")
+        # The table exists but the migration state is inconsistent
+        # We need to ensure the brandingsettings model is in the migration state
+        try:
+            # Check if the 0005 migration is marked as applied
+            cursor.execute("""
+                SELECT applied FROM django_migrations 
+                WHERE app = 'core' AND name = '0005_add_branding_models';
+            """)
+            result = cursor.fetchone()
+            if not result:
+                # Migration not marked as applied, mark it as applied
+                cursor.execute("""
+                    INSERT INTO django_migrations (app, name, applied) 
+                    VALUES ('core', '0005_add_branding_models', NOW())
+                    ON CONFLICT (app, name) DO NOTHING;
+                """)
+                print("✅ Marked 0005_add_branding_models as applied")
+            else:
+                print("✅ 0005_add_branding_models already marked as applied")
+        except Exception as e:
+            print(f"Error fixing migration state: {e}")
     
     # Try to fake the remaining core migrations
     print("🔄 Attempting to fake remaining core migrations...")
