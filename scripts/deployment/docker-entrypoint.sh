@@ -357,11 +357,17 @@ fix_migration_issues() {
         local merge_success=false
         for app in core equipment maintenance; do
             print_status "🔄 Checking $app for conflicts..."
-            if python manage.py makemigrations $app --merge --noinput 2>/dev/null; then
+            local merge_output
+            merge_output=$(python manage.py makemigrations $app --merge --noinput 2>&1 || true)
+            
+            if echo "$merge_output" | grep -q "Created new merge migration"; then
                 print_success "✅ $app conflicts merged successfully"
+                echo "$merge_output" | grep "Created new merge migration" || true
                 merge_success=true
+            elif echo "$merge_output" | grep -q "No conflicts detected"; then
+                print_status "ℹ️ No conflicts found in $app"
             else
-                print_status "ℹ️ No conflicts found in $app or merge not needed"
+                print_status "ℹ️ $app merge check completed"
             fi
         done
         
