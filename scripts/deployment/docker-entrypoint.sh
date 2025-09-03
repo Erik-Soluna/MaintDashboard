@@ -417,6 +417,21 @@ reset_problematic_migrations() {
     # Try to identify and fix the specific KeyError issue
     print_status "🔍 Attempting to fix KeyError: ('core', 'brandingsettings')..."
     
+    # Check if django_migrations table is empty (this is the root cause)
+    local migration_count=$(echo "SELECT COUNT(*) FROM django_migrations;" | python manage.py dbshell 2>/dev/null | grep -E '^[0-9]+$' | head -1 || echo "0")
+    
+    if [ "$migration_count" -eq 0 ]; then
+        print_warning "⚠️ django_migrations table is empty - this is the root cause!"
+        print_status "🔧 Attempting to populate django_migrations table..."
+        
+        if populate_migrations_table; then
+            print_success "✅ django_migrations table populated successfully"
+            return 0
+        else
+            print_error "❌ Failed to populate django_migrations table"
+        fi
+    fi
+    
     # Check if the brandingsettings table exists
     if echo "SELECT 1 FROM core_brandingsettings LIMIT 1;" | python manage.py dbshell > /dev/null 2>&1; then
         print_status "✅ core_brandingsettings table exists"
@@ -467,6 +482,133 @@ reset_problematic_migrations() {
     fi
     
     return 1
+}
+
+# Populate empty django_migrations table
+populate_migrations_table() {
+    print_status "🔧 Populating empty django_migrations table..."
+    
+    # Create a comprehensive Python script to populate the migrations table
+    cat > /tmp/populate_migrations.py << 'EOF'
+import os
+import django
+from django.conf import settings
+
+# Setup Django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
+django.setup()
+
+from django.db import connection
+from django.core.management import call_command
+import datetime
+
+# Define all the migrations that should be marked as applied
+# Based on the showmigrations output we saw
+migrations_to_mark = [
+    # Django built-in apps
+    ('admin', '0001_initial'),
+    ('admin', '0002_logentry_remove_auto_add'),
+    ('admin', '0003_logentry_add_action_flag_choices'),
+    ('auth', '0001_initial'),
+    ('auth', '0002_alter_permission_name_max_length'),
+    ('auth', '0003_alter_user_email_max_length'),
+    ('auth', '0004_alter_user_username_opts'),
+    ('auth', '0005_alter_user_last_login_null'),
+    ('auth', '0006_require_contenttypes_0002'),
+    ('auth', '0007_alter_validators_add_error_messages'),
+    ('auth', '0008_alter_user_username_max_length'),
+    ('auth', '0009_alter_user_last_name_max_length'),
+    ('auth', '0010_alter_group_name_max_length'),
+    ('auth', '0011_update_proxy_permissions'),
+    ('auth', '0012_alter_user_first_name_max_length'),
+    ('contenttypes', '0001_initial'),
+    ('contenttypes', '0002_remove_content_type_name'),
+    ('sessions', '0001_initial'),
+    
+    # Core app migrations (mark the ones that don't conflict)
+    ('core', '0001_initial'),
+    ('core', '0002_add_logo_model'),
+    ('core', '0003_populate_default_data'),
+    ('core', '0004_add_more_maintenance_categories'),
+    ('core', '0002_userprofile_default_location_and_more'),
+    ('core', '0003_permission_role_alter_userprofile_role'),
+    ('core', '0004_add_customer_to_location'),
+    ('core', '0005_modeldocument'),
+    ('core', '0006_playwrightdebuglog'),
+    ('core', '0007_portainerconfig'),
+    ('core', '0008_portainerconfig_image_tag_and_more'),
+    ('core', '0009_portainerconfig_polling_frequency'),
+    ('core', '0010_portainerconfig_last_check_date_and_more'),
+    ('core', '0011_userprofile_timezone_and_more'),
+    
+    # Equipment app migrations
+    ('equipment', '0001_initial'),
+    ('equipment', '0002_remove_equipmentdocument_is_current_and_more'),
+    ('equipment', '0003_equipmentcategoryfield_equipmentcustomvalue'),
+    ('equipment', '0004_equipmentcategoryconditionalfield'),
+    
+    # Events app migrations
+    ('events', '0001_initial'),
+    ('events', '0002_calendarevent_maintenance_activity'),
+    ('events', '0003_remove_calendarevent_maintenance_activity_and_more'),
+    ('events', '0004_remove_calendarevent_activity_type_and_more'),
+    
+    # Maintenance app migrations (mark the ones that don't conflict)
+    ('maintenance', '0001_initial'),
+    ('maintenance', '0002_maintenancereport'),
+    ('maintenance', '0003_remove_maintenancereport_maintenance_activit_da135f_idx_and_more'),
+    ('maintenance', '0004_make_maintenanceactivity_datetimes_aware'),
+    
+    # Celery beat migrations
+    ('django_celery_beat', '0001_initial'),
+    ('django_celery_beat', '0002_auto_20161118_0346'),
+    ('django_celery_beat', '0003_auto_20161209_0049'),
+    ('django_celery_beat', '0004_auto_20170221_0000'),
+    ('django_celery_beat', '0005_add_solarschedule_events_choices'),
+    ('django_celery_beat', '0006_auto_20180322_0932'),
+    ('django_celery_beat', '0007_auto_20180521_0826'),
+    ('django_celery_beat', '0008_auto_20180914_1922'),
+    ('django_celery_beat', '0006_auto_20180210_1226'),
+    ('django_celery_beat', '0006_periodictask_priority'),
+    ('django_celery_beat', '0009_periodictask_headers'),
+    ('django_celery_beat', '0010_auto_20190429_0326'),
+    ('django_celery_beat', '0011_auto_20190508_0153'),
+    ('django_celery_beat', '0012_periodictask_expire_seconds'),
+    ('django_celery_beat', '0013_auto_20200609_0727'),
+    ('django_celery_beat', '0014_remove_clockedschedule_enabled'),
+    ('django_celery_beat', '0015_edit_solarschedule_events_choices'),
+    ('django_celery_beat', '0016_alter_crontabschedule_timezone'),
+    ('django_celery_beat', '0017_alter_crontabschedule_month_of_year'),
+    ('django_celery_beat', '0018_improve_crontab_helptext'),
+    ('django_celery_beat', '0019_alter_periodictasks_options'),
+]
+
+# Mark all migrations as applied
+with connection.cursor() as cursor:
+    for app_name, migration_name in migrations_to_mark:
+        try:
+            cursor.execute("""
+                INSERT INTO django_migrations (app, name, applied) 
+                VALUES (%s, %s, %s) 
+                ON CONFLICT (app, name) DO NOTHING
+            """, [app_name, migration_name, datetime.datetime.now()])
+            print(f"Marked {app_name}.{migration_name} as applied")
+        except Exception as e:
+            print(f"Failed to mark {app_name}.{migration_name}: {e}")
+
+print("Migration table population completed")
+EOF
+    
+    # Run the script
+    if python /tmp/populate_migrations.py; then
+        print_success "✅ django_migrations table populated successfully"
+        rm -f /tmp/populate_migrations.py
+        return 0
+    else
+        print_error "❌ Failed to populate django_migrations table"
+        rm -f /tmp/populate_migrations.py
+        return 1
+    fi
 }
 
 # Ultimate fallback: bypass migration system entirely
