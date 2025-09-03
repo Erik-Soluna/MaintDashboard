@@ -175,7 +175,7 @@ initialize_database() {
         
         # Show current migration state for debugging
         print_status "📋 Current migration state:"
-        python manage.py showmigrations --list | head -20 || true
+        python manage.py showmigrations --list 2>/dev/null || print_warning "⚠️ Could not display migration state"
         
         # Try to run migrations with more detailed error handling
         print_status "🚀 Running migrations..."
@@ -344,7 +344,8 @@ fix_migration_issues() {
     
     # Check for conflicting migrations by trying to run migrate and looking for conflict messages
     print_status "🔍 Checking for migration conflicts..."
-    local migrate_output=$(python manage.py migrate --noinput 2>&1 || true)
+    local migrate_output
+    migrate_output=$(python manage.py migrate --noinput 2>&1 || true)
     
     if echo "$migrate_output" | grep -q "Conflicting migrations detected"; then
         print_warning "⚠️ Migration conflicts detected:"
