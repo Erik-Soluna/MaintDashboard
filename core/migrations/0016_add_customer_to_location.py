@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('core', '0003_permission_role_alter_userprofile_role'),
+        ('core', '0015_permission_role_alter_userprofile_role'),
     ]
 
     operations = [

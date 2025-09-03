@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('core', '0002_userprofile_default_location_and_more'),
+        ('core', '0014_userprofile_default_location_and_more'),
     ]
 
     operations = [

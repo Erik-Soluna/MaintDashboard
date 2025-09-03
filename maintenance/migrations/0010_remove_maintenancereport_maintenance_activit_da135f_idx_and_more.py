@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('maintenance', '0002_maintenancereport'),
+        ('maintenance', '0009_add_timezone_to_maintenance_activity'),
     ]
 
     operations = [

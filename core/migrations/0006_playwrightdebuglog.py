@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0005_modeldocument'),
+        ('core', '0005_add_branding_models'),
     ]
 
     operations = [
