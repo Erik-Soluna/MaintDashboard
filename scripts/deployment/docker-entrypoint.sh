@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Clean Docker Entrypoint Script for Maintenance Dashboard
-# Version: 2024-09-02-CLEAN-SLATE
-# Purpose: Simple, reliable database initialization for fresh deployments
+# Production-Safe Docker Entrypoint Script for Maintenance Dashboard
+# Version: 2024-09-02-PRODUCTION-SAFE
+# Purpose: Safe, non-destructive database initialization for production deployments
 
 set -e
 
@@ -32,8 +32,25 @@ print_error() {
 
 # Main initialization function
 main() {
+    # Check for infinite loop prevention
+    if [ -f "/tmp/entrypoint_restart_count" ]; then
+        restart_count=$(cat /tmp/entrypoint_restart_count)
+        restart_count=$((restart_count + 1))
+    else
+        restart_count=1
+    fi
+    
+    if [ "$restart_count" -gt 3 ]; then
+        print_error "❌ Too many restart attempts detected. Exiting to prevent infinite loop."
+        print_error "❌ Please check your database configuration and restart the container manually."
+        exit 1
+    fi
+    
+    echo "$restart_count" > /tmp/entrypoint_restart_count
+    
     print_status "🚀 Starting clean database initialization..."
-    print_status "🔧 ENTRYPOINT VERSION: 2024-09-02-CLEAN-SLATE"
+    print_status "🔧 ENTRYPOINT VERSION: 2024-09-02-PRODUCTION-SAFE"
+    print_status "🔄 Restart attempt: $restart_count/3"
     
     # Configuration
     DB_HOST="${DB_HOST:-db}"
@@ -149,21 +166,25 @@ initialize_database() {
         print_status "🔍 DEBUG: maintenance_maintenanceactivity table does not exist"
     fi
     
-    # If we have migrations table but no actual tables, it's a corrupted state - treat as fresh
-    if [ "$has_migrations_table" = "true" ] && [ "$has_actual_tables" = "false" ]; then
-        print_status "🆕 Corrupted database state detected - using clean initialization"
-        initialize_fresh_database
-    elif [ "$has_migrations_table" = "false" ]; then
-        print_status "🆕 Fresh database detected - using clean initialization"
+    # Production-safe database initialization
+    if [ "$has_migrations_table" = "false" ]; then
+        print_status "🆕 Fresh database detected - creating initial tables"
         initialize_fresh_database
     else
-        print_status "🔄 Existing database detected - testing migrations first..."
-        # Try to run migrations, but if they fail with conflicts, use clean initialization
+        print_status "🔄 Existing database detected - running migrations..."
+        # Always try migrations first - never destructive operations
         if python manage.py migrate --noinput > /dev/null 2>&1; then
             print_success "✅ Migrations completed successfully"
         else
-            print_warning "⚠️ Migration conflicts detected - using clean initialization instead"
-            initialize_fresh_database
+            print_warning "⚠️ Migration issues detected - attempting to resolve..."
+            # Try to resolve migration conflicts without destructive operations
+            if python manage.py migrate --fake-initial > /dev/null 2>&1; then
+                print_success "✅ Migration conflicts resolved"
+            else
+                print_error "❌ Migration conflicts could not be resolved automatically"
+                print_error "❌ Manual intervention required - please check migration state"
+                exit 1
+            fi
         fi
     fi
     
@@ -186,6 +207,9 @@ initialize_database() {
         || print_warning "⚠️  Schedule generation failed, continuing..."
     
     print_success "✅ Database initialization completed successfully!"
+    
+    # Clear restart counter on success
+    rm -f /tmp/entrypoint_restart_count
 }
 
 # Run incremental migrations with proper error handling
@@ -273,55 +297,35 @@ check_and_fix_missing_tables() {
     return 0
 }
 
-# Initialize fresh database
+# Initialize fresh database (PRODUCTION SAFE - NO DESTRUCTIVE OPERATIONS)
 initialize_fresh_database() {
-    print_status "🧹 Cleaning migration files for fresh start..."
+    print_status "🆕 Initializing fresh database (production-safe mode)..."
     
-    # Backup existing migrations
-    mkdir -p /tmp/migration_backup
-    cp -r */migrations /tmp/migration_backup/ 2>/dev/null || true
+    # For production, we NEVER drop or clear tables
+    # We only run migrations to create missing tables
     
-    # Remove all migration files except __init__.py
-    find . -path "*/migrations/*.py" -not -name "__init__.py" -delete 2>/dev/null || true
-    find . -path "*/migrations/*.pyc" -delete 2>/dev/null || true
-    
-    # Drop and recreate the entire database for a completely fresh start
-    print_status "🧹 Dropping and recreating database for completely fresh start..."
-    
-    # Drop the database (connect to postgres database first)
-    if PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "postgres" -d "postgres" -c "DROP DATABASE IF EXISTS \"$DB_NAME\";" > /dev/null 2>&1; then
-        print_success "✅ Database '$DB_NAME' dropped successfully"
-    else
-        print_warning "⚠️ Failed to drop database, trying alternative approach..."
-        # Alternative: terminate connections and drop
-        PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "postgres" -d "postgres" -c "
-            SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DB_NAME' AND pid <> pg_backend_pid();
-            DROP DATABASE IF EXISTS \"$DB_NAME\";
-        " > /dev/null 2>&1 || true
-    fi
-    
-    # Recreate the database
-    if PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "postgres" -d "postgres" -c "CREATE DATABASE \"$DB_NAME\";" > /dev/null 2>&1; then
-        print_success "✅ Database '$DB_NAME' recreated successfully"
-    else
-        print_error "❌ Failed to recreate database"
-        exit 1
-    fi
-    
-    print_status "📝 Creating fresh initial migrations..."
+    print_status "📝 Creating initial migrations if needed..."
     if python manage.py makemigrations --noinput; then
-        print_success "✅ Fresh migrations created successfully"
+        print_success "✅ Migrations created/verified successfully"
     else
-        print_error "❌ Failed to create fresh migrations"
-        exit 1
+        print_warning "⚠️ No new migrations needed"
     fi
     
-    print_status "🚀 Applying fresh migrations..."
+    print_status "🚀 Applying migrations to create tables..."
     if python manage.py migrate --noinput; then
-        print_success "✅ Fresh database initialized successfully"
+        print_success "✅ Database tables created successfully"
     else
-        print_error "❌ Failed to apply fresh migrations"
-        exit 1
+        print_error "❌ Failed to apply migrations"
+        print_status "🔄 Trying to fix migration state..."
+        
+        # Try to fake initial migrations for existing tables
+        if python manage.py migrate --fake-initial; then
+            print_success "✅ Migration state fixed with --fake-initial"
+        else
+            print_error "❌ Migration failed - manual intervention required"
+            print_error "❌ Please check your database and migration state manually"
+            exit 1
+        fi
     fi
 }
 
