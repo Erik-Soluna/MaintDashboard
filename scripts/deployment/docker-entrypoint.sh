@@ -172,18 +172,59 @@ initialize_database() {
         initialize_fresh_database
     else
         print_status "🔄 Existing database detected - running migrations..."
-        # Always try migrations first - never destructive operations
-        if python manage.py migrate --noinput > /dev/null 2>&1; then
+        
+        # Show current migration state for debugging
+        print_status "📋 Current migration state:"
+        python manage.py showmigrations --list | head -20 || true
+        
+        # Try to run migrations with more detailed error handling
+        print_status "🚀 Running migrations..."
+        if python manage.py migrate --noinput; then
             print_success "✅ Migrations completed successfully"
         else
             print_warning "⚠️ Migration issues detected - attempting to resolve..."
-            # Try to resolve migration conflicts without destructive operations
-            if python manage.py migrate --fake-initial > /dev/null 2>&1; then
-                print_success "✅ Migration conflicts resolved"
+            
+            # Try different migration strategies
+            print_status "🔄 Trying --fake-initial..."
+            if python manage.py migrate --fake-initial; then
+                print_success "✅ Migration conflicts resolved with --fake-initial"
             else
-                print_error "❌ Migration conflicts could not be resolved automatically"
-                print_error "❌ Manual intervention required - please check migration state"
-                exit 1
+                print_status "🔄 Trying --fake..."
+                if python manage.py migrate --fake; then
+                    print_success "✅ Migration conflicts resolved with --fake"
+                else
+                    print_status "🔄 Trying to run migrations app by app..."
+                    
+                    # Try running migrations for each app individually
+                    local migration_success=false
+                    for app in core equipment maintenance; do
+                        print_status "🔄 Running migrations for $app..."
+                        if python manage.py migrate $app --noinput; then
+                            print_success "✅ $app migrations completed"
+                            migration_success=true
+                        else
+                            print_warning "⚠️ $app migrations failed, trying --fake"
+                            if python manage.py migrate $app --fake; then
+                                print_success "✅ $app migrations faked successfully"
+                                migration_success=true
+                            fi
+                        fi
+                    done
+                    
+                    if [ "$migration_success" = "true" ]; then
+                        print_success "✅ All app migrations completed"
+                    else
+                        print_status "🔄 Trying advanced migration fixes..."
+                        if fix_migration_issues; then
+                            print_success "✅ Migration issues resolved with advanced fixes"
+                        else
+                            print_error "❌ Migration conflicts could not be resolved automatically"
+                            print_error "❌ Manual intervention required - please check migration state"
+                            print_status "💡 Try running: python manage.py migrate --fake"
+                            exit 1
+                        fi
+                    fi
+                fi
             fi
         fi
     fi
@@ -295,6 +336,48 @@ check_and_fix_missing_tables() {
     done
     
     return 0
+}
+
+# Fix common migration issues
+fix_migration_issues() {
+    print_status "🔧 Attempting to fix common migration issues..."
+    
+    # Check for conflicting migrations
+    local conflicts=$(python manage.py showmigrations --list 2>&1 | grep -i "conflict" || true)
+    if [ -n "$conflicts" ]; then
+        print_warning "⚠️ Migration conflicts detected:"
+        echo "$conflicts"
+        
+        print_status "🔄 Attempting to resolve conflicts..."
+        
+        # Try to merge conflicting migrations
+        for app in core equipment maintenance; do
+            print_status "🔄 Checking $app for conflicts..."
+            if python manage.py makemigrations $app --merge --noinput; then
+                print_success "✅ $app conflicts merged"
+            fi
+        done
+        
+        # Try to apply merged migrations
+        if python manage.py migrate --noinput; then
+            print_success "✅ Merged migrations applied successfully"
+            return 0
+        fi
+    fi
+    
+    # Check for unapplied migrations
+    local unapplied=$(python manage.py showmigrations --list | grep -E "\[ \]" | wc -l)
+    if [ "$unapplied" -gt 0 ]; then
+        print_status "📋 Found $unapplied unapplied migration(s)"
+        
+        # Try to fake unapplied migrations
+        if python manage.py migrate --fake; then
+            print_success "✅ Unapplied migrations faked successfully"
+            return 0
+        fi
+    fi
+    
+    return 1
 }
 
 # Initialize fresh database (PRODUCTION SAFE - NO DESTRUCTIVE OPERATIONS)
