@@ -167,6 +167,10 @@ initialize_database() {
         fi
     fi
     
+    # Check for specific missing tables and apply targeted fixes
+    print_status "🔍 Verifying all required tables exist..."
+    check_and_fix_missing_tables
+    
     # Create admin user and initial data
     print_status "👤 Creating admin user and initial data..."
     python manage.py init_database \
@@ -182,6 +186,91 @@ initialize_database() {
         || print_warning "⚠️  Schedule generation failed, continuing..."
     
     print_success "✅ Database initialization completed successfully!"
+}
+
+# Run incremental migrations with proper error handling
+run_incremental_migrations() {
+    print_status "🔄 Running incremental migrations..."
+    
+    # First, check for any unapplied migrations
+    local unapplied_migrations=$(python manage.py showmigrations --list | grep -E "\[ \]" | wc -l)
+    
+    if [ "$unapplied_migrations" -eq 0 ]; then
+        print_success "✅ All migrations are already applied"
+        return 0
+    fi
+    
+    print_status "📋 Found $unapplied_migrations unapplied migration(s)"
+    
+    # Show which migrations need to be applied
+    print_status "📋 Unapplied migrations:"
+    python manage.py showmigrations --list | grep -E "\[ \]" || true
+    
+    # Try to run migrations with detailed output
+    print_status "🚀 Applying migrations..."
+    if python manage.py migrate --verbosity=2; then
+        print_success "✅ All migrations applied successfully"
+        return 0
+    else
+        print_warning "⚠️ Migration failed, checking for conflicts..."
+        
+        # Check for specific migration conflicts
+        if python manage.py migrate --plan 2>&1 | grep -q "conflict"; then
+            print_warning "⚠️ Migration conflicts detected"
+            print_status "🔧 Attempting to resolve conflicts..."
+            
+            # Try to fake the conflicting migrations
+            if python manage.py migrate --fake-initial; then
+                print_success "✅ Migration conflicts resolved with --fake-initial"
+                return 0
+            fi
+        fi
+        
+        # If we get here, migrations failed and we can't resolve them
+        print_error "❌ Migration failed and could not be resolved"
+        print_status "🔄 Attempting clean database initialization..."
+        initialize_fresh_database
+        return 0
+    fi
+}
+
+# Check for specific missing tables and apply targeted migrations
+check_and_fix_missing_tables() {
+    print_status "🔍 Checking for specific missing tables..."
+    
+    # Check for the conditional fields table specifically
+    if ! echo "SELECT 1 FROM equipment_equipmentcategoryconditionalfield LIMIT 1;" | python manage.py dbshell > /dev/null 2>&1; then
+        print_warning "⚠️ equipment_equipmentcategoryconditionalfield table missing"
+        print_status "🔧 Applying equipment migrations specifically..."
+        
+        if python manage.py migrate equipment --verbosity=2; then
+            print_success "✅ Equipment migrations applied successfully"
+        else
+            print_error "❌ Equipment migrations failed"
+            return 1
+        fi
+    else
+        print_success "✅ equipment_equipmentcategoryconditionalfield table exists"
+    fi
+    
+    # Check for other critical tables
+    local critical_tables=(
+        "core_userprofile"
+        "maintenance_maintenanceactivity"
+        "equipment_equipment"
+        "equipment_equipmentcategoryfield"
+        "equipment_equipmentcustomvalue"
+    )
+    
+    for table in "${critical_tables[@]}"; do
+        if ! echo "SELECT 1 FROM $table LIMIT 1;" | python manage.py dbshell > /dev/null 2>&1; then
+            print_warning "⚠️ $table table missing"
+        else
+            print_status "✅ $table table exists"
+        fi
+    done
+    
+    return 0
 }
 
 # Initialize fresh database
