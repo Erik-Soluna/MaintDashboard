@@ -3814,6 +3814,78 @@ def health_check_view(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+def create_admin_user_api(request):
+    """
+    Create admin user via API.
+    
+    Expected JSON payload:
+    {
+        "username": "admin",
+        "email": "admin@maintenance.local",
+        "password": "temppass123"
+    }
+    """
+    try:
+        data = json.loads(request.body) if request.body else {}
+        username = data.get('username', 'admin')
+        email = data.get('email', 'admin@maintenance.local')
+        password = data.get('password', 'temppass123')
+        
+        from django.contrib.auth.models import User
+        from django.db import transaction
+        
+        with transaction.atomic():
+            # Check if user already exists
+            if User.objects.filter(username=username).exists():
+                return JsonResponse({
+                    'success': False,
+                    'error': f'User "{username}" already exists'
+                }, status=400)
+            
+            # Create superuser
+            admin_user = User.objects.create_superuser(
+                username=username,
+                email=email,
+                password=password,
+                first_name='System',
+                last_name='Administrator'
+            )
+            
+            # Create user profile if it exists
+            try:
+                from core.models import UserProfile
+                user_profile, created = UserProfile.objects.get_or_create(
+                    user=admin_user,
+                    defaults={
+                        'role': 'admin',
+                        'employee_id': 'ADMIN001',
+                        'department': 'IT Administration',
+                        'is_active': True,
+                    }
+                )
+            except ImportError:
+                pass  # UserProfile model not available
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Admin user "{username}" created successfully',
+                'username': username,
+                'email': email
+            })
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON payload'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@csrf_exempt
+@require_http_methods(["POST"])
 def run_migrations_api(request):
     """
     Run Django migrations via API.
