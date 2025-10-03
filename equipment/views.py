@@ -607,7 +607,7 @@ def equipment_documents(request, equipment_id):
     # Get maintenance reports for this equipment
     from maintenance.models import MaintenanceReport
     maintenance_reports = MaintenanceReport.objects.filter(
-        equipment=equipment,
+        maintenance_activity__equipment=equipment,
         is_active=True
     ).order_by('-created_at')
     
