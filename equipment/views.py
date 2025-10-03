@@ -646,6 +646,26 @@ def add_document(request, equipment_id):
 
 
 @login_required
+def delete_document(request, equipment_id, document_id):
+    """Delete an equipment document."""
+    equipment = get_object_or_404(Equipment, id=equipment_id)
+    document = get_object_or_404(EquipmentDocument, id=document_id, equipment=equipment)
+    
+    if request.method == 'POST':
+        document_title = document.title
+        document.delete()
+        messages.success(request, f'Document "{document_title}" deleted successfully!')
+        return redirect('equipment:equipment_documents', equipment_id=equipment.id)
+    
+    context = {
+        'equipment': equipment,
+        'document': document,
+    }
+    
+    return render(request, 'equipment/delete_document.html', context)
+
+
+@login_required
 def import_equipment_csv(request):
     """Import equipment from CSV file."""
     if request.method == 'POST':
