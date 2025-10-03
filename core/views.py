@@ -3985,6 +3985,8 @@ def run_migrations_api(request):
                 call_command('showmigrations', '--list', verbosity=2)
             elif command == 'clear_migrations':
                 call_command('clear_migrations', '--force', verbosity=2)
+            elif command == 'init_database':
+                call_command('init_database', '--force', verbosity=2)
             elif command == 'makemigrations':
                 call_command('makemigrations', verbosity=2)
             else:
