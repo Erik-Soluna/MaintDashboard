@@ -84,7 +84,18 @@ main() {
     
     # Step 4: Start the application
     print_status "🚀 Starting application..."
-    exec "$@"
+    
+    # Handle different service commands
+    if [ "$1" = "web" ] || [ "$1" = "gunicorn" ]; then
+        exec gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 maintenance_dashboard.wsgi:application
+    elif [ "$1" = "celery" ]; then
+        exec celery -A maintenance_dashboard worker --loglevel=info
+    elif [ "$1" = "celery-beat" ]; then
+        exec celery -A maintenance_dashboard beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    else
+        # Default behavior for other commands
+        exec "$@"
+    fi
 }
 
 # Wait for database to be ready
@@ -135,6 +146,50 @@ ensure_database_exists() {
     exit 1
 }
 
+# Verify critical tables exist
+verify_critical_tables() {
+    local missing_tables=()
+    
+    # Check for critical tables that should exist
+    local critical_tables=(
+        "maintenance_maintenanceactivitytype"
+        "maintenance_activitytypecategory" 
+        "maintenance_activitytypetemplate"
+        "core_userprofile"
+        "equipment_equipment"
+    )
+    
+    for table in "${critical_tables[@]}"; do
+        if ! echo "SELECT 1 FROM $table LIMIT 1;" | python manage.py dbshell > /dev/null 2>&1; then
+            missing_tables+=("$table")
+            print_warning "⚠️  Missing table: $table"
+        fi
+    done
+    
+    if [ ${#missing_tables[@]} -gt 0 ]; then
+        print_warning "🔧 Found ${#missing_tables[@]} missing tables - running fix script..."
+        
+        # Run the fix script
+        if python /app/scripts/deployment/fix_missing_tables.py 2>/dev/null || python /workspace/scripts/deployment/fix_missing_tables.py 2>/dev/null || python fix_missing_tables.py 2>/dev/null; then
+            print_success "✅ Missing tables fixed"
+        else
+            print_warning "⚠️ Fix script failed, trying manual migration reset..."
+            
+            # Manual fix: unapply and reapply maintenance migrations
+            print_status "🔄 Resetting maintenance app migrations..."
+            echo "DELETE FROM django_migrations WHERE app = 'maintenance' AND name = '0001_initial';" | python manage.py dbshell > /dev/null 2>&1
+            
+            if python manage.py migrate maintenance 0001 --noinput; then
+                print_success "✅ Maintenance migrations reset and reapplied"
+            else
+                print_warning "⚠️ Manual migration reset failed, continuing anyway..."
+            fi
+        fi
+    else
+        print_success "✅ All critical tables exist"
+    fi
+}
+
 # Initialize database
 initialize_database() {
     # Check if this is a fresh database by looking for both django_migrations table AND actual data
@@ -181,6 +236,10 @@ initialize_database() {
         print_status "🚀 Running migrations..."
         if python manage.py migrate --noinput; then
             print_success "✅ Migrations completed successfully"
+            
+            # Verify critical tables exist after migration
+            print_status "🔍 Verifying critical tables exist..."
+            verify_critical_tables
         else
             print_warning "⚠️ Migration issues detected - attempting to resolve..."
             
@@ -188,6 +247,10 @@ initialize_database() {
             print_status "🔄 Trying --fake-initial..."
             if python manage.py migrate --fake-initial; then
                 print_success "✅ Migration conflicts resolved with --fake-initial"
+                
+                # Verify critical tables exist after fake-initial
+                print_status "🔍 Verifying critical tables after fake-initial..."
+                verify_critical_tables
             else
                 print_status "🔄 Trying --fake..."
                 if python manage.py migrate --fake; then

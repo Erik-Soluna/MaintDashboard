@@ -7,6 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core', '0011_userprofile_timezone_and_more'),
+        ('core', '0005_add_branding_models'),
     ]
 
     operations = [

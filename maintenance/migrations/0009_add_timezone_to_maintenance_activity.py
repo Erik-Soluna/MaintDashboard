@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('maintenance', '0004_make_maintenanceactivity_datetimes_aware'),
+        ('maintenance', '0008_maintenancereport'),
     ]
 
     operations = [
