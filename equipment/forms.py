@@ -5,7 +5,7 @@ Forms for equipment management.
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Row, Column, Submit
-from .models import Equipment, EquipmentComponent, EquipmentDocument, EquipmentCategoryField, EquipmentCustomValue
+from .models import Equipment, EquipmentComponent, EquipmentDocument, EquipmentCategoryField, EquipmentCustomValue, EquipmentCategoryConditionalField
 from core.models import EquipmentCategory, Location
 
 
