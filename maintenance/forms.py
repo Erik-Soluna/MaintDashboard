@@ -220,6 +220,20 @@ class EnhancedMaintenanceActivityTypeForm(forms.ModelForm):
 class MaintenanceActivityForm(forms.ModelForm):
     """Form for creating and editing maintenance activities."""
     
+    # Quick creation fields
+    quick_category = forms.CharField(
+        max_length=100,
+        required=False,
+        label="Quick Category",
+        help_text="Create a new category on the fly"
+    )
+    quick_activity_type = forms.CharField(
+        max_length=100,
+        required=False,
+        label="Quick Activity Type",
+        help_text="Create a new activity type on the fly"
+    )
+    
     class Meta:
         model = MaintenanceActivity
         fields = [
@@ -262,6 +276,50 @@ class MaintenanceActivityForm(forms.ModelForm):
                     )
         
         return cleaned_data
+    
+    def save(self, commit=True):
+        """Save the form and handle quick creation of categories and activity types."""
+        instance = super().save(commit=False)
+        
+        # Handle quick creation of category and activity type
+        quick_category = self.cleaned_data.get('quick_category')
+        quick_activity_type = self.cleaned_data.get('quick_activity_type')
+        
+        if quick_category and quick_activity_type:
+            from maintenance.models import ActivityTypeCategory, MaintenanceActivityType
+            
+            # Create category if it doesn't exist
+            category, created = ActivityTypeCategory.objects.get_or_create(
+                name=quick_category,
+                defaults={
+                    'description': f'Quick created category: {quick_category}',
+                    'color': '#6c757d',
+                    'icon': 'fas fa-wrench',
+                    'is_active': True,
+                    'sort_order': 999,
+                }
+            )
+            
+            # Create activity type if it doesn't exist
+            activity_type, created = MaintenanceActivityType.objects.get_or_create(
+                name=quick_activity_type,
+                defaults={
+                    'category': category,
+                    'description': f'Quick created activity type: {quick_activity_type}',
+                    'estimated_duration_hours': 2,
+                    'frequency_days': 30,
+                    'is_mandatory': False,
+                    'is_active': True,
+                }
+            )
+            
+            # Set the activity type on the instance
+            instance.activity_type = activity_type
+        
+        if commit:
+            instance.save()
+        
+        return instance
 
     def __init__(self, *args, **kwargs):
         # Extract request from kwargs to access session data
@@ -298,6 +356,13 @@ class MaintenanceActivityForm(forms.ModelForm):
         self.fields['activity_type'].queryset = MaintenanceActivityType.objects.filter(is_active=True).select_related('category')
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True)
         
+        # Add quick creation options to activity type field
+        self.fields['activity_type'].widget.attrs.update({
+            'data-quick-create': 'true',
+            'data-category-field': 'id_quick_category',
+            'data-activity-field': 'id_quick_activity_type'
+        })
+        
         # Setup crispy forms helper
         self.helper = FormHelper()
         self.helper.layout = Layout(
@@ -307,6 +372,25 @@ class MaintenanceActivityForm(forms.ModelForm):
                     Column('equipment', css_class='form-group col-md-6 mb-0'),
                     Column('activity_type', css_class='form-group col-md-6 mb-0'),
                 ),
+                HTML('<div class="alert alert-info">' +
+                     '<strong>Quick Create:</strong> Can\'t find the activity type you need? ' +
+                     '<button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="toggleQuickCreate()">' +
+                     '<i class="fas fa-plus"></i> Create New</button>' +
+                     '</div>'),
+                HTML('<div id="quick-create-fields" style="display: none;" class="border rounded p-3 mb-3 bg-light">' +
+                     '<h6><i class="fas fa-magic"></i> Quick Create Activity Type</h6>' +
+                     '<div class="row">' +
+                     '<div class="col-md-6">' +
+                     '<label for="id_quick_category" class="form-label">New Category</label>' +
+                     '<input type="text" class="form-control" id="id_quick_category" name="quick_category" placeholder="e.g., Emergency Maintenance">' +
+                     '</div>' +
+                     '<div class="col-md-6">' +
+                     '<label for="id_quick_activity_type" class="form-label">New Activity Type</label>' +
+                     '<input type="text" class="form-control" id="id_quick_activity_type" name="quick_activity_type" placeholder="e.g., Emergency Repair">' +
+                     '</div>' +
+                     '</div>' +
+                     '<small class="text-muted">These will be created automatically when you save the maintenance activity.</small>' +
+                     '</div>'),
                 'title',
                 'description',
                 HTML('<div id="activity-suggestions" class="alert alert-info" style="display: none;"></div>')

@@ -219,6 +219,16 @@
 </div>
 
 <script>
+// Quick create toggle function
+function toggleQuickCreate() {
+    const quickCreateFields = document.getElementById('quick-create-fields');
+    if (quickCreateFields.style.display === 'none') {
+        quickCreateFields.style.display = 'block';
+    } else {
+        quickCreateFields.style.display = 'none';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const startTimeInput = document.getElementById('{{ form.scheduled_start.id_for_label }}');
     const endTimeInput = document.getElementById('{{ form.scheduled_end.id_for_label }}');
