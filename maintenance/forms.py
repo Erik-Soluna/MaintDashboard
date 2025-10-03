@@ -257,6 +257,16 @@ class MaintenanceActivityForm(forms.ModelForm):
         cleaned_data = super().clean()
         scheduled_start = cleaned_data.get('scheduled_start')
         scheduled_end = cleaned_data.get('scheduled_end')
+        timezone_str = cleaned_data.get('timezone')
+        
+        # Handle timezone conversion for datetime-local inputs
+        if scheduled_start and timezone_str:
+            scheduled_start = self._convert_to_timezone(scheduled_start, timezone_str)
+            cleaned_data['scheduled_start'] = scheduled_start
+            
+        if scheduled_end and timezone_str:
+            scheduled_end = self._convert_to_timezone(scheduled_end, timezone_str)
+            cleaned_data['scheduled_end'] = scheduled_end
         
         if scheduled_start and scheduled_end:
             # Check if start time is after end time
@@ -276,6 +286,42 @@ class MaintenanceActivityForm(forms.ModelForm):
                     )
         
         return cleaned_data
+    
+    def _convert_to_timezone(self, naive_datetime, timezone_str):
+        """Convert naive datetime to timezone-aware datetime."""
+        import pytz
+        from django.utils import timezone as django_timezone
+        
+        if naive_datetime.tzinfo is None:
+            # Convert naive datetime to the specified timezone
+            try:
+                target_tz = pytz.timezone(timezone_str)
+                # Localize the naive datetime to the target timezone
+                localized_dt = target_tz.localize(naive_datetime)
+                # Convert to UTC for storage
+                return localized_dt.astimezone(pytz.UTC)
+            except (pytz.UnknownTimeZoneError, AttributeError):
+                # Fallback to default timezone if conversion fails
+                return django_timezone.make_aware(naive_datetime)
+        
+        return naive_datetime
+    
+    def _convert_from_utc(self, utc_datetime, timezone_str):
+        """Convert UTC datetime to naive datetime in specified timezone for display."""
+        import pytz
+        
+        if utc_datetime and utc_datetime.tzinfo:
+            try:
+                target_tz = pytz.timezone(timezone_str)
+                # Convert from UTC to target timezone
+                local_dt = utc_datetime.astimezone(target_tz)
+                # Return as naive datetime for datetime-local input
+                return local_dt.replace(tzinfo=None)
+            except (pytz.UnknownTimeZoneError, AttributeError):
+                # Fallback to naive UTC datetime
+                return utc_datetime.replace(tzinfo=None)
+        
+        return utc_datetime
     
     def save(self, commit=True):
         """Save the form and handle quick creation of categories and activity types."""
@@ -355,6 +401,16 @@ class MaintenanceActivityForm(forms.ModelForm):
         
         self.fields['activity_type'].queryset = MaintenanceActivityType.objects.filter(is_active=True).select_related('category')
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True)
+        
+        # Handle timezone conversion for datetime fields when editing
+        if self.instance and self.instance.pk:
+            timezone_str = self.instance.timezone
+            if timezone_str:
+                # Convert UTC datetimes to the activity's timezone for display
+                if self.instance.scheduled_start:
+                    self.fields['scheduled_start'].initial = self._convert_from_utc(self.instance.scheduled_start, timezone_str)
+                if self.instance.scheduled_end:
+                    self.fields['scheduled_end'].initial = self._convert_from_utc(self.instance.scheduled_end, timezone_str)
         
         # Add quick creation options to activity type field
         self.fields['activity_type'].widget.attrs.update({
