@@ -3989,6 +3989,8 @@ def run_migrations_api(request):
                 call_command('init_database', '--force', verbosity=2)
             elif command == 'populate_standard_activity_types':
                 call_command('populate_standard_activity_types', '--force', verbosity=2)
+            elif command == 'create_test_maintenance':
+                call_command('create_test_maintenance', '--force', verbosity=2)
             elif command == 'makemigrations':
                 call_command('makemigrations', verbosity=2)
             else:

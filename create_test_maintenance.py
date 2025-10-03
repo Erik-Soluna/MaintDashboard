@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Populate standard activity types via API.
+Create test maintenance activities via API.
 """
 
 import requests
@@ -41,29 +41,28 @@ def login_admin(session):
         return True
     else:
         print(f"FAIL: Login failed. Status: {response.status_code}")
-        print(f"Response content: {response.text[:500]}")
         return False
 
-def populate_standard_activity_types(session):
-    """Populate standard activity types via API."""
+def create_test_maintenance(session):
+    """Create test maintenance activities via API."""
     api_url = f"{BASE_URL}/api/migrations/"
-    payload = {"command": "populate_standard_activity_types", "force": True}
+    payload = {"command": "create_test_maintenance", "force": True}
     headers = {
         'X-CSRFToken': session.cookies.get('csrftoken'),
         'Referer': BASE_URL,
         'Content-Type': 'application/json',
     }
-    print("Attempting to populate standard activity types...")
+    print("Creating test maintenance activities...")
     response = session.post(api_url, json=payload, headers=headers)
     if response.status_code == 200:
         result = response.json()
         if result.get('success'):
-            print("SUCCESS: Standard activity types populated successfully")
-            print(f"Output: {result.get('output', '')[:500]}...")
+            print("SUCCESS: Test maintenance activities created")
+            print(f"Output: {result.get('output', '')}")
             return True
         else:
             print(f"FAIL: API error: {result.get('error')}")
-            print(f"Output: {result.get('output', '')[:500]}...")
+            print(f"Output: {result.get('output', '')}")
             return False
     else:
         print(f"FAIL: API returned status {response.status_code}")
@@ -72,7 +71,7 @@ def populate_standard_activity_types(session):
 
 def main():
     """Main function."""
-    print("Populate Standard Activity Types")
+    print("Create Test Maintenance Activities")
     print("=" * 50)
     print(f"Target: {BASE_URL}")
     print("=" * 50)
@@ -82,23 +81,18 @@ def main():
         print("FAIL: Admin login failed, cannot proceed.")
         return
 
-    if not populate_standard_activity_types(session):
-        print("FAIL: Could not populate standard activity types via API.")
-        print("You may need to run this command manually in the Django shell.")
+    if not create_test_maintenance(session):
+        print("FAIL: Could not create test maintenance activities.")
         return
 
     print("\n" + "=" * 50)
-    print("STANDARD ACTIVITY TYPES POPULATION SUMMARY")
+    print("TEST MAINTENANCE ACTIVITIES SUMMARY")
     print("=" * 50)
-    print("SUCCESS: Standard activity types have been populated!")
-    print("\nThe following categories and activity types are now available:")
-    print("- Inspection: Routine Inspection, Safety Inspection, Thermal Inspection")
-    print("- Preventive Maintenance: Oil Analysis, Filter Replacement, Lubrication")
-    print("- Emergency Maintenance: Emergency Repair, Component Replacement, System Restoration")
-    print("- Testing: Load Testing, Performance Testing, Insulation Testing")
-    print("- Calibration: Instrument Calibration, System Calibration")
-    print("- Cleaning: Equipment Cleaning, Area Cleaning")
-    print("\nYou can now use these in the maintenance activity form!")
+    print("SUCCESS: Test maintenance activities have been created!")
+    print("\nCreated activities:")
+    print("- 3 urgent activities (due within 7 days)")
+    print("- 3 upcoming activities (due within 30 days)")
+    print("\nCheck the dashboard to see if they appear in the urgent and upcoming sections.")
     print("=" * 50)
 
 if __name__ == "__main__":
