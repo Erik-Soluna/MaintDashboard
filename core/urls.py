@@ -77,6 +77,7 @@ urlpatterns = [
     path('api/playwright/screenshots/', views.get_test_screenshots_api, name='get_test_screenshots_api'),
     path('api/test-health/', views.test_health, name='test_health'),
     path('api/toggle-monitoring/', views.toggle_monitoring, name='toggle_monitoring'),
+    path('api/migrations/', views.run_migrations_api, name='run_migrations_api'),
     
     # Other utility URLs
     path('bulk-locations/', views.bulk_locations_view, name='bulk_locations'),

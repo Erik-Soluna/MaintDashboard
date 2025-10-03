@@ -3814,6 +3814,98 @@ def health_check_view(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+def run_migrations_api(request):
+    """
+    Run Django migrations via API.
+    
+    Expected JSON payload:
+    {
+        "command": "migrate",
+        "app": "core",  # optional, specific app
+        "fake": false,  # optional, fake migrations
+        "fake_initial": false  # optional, fake initial migrations
+    }
+    """
+    try:
+        data = json.loads(request.body) if request.body else {}
+        command = data.get('command', 'migrate')
+        app = data.get('app', None)
+        fake = data.get('fake', False)
+        fake_initial = data.get('fake_initial', False)
+        
+        # Build command arguments
+        cmd_args = ['manage.py', command]
+        
+        if app:
+            cmd_args.append(app)
+            
+        if fake:
+            cmd_args.append('--fake')
+        elif fake_initial:
+            cmd_args.append('--fake-initial')
+        else:
+            cmd_args.append('--noinput')
+        
+        # Run the command
+        from django.core.management import call_command
+        from io import StringIO
+        import sys
+        
+        # Capture output
+        old_stdout = sys.stdout
+        sys.stdout = captured_output = StringIO()
+        
+        try:
+            if command == 'migrate':
+                if fake:
+                    call_command('migrate', '--fake', verbosity=2)
+                elif fake_initial:
+                    call_command('migrate', '--fake-initial', verbosity=2)
+                else:
+                    call_command('migrate', '--noinput', verbosity=2)
+            elif command == 'showmigrations':
+                call_command('showmigrations', '--list', verbosity=2)
+            elif command == 'makemigrations':
+                call_command('makemigrations', verbosity=2)
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Unsupported command: {command}'
+                }, status=400)
+                
+            output = captured_output.getvalue()
+            
+            return JsonResponse({
+                'success': True,
+                'command': ' '.join(cmd_args),
+                'output': output,
+                'status': 'completed'
+            })
+            
+        except Exception as e:
+            output = captured_output.getvalue()
+            return JsonResponse({
+                'success': False,
+                'command': ' '.join(cmd_args),
+                'output': output,
+                'error': str(e)
+            }, status=500)
+        finally:
+            sys.stdout = old_stdout
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON payload'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@csrf_exempt
+@require_http_methods(["POST"])
 def run_test_scenario_api(request):
     """
     Run a predefined test scenario.
