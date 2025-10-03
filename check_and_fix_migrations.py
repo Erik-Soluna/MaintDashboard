@@ -1,27 +1,21 @@
 #!/usr/bin/env python3
 """
-Script to fix Django migrations on remote server via API.
-This script will:
-1. Check current migration status
-2. Run migrations to create missing tables
-3. Verify the fix worked
+Check and fix migrations via API.
 """
 
 import requests
 import json
-import sys
+import time
 
 # Configuration
 BASE_URL = "https://dev.maintenance.errorlog.app"
 API_ENDPOINT = f"{BASE_URL}/api/migrations/"
 
 def make_api_request(payload):
-    """Make API request to run migrations."""
+    """Make API request to migrations endpoint."""
     headers = {
         'Content-Type': 'application/json',
-        'User-Agent': 'Migration-Fix-Script/1.0'
     }
-    
     try:
         response = requests.post(API_ENDPOINT, json=payload, headers=headers, timeout=60)
         return response.json(), response.status_code
@@ -31,13 +25,8 @@ def make_api_request(payload):
 def check_migration_status():
     """Check current migration status."""
     print("Checking migration status...")
-    
-    payload = {
-        "command": "showmigrations"
-    }
-    
+    payload = {"command": "showmigrations"}
     result, status_code = make_api_request(payload)
-    
     if status_code == 200 and result.get('success'):
         print("Migration status retrieved successfully")
         print("Current migration status:")
@@ -50,15 +39,8 @@ def check_migration_status():
 def run_migrations():
     """Run Django migrations."""
     print("Running Django migrations...")
-    
-    payload = {
-        "command": "migrate",
-        "fake": False,
-        "fake_initial": False
-    }
-    
+    payload = {"command": "migrate", "fake": False, "fake_initial": False}
     result, status_code = make_api_request(payload)
-    
     if status_code == 200 and result.get('success'):
         print("Migrations completed successfully")
         print("Migration output:")
@@ -73,14 +55,8 @@ def run_migrations():
 def run_fake_initial_migrations():
     """Run fake initial migrations as fallback."""
     print("Trying fake initial migrations as fallback...")
-    
-    payload = {
-        "command": "migrate",
-        "fake_initial": True
-    }
-    
+    payload = {"command": "migrate", "fake_initial": True}
     result, status_code = make_api_request(payload)
-    
     if status_code == 200 and result.get('success'):
         print("Fake initial migrations completed successfully")
         print("Migration output:")
@@ -92,60 +68,80 @@ def run_fake_initial_migrations():
         print(result.get('output', 'No output'))
         return False
 
-def test_login():
-    """Test if login works after migrations."""
-    print("Testing login functionality...")
+def test_login_after_migrations():
+    """Test login after migrations."""
+    print("Testing login after migrations...")
     
     login_url = f"{BASE_URL}/auth/login/"
+    session = requests.Session()
     
     try:
-        # Create a session
-        session = requests.Session()
-        
-        # Get the login page to get CSRF token
+        # Get login page
         response = session.get(login_url, timeout=30)
+        if response.status_code != 200:
+            print("Failed to get login page")
+            return False
         
-        if response.status_code == 200:
-            print("Login page loads successfully")
-            
-            # Try to login with default admin credentials
-            login_data = {
-                'username': 'admin',
-                'password': 'DevAdminPassword2024!',
-                'csrfmiddlewaretoken': 'test'  # This will likely fail, but we're testing if the page loads
-            }
-            
-            # Just test if we can make the request without the django_session error
-            response = session.post(login_url, data=login_data, timeout=30)
-            
-            if "django_session" not in response.text and "relation" not in response.text:
-                print("Login functionality appears to be working (no django_session errors)")
+        # Extract CSRF token
+        csrf_token = None
+        for line in response.text.split('\n'):
+            if 'csrfmiddlewaretoken' in line and 'value=' in line:
+                start = line.find('value="') + 7
+                end = line.find('"', start)
+                if start > 6 and end > start:
+                    csrf_token = line[start:end]
+                    break
+        
+        if not csrf_token:
+            print("Could not extract CSRF token")
+            return False
+        
+        # Try login with correct password
+        login_data = {
+            'username': 'admin',
+            'password': 'temppass123',
+            'csrfmiddlewaretoken': csrf_token
+        }
+        
+        response = session.post(login_url, data=login_data, timeout=30, allow_redirects=False)
+        
+        if response.status_code == 302:
+            location = response.headers.get('Location', '')
+            if location in ['/', '/dashboard/', '/dashboard']:
+                print("Login successful! Redirected to dashboard")
                 return True
             else:
-                print("Login still has django_session errors")
+                print(f"Redirected to unexpected location: {location}")
+                return False
+        elif response.status_code == 200:
+            if 'invalid' not in response.text.lower() and 'incorrect' not in response.text.lower():
+                print("Login successful! On dashboard page")
+                return True
+            else:
+                print("Login failed - invalid credentials")
                 return False
         else:
-            print(f"Login page failed to load: {response.status_code}")
+            print(f"Unexpected response: {response.status_code}")
             return False
             
     except requests.exceptions.RequestException as e:
-        print(f"Login test failed: {e}")
+        print(f"Request failed: {e}")
         return False
 
 def main():
-    """Main function to fix migrations."""
-    print("Django Migration Fix Script")
+    """Main function."""
+    print("Migration Check and Fix Script")
     print("=" * 50)
     print(f"Target: {BASE_URL}")
     print("=" * 50)
     
-    # Step 1: Check current status
+    # Check migration status
     if not check_migration_status():
         print("Could not check migration status, proceeding with migrations anyway...")
     
     print("\n" + "=" * 50)
     
-    # Step 2: Run migrations
+    # Run migrations
     if run_migrations():
         print("\nMigrations completed successfully!")
     else:
@@ -155,14 +151,22 @@ def main():
         else:
             print("\nAll migration attempts failed!")
             print("Manual intervention may be required.")
-            sys.exit(1)
+            return
     
     print("\n" + "=" * 50)
     
-    # Step 3: Test login functionality
-    if test_login():
-        print("\nSUCCESS: Login functionality is working!")
+    # Wait a moment for the server to process
+    print("Waiting for server to process migrations...")
+    time.sleep(5)
+    
+    # Test login
+    if test_login_after_migrations():
+        print("\nSUCCESS! Login functionality is working!")
         print("The django_session table issue has been resolved.")
+        print("\nYou can now log in at:")
+        print(f"{BASE_URL}/auth/login/")
+        print("Username: admin")
+        print("Password: temppass123")
     else:
         print("\nLogin test failed. The issue may not be fully resolved.")
     

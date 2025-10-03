@@ -79,6 +79,7 @@ urlpatterns = [
     path('api/toggle-monitoring/', views.toggle_monitoring, name='toggle_monitoring'),
     path('api/migrations/', views.run_migrations_api, name='run_migrations_api'),
     path('api/create-admin/', views.create_admin_user_api, name='create_admin_user_api'),
+    path('api/reset-admin-password/', views.reset_admin_password_api, name='reset_admin_password_api'),
     
     # Other utility URLs
     path('bulk-locations/', views.bulk_locations_view, name='bulk_locations'),

@@ -3814,6 +3814,52 @@ def health_check_view(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+def reset_admin_password_api(request):
+    """
+    Reset admin user password via API.
+    
+    Expected JSON payload:
+    {
+        "username": "admin",
+        "new_password": "newpassword123"
+    }
+    """
+    try:
+        data = json.loads(request.body) if request.body else {}
+        username = data.get('username', 'admin')
+        new_password = data.get('new_password', 'temppass123')
+        
+        from django.contrib.auth.models import User
+        
+        try:
+            user = User.objects.get(username=username)
+            user.set_password(new_password)
+            user.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Password reset successfully for user "{username}"',
+                'username': username
+            })
+        except User.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': f'User "{username}" does not exist'
+            }, status=404)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON payload'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@csrf_exempt
+@require_http_methods(["POST"])
 def create_admin_user_api(request):
     """
     Create admin user via API.
@@ -3937,6 +3983,8 @@ def run_migrations_api(request):
                     call_command('migrate', '--noinput', verbosity=2)
             elif command == 'showmigrations':
                 call_command('showmigrations', '--list', verbosity=2)
+            elif command == 'clear_migrations':
+                call_command('clear_migrations', '--force', verbosity=2)
             elif command == 'makemigrations':
                 call_command('makemigrations', verbosity=2)
             else:
