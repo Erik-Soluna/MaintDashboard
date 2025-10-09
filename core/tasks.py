@@ -7,9 +7,9 @@ import subprocess
 import os
 import time
 from datetime import datetime, timedelta
-from .models import PlaywrightDebugLog, PortainerConfig
+from .models import PortainerConfig  # PlaywrightDebugLog removed - deprecated
 from django.utils import timezone
-from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite
+# from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite  # DEPRECATED
 
 logger = logging.getLogger(__name__)
 
@@ -17,19 +17,20 @@ logger = logging.getLogger(__name__)
 def celery_beat_heartbeat():
     logger.info("Celery Beat heartbeat task ran.")
 
-@shared_task
-def run_playwright_debug(log_id):
-    """
-    Run Playwright debug test using the new modular orchestration system.
-    """
-    try:
-        log = PlaywrightDebugLog.objects.get(id=log_id)
-        if log.status != 'pending':
-            return
-        
-        log.status = 'running'
-        log.started_at = timezone.now()
-        log.save(update_fields=['status', 'started_at'])
+# DEPRECATED - Playwright functionality removed
+# @shared_task
+# def run_playwright_debug(log_id):
+#     """
+#     Run Playwright debug test using the new modular orchestration system.
+#     """
+#     try:
+#         log = PlaywrightDebugLog.objects.get(id=log_id)
+#         if log.status != 'pending':
+#             return
+#         
+#         log.status = 'running'
+#         log.started_at = timezone.now()
+#         log.save(update_fields=['status', 'started_at'])
         
         # Run the natural language test using our new orchestrator
         # We need to run this in an event loop since it's async
@@ -77,49 +78,18 @@ def run_playwright_debug(log_id):
         except Exception as save_error:
             logger.error(f"Failed to save log finished time: {save_error}")
 
-@shared_task
-def run_rbac_test_suite_task():
-    """
-    Run comprehensive RBAC test suite.
-    """
-    try:
-        # Run the RBAC test suite
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            result = loop.run_until_complete(run_rbac_test_suite())
-            logger.info(f"RBAC test suite completed: {result.get('success_rate', 0)}% success rate")
-            return result
-        finally:
-            loop.close()
-            
-    except Exception as e:
-        logger.error(f"RBAC test suite failed: {e}")
-        return {'error': str(e)}
+# DEPRECATED - Playwright RBAC test suite removed
+# @shared_task
+# def run_rbac_test_suite_task():
+#     """Run comprehensive RBAC test suite."""
+#     pass
 
-@shared_task
-def run_natural_language_test_task(prompt: str, user_role: str = "admin", 
-                                  username: str = "admin", password: str = "temppass123"):
-    """
-    Run a natural language test as a Celery task.
-    """
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        try:
-            result = loop.run_until_complete(
-                run_natural_language_test(prompt, user_role, username, password)
-            )
-            logger.info(f"Natural language test completed: {result.get('success', False)}")
-            return result
-        finally:
-            loop.close()
-            
-    except Exception as e:
-        logger.error(f"Natural language test failed: {e}")
-        return {'error': str(e)}
+# DEPRECATED - Playwright natural language test removed
+# @shared_task
+# def run_natural_language_test_task(prompt: str, user_role: str = "admin", 
+#                                   username: str = "admin", password: str = "temppass123"):
+#     """Run a natural language test as a Celery task."""
+#     pass
 
 def get_git_info():
     """

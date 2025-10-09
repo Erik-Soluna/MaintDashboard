@@ -36,11 +36,11 @@ import redis
 from django_celery_beat.models import PeriodicTask
 import requests
 from django.test import RequestFactory
-from .models import PlaywrightDebugLog
-from core.tasks import run_playwright_debug
-from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite
-from .tasks import run_natural_language_test_task, run_rbac_test_suite_task
-import asyncio
+# from .models import PlaywrightDebugLog  # DEPRECATED
+# from core.tasks import run_playwright_debug  # DEPRECATED - Playwright removed
+# from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite  # DEPRECATED
+# from .tasks import run_natural_language_test_task, run_rbac_test_suite_task  # DEPRECATED
+# import asyncio  # Only used for playwright
 from django.contrib.admin.views.decorators import staff_member_required
 import hmac
 import hashlib
