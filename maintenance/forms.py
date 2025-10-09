@@ -352,18 +352,18 @@ class MaintenanceActivityForm(forms.ModelForm):
     
     def _convert_to_timezone(self, naive_datetime, timezone_str):
         """Convert naive datetime to timezone-aware datetime."""
-        import pytz
+        from zoneinfo import ZoneInfo
         from django.utils import timezone as django_timezone
         
         if naive_datetime.tzinfo is None:
             # Convert naive datetime to the specified timezone
             try:
-                target_tz = pytz.timezone(timezone_str)
+                target_tz = ZoneInfo(timezone_str)
                 # Localize the naive datetime to the target timezone
-                localized_dt = target_tz.localize(naive_datetime)
+                localized_dt = naive_datetime.replace(tzinfo=target_tz)
                 # Convert to UTC for storage
-                return localized_dt.astimezone(pytz.UTC)
-            except (pytz.UnknownTimeZoneError, AttributeError):
+                return localized_dt.astimezone(ZoneInfo('UTC'))
+            except (KeyError, AttributeError):
                 # Fallback to default timezone if conversion fails
                 return django_timezone.make_aware(naive_datetime)
         
@@ -371,16 +371,16 @@ class MaintenanceActivityForm(forms.ModelForm):
     
     def _convert_from_utc(self, utc_datetime, timezone_str):
         """Convert UTC datetime to naive datetime in specified timezone for display."""
-        import pytz
+        from zoneinfo import ZoneInfo
         
         if utc_datetime and utc_datetime.tzinfo:
             try:
-                target_tz = pytz.timezone(timezone_str)
+                target_tz = ZoneInfo(timezone_str)
                 # Convert from UTC to target timezone
                 local_dt = utc_datetime.astimezone(target_tz)
                 # Return as naive datetime for datetime-local input
                 return local_dt.replace(tzinfo=None)
-            except (pytz.UnknownTimeZoneError, AttributeError):
+            except (KeyError, AttributeError):
                 # Fallback to naive UTC datetime
                 return utc_datetime.replace(tzinfo=None)
         
