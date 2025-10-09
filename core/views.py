@@ -2990,6 +2990,7 @@ def clear_maintenance_activities_api(request):
         from django.db import connection
         import json
         import time
+        import threading
         
         # TODO: Add API key authentication here
         # For now, allowing access for testing purposes
@@ -2999,6 +3000,7 @@ def clear_maintenance_activities_api(request):
         clear_schedules = request.POST.get('clear_schedules', 'false').lower() == 'true'
         dry_run = request.POST.get('dry_run', 'true').lower() == 'true'  # Default to dry_run for safety
         use_fast_delete = request.POST.get('fast_delete', 'true').lower() == 'true'  # Use optimized deletion
+        async_mode = request.POST.get('async', 'false').lower() == 'true'  # Run in background
         
         results = {
             'success': True,
