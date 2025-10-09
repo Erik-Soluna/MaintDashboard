@@ -47,29 +47,31 @@ The boot process has been optimized to reduce startup time from **30-60 seconds*
 **After**: Silent check with `--skip-existing` flag in fast-path  
 **Time Saved**: ~3-5 seconds
 
-## Using the Optimized Boot Script
+## Default Boot Script
 
-### Option 1: Fast Boot Script (Recommended for Development)
-Use the new optimized script:
+**The optimized boot script is now the default** (`docker-entrypoint.sh`). 
+
+No configuration changes needed - it will automatically use the fast-path when appropriate.
+
+### Fallback to Legacy Script (If Needed)
+
+If you experience issues, the original verbose script is available as `docker-entrypoint-legacy.sh`:
 
 **In `docker-compose.yml`**:
 ```yaml
 services:
   web:
-    entrypoint: ["/app/scripts/deployment/docker-entrypoint-fast.sh"]
-    command: ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "maintenance_dashboard.wsgi:application"]
+    entrypoint: ["/app/scripts/deployment/docker-entrypoint-legacy.sh"]
+    command: ["web"]
 ```
 
 **Or in Portainer stack**:
 ```yaml
 services:
   web-dev:
-    entrypoint: ["/bin/bash", "/app/scripts/deployment/docker-entrypoint-fast.sh"]
+    entrypoint: ["/bin/bash", "/app/scripts/deployment/docker-entrypoint-legacy.sh"]
     command: ["web"]
 ```
-
-### Option 2: Keep Original Script (Production)
-The original `docker-entrypoint.sh` remains available for production use with more verbose logging and error handling.
 
 ## Boot Time Comparison
 
@@ -197,16 +199,16 @@ docker logs <container_name> 2>&1 | grep -E "(Starting|ready|complete)"
 4. **Lazy loading**: Defer non-critical initializations to first request
 5. **Health check optimization**: Faster health check endpoints
 
-## Reverting to Original Boot Script
+## Reverting to Legacy Boot Script
 
-If you experience issues with the fast script:
+If you experience issues with the optimized script:
 
 ```yaml
 # In docker-compose.yml or Portainer stack
 services:
   web:
-    entrypoint: ["/app/scripts/deployment/docker-entrypoint.sh"]
+    entrypoint: ["/app/scripts/deployment/docker-entrypoint-legacy.sh"]
 ```
 
-Both scripts are maintained and tested - use whichever fits your needs!
+Both scripts are maintained and tested. The optimized version is now the default for better performance!
 
