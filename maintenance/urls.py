@@ -14,6 +14,7 @@ urlpatterns = [
     # Activities
     path('activities/', views.activity_list, name='activity_list'),
     path('activities/add/', views.add_activity, name='add_activity'),
+    path('activities/bulk-add/', views.bulk_add_activity, name='bulk_add_activity'),
     path('activities/<int:activity_id>/', views.activity_detail, name='activity_detail'),
     path('activities/<int:activity_id>/edit/', views.edit_activity, name='edit_activity'),
     path('activities/<int:activity_id>/complete/', views.complete_activity, name='complete_activity'),

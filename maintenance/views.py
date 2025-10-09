@@ -240,6 +240,132 @@ def activity_list(request):
 
 
 @login_required
+def bulk_add_activity(request):
+    """Bulk create maintenance activities for multiple equipment items."""
+    from django.db import connection, transaction
+    from equipment.models import Equipment
+    from core.models import Location
+    from datetime import datetime
+    
+    try:
+        connection.ensure_connection()
+        
+        # Get site filtering
+        selected_site_id = request.GET.get('site_id')
+        if selected_site_id is None:
+            selected_site_id = request.session.get('selected_site_id')
+        
+        selected_site = None
+        is_all_sites = False
+        
+        # Build equipment queryset with site filtering
+        equipment_query = Equipment.objects.filter(is_active=True).select_related('location', 'location__parent_location', 'category')
+        
+        if selected_site_id and selected_site_id != 'all':
+            try:
+                selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                equipment_query = equipment_query.filter(
+                    Q(location_id=selected_site_id) | 
+                    Q(location__parent_location_id=selected_site_id)
+                )
+            except Location.DoesNotExist:
+                pass
+        else:
+            is_all_sites = True
+        
+        if request.method == 'POST':
+            # Get form data
+            equipment_ids = request.POST.getlist('equipment_ids')
+            activity_type_id = request.POST.get('activity_type')
+            title_template = request.POST.get('title')
+            description = request.POST.get('description', '')
+            priority = request.POST.get('priority', 'medium')
+            status = request.POST.get('status', 'scheduled')
+            scheduled_start = request.POST.get('scheduled_start')
+            scheduled_end = request.POST.get('scheduled_end')
+            assigned_to_id = request.POST.get('assigned_to')
+            
+            # Validation
+            if not equipment_ids:
+                messages.error(request, 'Please select at least one equipment item.')
+            elif not activity_type_id:
+                messages.error(request, 'Please select an activity type.')
+            elif not title_template:
+                messages.error(request, 'Please provide a title.')
+            else:
+                try:
+                    activity_type = MaintenanceActivityType.objects.get(id=activity_type_id)
+                    assigned_to = User.objects.get(id=assigned_to_id) if assigned_to_id else None
+                    
+                    # Convert date strings to datetime objects
+                    scheduled_start_dt = datetime.strptime(scheduled_start, '%Y-%m-%dT%H:%M') if scheduled_start else None
+                    scheduled_end_dt = datetime.strptime(scheduled_end, '%Y-%m-%dT%H:%M') if scheduled_end else None
+                    
+                    created_activities = []
+                    
+                    # Create activities in a transaction
+                    with transaction.atomic():
+                        for equipment_id in equipment_ids:
+                            equipment = Equipment.objects.get(id=equipment_id, is_active=True)
+                            
+                            # Replace {equipment} placeholder in title
+                            activity_title = title_template.replace('{equipment}', equipment.name)
+                            
+                            activity = MaintenanceActivity.objects.create(
+                                equipment=equipment,
+                                activity_type=activity_type,
+                                title=activity_title,
+                                description=description,
+                                priority=priority,
+                                status=status,
+                                scheduled_start=scheduled_start_dt,
+                                scheduled_end=scheduled_end_dt,
+                                assigned_to=assigned_to,
+                                tools_required=activity_type.tools_required,
+                                parts_required=activity_type.parts_required,
+                                safety_notes=activity_type.safety_notes,
+                                created_by=request.user,
+                                updated_by=request.user,
+                            )
+                            created_activities.append(activity)
+                    
+                    messages.success(request, f'Successfully created {len(created_activities)} maintenance activities!')
+                    return redirect('maintenance:maintenance_list')
+                    
+                except Exception as e:
+                    logger.error(f"Error creating bulk activities: {str(e)}")
+                    messages.error(request, f'Error creating activities: {str(e)}')
+        
+        # GET request - show form
+        equipment_list = equipment_query.order_by('name')
+        activity_types = MaintenanceActivityType.objects.filter(is_active=True).select_related('category').order_by('category__sort_order', 'name')
+        users = User.objects.filter(is_active=True).order_by('username')
+        
+        # Group equipment by category for easier selection
+        from collections import defaultdict
+        equipment_by_category = defaultdict(list)
+        for equipment in equipment_list:
+            category_name = equipment.category.name if equipment.category else 'Uncategorized'
+            equipment_by_category[category_name].append(equipment)
+        
+        context = {
+            'equipment_list': equipment_list,
+            'equipment_by_category': dict(equipment_by_category),
+            'activity_types': activity_types,
+            'users': users,
+            'selected_site': selected_site,
+            'selected_site_id': selected_site_id,
+            'is_all_sites': is_all_sites,
+        }
+        return render(request, 'maintenance/bulk_add_activity.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error in bulk_add_activity: {str(e)}")
+        messages.error(request, f'Error loading bulk creation form: {str(e)}')
+        return redirect('maintenance:maintenance_list')
+
+
+@login_required
 def activity_detail(request, activity_id):
     """Display detailed maintenance activity information with comprehensive timeline."""
     activity = get_object_or_404(

@@ -1,0 +1,370 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bulk Create Maintenance Activities{% endblock %}
+
+{% block extra_css %}
+<style>
+    .equipment-selection-grid {
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        padding: 1rem;
+        background-color: #f8f9fa;
+    }
+    
+    .equipment-category-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .equipment-category-header {
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+        color: #495057;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 0.25rem;
+    }
+    
+    .equipment-checkbox-item {
+        padding: 0.5rem;
+        margin-bottom: 0.25rem;
+        border-radius: 0.25rem;
+        transition: background-color 0.2s;
+    }
+    
+    .equipment-checkbox-item:hover {
+        background-color: #e9ecef;
+    }
+    
+    .equipment-checkbox-item input[type="checkbox"] {
+        margin-right: 0.5rem;
+        cursor: pointer;
+    }
+    
+    .equipment-checkbox-item label {
+        cursor: pointer;
+        margin-bottom: 0;
+        display: flex;
+        align-items: center;
+    }
+    
+    .equipment-location {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin-left: 1.5rem;
+    }
+    
+    .selected-count {
+        font-weight: 600;
+        color: #28a745;
+    }
+    
+    .bulk-actions {
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        background-color: #f8f9fa;
+        border-radius: 0.25rem;
+        border: 1px solid #dee2e6;
+    }
+    
+    .title-help {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">Bulk Create Maintenance Activities</h1>
+                    <p class="text-muted mb-0">Create individual activities for multiple equipment items at once</p>
+                </div>
+                <a href="{% url 'maintenance:maintenance_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Maintenance
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" id="bulkActivityForm">
+        {% csrf_token %}
+        
+        <div class="row">
+            <!-- Equipment Selection Panel -->
+            <div class="col-lg-5">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-boxes"></i> Select Equipment</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="bulk-actions">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAll()">
+                                <i class="fas fa-check-square"></i> Select All
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAll()">
+                                <i class="fas fa-square"></i> Deselect All
+                            </button>
+                            <span class="ms-3">
+                                Selected: <span id="selectedCount" class="selected-count">0</span> / {{ equipment_list.count }}
+                            </span>
+                        </div>
+                        
+                        {% if equipment_list %}
+                        <div class="equipment-selection-grid">
+                            {% for category_name, equipment_items in equipment_by_category.items %}
+                            <div class="equipment-category-section">
+                                <div class="equipment-category-header">
+                                    <i class="fas fa-folder"></i> {{ category_name }}
+                                </div>
+                                {% for equipment in equipment_items %}
+                                <div class="equipment-checkbox-item">
+                                    <label>
+                                        <input type="checkbox" name="equipment_ids" value="{{ equipment.id }}" onchange="updateSelectedCount()">
+                                        <strong>{{ equipment.name }}</strong>
+                                        {% if equipment.asset_tag %}
+                                        <span class="badge bg-secondary ms-2">{{ equipment.asset_tag }}</span>
+                                        {% endif %}
+                                    </label>
+                                    {% if equipment.location %}
+                                    <div class="equipment-location">
+                                        <i class="fas fa-map-marker-alt"></i> {{ equipment.location.get_full_path }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            No equipment available
+                            {% if selected_site %}
+                            for site "{{ selected_site.name }}"
+                            {% endif %}.
+                            <a href="{% url 'equipment:add_equipment' %}" class="btn btn-sm btn-primary ms-2">
+                                <i class="fas fa-plus"></i> Add Equipment
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Activity Details Panel -->
+            <div class="col-lg-7">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-wrench"></i> Activity Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Activity Type -->
+                        <div class="mb-3">
+                            <label for="activity_type" class="form-label">Activity Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="activity_type" name="activity_type" required onchange="updateActivityTypeInfo()">
+                                <option value="">-- Select Activity Type --</option>
+                                {% regroup activity_types by category as category_list %}
+                                {% for category in category_list %}
+                                <optgroup label="{{ category.grouper.name }}">
+                                    {% for activity_type in category.list %}
+                                    <option value="{{ activity_type.id }}" 
+                                            data-duration="{{ activity_type.estimated_duration_hours }}"
+                                            data-tools="{{ activity_type.tools_required|default:'' }}"
+                                            data-parts="{{ activity_type.parts_required|default:'' }}"
+                                            data-safety="{{ activity_type.safety_notes|default:'' }}"
+                                            data-description="{{ activity_type.description|default:'' }}">
+                                        {{ activity_type.name }}
+                                    </option>
+                                    {% endfor %}
+                                </optgroup>
+                                {% endfor %}
+                            </select>
+                            <div id="activityTypeInfo" class="mt-2 small text-muted"></div>
+                        </div>
+                        
+                        <!-- Title Template -->
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Activity Title Template <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="title" name="title" required 
+                                   placeholder="e.g., Quarterly DGA Analysis - {equipment}">
+                            <div class="title-help">
+                                <i class="fas fa-info-circle"></i> 
+                                Use <code>{equipment}</code> as a placeholder - it will be replaced with each equipment name
+                            </div>
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" 
+                                      placeholder="Optional details about this maintenance activity"></textarea>
+                        </div>
+                        
+                        <!-- Priority & Status -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="priority" class="form-label">Priority</label>
+                                <select class="form-select" id="priority" name="priority">
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="status" class="form-label">Status</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="scheduled" selected>Scheduled</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="in_progress">In Progress</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Scheduled Start & End -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="scheduled_start" class="form-label">Scheduled Start</label>
+                                <input type="datetime-local" class="form-control" id="scheduled_start" name="scheduled_start">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="scheduled_end" class="form-label">Scheduled End</label>
+                                <input type="datetime-local" class="form-control" id="scheduled_end" name="scheduled_end">
+                            </div>
+                        </div>
+                        
+                        <!-- Assigned To -->
+                        <div class="mb-3">
+                            <label for="assigned_to" class="form-label">Assign To</label>
+                            <select class="form-select" id="assigned_to" name="assigned_to">
+                                <option value="">-- Not Assigned --</option>
+                                {% for user in users %}
+                                <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Submit Buttons -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'maintenance:maintenance_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success" onclick="return validateForm()">
+                                <i class="fas fa-plus-circle"></i> Create Activities
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('input[name="equipment_ids"]:checked');
+    document.getElementById('selectedCount').textContent = checkboxes.length;
+}
+
+function selectAll() {
+    const checkboxes = document.querySelectorAll('input[name="equipment_ids"]');
+    checkboxes.forEach(checkbox => checkbox.checked = true);
+    updateSelectedCount();
+}
+
+function deselectAll() {
+    const checkboxes = document.querySelectorAll('input[name="equipment_ids"]');
+    checkboxes.forEach(checkbox => checkbox.checked = false);
+    updateSelectedCount();
+}
+
+function updateActivityTypeInfo() {
+    const select = document.getElementById('activity_type');
+    const option = select.options[select.selectedIndex];
+    const infoDiv = document.getElementById('activityTypeInfo');
+    
+    if (option.value) {
+        const duration = option.getAttribute('data-duration');
+        const description = option.getAttribute('data-description');
+        
+        let html = '';
+        if (description) {
+            html += `<div><i class="fas fa-info-circle"></i> ${description}</div>`;
+        }
+        if (duration) {
+            html += `<div class="mt-1"><i class="fas fa-clock"></i> Estimated Duration: ${duration} hour(s)</div>`;
+        }
+        
+        infoDiv.innerHTML = html;
+        
+        // Auto-populate title if empty
+        const titleInput = document.getElementById('title');
+        if (!titleInput.value) {
+            titleInput.value = `${option.text} - {equipment}`;
+        }
+        
+        // Auto-calculate end time if start time is set
+        const startInput = document.getElementById('scheduled_start');
+        const endInput = document.getElementById('scheduled_end');
+        if (startInput.value && duration && !endInput.value) {
+            const startDate = new Date(startInput.value);
+            const endDate = new Date(startDate.getTime() + duration * 60 * 60 * 1000);
+            endInput.value = endDate.toISOString().slice(0, 16);
+        }
+    } else {
+        infoDiv.innerHTML = '';
+    }
+}
+
+// Auto-update end time when start time or activity type changes
+document.getElementById('scheduled_start').addEventListener('change', function() {
+    const select = document.getElementById('activity_type');
+    const option = select.options[select.selectedIndex];
+    const duration = option.getAttribute('data-duration');
+    const endInput = document.getElementById('scheduled_end');
+    
+    if (this.value && duration) {
+        const startDate = new Date(this.value);
+        const endDate = new Date(startDate.getTime() + duration * 60 * 60 * 1000);
+        endInput.value = endDate.toISOString().slice(0, 16);
+    }
+});
+
+function validateForm() {
+    const checkboxes = document.querySelectorAll('input[name="equipment_ids"]:checked');
+    const activityType = document.getElementById('activity_type').value;
+    const title = document.getElementById('title').value;
+    
+    if (checkboxes.length === 0) {
+        alert('Please select at least one equipment item.');
+        return false;
+    }
+    
+    if (!activityType) {
+        alert('Please select an activity type.');
+        return false;
+    }
+    
+    if (!title) {
+        alert('Please provide a title.');
+        return false;
+    }
+    
+    const confirmed = confirm(`You are about to create ${checkboxes.length} maintenance activities. Continue?`);
+    return confirmed;
+}
+
+// Initialize count on page load
+updateSelectedCount();
+</script>
+{% endblock %}
+
