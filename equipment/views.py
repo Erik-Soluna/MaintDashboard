@@ -17,6 +17,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django.core.exceptions import ValidationError
 
 import re
 from datetime import datetime, timedelta
@@ -1780,3 +1781,107 @@ def reorder_fields(request, category):
             'success': False,
             'message': f'Error reordering fields: {str(e)}'
         })
+
+
+@login_required
+@require_http_methods(["POST"])
+def create_connection(request):
+    """Create a new equipment connection."""
+    from equipment.models import EquipmentConnection
+    
+    try:
+        data = json.loads(request.body)
+        
+        upstream_id = data.get('upstream_equipment')
+        downstream_id = data.get('downstream_equipment')
+        connection_type = data.get('connection_type', 'power')
+        is_critical = data.get('is_critical', True)
+        description = data.get('description', '')
+        
+        if not upstream_id or not downstream_id:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Both upstream and downstream equipment are required'
+            }, status=400)
+        
+        # Get equipment objects
+        upstream = get_object_or_404(Equipment, id=upstream_id)
+        downstream = get_object_or_404(Equipment, id=downstream_id)
+        
+        # Check if connection already exists
+        existing = EquipmentConnection.objects.filter(
+            upstream_equipment=upstream,
+            downstream_equipment=downstream
+        ).first()
+        
+        if existing:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Connection already exists between these equipment'
+            }, status=400)
+        
+        # Create connection
+        connection = EquipmentConnection(
+            upstream_equipment=upstream,
+            downstream_equipment=downstream,
+            connection_type=connection_type,
+            is_critical=is_critical,
+            description=description,
+            created_by=request.user
+        )
+        
+        # Validate (checks for circular dependencies)
+        connection.full_clean()
+        connection.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Connection created successfully',
+            'connection': {
+                'id': connection.id,
+                'upstream_id': upstream.id,
+                'downstream_id': downstream.id,
+                'connection_type': connection.connection_type,
+                'is_critical': connection.is_critical
+            }
+        })
+        
+    except ValidationError as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error creating connection: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Error creating connection: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["DELETE"])
+def delete_connection(request, connection_id):
+    """Delete an equipment connection."""
+    from equipment.models import EquipmentConnection
+    
+    try:
+        connection = get_object_or_404(EquipmentConnection, id=connection_id)
+        
+        # Store info for response before deleting
+        upstream_name = connection.upstream_equipment.name
+        downstream_name = connection.downstream_equipment.name
+        
+        connection.delete()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Connection deleted: {upstream_name} → {downstream_name}'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error deleting connection: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Error deleting connection: {str(e)}'
+        }, status=500)

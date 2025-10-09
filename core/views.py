@@ -632,15 +632,49 @@ def profile_view(request):
 
 @login_required
 def map_view(request):
-    """Map view showing all locations and equipment."""
+    """Map view showing all locations and equipment with connections."""
+    from equipment.models import EquipmentConnection
+    
     locations = Location.objects.filter(is_active=True).select_related('parent_location', 'customer')
-    equipment = Equipment.objects.filter(is_active=True).select_related('location')
+    equipment = Equipment.objects.filter(is_active=True).select_related('location', 'category')
     customers = Customer.objects.filter(is_active=True).order_by('name')
     
+    # Get all equipment connections
+    connections = EquipmentConnection.objects.filter(is_active=True).select_related(
+        'upstream_equipment', 'downstream_equipment'
+    )
+    
+    # Build connection data for JavaScript
+    connection_data = []
+    for conn in connections:
+        connection_data.append({
+            'id': conn.id,
+            'upstream_id': conn.upstream_equipment.id,
+            'downstream_id': conn.downstream_equipment.id,
+            'connection_type': conn.connection_type,
+            'is_critical': conn.is_critical,
+        })
+    
+    # Build equipment data with effective status
+    equipment_data = []
+    for equip in equipment:
+        effective_status = equip.get_effective_status()
+        equipment_data.append({
+            'id': equip.id,
+            'name': equip.name,
+            'location_id': equip.location.id if equip.location else None,
+            'status': equip.status,
+            'effective_status': effective_status,
+            'is_cascade_offline': effective_status == 'cascade_offline',
+        })
+    
+    import json
     context = {
         'locations': locations,
         'equipment': equipment,
         'customers': customers,
+        'connections_json': json.dumps(connection_data),
+        'equipment_json': json.dumps(equipment_data),
     }
     return render(request, 'core/map.html', context)
 

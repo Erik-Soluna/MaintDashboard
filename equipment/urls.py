@@ -19,6 +19,8 @@ urlpatterns = [
     # AJAX endpoints
     path('api/data/', views.get_equipment_data, name='get_equipment_data'),
     path('api/search/', views.search_equipment, name='search_equipment'),
+    path('api/connections/', views.create_connection, name='create_connection'),
+    path('api/connections/<int:connection_id>/', views.delete_connection, name='delete_connection'),
     
     # Components
     path('<int:equipment_id>/components/', views.equipment_components, name='equipment_components'),
