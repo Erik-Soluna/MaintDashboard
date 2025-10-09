@@ -890,22 +890,39 @@ def export_equipment_csv(request):
     
     # Get equipment data
     from .models import Equipment
+    from core.models import Location
     equipment_list = Equipment.objects.select_related('category', 'location').all()
     
-    # Apply site filter if provided (only if it's a valid integer ID)
+    # Apply site filter - check both GET parameter and session
     site_id = request.GET.get('site_id')
+    if site_id is None:
+        # If not in GET, check session (respects header selection)
+        site_id = request.session.get('selected_site_id')
+    
+    # Apply filter if site is selected and not 'all'
     if site_id and site_id != 'all':
         try:
             # Validate that site_id is a number
             site_id_int = int(site_id)
             from django.db.models import Q
-            equipment_list = equipment_list.filter(
-                Q(location__parent_location_id=site_id_int) | Q(location_id=site_id_int)
-            )
-        except (ValueError, TypeError):
+            
+            # Verify site exists
+            site = Location.objects.filter(id=site_id_int, is_site=True).first()
+            if site:
+                # Filter equipment by site or locations under the site
+                equipment_list = equipment_list.filter(
+                    Q(location__parent_location_id=site_id_int) | Q(location_id=site_id_int)
+                )
+                logger.info(f"CSV export filtered to site: {site.name} ({equipment_list.count()} items)")
+            else:
+                logger.warning(f"Site ID {site_id_int} not found, exporting all equipment")
+        except (ValueError, TypeError) as e:
             # If site_id is not a number (e.g., customer name), ignore the filter
-            # This allows the export to work even if wrong parameter is passed
+            logger.warning(f"Invalid site_id '{site_id}' in export, exporting all equipment")
             pass
+    else:
+        # 'all' or None means export everything
+        logger.info(f"CSV export: All sites selected ({equipment_list.count()} items)")
     
     # Write data rows
     for equipment in equipment_list:
