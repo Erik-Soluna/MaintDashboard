@@ -1,5 +1,6 @@
 # Generated migration for EquipmentConnection model
 
+from django.conf import settings
 from django.db import migrations, models
 import django.db.models.deletion
 
@@ -7,7 +8,8 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('equipment', '0002_alter_equipmentcategoryfield_options_and_more'),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        ('equipment', '0005_rename_equipment_e_source__a0b8c8_idx_equipment_e_source__76e455_idx_and_more'),
     ]
 
     operations = [
@@ -41,7 +43,7 @@ class Migration(migrations.Migration):
                     null=True,
                     on_delete=django.db.models.deletion.SET_NULL,
                     related_name='%(class)s_created',
-                    to='auth.user'
+                    to=settings.AUTH_USER_MODEL
                 )),
                 ('downstream_equipment', models.ForeignKey(
                     help_text='Equipment that depends on the upstream equipment',
@@ -54,7 +56,7 @@ class Migration(migrations.Migration):
                     null=True,
                     on_delete=django.db.models.deletion.SET_NULL,
                     related_name='%(class)s_updated',
-                    to='auth.user'
+                    to=settings.AUTH_USER_MODEL
                 )),
                 ('upstream_equipment', models.ForeignKey(
                     help_text='Equipment that supplies power/data/service to downstream equipment',
@@ -67,13 +69,23 @@ class Migration(migrations.Migration):
                 'verbose_name': 'Equipment Connection',
                 'verbose_name_plural': 'Equipment Connections',
                 'ordering': ['upstream_equipment', 'downstream_equipment'],
-                'unique_together': {('upstream_equipment', 'downstream_equipment')},
-                'indexes': [
-                    models.Index(fields=['upstream_equipment'], name='equipment_e_upstrea_idx'),
-                    models.Index(fields=['downstream_equipment'], name='equipment_e_downstr_idx'),
-                    models.Index(fields=['connection_type', 'is_active'], name='equipment_e_connect_idx'),
-                ],
             },
+        ),
+        migrations.AddIndex(
+            model_name='equipmentconnection',
+            index=models.Index(fields=['upstream_equipment'], name='equipment_e_upstrea_9a2e5d_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='equipmentconnection',
+            index=models.Index(fields=['downstream_equipment'], name='equipment_e_downstr_3f8a9c_idx'),
+        ),
+        migrations.AddIndex(
+            model_name='equipmentconnection',
+            index=models.Index(fields=['connection_type', 'is_active'], name='equipment_e_connect_7b4e2a_idx'),
+        ),
+        migrations.AlterUniqueTogether(
+            name='equipmentconnection',
+            unique_together={('upstream_equipment', 'downstream_equipment')},
         ),
     ]
 
