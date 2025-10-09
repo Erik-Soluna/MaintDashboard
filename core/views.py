@@ -3031,7 +3031,63 @@ def clear_maintenance_activities_api(request):
             schedules_count = schedules_query.count()
             results['schedules_deleted'] = schedules_count
         
-        # Perform deletion if not dry run
+        # If async mode and not dry run, run in background thread
+        if async_mode and not dry_run:
+            def delete_in_background():
+                """Background deletion function."""
+                try:
+                    # Re-query in new thread context
+                    from maintenance.models import MaintenanceActivity, MaintenanceSchedule
+                    from django.db import connection
+                    
+                    if clear_all:
+                        activities = MaintenanceActivity.objects.all()
+                    else:
+                        activities = MaintenanceActivity.objects.filter(
+                            status__in=['scheduled', 'pending']
+                        )
+                    
+                    activity_ids = list(activities.values_list('id', flat=True))
+                    
+                    if activity_ids and use_fast_delete and len(activity_ids) > 100:
+                        # Fast SQL delete
+                        ids_str = ','.join(map(str, activity_ids))
+                        with connection.cursor() as cursor:
+                            cursor.execute(f"DELETE FROM maintenance_maintenancetimelineentry WHERE activity_id IN ({ids_str})")
+                            cursor.execute(f"DELETE FROM maintenance_maintenancechecklist WHERE activity_id IN ({ids_str})")
+                            cursor.execute(f"DELETE FROM maintenance_maintenancereport WHERE maintenance_activity_id IN ({ids_str})")
+                            try:
+                                cursor.execute(f"DELETE FROM events_calendarevent WHERE maintenance_activity_id IN ({ids_str})")
+                            except:
+                                pass
+                            cursor.execute(f"DELETE FROM maintenance_maintenanceactivity WHERE id IN ({ids_str})")
+                        logger.info(f"Fast SQL deletion completed: {len(activity_ids)} activities")
+                    else:
+                        # ORM delete
+                        deleted = activities.delete()
+                        logger.info(f"ORM deletion completed: {deleted[0]} activities")
+                    
+                    if clear_schedules:
+                        MaintenanceSchedule.objects.all().delete()
+                        logger.info(f"Schedules deleted")
+                    
+                except Exception as e:
+                    logger.error(f"Background deletion error: {str(e)}")
+            
+            # Start background thread
+            thread = threading.Thread(target=delete_in_background, daemon=True)
+            thread.start()
+            
+            return JsonResponse({
+                'success': True,
+                'async': True,
+                'message': f'Deletion started in background for {activities_count} activities. Check logs for completion.',
+                'activities_to_delete': activities_count,
+                'schedules_to_delete': results['schedules_deleted'] if clear_schedules else 0,
+                'note': 'Background deletion is running. It will complete in 5-30 seconds depending on data volume.'
+            })
+        
+        # Perform deletion if not dry run (synchronous mode)
         if not dry_run:
             if use_fast_delete and activities_count > 100:
                 # OPTIMIZED: Use raw SQL for bulk deletion (10-50x faster)
