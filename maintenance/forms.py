@@ -522,9 +522,20 @@ class MaintenanceActivityForm(forms.ModelForm):
             'data-activity-field': 'id_quick_activity_type'
         })
         
+        # Hide recurring fields when editing an existing activity
+        is_editing = self.instance and self.instance.pk
+        if is_editing:
+            # Remove recurring fields from the form when editing
+            for field_name in ['make_recurring', 'recurrence_frequency', 'recurrence_frequency_days', 
+                              'recurrence_end_date', 'recurrence_advance_notice_days']:
+                if field_name in self.fields:
+                    del self.fields[field_name]
+        
         # Setup crispy forms helper
         self.helper = FormHelper()
-        self.helper.layout = Layout(
+        
+        # Build layout based on whether we're creating or editing
+        layout_fields = [
             Fieldset(
                 'Basic Information',
                 Row(
@@ -577,51 +588,61 @@ class MaintenanceActivityForm(forms.ModelForm):
                 'parts_required',
                 'safety_notes',
             ),
-            Fieldset(
-                'Recurring Schedule (Optional)',
-                'make_recurring',
-                HTML('<div id="recurring-options" style="display: none;">'),
-                Row(
-                    Column('recurrence_frequency', css_class='form-group col-md-6 mb-0'),
-                    Column('recurrence_frequency_days', css_class='form-group col-md-6 mb-0'),
-                ),
-                Row(
-                    Column('recurrence_end_date', css_class='form-group col-md-6 mb-0'),
-                    Column('recurrence_advance_notice_days', css_class='form-group col-md-6 mb-0'),
-                ),
-                HTML('<div class="alert alert-info mt-2">' +
-                     '<i class="fas fa-info-circle"></i> ' +
-                     '<strong>Tip:</strong> Enable this to automatically schedule future occurrences of this maintenance task. ' +
-                     'The system will create future activities based on the frequency you specify.' +
-                     '</div>'),
-                HTML('</div>'),
-                HTML('<script>' +
-                     'document.addEventListener("DOMContentLoaded", function() {' +
-                     '  const makeRecurring = document.getElementById("id_make_recurring");' +
-                     '  const recurringOptions = document.getElementById("recurring-options");' +
-                     '  const frequencySelect = document.getElementById("id_recurrence_frequency");' +
-                     '  const customDaysField = document.getElementById("id_recurrence_frequency_days").closest(".form-group");' +
-                     '  if (makeRecurring && recurringOptions) {' +
-                     '    makeRecurring.addEventListener("change", function() {' +
-                     '      recurringOptions.style.display = this.checked ? "block" : "none";' +
-                     '    });' +
-                     '    if (makeRecurring.checked) {' +
-                     '      recurringOptions.style.display = "block";' +
-                     '    }' +
-                     '  }' +
-                     '  if (frequencySelect && customDaysField) {' +
-                     '    frequencySelect.addEventListener("change", function() {' +
-                     '      customDaysField.style.display = this.value === "custom" ? "block" : "none";' +
-                     '    });' +
-                     '    if (frequencySelect.value !== "custom") {' +
-                     '      customDaysField.style.display = "none";' +
-                     '    }' +
-                     '  }' +
-                     '});' +
-                     '</script>'),
-            ),
-            Submit('submit', 'Save Activity', css_class='btn btn-primary')
-        )
+        ]
+        
+        # Only add recurring fieldset when creating a new activity
+        if not is_editing:
+            layout_fields.append(
+                Fieldset(
+                    'Recurring Schedule (Optional)',
+                    'make_recurring',
+                    HTML('<div id="recurring-options" style="display: none;">'),
+                    Row(
+                        Column('recurrence_frequency', css_class='form-group col-md-6 mb-0'),
+                        Column('recurrence_frequency_days', css_class='form-group col-md-6 mb-0'),
+                    ),
+                    Row(
+                        Column('recurrence_end_date', css_class='form-group col-md-6 mb-0'),
+                        Column('recurrence_advance_notice_days', css_class='form-group col-md-6 mb-0'),
+                    ),
+                    HTML('<div class="alert alert-info mt-2">' +
+                         '<i class="fas fa-info-circle"></i> ' +
+                         '<strong>Tip:</strong> Enable this to automatically schedule future occurrences of this maintenance task. ' +
+                         'The system will create future activities based on the frequency you specify.' +
+                         '</div>'),
+                    HTML('</div>'),
+                    HTML('<script>' +
+                         'document.addEventListener("DOMContentLoaded", function() {' +
+                         '  const makeRecurring = document.getElementById("id_make_recurring");' +
+                         '  const recurringOptions = document.getElementById("recurring-options");' +
+                         '  const frequencySelect = document.getElementById("id_recurrence_frequency");' +
+                         '  const customDaysField = document.getElementById("id_recurrence_frequency_days").closest(".form-group");' +
+                         '  if (makeRecurring && recurringOptions) {' +
+                         '    makeRecurring.addEventListener("change", function() {' +
+                         '      recurringOptions.style.display = this.checked ? "block" : "none";' +
+                         '    });' +
+                         '    if (makeRecurring.checked) {' +
+                         '      recurringOptions.style.display = "block";' +
+                         '    }' +
+                         '  }' +
+                         '  if (frequencySelect && customDaysField) {' +
+                         '    frequencySelect.addEventListener("change", function() {' +
+                         '      customDaysField.style.display = this.value === "custom" ? "block" : "none";' +
+                         '    });' +
+                         '    if (frequencySelect.value !== "custom") {' +
+                         '      customDaysField.style.display = "none";' +
+                         '    }' +
+                         '  }' +
+                         '});' +
+                         '</script>'),
+                )
+            )
+        
+        # Add submit button text based on context
+        submit_text = 'Update Activity' if is_editing else 'Save Activity'
+        layout_fields.append(Submit('submit', submit_text, css_class='btn btn-primary'))
+        
+        self.helper.layout = Layout(*layout_fields)
 
 
 class MaintenanceScheduleForm(forms.ModelForm):
