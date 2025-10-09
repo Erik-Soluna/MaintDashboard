@@ -81,6 +81,7 @@ urlpatterns = [
     # Maintenance Reports
     path('reports/list/', views.report_list, name='report_list'),
     path('reports/<int:report_id>/', views.report_detail, name='report_detail'),
+    path('reports/<int:report_id>/delete/', views.delete_report, name='delete_report'),
     path('reports/upload/', views.upload_report, name='upload_report'),
     path('reports/<int:report_id>/analyze/', views.analyze_report, name='analyze_report'),
     path('api/reports/equipment/<int:equipment_id>/', views.get_reports_for_equipment, name='get_reports_for_equipment'),

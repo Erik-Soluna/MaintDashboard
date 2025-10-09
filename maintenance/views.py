@@ -2735,6 +2735,30 @@ def upload_activity_document(request, activity_id):
 
 
 @login_required
+def delete_report(request, report_id):
+    """Delete a maintenance report (admin/staff only)."""
+    # Check if user is staff or superuser
+    if not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, 'You do not have permission to delete reports.')
+        return redirect('maintenance:maintenance_list')
+    
+    report = get_object_or_404(MaintenanceReport, id=report_id)
+    activity = report.maintenance_activity
+    
+    if request.method == 'POST':
+        report_title = report.title
+        report.delete()
+        messages.success(request, f'Report "{report_title}" deleted successfully!')
+        return redirect('maintenance:activity_detail', activity_id=activity.id)
+    
+    context = {
+        'report': report,
+        'activity': activity,
+    }
+    return render(request, 'maintenance/delete_report.html', context)
+
+
+@login_required
 def change_activity_status(request, activity_id):
     """Change activity status without editing the entire activity."""
     activity = get_object_or_404(MaintenanceActivity, id=activity_id)

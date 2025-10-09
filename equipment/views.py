@@ -648,7 +648,12 @@ def add_document(request, equipment_id):
 
 @login_required
 def delete_document(request, equipment_id, document_id):
-    """Delete an equipment document."""
+    """Delete an equipment document (admin/staff only)."""
+    # Check if user is staff or superuser
+    if not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, 'You do not have permission to delete documents.')
+        return redirect('equipment:equipment_documents', equipment_id=equipment_id)
+    
     equipment = get_object_or_404(Equipment, id=equipment_id)
     document = get_object_or_404(EquipmentDocument, id=document_id, equipment=equipment)
     
