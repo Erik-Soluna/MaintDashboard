@@ -1413,14 +1413,34 @@ def overdue_maintenance(request):
 
 @login_required
 def delete_activity(request, activity_id):
-    """Delete maintenance activity."""
+    """Delete maintenance activity and associated calendar events."""
     activity = get_object_or_404(MaintenanceActivity, id=activity_id)
     
     if request.method == 'POST':
         activity_title = activity.title
         
+        # Delete associated calendar events before deleting the activity
+        from events.models import CalendarEvent
+        associated_events = CalendarEvent.objects.filter(maintenance_activity=activity)
+        events_deleted = associated_events.count()
+        
+        # Delete the calendar events first
+        associated_events.delete()
+        
+        # Invalidate dashboard cache
+        try:
+            from core.views import invalidate_dashboard_cache
+            invalidate_dashboard_cache(user_id=request.user.id)
+        except Exception as cache_error:
+            logger.warning(f"Could not invalidate dashboard cache: {cache_error}")
+        
+        # Now delete the maintenance activity
         activity.delete()
-        messages.success(request, f'Maintenance activity "{activity_title}" deleted successfully!')
+        
+        if events_deleted > 0:
+            messages.success(request, f'Maintenance activity "{activity_title}" and {events_deleted} associated calendar event(s) deleted successfully!')
+        else:
+            messages.success(request, f'Maintenance activity "{activity_title}" deleted successfully!')
         
         return redirect('maintenance:maintenance_list')
     
