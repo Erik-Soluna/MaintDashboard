@@ -2981,11 +2981,81 @@ def populate_demo_data(request):
         }, status=500)
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def clear_maintenance_activities_api(request):
+    """API endpoint to clear scheduled maintenance activities (unsecured for now - will add API keys later)."""
+    try:
+        from maintenance.models import MaintenanceActivity, MaintenanceSchedule
+        import json
+        
+        # TODO: Add API key authentication here
+        # For now, allowing access for testing purposes
+        
+        # Get parameters
+        clear_all = request.POST.get('clear_all', 'false').lower() == 'true'
+        clear_schedules = request.POST.get('clear_schedules', 'false').lower() == 'true'
+        dry_run = request.POST.get('dry_run', 'true').lower() == 'true'  # Default to dry_run for safety
+        
+        results = {
+            'success': True,
+            'dry_run': dry_run,
+            'activities_deleted': 0,
+            'schedules_deleted': 0,
+            'message': ''
+        }
+        
+        # Count what would be deleted
+        if clear_all:
+            # Clear ALL activities
+            activities_query = MaintenanceActivity.objects.all()
+        else:
+            # Only clear scheduled/pending activities (not completed)
+            activities_query = MaintenanceActivity.objects.filter(
+                status__in=['scheduled', 'pending']
+            )
+        
+        activities_count = activities_query.count()
+        results['activities_deleted'] = activities_count
+        
+        if clear_schedules:
+            schedules_query = MaintenanceSchedule.objects.all()
+            schedules_count = schedules_query.count()
+            results['schedules_deleted'] = schedules_count
+        
+        # Perform deletion if not dry run
+        if not dry_run:
+            deleted_activities = activities_query.delete()
+            results['activities_deleted'] = deleted_activities[0] if deleted_activities else 0
+            
+            if clear_schedules:
+                deleted_schedules = schedules_query.delete()
+                results['schedules_deleted'] = deleted_schedules[0] if deleted_schedules else 0
+            
+            results['message'] = f'Successfully deleted {results["activities_deleted"]} activities'
+            if clear_schedules:
+                results['message'] += f' and {results["schedules_deleted"]} schedules'
+        else:
+            results['message'] = f'Dry run: Would delete {activities_count} activities'
+            if clear_schedules:
+                results['message'] += f' and {schedules_count} schedules'
+        
+        logger.info(f"Maintenance cleanup via API: {results['message']}")
+        return JsonResponse(results)
+        
+    except Exception as e:
+        logger.error(f"Error clearing maintenance activities: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
 @login_required
 @user_passes_test(is_staff_or_superuser)
 @require_http_methods(["POST"])
 def clear_maintenance_activities(request):
-    """Clear scheduled maintenance activities without wiping entire database."""
+    """Clear scheduled maintenance activities without wiping entire database (web interface version)."""
     try:
         from maintenance.models import MaintenanceActivity, MaintenanceSchedule
         import json
