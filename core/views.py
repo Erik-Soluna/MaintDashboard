@@ -6228,6 +6228,56 @@ def invalidate_cache_api(request):
             'message': f'Error invalidating cache: {str(e)}'
         }, status=500)
 
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def database_stats_api(request):
+    """API endpoint to get database statistics."""
+    try:
+        from django.db import connection
+        from equipment.models import Equipment, EquipmentConnection
+        from maintenance.models import MaintenanceActivity, MaintenanceSchedule, MaintenanceActivityType
+        from events.models import CalendarEvent
+        
+        tables = {}
+        
+        # Get row counts for key tables
+        tables['Equipment'] = {'count': Equipment.objects.count()}
+        tables['Equipment Connections'] = {'count': EquipmentConnection.objects.count()}
+        tables['Locations'] = {'count': Location.objects.count()}
+        tables['Customers'] = {'count': Customer.objects.count()}
+        tables['Maintenance Activities'] = {'count': MaintenanceActivity.objects.count()}
+        tables['Maintenance Schedules'] = {'count': MaintenanceSchedule.objects.count()}
+        tables['Activity Types'] = {'count': MaintenanceActivityType.objects.count()}
+        tables['Calendar Events'] = {'count': CalendarEvent.objects.count()}
+        tables['Users'] = {'count': User.objects.count()}
+        
+        # Get database size (PostgreSQL specific)
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT pg_size_pretty(pg_database_size(current_database())) as size;
+                """)
+                row = cursor.fetchone()
+                db_size = row[0] if row else 'Unknown'
+        except Exception:
+            db_size = 'N/A'
+        
+        return JsonResponse({
+            'status': 'success',
+            'tables': tables,
+            'database_size': db_size,
+            'database_name': connection.settings_dict['NAME']
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting database stats: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Error getting database stats: {str(e)}'
+        }, status=500)
+
+
 @login_required
 def branding_settings(request):
     """Branding settings management page"""
