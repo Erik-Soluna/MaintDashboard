@@ -8,10 +8,10 @@
     .equipment-selection-grid {
         max-height: 400px;
         overflow-y: auto;
-        border: 1px solid #dee2e6;
+        border: 1px solid #495057;
         border-radius: 0.25rem;
         padding: 1rem;
-        background-color: #f8f9fa;
+        background-color: #343a40;
     }
     
     .equipment-category-section {
@@ -22,8 +22,8 @@
         font-weight: 600;
         font-size: 1.1rem;
         margin-bottom: 0.5rem;
-        color: #495057;
-        border-bottom: 2px solid #007bff;
+        color: #ffffff;
+        border-bottom: 2px solid #28a745;
         padding-bottom: 0.25rem;
     }
     
@@ -32,10 +32,11 @@
         margin-bottom: 0.25rem;
         border-radius: 0.25rem;
         transition: background-color 0.2s;
+        background-color: #495057;
     }
     
     .equipment-checkbox-item:hover {
-        background-color: #e9ecef;
+        background-color: #6c757d;
     }
     
     .equipment-checkbox-item input[type="checkbox"] {
@@ -48,11 +49,12 @@
         margin-bottom: 0;
         display: flex;
         align-items: center;
+        color: #ffffff;
     }
     
     .equipment-location {
         font-size: 0.85rem;
-        color: #6c757d;
+        color: #adb5bd;
         margin-left: 1.5rem;
     }
     
@@ -64,9 +66,9 @@
     .bulk-actions {
         margin-bottom: 1rem;
         padding: 0.75rem;
-        background-color: #f8f9fa;
+        background-color: #495057;
         border-radius: 0.25rem;
-        border: 1px solid #dee2e6;
+        border: 1px solid #6c757d;
     }
     
     .title-help {
@@ -251,6 +253,57 @@
                             </select>
                         </div>
                         
+                        <!-- Recurring Options -->
+                        <div class="card bg-dark border-secondary mb-3">
+                            <div class="card-header bg-secondary">
+                                <h6 class="mb-0"><i class="fas fa-repeat"></i> Recurring Schedule</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="make_recurring" name="make_recurring" onchange="toggleRecurringFields()">
+                                    <label class="form-check-label" for="make_recurring">
+                                        <strong>Make this a recurring activity</strong>
+                                    </label>
+                                    <div class="form-text text-muted">Automatically schedule future occurrences of this maintenance</div>
+                                </div>
+                                
+                                <div id="recurring-fields" style="display: none;">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="recurrence_frequency" class="form-label">Frequency</label>
+                                            <select class="form-select" id="recurrence_frequency" name="recurrence_frequency">
+                                                <option value="">-- Select frequency --</option>
+                                                <option value="daily">Daily</option>
+                                                <option value="weekly">Weekly</option>
+                                                <option value="monthly">Monthly</option>
+                                                <option value="quarterly">Quarterly</option>
+                                                <option value="semi_annual">Semi-Annual</option>
+                                                <option value="annual">Annual</option>
+                                                <option value="custom">Custom</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="recurrence_frequency_days" class="form-label">Custom frequency (days)</label>
+                                            <input type="number" class="form-control" id="recurrence_frequency_days" name="recurrence_frequency_days" min="1" placeholder="e.g., 30">
+                                            <div class="form-text text-muted">For custom frequency, specify days between occurrences</div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="recurrence_end_date" class="form-label">Recurrence end date</label>
+                                            <input type="date" class="form-control" id="recurrence_end_date" name="recurrence_end_date">
+                                            <div class="form-text text-muted">Optional: When should the recurring schedule end?</div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="recurrence_advance_notice_days" class="form-label">Advance notice (days)</label>
+                                            <input type="number" class="form-control" id="recurrence_advance_notice_days" name="recurrence_advance_notice_days" min="0" value="7">
+                                            <div class="form-text text-muted">How many days in advance to generate future activities</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <!-- Submit Buttons -->
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                             <a href="{% url 'maintenance:maintenance_list' %}" class="btn btn-secondary">
@@ -339,6 +392,17 @@ document.getElementById('scheduled_start').addEventListener('change', function()
     }
 });
 
+function toggleRecurringFields() {
+    const makeRecurring = document.getElementById('make_recurring');
+    const recurringFields = document.getElementById('recurring-fields');
+    
+    if (makeRecurring.checked) {
+        recurringFields.style.display = 'block';
+    } else {
+        recurringFields.style.display = 'none';
+    }
+}
+
 function validateForm() {
     const checkboxes = document.querySelectorAll('input[name="equipment_ids"]:checked');
     const activityType = document.getElementById('activity_type').value;
@@ -359,7 +423,25 @@ function validateForm() {
         return false;
     }
     
-    const confirmed = confirm(`You are about to create ${checkboxes.length} maintenance activities. Continue?`);
+    // Check recurring validation
+    const makeRecurring = document.getElementById('make_recurring');
+    if (makeRecurring.checked) {
+        const frequency = document.getElementById('recurrence_frequency').value;
+        if (!frequency) {
+            alert('Please select a recurrence frequency.');
+            return false;
+        }
+        if (frequency === 'custom') {
+            const customDays = document.getElementById('recurrence_frequency_days').value;
+            if (!customDays || customDays < 1) {
+                alert('Please enter a valid number of days for custom frequency.');
+                return false;
+            }
+        }
+    }
+    
+    const makeRecurringText = makeRecurring.checked ? ' with recurring schedules' : '';
+    const confirmed = confirm(`You are about to create ${checkboxes.length} maintenance activities${makeRecurringText}. Continue?`);
     return confirmed;
 }
 

@@ -285,6 +285,13 @@ def bulk_add_activity(request):
             scheduled_end = request.POST.get('scheduled_end')
             assigned_to_id = request.POST.get('assigned_to')
             
+            # Recurring fields
+            make_recurring = request.POST.get('make_recurring') == 'on'
+            recurrence_frequency = request.POST.get('recurrence_frequency', '')
+            recurrence_frequency_days = request.POST.get('recurrence_frequency_days')
+            recurrence_end_date = request.POST.get('recurrence_end_date')
+            recurrence_advance_notice_days = request.POST.get('recurrence_advance_notice_days', 7)
+            
             # Validation
             if not equipment_ids:
                 messages.error(request, 'Please select at least one equipment item.')
@@ -302,6 +309,7 @@ def bulk_add_activity(request):
                     scheduled_end_dt = datetime.strptime(scheduled_end, '%Y-%m-%dT%H:%M') if scheduled_end else None
                     
                     created_activities = []
+                    created_schedules = []
                     
                     # Create activities in a transaction
                     with transaction.atomic():
@@ -328,8 +336,52 @@ def bulk_add_activity(request):
                                 updated_by=request.user,
                             )
                             created_activities.append(activity)
+                            
+                            # Handle recurring schedule creation
+                            if make_recurring and recurrence_frequency:
+                                from maintenance.models import MaintenanceSchedule
+                                
+                                # Calculate frequency_days based on the frequency choice
+                                if recurrence_frequency == 'custom':
+                                    frequency_days = int(recurrence_frequency_days) if recurrence_frequency_days else 30
+                                else:
+                                    frequency_map = {
+                                        'daily': 1,
+                                        'weekly': 7,
+                                        'monthly': 30,
+                                        'quarterly': 90,
+                                        'semi_annual': 180,
+                                        'annual': 365,
+                                    }
+                                    frequency_days = frequency_map.get(recurrence_frequency, 30)
+                                
+                                # Parse end date if provided
+                                recurrence_end_date_obj = None
+                                if recurrence_end_date:
+                                    from datetime import datetime
+                                    recurrence_end_date_obj = datetime.strptime(recurrence_end_date, '%Y-%m-%d').date()
+                                
+                                # Create the maintenance schedule
+                                schedule = MaintenanceSchedule.objects.create(
+                                    equipment=equipment,
+                                    activity_type=activity_type,
+                                    title_template=title_template,
+                                    description=description,
+                                    priority=priority,
+                                    frequency_days=frequency_days,
+                                    recurrence_end_date=recurrence_end_date_obj,
+                                    advance_notice_days=int(recurrence_advance_notice_days),
+                                    is_active=True,
+                                    created_by=request.user,
+                                    updated_by=request.user,
+                                )
+                                created_schedules.append(schedule)
                     
-                    messages.success(request, f'Successfully created {len(created_activities)} maintenance activities!')
+                    # Success message
+                    if created_schedules:
+                        messages.success(request, f'Successfully created {len(created_activities)} maintenance activities and {len(created_schedules)} recurring schedules!')
+                    else:
+                        messages.success(request, f'Successfully created {len(created_activities)} maintenance activities!')
                     return redirect('maintenance:maintenance_list')
                     
                 except Exception as e:
