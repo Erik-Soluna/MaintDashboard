@@ -1118,6 +1118,9 @@ def locations_api(request):
                 updated_by=request.user
             )
             
+            # Invalidate dashboard cache to ensure Overview page updates immediately
+            invalidate_dashboard_cache()
+            
             return JsonResponse({
                 'id': location.id,
                 'name': location.name,
@@ -1184,6 +1187,9 @@ def location_detail_api(request, location_id):
             location.updated_by = request.user
             location.save()
             
+            # Invalidate dashboard cache to ensure Overview page updates immediately
+            invalidate_dashboard_cache()
+            
             return JsonResponse({
                 'message': f'{"Site" if location.is_site else "Location"} updated successfully'
             })
@@ -1213,6 +1219,10 @@ def location_detail_api(request, location_id):
                 }, status=400)
             
             location.delete()
+            
+            # Invalidate dashboard cache to ensure Overview page updates immediately
+            invalidate_dashboard_cache()
+            
             return JsonResponse({
                 'message': f'{"Site" if location.is_site else "Location"} "{location_name}" deleted successfully!'
             })
@@ -1441,6 +1451,9 @@ def add_location(request):
             location.updated_by = request.user
             location.save()
             
+            # Invalidate dashboard cache to ensure Overview page updates immediately
+            invalidate_dashboard_cache()
+            
             messages.success(request, f'Location "{location.name}" added successfully!')
             return redirect('core:locations_settings')
     else:
@@ -1465,6 +1478,9 @@ def edit_location(request, location_id):
             location = form.save(commit=False)
             location.updated_by = request.user
             location.save()
+            
+            # Invalidate dashboard cache to ensure Overview page updates immediately
+            invalidate_dashboard_cache()
             
             messages.success(request, f'Location "{location.name}" updated successfully!')
             return redirect('core:locations_settings')
@@ -1707,6 +1723,10 @@ def delete_location(request, location_id):
             return redirect('core:locations_settings')
         
         location.delete()
+        
+        # Invalidate dashboard cache to ensure Overview page updates immediately
+        invalidate_dashboard_cache()
+        
         messages.success(request, f'Location "{location_name}" deleted successfully!')
         return redirect('core:locations_settings')
     
