@@ -213,6 +213,9 @@
                 <button class="btn btn-warning action-btn" onclick="checkMigrationStatus()">
                     <i class="fas fa-code-branch me-1"></i>Migration Status
                 </button>
+                <button class="btn btn-warning action-btn" onclick="showClearMaintenanceModal()">
+                    <i class="fas fa-calendar-times me-1"></i>Clear Maintenance
+                </button>
                 <button class="btn btn-danger action-btn" onclick="showClearDatabaseModal()">
                     <i class="fas fa-trash-alt me-1"></i>Clear Database
                 </button>
@@ -266,6 +269,54 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" onclick="generateDemoData()">
                     <i class="fas fa-play me-1"></i>Generate
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clear Maintenance Modal -->
+<div class="modal fade" id="clearMaintenanceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-warning">
+                    <i class="fas fa-calendar-times me-2"></i>Clear Maintenance Activities
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>Note:</strong> This will clear maintenance activities without affecting other data (equipment, users, etc.)
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="clear-all-activities">
+                    <label class="form-check-label" for="clear-all-activities">
+                        Clear ALL activities (including completed)
+                    </label>
+                    <small class="form-text text-muted d-block">
+                        Default: Only clears scheduled/pending activities
+                    </small>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="clear-schedules">
+                    <label class="form-check-label" for="clear-schedules">
+                        Also clear maintenance schedules
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="maint-dry-run" checked>
+                    <label class="form-check-label" for="maint-dry-run">Dry run (preview only)</label>
+                </div>
+                <div id="maint-preview" class="mt-3 p-2 bg-secondary rounded" style="display:none;">
+                    <strong>Preview:</strong>
+                    <div id="maint-preview-text"></div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="clearMaintenance()">
+                    <i class="fas fa-calendar-times me-1"></i>Clear Maintenance
                 </button>
             </div>
         </div>
@@ -628,6 +679,69 @@ function generateDemoData() {
     .catch(error => {
         if (window.showMessage) {
             window.showMessage('Error generating demo data: ' + error.message, 'error');
+        }
+    });
+}
+
+function showClearMaintenanceModal() {
+    const modal = new bootstrap.Modal(document.getElementById('clearMaintenanceModal'));
+    modal.show();
+}
+
+function clearMaintenance() {
+    const clearAll = document.getElementById('clear-all-activities').checked;
+    const clearSchedules = document.getElementById('clear-schedules').checked;
+    const dryRun = document.getElementById('maint-dry-run').checked;
+    
+    if (window.showMessage) {
+        window.showMessage(dryRun ? 'Running dry run...' : 'Clearing maintenance activities...', 'warning');
+    }
+    
+    const formData = new FormData();
+    formData.append('clear_all', clearAll);
+    formData.append('clear_schedules', clearSchedules);
+    formData.append('dry_run', dryRun);
+    
+    fetch('{% url "core:clear_maintenance_activities" %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const message = data.message || 
+                `${dryRun ? 'Would delete' : 'Deleted'} ${data.activities_deleted} activities${data.schedules_deleted > 0 ? ' and ' + data.schedules_deleted + ' schedules' : ''}`;
+            
+            if (window.showMessage) {
+                window.showMessage(message, dryRun ? 'info' : 'success');
+            }
+            
+            // Show preview if dry run
+            if (dryRun) {
+                document.getElementById('maint-preview').style.display = 'block';
+                document.getElementById('maint-preview-text').innerHTML = 
+                    `<ul class="mb-0">
+                        <li>${data.activities_deleted} activities would be deleted</li>
+                        ${data.schedules_deleted > 0 ? `<li>${data.schedules_deleted} schedules would be deleted</li>` : ''}
+                    </ul>`;
+            } else {
+                // Close modal and refresh if not dry run
+                bootstrap.Modal.getInstance(document.getElementById('clearMaintenanceModal')).hide();
+                if (loadDatabaseStats) {
+                    loadDatabaseStats();
+                }
+            }
+        } else {
+            if (window.showMessage) {
+                window.showMessage('Error: ' + (data.error || 'Unknown error'), 'error');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error clearing maintenance:', error);
+        if (window.showMessage) {
+            window.showMessage('Failed to clear maintenance activities', 'error');
         }
     });
 }
