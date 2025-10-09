@@ -2,12 +2,13 @@
 
 ## Endpoint
 ```
-POST /core/api/clear-maintenance/
+POST /api/clear-maintenance/
 ```
 
 ## Status
-✅ Code deployed to GitHub  
-⏳ Waiting for Docker container restart to pick up changes
+✅ Live and working  
+⚠️ Large deletions (>500 activities) may timeout due to gateway limits  
+💡 Use Debug page in browser for large deletions
 
 ---
 
@@ -15,7 +16,7 @@ POST /core/api/clear-maintenance/
 
 ### 1. Dry Run (Safe - Preview Only)
 ```bash
-curl -X POST https://dev.maintenance.errorlog.app/core/api/clear-maintenance/ \
+curl -X POST https://dev.maintenance.errorlog.app/api/clear-maintenance/ \
   -d "dry_run=true" \
   -H "Content-Type: application/x-www-form-urlencoded"
 ```
@@ -35,10 +36,12 @@ curl -X POST https://dev.maintenance.errorlog.app/core/api/clear-maintenance/ \
 
 ### 2. Clear Scheduled/Pending (Preserves History)
 ```bash
-curl -X POST https://dev.maintenance.errorlog.app/core/api/clear-maintenance/ \
+curl -X POST https://dev.maintenance.errorlog.app/api/clear-maintenance/ \
   -d "dry_run=false&clear_all=false" \
   -H "Content-Type: application/x-www-form-urlencoded"
 ```
+
+⚠️ **Note:** May timeout if deleting >500 activities. Use Debug page for large deletions.
 
 **What it does:**
 - Deletes activities with status: `scheduled` or `pending`
@@ -50,7 +53,7 @@ curl -X POST https://dev.maintenance.errorlog.app/core/api/clear-maintenance/ \
 
 ### 3. Clear ALL Activities
 ```bash
-curl -X POST https://dev.maintenance.errorlog.app/core/api/clear-maintenance/ \
+curl -X POST https://dev.maintenance.errorlog.app/api/clear-maintenance/ \
   -d "dry_run=false&clear_all=true" \
   -H "Content-Type: application/x-www-form-urlencoded"
 ```
@@ -64,7 +67,7 @@ curl -X POST https://dev.maintenance.errorlog.app/core/api/clear-maintenance/ \
 
 ### 4. Nuclear Option (Clear Everything)
 ```bash
-curl -X POST https://dev.maintenance.errorlog.app/core/api/clear-maintenance/ \
+curl -X POST https://dev.maintenance.errorlog.app/api/clear-maintenance/ \
   -d "dry_run=false&clear_all=true&clear_schedules=true" \
   -H "Content-Type: application/x-www-form-urlencoded"
 ```
@@ -151,9 +154,14 @@ curl -X POST https://dev.maintenance.errorlog.app/core/api/clear-maintenance/ \
 
 ## Common Issues
 
+### 504 Gateway Timeout
+- **Cause:** Deleting >500 activities takes longer than 90 seconds (gateway timeout)
+- **Fix:** Use the Debug page in browser instead of API, or increase nginx timeout
+- **Workaround:** Delete in multiple API calls with smaller batches
+
 ### 404 Not Found
-- **Cause:** Container hasn't restarted yet
-- **Fix:** Restart the Docker container
+- **Cause:** Wrong URL (should be `/api/clear-maintenance/` not `/core/api/clear-maintenance/`)
+- **Fix:** Use correct URL path
 
 ### CSRF Token Error
 - **Note:** Endpoint is `@csrf_exempt` so this shouldn't happen
