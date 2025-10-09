@@ -234,6 +234,48 @@ class MaintenanceActivityForm(forms.ModelForm):
         help_text="Create a new activity type on the fly"
     )
     
+    # Recurring/Schedule fields
+    make_recurring = forms.BooleanField(
+        required=False,
+        initial=False,
+        label="Make this a recurring activity",
+        help_text="Automatically schedule future occurrences of this maintenance"
+    )
+    recurrence_frequency = forms.ChoiceField(
+        required=False,
+        label="Frequency",
+        choices=[
+            ('', 'Select frequency...'),
+            ('daily', 'Daily'),
+            ('weekly', 'Weekly'),
+            ('monthly', 'Monthly'),
+            ('quarterly', 'Quarterly'),
+            ('semi_annual', 'Semi-Annual'),
+            ('annual', 'Annual'),
+            ('custom', 'Custom'),
+        ],
+        help_text="How often should this maintenance repeat?"
+    )
+    recurrence_frequency_days = forms.IntegerField(
+        required=False,
+        label="Custom frequency (days)",
+        min_value=1,
+        help_text="For custom frequency, specify the number of days between occurrences"
+    )
+    recurrence_end_date = forms.DateField(
+        required=False,
+        label="Recurrence end date",
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        help_text="Optional: When should the recurring schedule end?"
+    )
+    recurrence_advance_notice_days = forms.IntegerField(
+        required=False,
+        initial=7,
+        label="Advance notice (days)",
+        min_value=0,
+        help_text="How many days in advance to generate future activities"
+    )
+    
     class Meta:
         model = MaintenanceActivity
         fields = [
@@ -284,6 +326,27 @@ class MaintenanceActivityForm(forms.ModelForm):
                         "For same-day maintenance, the start time must be before the end time. "
                         "For example, you cannot start at 7:00 PM and end at 3:00 PM on the same day."
                     )
+        
+        # Validate recurring fields if make_recurring is checked
+        make_recurring = cleaned_data.get('make_recurring')
+        if make_recurring:
+            recurrence_frequency = cleaned_data.get('recurrence_frequency')
+            recurrence_frequency_days = cleaned_data.get('recurrence_frequency_days')
+            
+            if not recurrence_frequency:
+                raise forms.ValidationError(
+                    "Please select a frequency for the recurring maintenance."
+                )
+            
+            if recurrence_frequency == 'custom' and not recurrence_frequency_days:
+                raise forms.ValidationError(
+                    "Please specify the number of days for custom frequency."
+                )
+            
+            if not scheduled_start:
+                raise forms.ValidationError(
+                    "A scheduled start date is required for recurring maintenance."
+                )
         
         return cleaned_data
     
@@ -364,6 +427,46 @@ class MaintenanceActivityForm(forms.ModelForm):
         
         if commit:
             instance.save()
+            
+            # Handle recurring schedule creation
+            make_recurring = self.cleaned_data.get('make_recurring')
+            if make_recurring:
+                from maintenance.models import MaintenanceSchedule
+                
+                # Get recurring parameters
+                recurrence_frequency = self.cleaned_data.get('recurrence_frequency')
+                recurrence_frequency_days = self.cleaned_data.get('recurrence_frequency_days')
+                recurrence_end_date = self.cleaned_data.get('recurrence_end_date')
+                recurrence_advance_notice_days = self.cleaned_data.get('recurrence_advance_notice_days', 7)
+                
+                # Calculate frequency_days based on the frequency choice
+                if recurrence_frequency == 'custom':
+                    frequency_days = recurrence_frequency_days
+                else:
+                    frequency_map = {
+                        'daily': 1,
+                        'weekly': 7,
+                        'monthly': 30,
+                        'quarterly': 90,
+                        'semi_annual': 180,
+                        'annual': 365,
+                    }
+                    frequency_days = frequency_map.get(recurrence_frequency, 30)
+                
+                # Create or update the maintenance schedule
+                schedule, created = MaintenanceSchedule.objects.update_or_create(
+                    equipment=instance.equipment,
+                    activity_type=instance.activity_type,
+                    defaults={
+                        'frequency': recurrence_frequency,
+                        'frequency_days': frequency_days,
+                        'start_date': instance.scheduled_start.date(),
+                        'end_date': recurrence_end_date,
+                        'auto_generate': True,
+                        'advance_notice_days': recurrence_advance_notice_days,
+                        'is_active': True,
+                    }
+                )
         
         return instance
 
@@ -473,6 +576,49 @@ class MaintenanceActivityForm(forms.ModelForm):
                 'tools_required',
                 'parts_required',
                 'safety_notes',
+            ),
+            Fieldset(
+                'Recurring Schedule (Optional)',
+                'make_recurring',
+                HTML('<div id="recurring-options" style="display: none;">'),
+                Row(
+                    Column('recurrence_frequency', css_class='form-group col-md-6 mb-0'),
+                    Column('recurrence_frequency_days', css_class='form-group col-md-6 mb-0'),
+                ),
+                Row(
+                    Column('recurrence_end_date', css_class='form-group col-md-6 mb-0'),
+                    Column('recurrence_advance_notice_days', css_class='form-group col-md-6 mb-0'),
+                ),
+                HTML('<div class="alert alert-info mt-2">' +
+                     '<i class="fas fa-info-circle"></i> ' +
+                     '<strong>Tip:</strong> Enable this to automatically schedule future occurrences of this maintenance task. ' +
+                     'The system will create future activities based on the frequency you specify.' +
+                     '</div>'),
+                HTML('</div>'),
+                HTML('<script>' +
+                     'document.addEventListener("DOMContentLoaded", function() {' +
+                     '  const makeRecurring = document.getElementById("id_make_recurring");' +
+                     '  const recurringOptions = document.getElementById("recurring-options");' +
+                     '  const frequencySelect = document.getElementById("id_recurrence_frequency");' +
+                     '  const customDaysField = document.getElementById("id_recurrence_frequency_days").closest(".form-group");' +
+                     '  if (makeRecurring && recurringOptions) {' +
+                     '    makeRecurring.addEventListener("change", function() {' +
+                     '      recurringOptions.style.display = this.checked ? "block" : "none";' +
+                     '    });' +
+                     '    if (makeRecurring.checked) {' +
+                     '      recurringOptions.style.display = "block";' +
+                     '    }' +
+                     '  }' +
+                     '  if (frequencySelect && customDaysField) {' +
+                     '    frequencySelect.addEventListener("change", function() {' +
+                     '      customDaysField.style.display = this.value === "custom" ? "block" : "none";' +
+                     '    });' +
+                     '    if (frequencySelect.value !== "custom") {' +
+                     '      customDaysField.style.display = "none";' +
+                     '    }' +
+                     '  }' +
+                     '});' +
+                     '</script>'),
             ),
             Submit('submit', 'Save Activity', css_class='btn btn-primary')
         )
