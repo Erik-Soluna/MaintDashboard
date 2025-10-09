@@ -2,7 +2,20 @@
 
 ## Overview
 
-The Equipment Dependency Map provides an interactive visual representation of equipment connections and dependencies. When upstream equipment goes offline, all downstream equipment automatically shows as "cascade offline" on the map.
+The Equipment Dependency Map provides an interactive visual representation of equipment connections and dependencies organized by customer. Each customer has their own dedicated map showing their equipment hierarchy. When upstream equipment goes offline, all downstream equipment automatically shows as "cascade offline" on the map.
+
+## Customer-Specific Maps
+
+The map view displays **multiple customer maps**, each showing:
+- All equipment belonging to that customer
+- Connections between the customer's equipment
+- Location hierarchy (sites and sub-locations)
+- Real-time cascade offline visualization
+
+### Viewing Maps
+- **All Customers**: Default view shows all customer maps in separate sections
+- **Single Customer**: Use the dropdown selector to view only one customer's map
+- Each customer section shows equipment count, offline count, maintenance count, and location count
 
 ## Features
 
@@ -67,11 +80,15 @@ Equipment nodes change color based on their effective status:
 
 ### Organizing the Map
 
-- **Auto Layout**: Automatically arranges equipment hierarchically (root nodes at top)
-- **Reset**: Clears saved positions and runs auto-layout
-- **Hide/Show Connections**: Toggle visibility of connector lines
+- **Auto Layout All**: Automatically arranges all customer maps hierarchically (root nodes at top)
+- **Auto Layout (Per Customer)**: Arranges equipment for a specific customer's map
+- **Reset All**: Clears all saved positions and runs auto-layout
+- **Reset (Per Customer)**: Resets positions for a specific customer's map
+- **Hide/Show Connections**: Toggle visibility of connector lines across all maps
 - **Show/Hide Labels**: Toggle equipment location and status labels
 - **Drag Equipment**: Click and drag any equipment node to reposition
+- **Customer Filter**: Select specific customer or view all customers
+- **Per-Customer Positioning**: Each customer's equipment positions are saved separately
 
 ## Cascading Offline Behavior
 

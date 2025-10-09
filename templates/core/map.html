@@ -20,21 +20,40 @@
     border-bottom: 1px solid #2d3748;
 }
 
-#map-canvas {
-    position: relative;
-    width: 100%;
-    min-height: 600px;
+.customer-map-section {
     background-color: #2d3748;
-    border-radius: 8px;
-    overflow: auto;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 30px;
+    border: 2px solid #4a5568;
 }
 
-#map-svg {
+.customer-map-header {
+    background-color: #0f1419;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border-left: 4px solid var(--primary-color, #4299e1);
+}
+
+.map-canvas {
+    position: relative;
+    width: 100%;
+    min-height: 500px;
+    background-color: #1a2238;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #4a5568;
+}
+
+.map-svg {
     position: absolute;
     top: 0;
     left: 0;
     pointer-events: none;
     z-index: 1;
+    width: 100%;
+    height: 100%;
 }
 
 .equipment-node {
@@ -49,6 +68,7 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     min-width: 150px;
     text-align: center;
+    user-select: none;
 }
 
 .equipment-node:hover {
@@ -180,6 +200,32 @@
     margin-right: 10px;
     margin-bottom: 5px;
 }
+
+.customer-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.stat-box {
+    background-color: #2d3748;
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid #4a5568;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.stat-label {
+    font-size: 11px;
+    opacity: 0.7;
+    text-transform: uppercase;
+}
 </style>
 {% endblock %}
 
@@ -190,17 +236,19 @@
             <div>
                 <h2 class="mb-0">
                     <i class="fas fa-project-diagram me-2"></i>
-                    Equipment Dependency Map
+                    Equipment Dependency Maps
                 </h2>
-                <p class="mb-0 text-light">Interactive view of equipment connections and dependencies</p>
+                <p class="mb-0 text-light">Customer-specific equipment connections and dependencies</p>
             </div>
             <div>
-                <button class="btn btn-sm btn-outline-primary" onclick="autoLayout()">
-                    <i class="fas fa-magic"></i> Auto Layout
-                </button>
-                <button class="btn btn-sm btn-outline-success" onclick="resetPositions()">
-                    <i class="fas fa-undo"></i> Reset
-                </button>
+                <select class="form-select" onchange="filterByCustomer(this.value)" style="min-width: 200px;">
+                    <option value="all" {% if selected_customer_id == 'all' %}selected{% endif %}>All Customers</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.id }}" {% if selected_customer_id|stringformat:"s" == customer.id|stringformat:"s" %}selected{% endif %}>
+                        {{ customer.name }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
         </div>
     </div>
@@ -225,7 +273,7 @@
                     </div>
                     <div class="legend-item">
                         <div class="legend-color" style="background-color: var(--danger-color, #f56565);"></div>
-                        <span>Cascade Offline (Upstream Failure)</span>
+                        <span>Cascade Offline</span>
                     </div>
                 </div>
             </div>
@@ -234,11 +282,11 @@
                 <div class="mt-2">
                     <div class="legend-item">
                         <div class="legend-line" style="background-color: var(--danger-color, #f56565); height: 3px;"></div>
-                        <span>Critical Connection (Solid)</span>
+                        <span>Critical (Cascades Offline)</span>
                     </div>
                     <div class="legend-item">
                         <div class="legend-line dashed"></div>
-                        <span>Non-Critical Connection (Dashed)</span>
+                        <span>Non-Critical (Independent)</span>
                     </div>
                 </div>
             </div>
@@ -250,40 +298,123 @@
         <button class="btn btn-sm btn-primary" onclick="showConnectionManager()">
             <i class="fas fa-link"></i> Manage Connections
         </button>
-        <button class="btn btn-sm btn-info" onclick="toggleConnections()">
+        <button class="btn btn-sm btn-success" onclick="autoLayoutAll()">
+            <i class="fas fa-magic"></i> Auto Layout All
+        </button>
+        <button class="btn btn-sm btn-info" onclick="toggleAllConnections()">
             <i class="fas fa-eye"></i> <span id="toggle-connections-text">Hide Connections</span>
+        </button>
+        <button class="btn btn-sm btn-warning" onclick="resetAllPositions()">
+            <i class="fas fa-undo"></i> Reset All
         </button>
         <label class="ms-3">
             <input type="checkbox" id="show-labels" checked onchange="toggleLabels()"> Show Labels
         </label>
     </div>
 
-    {% if equipment %}
-    <div id="map-canvas">
-        <svg id="map-svg" width="100%" height="100%"></svg>
-        
-        {% for equip in equipment %}
-        <div class="equipment-node status-{{ equip.status }}" 
-             id="equipment-{{ equip.id }}"
-             data-equipment-id="{{ equip.id }}"
-             data-equipment-name="{{ equip.name }}"
-             data-location-id="{{ equip.location.id }}"
-             style="left: {{ forloop.counter0|add:50|divisibleby:5 }}px; top: {{ forloop.counter0|add:50|divisibleby:3 }}px;">
-            <div class="equipment-node-name">{{ equip.name }}</div>
-            <div class="equipment-node-location">{{ equip.location.name }}</div>
-            <div class="equipment-node-status">{{ equip.get_status_display }}</div>
+    {% if customer_maps %}
+        {% for customer_map in customer_maps %}
+        <div class="customer-map-section" id="customer-{{ customer_map.customer.id }}">
+            <div class="customer-map-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-1">
+                            <i class="fas fa-building me-2"></i>{{ customer_map.customer.name }}
+                        </h3>
+                        <p class="mb-0 text-muted small">
+                            {{ customer_map.equipment.count }} equipment | {{ customer_map.connections.count }} connections
+                        </p>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary" onclick="autoLayoutCustomer('{{ customer_map.customer.id }}')">
+                            <i class="fas fa-magic"></i> Auto Layout
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="resetCustomerPositions('{{ customer_map.customer.id }}')">
+                            <i class="fas fa-undo"></i> Reset
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="customer-stats">
+                    <div class="stat-box">
+                        <div class="stat-value text-success">{{ customer_map.equipment|length }}</div>
+                        <div class="stat-label">Total Equipment</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value text-danger">
+                            {% with offline_count=0 %}
+                                {% for equip in customer_map.equipment %}
+                                    {% if equip.get_effective_status == 'cascade_offline' or equip.get_effective_status == 'inactive' %}
+                                        {% with offline_count=offline_count|add:1 %}{% endwith %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ offline_count }}
+                            {% endwith %}
+                        </div>
+                        <div class="stat-label">Offline</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value text-warning">
+                            {% with maint_count=0 %}
+                                {% for equip in customer_map.equipment %}
+                                    {% if equip.status == 'maintenance' %}
+                                        {% with maint_count=maint_count|add:1 %}{% endwith %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ maint_count }}
+                            {% endwith %}
+                        </div>
+                        <div class="stat-label">Maintenance</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value text-info">{{ customer_map.locations.count }}</div>
+                        <div class="stat-label">Locations</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="map-canvas" id="map-canvas-{{ customer_map.customer.id }}" data-customer-id="{{ customer_map.customer.id }}">
+                <svg class="map-svg" id="map-svg-{{ customer_map.customer.id }}" width="100%" height="100%"></svg>
+                
+                {% for equip in customer_map.equipment %}
+                <div class="equipment-node status-{{ equip.status }}" 
+                     id="equipment-{{ customer_map.customer.id }}-{{ equip.id }}"
+                     data-customer-id="{{ customer_map.customer.id }}"
+                     data-equipment-id="{{ equip.id }}"
+                     data-equipment-name="{{ equip.name }}"
+                     data-location-id="{{ equip.location.id }}"
+                     style="left: 100px; top: {{ forloop.counter0|add:1|divisibleby:3|add:50 }}px;">
+                    <div class="equipment-node-name">{{ equip.name }}</div>
+                    <div class="equipment-node-location">{{ equip.location.name }}</div>
+                    <div class="equipment-node-status">{{ equip.get_status_display }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <!-- Store data for this customer's map -->
+            <script>
+                if (!window.customerMapData) window.customerMapData = {};
+                window.customerMapData['{{ customer_map.customer.id }}'] = {
+                    connections: {{ customer_map.connections_json|safe }},
+                    equipment: {{ customer_map.equipment_json|safe }}
+                };
+            </script>
         </div>
         {% endfor %}
-    </div>
     {% else %}
-    <div class="text-center py-5">
-        <i class="fas fa-box-open fa-3x mb-3 text-muted"></i>
-        <h4>No Equipment Found</h4>
-        <p class="text-muted">No equipment has been configured yet.</p>
-        <a href="{% url 'equipment:add_equipment' %}" class="btn btn-primary">
-            <i class="fas fa-plus me-1"></i>Add Equipment
-        </a>
-    </div>
+        <div class="text-center py-5">
+            <i class="fas fa-building fa-3x mb-3 text-muted"></i>
+            <h4>No Customer Maps Available</h4>
+            <p class="text-muted">No customers with equipment have been configured yet.</p>
+            <div class="mt-3">
+                <a href="{% url 'core:customers_settings' %}" class="btn btn-primary me-2">
+                    <i class="fas fa-user-plus me-1"></i>Add Customers
+                </a>
+                <a href="{% url 'equipment:add_equipment' %}" class="btn btn-success">
+                    <i class="fas fa-cogs me-1"></i>Add Equipment
+                </a>
+            </div>
+        </div>
     {% endif %}
 </div>
 
@@ -306,7 +437,7 @@
                                 <label for="upstream-equipment" class="form-label">Upstream Equipment (Supplies)</label>
                                 <select id="upstream-equipment" class="form-select" required>
                                     <option value="">Select equipment...</option>
-                                    {% for equip in equipment %}
+                                    {% for equip in all_equipment %}
                                     <option value="{{ equip.id }}">{{ equip.name }} - {{ equip.location.name }}</option>
                                     {% endfor %}
                                 </select>
@@ -318,7 +449,7 @@
                                 <label for="downstream-equipment" class="form-label">Downstream Equipment (Depends)</label>
                                 <select id="downstream-equipment" class="form-select" required>
                                     <option value="">Select equipment...</option>
-                                    {% for equip in equipment %}
+                                    {% for equip in all_equipment %}
                                     <option value="{{ equip.id }}">{{ equip.name }} - {{ equip.location.name }}</option>
                                     {% endfor %}
                                 </select>
@@ -342,7 +473,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-group mb-3">
-                                <label for="is-critical" class="form-label">
+                                <label class="form-label d-block">
                                     <input type="checkbox" id="is-critical" checked> Critical Connection
                                 </label>
                                 <small class="d-block text-muted">If checked, downstream goes offline when upstream fails</small>
@@ -357,7 +488,7 @@
                 
                 <hr>
                 
-                <h6><i class="fas fa-list me-2"></i>Existing Connections</h6>
+                <h6><i class="fas fa-list me-2"></i>All Existing Connections</h6>
                 <div id="connections-list" style="max-height: 300px; overflow-y: auto;">
                     <!-- Will be populated by JavaScript -->
                 </div>
@@ -376,24 +507,28 @@
 {% block extra_js %}
 <script>
 // Global state
-let connections = {{ connections_json|safe }};
-let equipmentData = {{ equipment_json|safe }};
-let showConnections = true;
-let isDragging = false;
-let draggedNode = null;
-let dragOffsetX = 0;
-let dragOffsetY = 0;
+let showConnectionsGlobal = true;
 
-// Initialize map on page load
+// Initialize all maps on page load
 document.addEventListener('DOMContentLoaded', function() {
-    initializeMap();
-    updateEquipmentStatus();
-    drawConnections();
-    loadExistingConnections();
+    initializeAllMaps();
 });
 
-function initializeMap() {
-    const nodes = document.querySelectorAll('.equipment-node');
+function initializeAllMaps() {
+    if (!window.customerMapData) return;
+    
+    Object.keys(window.customerMapData).forEach(customerId => {
+        initializeCustomerMap(customerId);
+    });
+    
+    loadExistingConnections();
+}
+
+function initializeCustomerMap(customerId) {
+    const canvas = document.getElementById(`map-canvas-${customerId}`);
+    if (!canvas) return;
+    
+    const nodes = canvas.querySelectorAll('.equipment-node');
     
     // Make equipment draggable
     nodes.forEach(node => {
@@ -401,24 +536,31 @@ function initializeMap() {
         node.addEventListener('click', showEquipmentDetails);
     });
     
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('mouseup', stopDrag);
-    
-    // Auto layout on first load if no positions saved
-    const savedPositions = localStorage.getItem('equipment-positions');
+    // Load saved positions or auto-layout
+    const savedPositions = localStorage.getItem(`equipment-positions-${customerId}`);
     if (!savedPositions) {
-        autoLayout();
+        autoLayoutCustomer(customerId);
     } else {
-        loadPositions();
+        loadCustomerPositions(customerId);
     }
+    
+    updateCustomerEquipmentStatus(customerId);
+    drawCustomerConnections(customerId);
 }
+
+let isDragging = false;
+let draggedNode = null;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
 
 function startDrag(e) {
     if (e.target.classList.contains('equipment-node') || e.target.closest('.equipment-node')) {
         isDragging = true;
         draggedNode = e.target.classList.contains('equipment-node') ? e.target : e.target.closest('.equipment-node');
         const rect = draggedNode.getBoundingClientRect();
-        const canvasRect = document.getElementById('map-canvas').getBoundingClientRect();
+        const customerId = draggedNode.dataset.customerId;
+        const canvas = document.getElementById(`map-canvas-${customerId}`);
+        const canvasRect = canvas.getBoundingClientRect();
         dragOffsetX = e.clientX - rect.left;
         dragOffsetY = e.clientY - rect.top;
         draggedNode.style.cursor = 'grabbing';
@@ -426,71 +568,72 @@ function startDrag(e) {
     }
 }
 
-function drag(e) {
+document.addEventListener('mousemove', function(e) {
     if (isDragging && draggedNode) {
-        const canvas = document.getElementById('map-canvas');
+        const customerId = draggedNode.dataset.customerId;
+        const canvas = document.getElementById(`map-canvas-${customerId}`);
         const canvasRect = canvas.getBoundingClientRect();
         
-        let newX = e.clientX - canvasRect.left - dragOffsetX + canvas.scrollLeft;
-        let newY = e.clientY - canvasRect.top - dragOffsetY + canvas.scrollTop;
+        let newX = e.clientX - canvasRect.left - dragOffsetX;
+        let newY = e.clientY - canvasRect.top - dragOffsetY;
         
         // Keep within bounds
-        newX = Math.max(0, Math.min(newX, canvas.scrollWidth - draggedNode.offsetWidth));
-        newY = Math.max(0, Math.min(newY, canvas.scrollHeight - draggedNode.offsetHeight));
+        newX = Math.max(0, Math.min(newX, canvas.offsetWidth - draggedNode.offsetWidth));
+        newY = Math.max(0, Math.min(newY, canvas.offsetHeight - draggedNode.offsetHeight));
         
         draggedNode.style.left = newX + 'px';
         draggedNode.style.top = newY + 'px';
         
-        // Redraw connections
-        drawConnections();
+        // Redraw connections for this customer
+        drawCustomerConnections(customerId);
     }
-}
+});
 
-function stopDrag(e) {
+document.addEventListener('mouseup', function(e) {
     if (isDragging && draggedNode) {
+        const customerId = draggedNode.dataset.customerId;
         isDragging = false;
         draggedNode.style.cursor = 'move';
         draggedNode = null;
         
         // Save positions
-        savePositions();
+        saveCustomerPositions(customerId);
     }
-}
+});
 
-function drawConnections() {
-    if (!showConnections) return;
+function drawCustomerConnections(customerId) {
+    if (!showConnectionsGlobal) return;
+    if (!window.customerMapData || !window.customerMapData[customerId]) return;
     
-    const svg = document.getElementById('map-svg');
-    const canvas = document.getElementById('map-canvas');
+    const svg = document.getElementById(`map-svg-${customerId}`);
+    const canvas = document.getElementById(`map-canvas-${customerId}`);
+    const connections = window.customerMapData[customerId].connections;
+    
+    if (!svg || !canvas) return;
     
     // Clear existing connections
     svg.innerHTML = '';
     
-    // Set SVG size to match canvas
-    svg.setAttribute('width', canvas.scrollWidth);
-    svg.setAttribute('height', canvas.scrollHeight);
-    
     // Draw each connection
     connections.forEach(conn => {
-        const upstreamNode = document.getElementById('equipment-' + conn.upstream_id);
-        const downstreamNode = document.getElementById('equipment-' + conn.downstream_id);
+        const upstreamNode = document.getElementById(`equipment-${customerId}-${conn.upstream_id}`);
+        const downstreamNode = document.getElementById(`equipment-${customerId}-${conn.downstream_id}`);
         
         if (!upstreamNode || !downstreamNode) return;
         
-        // Get center points of nodes
+        // Get center points of nodes relative to canvas
+        const canvasRect = canvas.getBoundingClientRect();
         const upstreamRect = upstreamNode.getBoundingClientRect();
         const downstreamRect = downstreamNode.getBoundingClientRect();
-        const canvasRect = canvas.getBoundingClientRect();
         
-        const x1 = upstreamRect.left - canvasRect.left + canvas.scrollLeft + upstreamRect.width / 2;
-        const y1 = upstreamRect.top - canvasRect.top + canvas.scrollTop + upstreamRect.height / 2;
-        const x2 = downstreamRect.left - canvasRect.left + canvas.scrollLeft + downstreamRect.width / 2;
-        const y2 = downstreamRect.top - canvasRect.top + canvas.scrollTop + downstreamRect.height / 2;
+        const x1 = upstreamRect.left - canvasRect.left + upstreamRect.width / 2;
+        const y1 = upstreamRect.top - canvasRect.top + upstreamRect.height / 2;
+        const x2 = downstreamRect.left - canvasRect.left + downstreamRect.width / 2;
+        const y2 = downstreamRect.top - canvasRect.top + downstreamRect.height / 2;
         
-        // Draw line with arrow
+        // Draw curved line with arrow
         const line = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         
-        // Create a curved path
         const dx = x2 - x1;
         const dy = y2 - y1;
         const curve = Math.min(Math.abs(dx), Math.abs(dy)) * 0.3;
@@ -500,7 +643,7 @@ function drawConnections() {
         line.setAttribute('class', conn.is_critical ? 'connection-line critical' : 'connection-line non-critical');
         
         // Add arrow marker
-        const markerId = `arrow-${conn.id}`;
+        const markerId = `arrow-${customerId}-${conn.id}`;
         createArrowMarker(svg, markerId, conn.is_critical);
         line.setAttribute('marker-end', `url(#${markerId})`);
         
@@ -537,9 +680,13 @@ function createArrowMarker(svg, id, isCritical) {
     defs.appendChild(marker);
 }
 
-function updateEquipmentStatus() {
+function updateCustomerEquipmentStatus(customerId) {
+    if (!window.customerMapData || !window.customerMapData[customerId]) return;
+    
+    const equipmentData = window.customerMapData[customerId].equipment;
+    
     equipmentData.forEach(equip => {
-        const node = document.getElementById('equipment-' + equip.id);
+        const node = document.getElementById(`equipment-${customerId}-${equip.id}`);
         if (node) {
             // Remove all status classes
             node.classList.remove('status-active', 'status-inactive', 'status-maintenance', 'status-retired', 'status-cascade-offline');
@@ -554,42 +701,31 @@ function updateEquipmentStatus() {
     });
 }
 
-function autoLayout() {
-    const nodes = document.querySelectorAll('.equipment-node');
-    const canvas = document.getElementById('map-canvas');
-    const canvasWidth = canvas.offsetWidth;
-    const canvasHeight = canvas.offsetHeight;
+function autoLayoutCustomer(customerId) {
+    const canvas = document.getElementById(`map-canvas-${customerId}`);
+    if (!canvas || !window.customerMapData || !window.customerMapData[customerId]) return;
     
-    // Simple force-directed layout algorithm
+    const nodes = canvas.querySelectorAll('.equipment-node');
+    const connections = window.customerMapData[customerId].connections;
+    const canvasWidth = canvas.offsetWidth;
+    
+    // Build node map
     const nodeMap = new Map();
     nodes.forEach(node => {
         const equipId = parseInt(node.dataset.equipmentId);
-        nodeMap.set(equipId, {
-            node: node,
-            x: Math.random() * (canvasWidth - 200) + 100,
-            y: Math.random() * (canvasHeight - 100) + 50,
-            vx: 0,
-            vy: 0
-        });
+        nodeMap.set(equipId, { node: node, x: 0, y: 0 });
     });
     
-    // Hierarchical layout based on connections
+    // Find root nodes (no upstream connections)
     const rootNodes = new Set(nodeMap.keys());
     connections.forEach(conn => {
         rootNodes.delete(conn.downstream_id);
     });
     
-    // Position root nodes at the top
-    let x = 100;
-    let y = 50;
-    const layerHeight = 150;
-    const nodeSpacing = 220;
-    
-    // Simple layered layout
+    // Build layers
     const positioned = new Set();
     const layers = [];
     
-    // Find nodes by layer (depth from root)
     function getLayer(equipId, depth = 0) {
         if (!layers[depth]) layers[depth] = [];
         if (positioned.has(equipId)) return;
@@ -599,7 +735,7 @@ function autoLayout() {
         
         // Find downstream equipment
         connections.forEach(conn => {
-            if (conn.upstream_id === equipId) {
+            if (conn.upstream_id === equipId && !positioned.has(conn.downstream_id)) {
                 getLayer(conn.downstream_id, depth + 1);
             }
         });
@@ -608,11 +744,22 @@ function autoLayout() {
     // Build layers starting from root nodes
     rootNodes.forEach(rootId => getLayer(rootId, 0));
     
+    // Add any unconnected nodes to first layer
+    nodeMap.forEach((data, equipId) => {
+        if (!positioned.has(equipId)) {
+            if (!layers[0]) layers[0] = [];
+            layers[0].push(equipId);
+        }
+    });
+    
     // Position nodes by layer
+    const layerHeight = 150;
+    const nodeSpacing = 200;
+    
     layers.forEach((layer, layerIndex) => {
         const layerY = 50 + (layerIndex * layerHeight);
         const totalWidth = layer.length * nodeSpacing;
-        let startX = Math.max(100, (canvasWidth - totalWidth) / 2);
+        let startX = Math.max(50, (canvasWidth - totalWidth) / 2);
         
         layer.forEach((equipId, index) => {
             const data = nodeMap.get(equipId);
@@ -625,47 +772,66 @@ function autoLayout() {
         });
     });
     
-    savePositions();
-    drawConnections();
+    saveCustomerPositions(customerId);
+    drawCustomerConnections(customerId);
 }
 
-function resetPositions() {
-    localStorage.removeItem('equipment-positions');
-    autoLayout();
+function autoLayoutAll() {
+    Object.keys(window.customerMapData || {}).forEach(customerId => {
+        autoLayoutCustomer(customerId);
+    });
 }
 
-function savePositions() {
+function resetCustomerPositions(customerId) {
+    localStorage.removeItem(`equipment-positions-${customerId}`);
+    autoLayoutCustomer(customerId);
+}
+
+function resetAllPositions() {
+    Object.keys(window.customerMapData || {}).forEach(customerId => {
+        resetCustomerPositions(customerId);
+    });
+}
+
+function saveCustomerPositions(customerId) {
+    const canvas = document.getElementById(`map-canvas-${customerId}`);
+    if (!canvas) return;
+    
     const positions = {};
-    document.querySelectorAll('.equipment-node').forEach(node => {
+    canvas.querySelectorAll('.equipment-node').forEach(node => {
         const equipId = node.dataset.equipmentId;
         positions[equipId] = {
             left: node.style.left,
             top: node.style.top
         };
     });
-    localStorage.setItem('equipment-positions', JSON.stringify(positions));
+    localStorage.setItem(`equipment-positions-${customerId}`, JSON.stringify(positions));
 }
 
-function loadPositions() {
-    const savedPositions = localStorage.getItem('equipment-positions');
-    if (savedPositions) {
-        const positions = JSON.parse(savedPositions);
-        Object.keys(positions).forEach(equipId => {
-            const node = document.getElementById('equipment-' + equipId);
-            if (node && positions[equipId]) {
-                node.style.left = positions[equipId].left;
-                node.style.top = positions[equipId].top;
-            }
-        });
-        drawConnections();
-    }
+function loadCustomerPositions(customerId) {
+    const savedPositions = localStorage.getItem(`equipment-positions-${customerId}`);
+    if (!savedPositions) return;
+    
+    const positions = JSON.parse(savedPositions);
+    Object.keys(positions).forEach(equipId => {
+        const node = document.getElementById(`equipment-${customerId}-${equipId}`);
+        if (node && positions[equipId]) {
+            node.style.left = positions[equipId].left;
+            node.style.top = positions[equipId].top;
+        }
+    });
+    drawCustomerConnections(customerId);
 }
 
-function toggleConnections() {
-    showConnections = !showConnections;
-    const svg = document.getElementById('map-svg');
-    svg.style.display = showConnections ? 'block' : 'none';
-    document.getElementById('toggle-connections-text').textContent = showConnections ? 'Hide Connections' : 'Show Connections';
+function toggleAllConnections() {
+    showConnectionsGlobal = !showConnectionsGlobal;
+    
+    document.querySelectorAll('.map-svg').forEach(svg => {
+        svg.style.display = showConnectionsGlobal ? 'block' : 'none';
+    });
+    
+    document.getElementById('toggle-connections-text').textContent = 
+        showConnectionsGlobal ? 'Hide Connections' : 'Show Connections';
 }
 
 function toggleLabels() {
@@ -677,12 +843,23 @@ function toggleLabels() {
 
 function showEquipmentDetails(e) {
     if (isDragging) return;
+    if (e.target.tagName === 'BUTTON') return;
     
     const node = e.target.classList.contains('equipment-node') ? e.target : e.target.closest('.equipment-node');
     if (node) {
         const equipId = node.dataset.equipmentId;
-        window.location.href = `/equipment/equipment/${equipId}/`;
+        window.open(`/equipment/equipment/${equipId}/`, '_blank');
     }
+}
+
+function filterByCustomer(customerId) {
+    const currentUrl = new URL(window.location.href);
+    if (customerId === 'all') {
+        currentUrl.searchParams.delete('customer_id');
+    } else {
+        currentUrl.searchParams.set('customer_id', customerId);
+    }
+    window.location.href = currentUrl.toString();
 }
 
 function showConnectionManager() {
@@ -693,36 +870,54 @@ function showConnectionManager() {
 
 function loadExistingConnections() {
     const listEl = document.getElementById('connections-list');
-    if (connections.length === 0) {
+    if (!window.customerMapData) {
+        listEl.innerHTML = '<p class="text-muted">No connections defined yet.</p>';
+        return;
+    }
+    
+    // Collect all connections from all customers
+    let allConnections = [];
+    Object.keys(window.customerMapData).forEach(customerId => {
+        const data = window.customerMapData[customerId];
+        data.connections.forEach(conn => {
+            const upstream = data.equipment.find(e => e.id === conn.upstream_id);
+            const downstream = data.equipment.find(e => e.id === conn.downstream_id);
+            if (upstream && downstream) {
+                allConnections.push({
+                    ...conn,
+                    upstream_name: upstream.name,
+                    downstream_name: downstream.name,
+                    customerId: customerId
+                });
+            }
+        });
+    });
+    
+    if (allConnections.length === 0) {
         listEl.innerHTML = '<p class="text-muted">No connections defined yet.</p>';
         return;
     }
     
     let html = '<div class="list-group">';
-    connections.forEach(conn => {
-        const upstream = equipmentData.find(e => e.id === conn.upstream_id);
-        const downstream = equipmentData.find(e => e.id === conn.downstream_id);
-        
-        if (upstream && downstream) {
-            html += `
-                <div class="list-group-item bg-secondary text-light mb-2">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>${upstream.name}</strong> 
-                            <i class="fas fa-arrow-right mx-2"></i> 
-                            <strong>${downstream.name}</strong>
-                            <br>
-                            <small class="text-muted">
-                                ${conn.connection_type} | ${conn.is_critical ? 'Critical' : 'Non-Critical'}
-                            </small>
-                        </div>
-                        <button class="btn btn-sm btn-danger" onclick="deleteConnection(${conn.id})">
-                            <i class="fas fa-trash"></i>
-                        </button>
+    allConnections.forEach(conn => {
+        html += `
+            <div class="list-group-item bg-secondary text-light mb-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${conn.upstream_name}</strong> 
+                        <i class="fas fa-arrow-right mx-2"></i> 
+                        <strong>${conn.downstream_name}</strong>
+                        <br>
+                        <small class="text-muted">
+                            ${conn.connection_type} | ${conn.is_critical ? 'Critical' : 'Non-Critical'}
+                        </small>
                     </div>
+                    <button class="btn btn-sm btn-danger" onclick="deleteConnection(${conn.id}, '${conn.customerId}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </div>
-            `;
-        }
+            </div>
+        `;
     });
     html += '</div>';
     listEl.innerHTML = html;
@@ -763,28 +958,11 @@ function saveConnection() {
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            // Add to local connections
-            connections.push({
-                id: data.connection.id,
-                upstream_id: parseInt(upstreamId),
-                downstream_id: parseInt(downstreamId),
-                connection_type: connectionType,
-                is_critical: isCritical
-            });
-            
-            // Redraw
-            drawConnections();
-            loadExistingConnections();
-            
-            // Clear form
-            document.getElementById('connection-form').reset();
-            
-            // Show success message
+            // Reload page to show new connection
             if (window.showMessage) {
-                window.showMessage('Connection created successfully!', 'success');
-            } else {
-                alert('Connection created successfully!');
+                window.showMessage('Connection created successfully! Reloading...', 'success');
             }
+            setTimeout(() => window.location.reload(), 1000);
         } else {
             alert('Error creating connection: ' + (data.message || 'Unknown error'));
         }
@@ -795,7 +973,7 @@ function saveConnection() {
     });
 }
 
-function deleteConnection(connectionId) {
+function deleteConnection(connectionId, customerId) {
     if (!confirm('Are you sure you want to delete this connection?')) return;
     
     fetch(`/equipment/api/connections/${connectionId}/`, {
@@ -807,19 +985,11 @@ function deleteConnection(connectionId) {
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            // Remove from local connections
-            connections = connections.filter(c => c.id !== connectionId);
-            
-            // Redraw
-            drawConnections();
-            loadExistingConnections();
-            
-            // Show success message
+            // Reload page to update connections
             if (window.showMessage) {
-                window.showMessage('Connection deleted successfully!', 'success');
-            } else {
-                alert('Connection deleted successfully!');
+                window.showMessage('Connection deleted successfully! Reloading...', 'success');
             }
+            setTimeout(() => window.location.reload(), 1000);
         } else {
             alert('Error deleting connection: ' + (data.message || 'Unknown error'));
         }
@@ -830,19 +1000,11 @@ function deleteConnection(connectionId) {
     });
 }
 
-function showEquipmentDetails(e) {
-    if (isDragging) return;
-    // Prevent navigation if clicking drag handle area
-    if (e.target.tagName === 'BUTTON') return;
-    
-    const node = e.target.classList.contains('equipment-node') ? e.target : e.target.closest('.equipment-node');
-    if (node) {
-        const equipId = node.dataset.equipmentId;
-        window.open(`/equipment/equipment/${equipId}/`, '_blank');
-    }
-}
-
-// Redraw connections when window resizes
-window.addEventListener('resize', drawConnections);
+// Redraw all connections when window resizes
+window.addEventListener('resize', function() {
+    Object.keys(window.customerMapData || {}).forEach(customerId => {
+        drawCustomerConnections(customerId);
+    });
+});
 </script>
 {% endblock %}

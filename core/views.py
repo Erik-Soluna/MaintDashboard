@@ -632,49 +632,109 @@ def profile_view(request):
 
 @login_required
 def map_view(request):
-    """Map view showing all locations and equipment with connections."""
+    """Map view showing customer-specific equipment with connections."""
     from equipment.models import EquipmentConnection
+    import json
     
-    locations = Location.objects.filter(is_active=True).select_related('parent_location', 'customer')
-    equipment = Equipment.objects.filter(is_active=True).select_related('location', 'category')
+    # Get selected customer from request or show all
+    selected_customer_id = request.GET.get('customer_id', 'all')
+    
     customers = Customer.objects.filter(is_active=True).order_by('name')
     
-    # Get all equipment connections
-    connections = EquipmentConnection.objects.filter(is_active=True).select_related(
-        'upstream_equipment', 'downstream_equipment'
-    )
+    # Build customer-specific maps
+    customer_maps = []
     
-    # Build connection data for JavaScript
-    connection_data = []
-    for conn in connections:
-        connection_data.append({
-            'id': conn.id,
-            'upstream_id': conn.upstream_equipment.id,
-            'downstream_id': conn.downstream_equipment.id,
-            'connection_type': conn.connection_type,
-            'is_critical': conn.is_critical,
+    if selected_customer_id == 'all':
+        # Show all customers
+        customer_list = customers
+    else:
+        # Show specific customer
+        try:
+            customer_list = [customers.get(id=selected_customer_id)]
+        except Customer.DoesNotExist:
+            customer_list = customers
+            selected_customer_id = 'all'
+    
+    for customer in customer_list:
+        # Get all locations for this customer (sites and sub-locations)
+        customer_locations = Location.objects.filter(
+            Q(customer=customer) | Q(parent_location__customer=customer),
+            is_active=True
+        ).select_related('parent_location', 'customer')
+        
+        # Get all equipment at these locations
+        customer_equipment = Equipment.objects.filter(
+            location__in=customer_locations,
+            is_active=True
+        ).select_related('location', 'category')
+        
+        if not customer_equipment.exists():
+            continue
+        
+        # Get equipment IDs for this customer
+        equipment_ids = list(customer_equipment.values_list('id', flat=True))
+        
+        # Get connections between this customer's equipment
+        customer_connections = EquipmentConnection.objects.filter(
+            upstream_equipment__id__in=equipment_ids,
+            downstream_equipment__id__in=equipment_ids,
+            is_active=True
+        ).select_related('upstream_equipment', 'downstream_equipment')
+        
+        # Build connection data for JavaScript
+        connection_data = []
+        for conn in customer_connections:
+            connection_data.append({
+                'id': conn.id,
+                'upstream_id': conn.upstream_equipment.id,
+                'downstream_id': conn.downstream_equipment.id,
+                'connection_type': conn.connection_type,
+                'is_critical': conn.is_critical,
+            })
+        
+        # Build equipment data with effective status
+        equipment_data = []
+        for equip in customer_equipment:
+            effective_status = equip.get_effective_status()
+            equipment_data.append({
+                'id': equip.id,
+                'name': equip.name,
+                'location_id': equip.location.id if equip.location else None,
+                'location_name': equip.location.name if equip.location else 'Unknown',
+                'status': equip.status,
+                'effective_status': effective_status,
+                'is_cascade_offline': effective_status == 'cascade_offline',
+            })
+        
+        # Group locations by site
+        sites = customer_locations.filter(is_site=True)
+        location_groups = {}
+        for site in sites:
+            location_groups[site] = customer_locations.filter(parent_location=site)
+        
+        # Add independent locations (no parent)
+        independent_locations = customer_locations.filter(parent_location=None, is_site=False)
+        if independent_locations.exists():
+            location_groups[None] = independent_locations
+        
+        customer_maps.append({
+            'customer': customer,
+            'locations': customer_locations,
+            'location_groups': location_groups,
+            'equipment': customer_equipment,
+            'connections': customer_connections,
+            'connections_json': json.dumps(connection_data),
+            'equipment_json': json.dumps(equipment_data),
         })
     
-    # Build equipment data with effective status
-    equipment_data = []
-    for equip in equipment:
-        effective_status = equip.get_effective_status()
-        equipment_data.append({
-            'id': equip.id,
-            'name': equip.name,
-            'location_id': equip.location.id if equip.location else None,
-            'status': equip.status,
-            'effective_status': effective_status,
-            'is_cascade_offline': effective_status == 'cascade_offline',
-        })
+    # Get all equipment for connection manager dropdowns
+    all_equipment = Equipment.objects.filter(is_active=True).select_related('location', 'category')
     
-    import json
     context = {
-        'locations': locations,
-        'equipment': equipment,
+        'customer_maps': customer_maps,
         'customers': customers,
-        'connections_json': json.dumps(connection_data),
-        'equipment_json': json.dumps(equipment_data),
+        'selected_customer_id': selected_customer_id,
+        'all_equipment': all_equipment,
     }
     return render(request, 'core/map.html', context)
 
