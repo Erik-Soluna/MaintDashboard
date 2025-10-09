@@ -79,6 +79,7 @@ urlpatterns = [
     # path('api/playwright/screenshots/', views.get_test_screenshots_api, name='get_test_screenshots_api'),
     path('api/database-stats/', views.database_stats_api, name='database_stats_api'),
     path('api/clear-maintenance/', views.clear_maintenance_activities_api, name='clear_maintenance_activities_api'),
+    path('api/reorganize-activity-types/', views.reorganize_activity_types_api, name='reorganize_activity_types_api'),
     path('api/test-health/', views.test_health, name='test_health'),
     path('api/toggle-monitoring/', views.toggle_monitoring, name='toggle_monitoring'),
     path('api/migrations/', views.run_migrations_api, name='run_migrations_api'),

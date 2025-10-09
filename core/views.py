@@ -2983,6 +2983,52 @@ def populate_demo_data(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+def reorganize_activity_types_api(request):
+    """API endpoint to run the reorganize_activity_types management command."""
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+        
+        # Get parameters
+        dry_run = request.POST.get('dry_run', 'true').lower() == 'true'
+        force = request.POST.get('force', 'false').lower() == 'true'
+        
+        # Capture output
+        output = StringIO()
+        
+        # Build command arguments
+        args = ['reorganize_activity_types']
+        if dry_run:
+            args.append('--dry-run')
+        if force:
+            args.append('--force')
+        
+        # Run the command
+        call_command(*args, stdout=output, verbosity=2)
+        
+        command_output = output.getvalue()
+        output.close()
+        
+        return JsonResponse({
+            'success': True,
+            'dry_run': dry_run,
+            'force': force,
+            'output': command_output,
+            'message': 'Activity types reorganized successfully' if not dry_run else 'Dry run completed'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error reorganizing activity types: {str(e)}")
+        import traceback
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
 def clear_maintenance_activities_api(request):
     """API endpoint to clear scheduled maintenance activities (unsecured for now - will add API keys later)."""
     try:
