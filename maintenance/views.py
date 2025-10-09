@@ -243,6 +243,7 @@ def activity_list(request):
 def bulk_add_activity(request):
     """Bulk create maintenance activities for multiple equipment items."""
     from django.db import connection, transaction
+    from django.utils import timezone
     from equipment.models import Equipment
     from core.models import Location
     from datetime import datetime
@@ -365,15 +366,13 @@ def bulk_add_activity(request):
                                 schedule = MaintenanceSchedule.objects.create(
                                     equipment=equipment,
                                     activity_type=activity_type,
-                                    title_template=title_template,
-                                    description=description,
-                                    priority=priority,
+                                    frequency=recurrence_frequency,
                                     frequency_days=frequency_days,
-                                    recurrence_end_date=recurrence_end_date_obj,
+                                    start_date=scheduled_start_dt.date() if scheduled_start_dt else timezone.now().date(),
+                                    end_date=recurrence_end_date_obj,
                                     advance_notice_days=int(recurrence_advance_notice_days),
+                                    auto_generate=True,
                                     is_active=True,
-                                    created_by=request.user,
-                                    updated_by=request.user,
                                 )
                                 created_schedules.append(schedule)
                     
