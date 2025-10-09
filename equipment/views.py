@@ -133,6 +133,7 @@ def equipment_list(request):
     if selected_site_id is None:
         selected_site_id = request.session.get('selected_site_id')
     
+    selected_site = None
     if selected_site_id:
         if selected_site_id == 'all':
             # Handle "All Sites" selection - no filtering needed
@@ -190,6 +191,8 @@ def equipment_list(request):
         'selected_category': category_id,
         'selected_location': location_id,
         'selected_status': status,
+        'selected_site': selected_site,
+        'selected_site_id': selected_site_id,
     }
     
     return render(request, 'equipment/equipment_list.html', context)
@@ -209,6 +212,7 @@ def manage_equipment(request):
     if selected_site_id is None:
         selected_site_id = request.session.get('selected_site_id')
     
+    selected_site = None
     if selected_site_id:
         if selected_site_id == 'all':
             # Handle "All Sites" selection - no filtering needed
@@ -249,6 +253,8 @@ def manage_equipment(request):
             'location': 'Location'
         },
         'json': json,
+        'selected_site': selected_site,
+        'selected_site_id': selected_site_id,
     }
     
     return render(request, 'equipment/manage_equipment.html', context)

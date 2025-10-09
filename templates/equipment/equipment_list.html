@@ -217,7 +217,7 @@
                     <i class="fas fa-download me-1"></i> Import/Export
                 </button>
                 <div class="dropdown-menu">
-                    <a class="dropdown-item" href="{% url 'equipment:export_equipment_csv' %}{% if selected_site %}?site_id={{ selected_site }}{% endif %}">
+                    <a class="dropdown-item" href="{% url 'equipment:export_equipment_csv' %}{% if selected_site_id and selected_site_id != 'all' %}?site_id={{ selected_site_id }}{% endif %}">
                         <i class="fas fa-download me-1"></i> Export CSV
                     </a>
                     <div class="dropdown-divider"></div>
