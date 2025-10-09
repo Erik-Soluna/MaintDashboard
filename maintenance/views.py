@@ -428,8 +428,60 @@ def activity_detail(request, activity_id):
         id=activity_id
     )
     
-    # Get timeline entries
+    # Get timeline entries and create a comprehensive chronological timeline
     timeline_entries = activity.timeline_entries.all().order_by('-created_at')
+    
+    # Create a comprehensive timeline with all events
+    timeline_events = []
+    
+    # Add activity creation event
+    timeline_events.append({
+        'type': 'activity_created',
+        'title': 'Activity Created',
+        'description': f'Created by {activity.created_by.get_full_name() or activity.created_by.username}',
+        'timestamp': activity.created_at,
+        'created_by': activity.created_by,
+        'icon': 'fa-plus',
+        'color': 'primary'
+    })
+    
+    # Add timeline entries
+    for entry in timeline_entries:
+        timeline_events.append({
+            'type': 'timeline_entry',
+            'title': entry.title,
+            'description': entry.description,
+            'timestamp': entry.created_at,
+            'created_by': entry.created_by,
+            'icon': entry.entry_type,
+            'color': entry.entry_type
+        })
+    
+    # Add status change events if they exist
+    if activity.actual_start:
+        timeline_events.append({
+            'type': 'status_change',
+            'title': 'Activity Started',
+            'description': f'Maintenance activity started at {activity.actual_start.strftime("%Y-%m-%d %H:%M")}',
+            'timestamp': activity.actual_start,
+            'created_by': None,
+            'icon': 'fa-play',
+            'color': 'warning'
+        })
+    
+    if activity.actual_end:
+        timeline_events.append({
+            'type': 'status_change',
+            'title': 'Activity Completed',
+            'description': f'Maintenance activity completed at {activity.actual_end.strftime("%Y-%m-%d %H:%M")}',
+            'timestamp': activity.actual_end,
+            'created_by': None,
+            'icon': 'fa-check',
+            'color': 'success'
+        })
+    
+    # Sort all timeline events by timestamp (newest first)
+    timeline_events.sort(key=lambda x: x['timestamp'], reverse=True)
     
     # Get all related documents
     all_documents = activity.get_all_documents()
@@ -482,6 +534,7 @@ def activity_detail(request, activity_id):
     context = {
         'activity': activity,
         'timeline_entries': timeline_entries,
+        'timeline_events': timeline_events,
         'all_documents': all_documents,
         'maintenance_reports': maintenance_reports,
         'equipment_documents': equipment_documents,
