@@ -848,7 +848,7 @@ function showEquipmentDetails(e) {
     const node = e.target.classList.contains('equipment-node') ? e.target : e.target.closest('.equipment-node');
     if (node) {
         const equipId = node.dataset.equipmentId;
-        window.open(`/equipment/equipment/${equipId}/`, '_blank');
+        window.open(`/equipment/${equipId}/`, '_blank');
     }
 }
 
