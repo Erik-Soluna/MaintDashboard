@@ -887,13 +887,20 @@ def export_equipment_csv(request):
     from .models import Equipment
     equipment_list = Equipment.objects.select_related('category', 'location').all()
     
-    # Apply site filter if provided
+    # Apply site filter if provided (only if it's a valid integer ID)
     site_id = request.GET.get('site_id')
     if site_id and site_id != 'all':
-        from django.db.models import Q
-        equipment_list = equipment_list.filter(
-            Q(location__parent_location_id=site_id) | Q(location_id=site_id)
-        )
+        try:
+            # Validate that site_id is a number
+            site_id_int = int(site_id)
+            from django.db.models import Q
+            equipment_list = equipment_list.filter(
+                Q(location__parent_location_id=site_id_int) | Q(location_id=site_id_int)
+            )
+        except (ValueError, TypeError):
+            # If site_id is not a number (e.g., customer name), ignore the filter
+            # This allows the export to work even if wrong parameter is passed
+            pass
     
     # Write data rows
     for equipment in equipment_list:
