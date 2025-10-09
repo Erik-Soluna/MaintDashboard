@@ -8,7 +8,7 @@ from django.urls import path, reverse
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
-from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentCustomValue, EquipmentCategoryConditionalField, EquipmentCategory
+from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentCustomValue, EquipmentCategoryConditionalField, EquipmentCategory, EquipmentConnection
 
 
 class EquipmentDocumentInline(admin.TabularInline):
@@ -290,6 +290,40 @@ class EquipmentCategoryConditionalFieldAdmin(admin.ModelAdmin):
     def get_effective_label(self, obj):
         return obj.get_effective_label()
     get_effective_label.short_description = 'Effective Label'
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(EquipmentConnection)
+class EquipmentConnectionAdmin(admin.ModelAdmin):
+    list_display = [
+        'upstream_equipment', 'downstream_equipment', 'connection_type', 
+        'is_critical', 'is_active', 'created_at'
+    ]
+    list_filter = [
+        'connection_type', 'is_critical', 'is_active', 'created_at'
+    ]
+    search_fields = [
+        'upstream_equipment__name', 'downstream_equipment__name', 'description'
+    ]
+    readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+    
+    fieldsets = (
+        ('Connection', {
+            'fields': ('upstream_equipment', 'downstream_equipment', 'connection_type')
+        }),
+        ('Details', {
+            'fields': ('description', 'is_critical', 'is_active')
+        }),
+        ('Audit Information', {
+            'fields': ('created_at', 'updated_at', 'created_by', 'updated_by'),
+            'classes': ('collapse',)
+        }),
+    )
     
     def save_model(self, request, obj, form, change):
         if not change:

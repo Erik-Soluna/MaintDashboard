@@ -431,6 +431,202 @@ class Equipment(TimeStampedModel):
             return value_obj
         except EquipmentCategoryConditionalField.DoesNotExist:
             return None
+    
+    def is_offline(self):
+        """Check if this equipment is offline."""
+        return self.status in ['inactive', 'maintenance', 'retired'] or not self.is_active
+    
+    def get_upstream_equipment(self):
+        """Get all upstream equipment that this equipment depends on."""
+        from equipment.models import EquipmentConnection
+        connections = EquipmentConnection.objects.filter(
+            downstream_equipment=self,
+            is_active=True
+        ).select_related('upstream_equipment')
+        return [conn.upstream_equipment for conn in connections]
+    
+    def get_downstream_equipment(self):
+        """Get all downstream equipment that depends on this equipment."""
+        from equipment.models import EquipmentConnection
+        connections = EquipmentConnection.objects.filter(
+            upstream_equipment=self,
+            is_active=True
+        ).select_related('downstream_equipment')
+        return [conn.downstream_equipment for conn in connections]
+    
+    def get_effective_status(self):
+        """
+        Get the effective status considering cascading offline from upstream equipment.
+        Returns the actual status or 'cascade_offline' if upstream equipment is offline.
+        """
+        # First check own status
+        if self.is_offline():
+            return self.status
+        
+        # Check if any critical upstream equipment is offline
+        from equipment.models import EquipmentConnection
+        critical_upstream = EquipmentConnection.objects.filter(
+            downstream_equipment=self,
+            is_active=True,
+            is_critical=True
+        ).select_related('upstream_equipment')
+        
+        for connection in critical_upstream:
+            upstream = connection.upstream_equipment
+            # Recursively check upstream status
+            upstream_status = upstream.get_effective_status()
+            if upstream_status in ['inactive', 'maintenance', 'retired', 'cascade_offline']:
+                return 'cascade_offline'
+        
+        return self.status
+    
+    def get_all_affected_downstream(self):
+        """
+        Get all equipment that would be affected if this equipment goes offline.
+        Returns a list of equipment that are downstream through critical connections.
+        """
+        affected = []
+        visited = set()
+        to_check = [self]
+        
+        while to_check:
+            current = to_check.pop(0)
+            if current.id in visited:
+                continue
+            visited.add(current.id)
+            
+            # Get all downstream equipment through critical connections
+            from equipment.models import EquipmentConnection
+            critical_downstream = EquipmentConnection.objects.filter(
+                upstream_equipment=current,
+                is_active=True,
+                is_critical=True
+            ).select_related('downstream_equipment')
+            
+            for connection in critical_downstream:
+                downstream = connection.downstream_equipment
+                if downstream.id not in visited:
+                    affected.append(downstream)
+                    to_check.append(downstream)
+        
+        return affected
+    
+    def get_connection_to(self, other_equipment):
+        """Get the connection from this equipment to another equipment."""
+        from equipment.models import EquipmentConnection
+        return EquipmentConnection.objects.filter(
+            upstream_equipment=self,
+            downstream_equipment=other_equipment,
+            is_active=True
+        ).first()
+    
+    def get_connection_from(self, other_equipment):
+        """Get the connection from another equipment to this equipment."""
+        from equipment.models import EquipmentConnection
+        return EquipmentConnection.objects.filter(
+            upstream_equipment=other_equipment,
+            downstream_equipment=self,
+            is_active=True
+        ).first()
+
+
+class EquipmentConnection(TimeStampedModel):
+    """
+    Connections between equipment showing upstream/downstream dependencies.
+    Used to track power, data, or other dependencies between equipment.
+    """
+    
+    CONNECTION_TYPE_CHOICES = [
+        ('power', 'Power Supply'),
+        ('data', 'Data Connection'),
+        ('cooling', 'Cooling System'),
+        ('control', 'Control System'),
+        ('mechanical', 'Mechanical'),
+        ('other', 'Other'),
+    ]
+    
+    upstream_equipment = models.ForeignKey(
+        Equipment,
+        on_delete=models.CASCADE,
+        related_name='downstream_connections',
+        help_text="Equipment that supplies power/data/service to downstream equipment"
+    )
+    downstream_equipment = models.ForeignKey(
+        Equipment,
+        on_delete=models.CASCADE,
+        related_name='upstream_connections',
+        help_text="Equipment that depends on the upstream equipment"
+    )
+    connection_type = models.CharField(
+        max_length=20,
+        choices=CONNECTION_TYPE_CHOICES,
+        default='power',
+        help_text="Type of connection between equipment"
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Description of the connection"
+    )
+    is_critical = models.BooleanField(
+        default=True,
+        help_text="If True, downstream equipment goes offline when upstream is offline"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this connection is currently active"
+    )
+    
+    class Meta:
+        verbose_name = "Equipment Connection"
+        verbose_name_plural = "Equipment Connections"
+        ordering = ['upstream_equipment', 'downstream_equipment']
+        unique_together = ['upstream_equipment', 'downstream_equipment']
+        indexes = [
+            models.Index(fields=['upstream_equipment']),
+            models.Index(fields=['downstream_equipment']),
+            models.Index(fields=['connection_type', 'is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.upstream_equipment.name} → {self.downstream_equipment.name} ({self.get_connection_type_display()})"
+    
+    def clean(self):
+        """Validate connection."""
+        if self.upstream_equipment == self.downstream_equipment:
+            raise ValidationError("Equipment cannot connect to itself.")
+        
+        # Check for circular dependencies
+        if self._creates_circular_dependency():
+            raise ValidationError(
+                f"This connection would create a circular dependency. "
+                f"{self.downstream_equipment.name} is already upstream of {self.upstream_equipment.name}."
+            )
+    
+    def _creates_circular_dependency(self):
+        """Check if this connection would create a circular dependency."""
+        if not self.downstream_equipment or not self.upstream_equipment:
+            return False
+        
+        # Check if upstream is already downstream of the proposed downstream
+        visited = set()
+        to_check = [self.downstream_equipment]
+        
+        while to_check:
+            current = to_check.pop(0)
+            if current.id in visited:
+                continue
+            visited.add(current.id)
+            
+            # If we found the upstream equipment in the downstream chain, it's circular
+            if current == self.upstream_equipment:
+                return True
+            
+            # Add all downstream equipment of current to check
+            for conn in current.downstream_connections.filter(is_active=True):
+                if conn.downstream_equipment.id not in visited:
+                    to_check.append(conn.downstream_equipment)
+        
+        return False
 
 
 class EquipmentDocument(TimeStampedModel):
