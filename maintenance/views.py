@@ -368,7 +368,18 @@ def add_activity(request):
                 
                 return redirect('maintenance:activity_detail', activity_id=activity.id)
         else:
-            form = MaintenanceActivityForm(request=request)
+            # Get initial data from GET parameters
+            initial_data = {}
+            equipment_id = request.GET.get('equipment')
+            if equipment_id:
+                try:
+                    equipment = Equipment.objects.get(id=equipment_id, is_active=True)
+                    initial_data['equipment'] = equipment
+                    logger.info(f"Pre-populating equipment: {equipment.name}")
+                except (Equipment.DoesNotExist, ValueError):
+                    logger.warning(f"Invalid equipment ID in GET parameter: {equipment_id}")
+            
+            form = MaintenanceActivityForm(initial=initial_data, request=request)
         
         # Debug: Check equipment queryset in form with better error handling
         try:
@@ -1657,8 +1668,10 @@ def create_activity_type_from_template(request):
 @login_required
 @require_http_methods(["GET"])
 def fetch_activities(request):
-    """API endpoint: Return maintenance activities in FullCalendar JSON format."""
+    """API endpoint: Return maintenance activities in FullCalendar JSON format (optimized for large datasets)."""
     try:
+        from datetime import datetime, timedelta
+        
         # Filters
         equipment_id = request.GET.get('equipment')
         status = request.GET.get('status')
@@ -1666,7 +1679,13 @@ def fetch_activities(request):
         start = request.GET.get('start')  # ISO date string
         end = request.GET.get('end')      # ISO date string
 
-        queryset = MaintenanceActivity.objects.select_related('equipment', 'activity_type', 'assigned_to')
+        # Start with optimized query using only() to fetch only needed fields
+        queryset = MaintenanceActivity.objects.select_related('equipment', 'equipment__location', 'activity_type', 'assigned_to').only(
+            'id', 'title', 'status', 'priority', 'scheduled_start', 'scheduled_end',
+            'equipment__name', 'equipment__location__name', 
+            'activity_type__name', 'assigned_to__first_name', 'assigned_to__last_name'
+        )
+        
         if equipment_id:
             queryset = queryset.filter(equipment_id=equipment_id)
         if status:
@@ -1677,14 +1696,53 @@ def fetch_activities(request):
                 Q(equipment__location__parent_location_id=site_id) |
                 Q(equipment__location_id=site_id)
             )
+        
+        # PERFORMANCE FIX: Apply date filtering to catch overlapping events
         if start and end:
-            # Filter by scheduled_start within the calendar view range
-            queryset = queryset.filter(scheduled_start__date__gte=start, scheduled_end__date__lte=end)
+            # Parse dates
+            try:
+                start_date = datetime.fromisoformat(start.replace('Z', '+00:00'))
+                end_date = datetime.fromisoformat(end.replace('Z', '+00:00'))
+                
+                # Filter for activities that overlap with the calendar view range
+                # Include activities that:
+                # 1. Start within the range, OR
+                # 2. End within the range, OR  
+                # 3. Start before and end after the range (spanning the entire period)
+                queryset = queryset.filter(
+                    Q(scheduled_start__gte=start_date, scheduled_start__lte=end_date) |
+                    Q(scheduled_end__gte=start_date, scheduled_end__lte=end_date) |
+                    Q(scheduled_start__lte=start_date, scheduled_end__gte=end_date)
+                )
+            except (ValueError, AttributeError) as date_error:
+                logger.warning(f"Date parsing error in fetch_activities: {date_error}")
+                # If date parsing fails, add a reasonable fallback filter
+                # Show activities within ±3 months of today
+                from django.utils import timezone as tz
+                fallback_start = tz.now() - timedelta(days=90)
+                fallback_end = tz.now() + timedelta(days=90)
+                queryset = queryset.filter(
+                    scheduled_start__gte=fallback_start,
+                    scheduled_start__lte=fallback_end
+                )
+        else:
+            # No date range specified - use a reasonable default to avoid loading everything
+            # Show activities within ±2 months of today
+            from django.utils import timezone as tz
+            default_start = tz.now() - timedelta(days=60)
+            default_end = tz.now() + timedelta(days=60)
+            queryset = queryset.filter(
+                scheduled_start__gte=default_start,
+                scheduled_start__lte=default_end
+            )
 
-        activities = queryset.all()
-        results = []
-        for activity in activities:
-            results.append({
+        # PERFORMANCE FIX: Add a hard limit as a safety net (max 500 activities)
+        # Order by scheduled_start to show most relevant activities first
+        activities = queryset.order_by('scheduled_start')[:500]
+        
+        # Build results using list comprehension for speed
+        results = [
+            {
                 'id': activity.id,
                 'title': activity.title,
                 'start': activity.scheduled_start.isoformat(),
@@ -1700,9 +1758,14 @@ def fetch_activities(request):
                 'backgroundColor': '#4299e1' if activity.status == 'scheduled' else '#dc3545' if activity.status == 'overdue' else '#28a745' if activity.status == 'completed' else '#ffc107',
                 'borderColor': '#2d3748',
                 'textColor': '#fff',
-            })
+            }
+            for activity in activities
+        ]
+        
+        logger.info(f"fetch_activities returned {len(results)} activities (date range: {start} to {end})")
         return JsonResponse(results, safe=False)
     except Exception as e:
+        logger.error(f"Error in fetch_activities: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
 
