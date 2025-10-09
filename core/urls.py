@@ -42,6 +42,7 @@ urlpatterns = [
     path('health/clear-logs/', views.clear_health_logs, name='clear_health_logs'),
     # path('debug/playwright/', views.playwright_debug_api, name='playwright_debug_api'),  # DEPRECATED
     path('debug/clear-maintenance/', views.clear_maintenance_activities, name='clear_maintenance_activities'),
+    path('clear-maintenance-data/', views.clear_maintenance_data, name='clear_maintenance_data'),
     path('debug/clear-database/', views.clear_database, name='clear_database'),
     path('debug/populate-demo/', views.populate_demo_data, name='populate_demo_data'),
     path('debug/generate-pods/', views.generate_pods, name='generate_pods'),

@@ -506,6 +506,66 @@ def dashboard(request):
     return render(request, 'core/dashboard.html', context)
 
 
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def clear_maintenance_data(request):
+    """Clear all maintenance activities and calendar events (superuser only)."""
+    if request.method == 'POST':
+        try:
+            from django.db import transaction
+            from maintenance.models import MaintenanceActivity, MaintenanceSchedule
+            from events.models import CalendarEvent
+            
+            with transaction.atomic():
+                # Count existing records
+                activity_count = MaintenanceActivity.objects.count()
+                event_count = CalendarEvent.objects.count()
+                schedule_count = MaintenanceSchedule.objects.count()
+                
+                # Delete calendar events first (they reference maintenance activities)
+                if event_count > 0:
+                    CalendarEvent.objects.all().delete()
+                
+                # Delete maintenance activities
+                if activity_count > 0:
+                    MaintenanceActivity.objects.all().delete()
+                
+                # Delete maintenance schedules
+                if schedule_count > 0:
+                    MaintenanceSchedule.objects.all().delete()
+                
+                # Invalidate dashboard cache
+                invalidate_dashboard_cache()
+                
+                messages.success(
+                    request, 
+                    f'Successfully cleared {activity_count} maintenance activities, '
+                    f'{event_count} calendar events, and {schedule_count} maintenance schedules!'
+                )
+                
+        except Exception as e:
+            messages.error(request, f'Error clearing data: {str(e)}')
+            
+        return redirect('core:dashboard')
+    
+    # GET request - show confirmation page
+    from maintenance.models import MaintenanceActivity, MaintenanceSchedule
+    from events.models import CalendarEvent
+    
+    activity_count = MaintenanceActivity.objects.count()
+    event_count = CalendarEvent.objects.count()
+    schedule_count = MaintenanceSchedule.objects.count()
+    
+    context = {
+        'activity_count': activity_count,
+        'event_count': event_count,
+        'schedule_count': schedule_count,
+        'total_count': activity_count + event_count + schedule_count,
+    }
+    
+    return render(request, 'core/clear_data_confirm.html', context)
+
+
 def invalidate_dashboard_cache(user_id=None, site_id=None):
     """Invalidate dashboard cache for specific user and/or site."""
     from django.core.cache import cache
