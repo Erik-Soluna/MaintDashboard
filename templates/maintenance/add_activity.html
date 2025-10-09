@@ -52,9 +52,33 @@
         </div>
 
         <div class="col-lg-2">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-clock"></i> Quick Schedule</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">Set start time:</p>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="quickSchedule(2)">
+                            <i class="fas fa-fast-forward"></i> In 2 Hours
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="quickSchedule(4)">
+                            <i class="fas fa-forward"></i> In 4 Hours
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm" onclick="quickScheduleAfternoon()">
+                            <i class="fas fa-sun"></i> This Afternoon
+                        </button>
+                        <button type="button" class="btn btn-outline-info btn-sm" onclick="quickScheduleTomorrow()">
+                            <i class="fas fa-calendar-day"></i> Tomorrow 9am
+                        </button>
+                    </div>
+                    <small class="text-muted d-block mt-2">Duration: 3 hours</small>
+                </div>
+            </div>
+            
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Quick Actions</h5>
+                    <h5 class="mb-0">Quick Links</h5>
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
@@ -82,6 +106,125 @@ function toggleQuickCreate() {
         quickCreateFields.style.display = quickCreateFields.style.display === 'none' ? 'block' : 'none';
     }
 }
+
+// Quick schedule functions
+function quickSchedule(hoursFromNow) {
+    const now = new Date();
+    const startTime = new Date(now.getTime() + (hoursFromNow * 60 * 60 * 1000));
+    const endTime = new Date(startTime.getTime() + (3 * 60 * 60 * 1000)); // 3 hour duration
+    
+    setDateTimeFields(startTime, endTime);
+    showScheduleConfirmation(hoursFromNow);
+}
+
+function quickScheduleAfternoon() {
+    const now = new Date();
+    const startTime = new Date(now);
+    startTime.setHours(14, 0, 0, 0); // 2:00 PM
+    
+    // If it's already past 2pm, schedule for tomorrow
+    if (now.getHours() >= 14) {
+        startTime.setDate(startTime.getDate() + 1);
+    }
+    
+    const endTime = new Date(startTime.getTime() + (3 * 60 * 60 * 1000)); // 3 hour duration
+    setDateTimeFields(startTime, endTime);
+    showScheduleConfirmation('afternoon');
+}
+
+function quickScheduleTomorrow() {
+    const now = new Date();
+    const startTime = new Date(now);
+    startTime.setDate(startTime.getDate() + 1);
+    startTime.setHours(9, 0, 0, 0); // 9:00 AM tomorrow
+    
+    const endTime = new Date(startTime.getTime() + (3 * 60 * 60 * 1000)); // 3 hour duration
+    setDateTimeFields(startTime, endTime);
+    showScheduleConfirmation('tomorrow');
+}
+
+function setDateTimeFields(startTime, endTime) {
+    // Format for datetime-local input: YYYY-MM-DDTHH:MM
+    const formatDateTime = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+    
+    // Set the scheduled_start field
+    const startField = document.getElementById('id_scheduled_start');
+    if (startField) {
+        startField.value = formatDateTime(startTime);
+    }
+    
+    // Set the scheduled_end field
+    const endField = document.getElementById('id_scheduled_end');
+    if (endField) {
+        endField.value = formatDateTime(endTime);
+    }
+    
+    // Scroll to the date fields to show they were updated
+    if (startField) {
+        startField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        startField.focus();
+        setTimeout(() => startField.blur(), 500);
+    }
+}
+
+function showScheduleConfirmation(type) {
+    const message = typeof type === 'number' 
+        ? `Scheduled for ${type} hours from now` 
+        : type === 'afternoon' 
+            ? 'Scheduled for this afternoon (2:00 PM)'
+            : 'Scheduled for tomorrow at 9:00 AM';
+    
+    // Create a temporary toast notification
+    const toast = document.createElement('div');
+    toast.className = 'alert alert-success position-fixed top-0 end-0 m-3';
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// Show recurring fields toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const makeRecurringCheckbox = document.getElementById('id_make_recurring');
+    if (makeRecurringCheckbox) {
+        makeRecurringCheckbox.addEventListener('change', function() {
+            const recurringFields = document.querySelectorAll('[id^="id_recurrence"]');
+            recurringFields.forEach(field => {
+                const wrapper = field.closest('.form-group, .mb-3');
+                if (wrapper) {
+                    wrapper.style.display = this.checked ? 'block' : 'none';
+                }
+            });
+        });
+        
+        // Initial state
+        makeRecurringCheckbox.dispatchEvent(new Event('change'));
+    }
+    
+    // Show custom frequency field when 'custom' is selected
+    const frequencyField = document.getElementById('id_recurrence_frequency');
+    if (frequencyField) {
+        frequencyField.addEventListener('change', function() {
+            const customFreqWrapper = document.getElementById('id_recurrence_frequency_days')?.closest('.form-group, .mb-3');
+            if (customFreqWrapper) {
+                customFreqWrapper.style.display = this.value === 'custom' ? 'block' : 'none';
+            }
+        });
+        
+        // Initial state
+        frequencyField.dispatchEvent(new Event('change'));
+    }
+});
 </script>
 
 {% endblock %}

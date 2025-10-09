@@ -264,12 +264,8 @@ class Equipment(TimeStampedModel):
         if self.asset_tag:
             self.asset_tag = self.asset_tag.strip()
             
-        # Validate dates
-        if (self.dga_due_date and self.next_maintenance_date and 
-            self.dga_due_date > self.next_maintenance_date):
-            raise ValidationError(
-                "DGA due date cannot be after next maintenance date."
-            )
+        # Note: DGA due date can legitimately be after next maintenance date
+        # as they are independent maintenance schedules
 
     def get_maintenance_status(self):
         """Get the current maintenance status of equipment."""
