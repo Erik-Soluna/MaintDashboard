@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Map - SOLUNA Maintenance Dashboard{% endblock %}
+{% block title %}Map - Equipment Dependency Diagram{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -20,69 +20,141 @@
     border-bottom: 1px solid #2d3748;
 }
 
-.map-content {
+.customer-map-section {
+    background-color: #2d3748;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 30px;
+    border: 2px solid var(--primary-color, #4299e1);
+}
+
+.customer-map-header {
+    background-color: #0f1419;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border-left: 4px solid var(--primary-color, #4299e1);
+}
+
+.site-container {
+    background-color: #1a2238;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border: 2px solid #4a5568;
+}
+
+.site-header {
+    background-color: #0f1419;
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    border-left: 3px solid var(--accent-color, #3182ce);
+}
+
+.location-container {
     background-color: #2d3748;
     border-radius: 8px;
-    padding: 20px;
-    min-height: 70vh;
-}
-
-.location-marker {
-    background-color: #4299e1;
-    color: white;
-    padding: 8px 12px;
-    border-radius: 20px;
-    margin: 5px;
-    display: inline-block;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    min-width: 250px;
-}
-
-.location-marker:hover {
-    background-color: #3182ce;
-    transform: scale(1.02);
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid #4a5568;
+    position: relative;
 }
 
 .location-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 5px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: var(--info-color, #4299e1);
 }
 
-.location-customer {
-    font-size: 0.8em;
-    margin-bottom: 5px;
+.equipment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
 }
 
-.customer-assigned {
-    color: #90EE90;
-}
-
-.customer-inherited {
-    color: #FFE4B5;
-}
-
-.customer-unassigned {
-    color: #FFB6C1;
-}
-
-.equipment-marker {
-    background-color: #38a169;
+.equipment-card {
+    background-color: var(--success-color, #48bb78);
     color: white;
-    padding: 6px 10px;
-    border-radius: 15px;
-    margin: 3px;
-    display: inline-block;
-    font-size: 0.9em;
+    padding: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    position: relative;
 }
 
-.site-section {
-    background-color: #0f1419;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 15px;
+.equipment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.equipment-card.status-active {
+    background-color: var(--success-color, #48bb78);
+    border: 2px solid #2f855a;
+}
+
+.equipment-card.status-inactive {
+    background-color: #718096;
+    border: 2px solid #4a5568;
+}
+
+.equipment-card.status-maintenance {
+    background-color: var(--warning-color, #ed8936);
+    border: 2px solid #c05621;
+}
+
+.equipment-card.status-retired {
+    background-color: #4a5568;
+    border: 2px solid #2d3748;
+}
+
+.equipment-card.status-cascade-offline {
+    background-color: var(--danger-color, #f56565);
+    border: 2px solid #c53030;
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.equipment-name {
+    font-weight: bold;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.equipment-status {
+    font-size: 10px;
+    padding: 2px 6px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.equipment-connections {
+    font-size: 9px;
+    margin-top: 4px;
+    opacity: 0.8;
+}
+
+.connection-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 4px;
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+.connection-badge.upstream {
+    color: #90cdf4;
+}
+
+.connection-badge.downstream {
+    color: #fc8181;
 }
 
 .legend {
@@ -93,16 +165,62 @@
 }
 
 .legend-item {
-    display: flex;
+    display: inline-flex;
     align-items: center;
+    margin-right: 20px;
     margin-bottom: 8px;
 }
 
 .legend-color {
     width: 20px;
     height: 20px;
-    border-radius: 50%;
+    border-radius: 4px;
+    margin-right: 8px;
+}
+
+.map-controls {
+    background-color: #0f1419;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.map-controls .btn {
     margin-right: 10px;
+    margin-bottom: 5px;
+}
+
+.customer-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.stat-box {
+    background-color: #2d3748;
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid #4a5568;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.stat-label {
+    font-size: 11px;
+    opacity: 0.7;
+    text-transform: uppercase;
+}
+
+.empty-location {
+    color: #a0aec0;
+    font-style: italic;
+    padding: 10px;
+    text-align: center;
 }
 </style>
 {% endblock %}
@@ -110,130 +228,301 @@
 {% block content %}
 <div class="map-container">
     <div class="map-header">
-        <h2 class="mb-0">
-            <i class="fas fa-map me-2"></i>
-            SOLUNA Site Map
-        </h2>
-        <p class="mb-0 text-light">Interactive view of all sites, locations, and equipment</p>
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-0">
+                    <i class="fas fa-project-diagram me-2"></i>
+                    Equipment Dependency Maps
+                </h2>
+                <p class="mb-0 text-light">Customer → Sites → Locations → Equipment hierarchy with dependencies</p>
+            </div>
+            <div>
+                <select class="form-select" onchange="filterByCustomer(this.value)" style="min-width: 200px;">
+                    <option value="all" {% if selected_customer_id == 'all' %}selected{% endif %}>All Customers</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.id }}" {% if selected_customer_id|stringformat:"s" == customer.id|stringformat:"s" %}selected{% endif %}>
+                        {{ customer.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
     </div>
 
     <div class="legend">
-        <h5>Legend</h5>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #4299e1;"></div>
-            <span>Locations</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #38a169;"></div>
-            <span>Equipment</span>
-        </div>
-        <div class="legend-item">
-            <div class="legend-color" style="background-color: #f56565;"></div>
-            <span>Out of Service</span>
+        <h5 class="mb-3"><i class="fas fa-info-circle me-2"></i>Legend</h5>
+        <div class="row">
+            <div class="col-md-8">
+                <strong>Equipment Status:</strong>
+                <div class="mt-2">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: var(--success-color, #48bb78);"></div>
+                        <span>Active</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: var(--warning-color, #ed8936);"></div>
+                        <span>Under Maintenance</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #718096;"></div>
+                        <span>Inactive</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: var(--danger-color, #f56565);"></div>
+                        <span>Cascade Offline (Upstream Failure)</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <strong>Connections:</strong>
+                <div class="mt-2">
+                    <div class="legend-item">
+                        <span class="connection-badge upstream">↑ Upstream</span>
+                        <span class="ms-1">Depends on</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="connection-badge downstream">↓ Downstream</span>
+                        <span class="ms-1">Supplies to</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <div class="map-content">
-        {% regroup locations by parent_location as location_groups %}
-        
-        {% for group in location_groups %}
-            <div class="site-section">
-                <h4>
-                    {% if group.grouper %}
-                        <i class="fas fa-building me-2"></i>{{ group.grouper.name }}
-                    {% else %}
-                        <i class="fas fa-map-marker-alt me-2"></i>Independent Locations
-                    {% endif %}
-                </h4>
+    <div class="map-controls">
+        <strong><i class="fas fa-tools me-2"></i>Tools:</strong>
+        <button class="btn btn-sm btn-primary" onclick="showConnectionManager()">
+            <i class="fas fa-link"></i> Manage Connections
+        </button>
+        <button class="btn btn-sm btn-info" onclick="toggleConnectionInfo()">
+            <i class="fas fa-info-circle"></i> <span id="toggle-info-text">Show Connection Info</span>
+        </button>
+    </div>
+
+    {% if customer_maps %}
+        {% for customer_map in customer_maps %}
+        <div class="customer-map-section" id="customer-{{ customer_map.customer.id }}">
+            <div class="customer-map-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h3 class="mb-1">
+                            <i class="fas fa-building me-2"></i>{{ customer_map.customer.name }}
+                        </h3>
+                        <p class="mb-0 text-muted small">
+                            {{ customer_map.equipment.count }} equipment across {{ customer_map.locations.count }} locations
+                        </p>
+                    </div>
+                </div>
                 
-                <div class="locations-grid">
-                    {% for location in group.list %}
-                        <div class="location-marker" data-location-id="{{ location.id }}">
-                            <div class="location-header">
-                                <i class="fas fa-map-marker-alt me-1"></i>
-                                {{ location.name }}
-                                <button class="btn btn-sm btn-outline-light assign-customer-map-btn" 
-                                        data-id="{{ location.id }}" 
-                                        data-name="{{ location.name }}"
-                                        data-customer="{{ location.customer.id|default:'' }}"
-                                        data-toggle="tooltip" title="Assign Customer">
-                                    <i class="fas fa-user-tag"></i>
-                                </button>
-                            </div>
-                            
-                            <div class="location-customer">
-                                {% if location.customer %}
-                                    <span class="customer-assigned">
-                                        <i class="fas fa-user me-1"></i>{{ location.customer.name }}
-                                    </span>
-                                {% elif location.get_effective_customer %}
-                                    <span class="customer-inherited">
-                                        <i class="fas fa-user-clock me-1"></i>{{ location.get_effective_customer.name }} (inherited)
-                                    </span>
-                                {% else %}
-                                    <span class="customer-unassigned">
-                                        <i class="fas fa-user-slash me-1"></i>No customer assigned
-                                    </span>
-                                {% endif %}
-                            </div>
-                            
-                            <!-- Equipment for this location -->
-                            {% for equip in equipment %}
-                                {% if equip.location == location %}
-                                    <div class="equipment-marker {% if not equip.is_active or equip.status == 'maintenance' %}bg-danger{% endif %}">
-                                        {{ equip.name }}
-                                    </div>
-                                {% endif %}
-                            {% endfor %}
+                <div class="customer-stats">
+                    <div class="stat-box">
+                        <div class="stat-value text-success">{{ customer_map.equipment.count }}</div>
+                        <div class="stat-label">Total Equipment</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value text-danger">
+                            {% with offline_count=0 %}
+                                {% for equip in customer_map.equipment %}
+                                    {% if equip.status == 'inactive' or equip.status == 'retired' %}
+                                        {{ offline_count|add:1 }}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ offline_count }}
+                            {% endwith %}
                         </div>
-                    {% endfor %}
+                        <div class="stat-label">Offline</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value text-warning">
+                            {% with maint_count=0 %}
+                                {% for equip in customer_map.equipment %}
+                                    {% if equip.status == 'maintenance' %}
+                                        {{ maint_count|add:1 }}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ maint_count }}
+                            {% endwith %}
+                        </div>
+                        <div class="stat-label">Maintenance</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value text-info">{{ customer_map.connections.count }}</div>
+                        <div class="stat-label">Connections</div>
+                    </div>
                 </div>
             </div>
-        {% empty %}
-            <div class="text-center">
-                <i class="fas fa-map-signs fa-3x mb-3 text-muted"></i>
-                <h4>No Locations Found</h4>
-                <p class="text-muted">No locations have been configured yet.</p>
-                <a href="{% url 'core:locations_settings' %}" class="btn btn-primary">
-                    <i class="fas fa-plus me-1"></i>Add Locations
+            
+            <!-- Sites and Locations -->
+            {% for site, sub_locations in customer_map.location_groups.items %}
+            <div class="site-container">
+                <div class="site-header">
+                    <h5 class="mb-0">
+                        {% if site %}
+                            <i class="fas fa-building me-2"></i>{{ site.name }}
+                        {% else %}
+                            <i class="fas fa-map-marker-alt me-2"></i>Independent Locations
+                        {% endif %}
+                    </h5>
+                </div>
+                
+                <!-- Sub-locations (Pods/MDCs) -->
+                {% for location in sub_locations %}
+                <div class="location-container">
+                    <div class="location-header">
+                        <i class="fas fa-map-marker-alt me-1"></i>{{ location.name }}
+                    </div>
+                    
+                    <div class="equipment-grid">
+                        {% for equip in customer_map.equipment %}
+                            {% if equip.location == location %}
+                            <div class="equipment-card status-{{ equip.status }}" 
+                                 data-equipment-id="{{ equip.id }}"
+                                 data-customer-id="{{ customer_map.customer.id }}"
+                                 onclick="showEquipmentDetail({{ equip.id }})">
+                                <div class="equipment-name">{{ equip.name }}</div>
+                                <div class="equipment-status">{{ equip.get_status_display }}</div>
+                                <div class="equipment-connections" id="equip-connections-{{ equip.id }}">
+                                    <!-- Connections populated by JS -->
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% with location_equipment=customer_map.equipment|length %}
+                            {% if location_equipment == 0 %}
+                            <div class="empty-location">
+                                <i class="fas fa-box-open me-1"></i>No equipment in this location
+                            </div>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                </div>
+                {% empty %}
+                    <div class="empty-location">
+                        <i class="fas fa-map-marker-alt me-1"></i>No locations configured
+                    </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+            
+            <!-- Store data for this customer's map -->
+            <script>
+                if (!window.customerMapData) window.customerMapData = {};
+                window.customerMapData['{{ customer_map.customer.id }}'] = {
+                    connections: {{ customer_map.connections_json|safe }},
+                    equipment: {{ customer_map.equipment_json|safe }}
+                };
+            </script>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-building fa-3x mb-3 text-muted"></i>
+            <h4>No Customer Maps Available</h4>
+            <p class="text-muted">No customers with equipment have been configured yet.</p>
+            <div class="mt-3">
+                <a href="{% url 'core:customers_settings' %}" class="btn btn-primary me-2">
+                    <i class="fas fa-user-plus me-1"></i>Add Customers
+                </a>
+                <a href="{% url 'equipment:add_equipment' %}" class="btn btn-success">
+                    <i class="fas fa-cogs me-1"></i>Add Equipment
                 </a>
             </div>
-        {% endfor %}
-    </div>
+        </div>
+    {% endif %}
 </div>
 
-<!-- Assign Customer Modal -->
-<div class="modal fade" id="assignCustomerMapModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
+<!-- Connection Manager Modal -->
+<div class="modal fade" id="connectionManagerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light">
             <div class="modal-header">
-                <h5 class="modal-title">Assign Customer to Location</h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+                <h5 class="modal-title">
+                    <i class="fas fa-link me-2"></i>Manage Equipment Connections
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <input type="hidden" id="mapAssignLocationId">
-                <p>Location: <strong id="mapAssignLocationName"></strong></p>
-                <div class="form-group">
-                    <label for="mapAssignCustomerSelect" class="form-label">Select Customer</label>
-                    <select id="mapAssignCustomerSelect" name="customer_id" class="form-control">
-                        <option value="">No customer assignment</option>
-                        {% for customer in customers %}
-                        <option value="{{ customer.id }}">{{ customer.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>
-                    This will assign the customer to the location and affect all equipment and maintenance activities.
+                    <strong>How it works:</strong> When upstream equipment goes offline, all downstream equipment with critical connections automatically cascade offline.
+                </div>
+                
+                <form id="connection-form">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="upstream-equipment" class="form-label">
+                                    <i class="fas fa-arrow-up me-1"></i>Upstream Equipment (Supplies)
+                                </label>
+                                <select id="upstream-equipment" class="form-select" required>
+                                    <option value="">Select equipment...</option>
+                                    {% for equip in all_equipment %}
+                                    <option value="{{ equip.id }}">{{ equip.name }} ({{ equip.location.name }})</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Equipment that provides power/data/service</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="downstream-equipment" class="form-label">
+                                    <i class="fas fa-arrow-down me-1"></i>Downstream Equipment (Depends)
+                                </label>
+                                <select id="downstream-equipment" class="form-select" required>
+                                    <option value="">Select equipment...</option>
+                                    {% for equip in all_equipment %}
+                                    <option value="{{ equip.id }}">{{ equip.name }} ({{ equip.location.name }})</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Equipment that depends on the upstream</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label for="connection-type" class="form-label">Connection Type</label>
+                                <select id="connection-type" class="form-select" required>
+                                    <option value="power">Power Supply</option>
+                                    <option value="data">Data Connection</option>
+                                    <option value="cooling">Cooling System</option>
+                                    <option value="control">Control System</option>
+                                    <option value="mechanical">Mechanical</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <div class="form-check mt-4">
+                                    <input type="checkbox" class="form-check-input" id="is-critical" checked>
+                                    <label class="form-check-label" for="is-critical">
+                                        Critical Connection
+                                    </label>
+                                </div>
+                                <small class="d-block text-muted">If checked, downstream goes offline when upstream fails</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label for="connection-description" class="form-label">Description (Optional)</label>
+                        <textarea id="connection-description" class="form-control" rows="2" placeholder="Describe this connection..."></textarea>
+                    </div>
+                </form>
+                
+                <hr>
+                
+                <h6><i class="fas fa-list me-2"></i>All Existing Connections</h6>
+                <div id="connections-list" style="max-height: 300px; overflow-y: auto;">
+                    <!-- Will be populated by JavaScript -->
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirmMapAssignCustomer">
-                    <i class="fas fa-user-tag me-1"></i>
-                    Assign Customer
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="saveConnection()">
+                    <i class="fas fa-save"></i> Create Connection
                 </button>
             </div>
         </div>
@@ -243,81 +532,247 @@
 
 {% block extra_js %}
 <script>
-$(document).ready(function() {
-    // Initialize tooltips
-    $('[data-toggle="tooltip"]').tooltip();
+// Global state
+let showConnectionInfo = false;
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateAllEquipmentConnections();
+    updateAllEquipmentStatus();
+    loadExistingConnections();
+});
+
+function updateAllEquipmentStatus() {
+    if (!window.customerMapData) return;
     
-    // Handle location click (excluding customer assignment button)
-    $('.location-marker').on('click', function(e) {
-        // Don't navigate if customer assignment button was clicked
-        if ($(e.target).hasClass('assign-customer-map-btn') || $(e.target).parent().hasClass('assign-customer-map-btn')) {
-            return;
-        }
+    Object.keys(window.customerMapData).forEach(customerId => {
+        const data = window.customerMapData[customerId];
         
-        const locationId = $(this).data('location-id');
-        // Future: Could integrate with equipment list filtered by location
-        window.location.href = "{% url 'equipment:equipment_list' %}?location=" + locationId;
-    });
-    
-    // Handle customer assignment from map
-    $('.assign-customer-map-btn').on('click', function(e) {
-        e.stopPropagation(); // Prevent location click
-        
-        const id = $(this).data('id');
-        const name = $(this).data('name');
-        const customerId = $(this).data('customer') || '';
-        
-        $('#mapAssignLocationId').val(id);
-        $('#mapAssignLocationName').text(name);
-        $('#mapAssignCustomerSelect').val(customerId);
-        $('#assignCustomerMapModal').modal('show');
-    });
-    
-    // Confirm customer assignment from map
-    $('#confirmMapAssignCustomer').on('click', function() {
-        const $assignBtn = $(this);
-        const originalText = $assignBtn.html();
-        const locationId = $('#mapAssignLocationId').val();
-        const customerId = $('#mapAssignCustomerSelect').val();
-        
-        // Show loading state
-        $assignBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Assigning...');
-        
-        const formData = {
-            customer_id: customerId
-        };
-        
-        $.ajax({
-            url: '/core/api/locations/' + locationId + '/',
-            method: 'PUT',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json'
-            },
-            data: JSON.stringify(formData),
-            success: function(response) {
-                $('#assignCustomerMapModal').modal('hide');
-                // Show success message
-                if (response.message) {
-                    alert('Customer assigned successfully!');
+        data.equipment.forEach(equip => {
+            const card = document.querySelector(`[data-equipment-id="${equip.id}"][data-customer-id="${customerId}"]`);
+            if (card) {
+                // Remove all status classes
+                card.classList.remove('status-active', 'status-inactive', 'status-maintenance', 'status-retired', 'status-cascade-offline');
+                
+                // Add appropriate status class
+                if (equip.is_cascade_offline) {
+                    card.classList.add('status-cascade-offline');
+                } else {
+                    card.classList.add('status-' + equip.status);
                 }
-                location.reload();
-            },
-            error: function(xhr) {
-                let errorMessage = 'Error assigning customer';
-                if (xhr.responseJSON) {
-                    errorMessage += ': ' + (xhr.responseJSON.error || xhr.responseJSON.message || 'Unknown error');
-                } else if (xhr.responseText) {
-                    errorMessage += ': ' + xhr.responseText;
-                }
-                alert(errorMessage);
-            },
-            complete: function() {
-                // Reset button state
-                $assignBtn.prop('disabled', false).html(originalText);
             }
         });
     });
-});
+}
+
+function updateAllEquipmentConnections() {
+    if (!window.customerMapData) return;
+    
+    Object.keys(window.customerMapData).forEach(customerId => {
+        const data = window.customerMapData[customerId];
+        
+        data.equipment.forEach(equip => {
+            const connectionsEl = document.getElementById(`equip-connections-${equip.id}`);
+            if (!connectionsEl) return;
+            
+            // Count upstream and downstream connections
+            const upstreamCount = data.connections.filter(c => c.downstream_id === equip.id).length;
+            const downstreamCount = data.connections.filter(c => c.upstream_id === equip.id).length;
+            
+            let html = '';
+            if (upstreamCount > 0) {
+                html += `<span class="connection-badge upstream" title="${upstreamCount} upstream connection(s)">↑${upstreamCount}</span>`;
+            }
+            if (downstreamCount > 0) {
+                html += `<span class="connection-badge downstream" title="${downstreamCount} downstream connection(s)">↓${downstreamCount}</span>`;
+            }
+            
+            connectionsEl.innerHTML = html;
+            connectionsEl.style.display = (upstreamCount > 0 || downstreamCount > 0) ? 'block' : 'none';
+        });
+    });
+}
+
+function toggleConnectionInfo() {
+    showConnectionInfo = !showConnectionInfo;
+    const allConnections = document.querySelectorAll('.equipment-connections');
+    allConnections.forEach(el => {
+        if (showConnectionInfo) {
+            el.style.display = 'block';
+        } else {
+            // Only hide if no connections
+            if (el.innerHTML.trim() === '') {
+                el.style.display = 'none';
+            }
+        }
+    });
+    document.getElementById('toggle-info-text').textContent = 
+        showConnectionInfo ? 'Hide Connection Info' : 'Show Connection Info';
+}
+
+function showEquipmentDetail(equipId) {
+    window.open(`/equipment/${equipId}/`, '_blank');
+}
+
+function filterByCustomer(customerId) {
+    const currentUrl = new URL(window.location.href);
+    if (customerId === 'all') {
+        currentUrl.searchParams.delete('customer_id');
+    } else {
+        currentUrl.searchParams.set('customer_id', customerId);
+    }
+    window.location.href = currentUrl.toString();
+}
+
+function showConnectionManager() {
+    loadExistingConnections();
+    const modal = new bootstrap.Modal(document.getElementById('connectionManagerModal'));
+    modal.show();
+}
+
+function loadExistingConnections() {
+    const listEl = document.getElementById('connections-list');
+    if (!window.customerMapData) {
+        listEl.innerHTML = '<p class="text-muted">No connections defined yet.</p>';
+        return;
+    }
+    
+    // Collect all connections from all customers
+    let allConnections = [];
+    Object.keys(window.customerMapData).forEach(customerId => {
+        const data = window.customerMapData[customerId];
+        data.connections.forEach(conn => {
+            const upstream = data.equipment.find(e => e.id === conn.upstream_id);
+            const downstream = data.equipment.find(e => e.id === conn.downstream_id);
+            if (upstream && downstream) {
+                allConnections.push({
+                    ...conn,
+                    upstream_name: upstream.name,
+                    downstream_name: downstream.name,
+                    upstream_location: upstream.location_name,
+                    downstream_location: downstream.location_name,
+                    customerId: customerId
+                });
+            }
+        });
+    });
+    
+    if (allConnections.length === 0) {
+        listEl.innerHTML = '<p class="text-muted">No connections defined yet. Create connections to show equipment dependencies.</p>';
+        return;
+    }
+    
+    // Sort by upstream name
+    allConnections.sort((a, b) => a.upstream_name.localeCompare(b.upstream_name));
+    
+    let html = '<div class="list-group">';
+    allConnections.forEach(conn => {
+        const criticalBadge = conn.is_critical 
+            ? '<span class="badge bg-danger">Critical</span>' 
+            : '<span class="badge bg-info">Non-Critical</span>';
+        
+        html += `
+            <div class="list-group-item bg-secondary text-light mb-2">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="mb-1">
+                            <strong>${conn.upstream_name}</strong> <small class="text-muted">(${conn.upstream_location})</small>
+                            <br>
+                            <i class="fas fa-arrow-down text-warning mx-2"></i>
+                            <br>
+                            <strong>${conn.downstream_name}</strong> <small class="text-muted">(${conn.downstream_location})</small>
+                        </div>
+                        <small class="text-muted">
+                            <span class="badge bg-primary">${conn.connection_type}</span>
+                            ${criticalBadge}
+                        </small>
+                    </div>
+                    <button class="btn btn-sm btn-danger" onclick="deleteConnection(${conn.id}, '${conn.customerId}')">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    listEl.innerHTML = html;
+}
+
+function saveConnection() {
+    const upstreamId = document.getElementById('upstream-equipment').value;
+    const downstreamId = document.getElementById('downstream-equipment').value;
+    const connectionType = document.getElementById('connection-type').value;
+    const isCritical = document.getElementById('is-critical').checked;
+    const description = document.getElementById('connection-description').value;
+    
+    if (!upstreamId || !downstreamId) {
+        alert('Please select both upstream and downstream equipment.');
+        return;
+    }
+    
+    if (upstreamId === downstreamId) {
+        alert('Equipment cannot connect to itself.');
+        return;
+    }
+    
+    // Create connection via API
+    fetch('/equipment/api/connections/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+            upstream_equipment: upstreamId,
+            downstream_equipment: downstreamId,
+            connection_type: connectionType,
+            is_critical: isCritical,
+            description: description
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Show success and reload
+            if (window.showMessage) {
+                window.showMessage('Connection created successfully! Reloading map...', 'success');
+            }
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert('Error creating connection: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error creating connection. Check console for details.');
+    });
+}
+
+function deleteConnection(connectionId, customerId) {
+    if (!confirm('Are you sure you want to delete this connection?')) return;
+    
+    fetch(`/equipment/api/connections/${connectionId}/`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Show success and reload
+            if (window.showMessage) {
+                window.showMessage('Connection deleted successfully! Reloading map...', 'success');
+            }
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            alert('Error deleting connection: ' + (data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error deleting connection. Check console for details.');
+    });
+}
 </script>
 {% endblock %}

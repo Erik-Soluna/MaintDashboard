@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Equipment Conditional Fields Settings - Maintenance Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'core:settings' %}">Settings</a></li>
+<li class="breadcrumb-item active">Equipment Conditional Fields</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="mb-0 text-white">
+                <i class="fas fa-link me-2"></i>
+                Equipment Conditional Fields Settings
+            </h2>
+            <p class="text-muted mb-0">Configure which fields are available for specific equipment categories</p>
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addConditionalFieldModal">
+                <i class="fas fa-plus me-1"></i>
+                Add Conditional Field
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Messages -->
+{% if messages %}
+<div class="messages">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Conditional Fields Overview -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            About Conditional Fields
+        </h5>
+    </div>
+    <div class="card-body">
+        <p class="mb-0">
+            Conditional fields allow you to make fields from one equipment category available to other categories. 
+            For example, you can make the "Oil Type" field from "Transformers" available to "Switchgear" equipment.
+            This is useful for power-related equipment that shares common characteristics.
+        </p>
+    </div>
+</div>
+
+<!-- Current Conditional Fields -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-list me-2"></i>
+            Current Conditional Field Assignments
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if table_missing %}
+            <div class="alert alert-warning" role="alert">
+                <h6 class="alert-heading">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Database Table Missing
+                </h6>
+                <p class="mb-2">The conditional fields table is not available. This usually means the database migration hasn't been applied.</p>
+                <hr>
+                <p class="mb-0">
+                    <strong>To fix this:</strong>
+                    <ol class="mb-0 mt-2">
+                        <li>Run the migration: <code>python manage.py migrate equipment</code></li>
+                        <li>Or restart the Docker container to trigger automatic migration</li>
+                        <li>Refresh this page after the migration completes</li>
+                    </ol>
+                </p>
+            </div>
+        {% elif conditional_fields_by_category %}
+            {% for target_category_name, conditional_fields in conditional_fields_by_category.items %}
+            <div class="mb-4">
+                <h6 class="text-primary mb-3">
+                    <i class="fas fa-tag me-1"></i>
+                    {{ target_category_name }}
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Field Name</th>
+                                <th>Source Category</th>
+                                <th>Field Type</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cf in conditional_fields %}
+                            <tr>
+                                <td>
+                                    <strong>{{ cf.field.label }}</strong>
+                                    {% if cf.override_label and cf.override_label != cf.field.label %}
+                                        <br><small class="text-muted">Overridden: {{ cf.override_label }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge badge-secondary">{{ cf.source_category.name }}</span>
+                                </td>
+                                <td>
+                                    <span class="badge badge-info">{{ cf.field.get_field_type_display }}</span>
+                                </td>
+                                <td>
+                                    {% if cf.is_active %}
+                                        <span class="badge badge-success">Active</span>
+                                    {% else %}
+                                        <span class="badge badge-warning">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <form method="post" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="toggle_conditional_field">
+                                            <input type="hidden" name="conditional_field_id" value="{{ cf.id }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-{% if cf.is_active %}warning{% else %}success{% endif %}" 
+                                                    data-toggle="tooltip" title="{% if cf.is_active %}Disable{% else %}Enable{% endif %}">
+                                                <i class="fas fa-{% if cf.is_active %}pause{% else %}play{% endif %}"></i>
+                                            </button>
+                                        </form>
+                                        <a href="{% url 'admin:equipment_equipmentcategoryconditionalfield_change' cf.id %}" 
+                                           class="btn btn-sm btn-outline-secondary" data-toggle="tooltip" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <form method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to remove this conditional field assignment?');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete_conditional_field">
+                                            <input type="hidden" name="conditional_field_id" value="{{ cf.id }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" data-toggle="tooltip" title="Remove">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-link fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No conditional field assignments created yet</p>
+                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#addConditionalFieldModal">
+                    Create First Assignment
+                </button>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Conditional Field Modal -->
+<div class="modal fade" id="addConditionalFieldModal" tabindex="-1" aria-labelledby="addConditionalFieldModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addConditionalFieldModalLabel">
+                    <i class="fas fa-plus me-2"></i>
+                    Add Conditional Field Assignment
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_conditional_field">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="source_category" class="form-label">
+                                    Source Category <span class="text-danger">*</span>
+                                </label>
+                                                                 <select class="form-select" id="source_category" name="source_category" required>
+                                     <option value="">Select source category...</option>
+                                     {% for category in categories %}
+                                         <option value="{{ category.id }}">{{ category.name }}</option>
+                                     {% endfor %}
+                                 </select>
+                                <small class="form-text text-muted">Category that provides the field</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="target_category" class="form-label">
+                                    Target Category <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="target_category" name="target_category" required>
+                                    <option value="">Select target category...</option>
+                                    {% for category in categories %}
+                                        <option value="{{ category.id }}">{{ category.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="form-text text-muted">Category that receives the field</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group mt-3">
+                        <label for="field" class="form-label">
+                            Field to Assign <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="field" name="field" required>
+                            <option value="">Select a source category first...</option>
+                        </select>
+                        <small class="form-text text-muted">Field from the source category to assign</small>
+                    </div>
+                    
+                                         <div class="alert alert-info mt-3">
+                         <i class="fas fa-info-circle me-2"></i>
+                         <strong>How it works:</strong> When you assign a field from one category to another, 
+                         equipment of the target category will have access to that field. The field will appear 
+                         in equipment forms with a note indicating its source category.
+                     </div>
+                     
+                     <div class="alert alert-warning mt-3">
+                         <i class="fas fa-exclamation-triangle me-2"></i>
+                         <strong>Note:</strong> To create conditional field assignments, you first need to create 
+                         custom fields for your equipment categories. Go to 
+                         <a href="{% url 'admin:equipment_equipmentcategoryfield_changelist' %}" target="_blank">
+                             Equipment Category Fields
+                         </a> in the admin to create custom fields for your categories.
+                     </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Assignment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Initialize tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+    
+         // Handle source category change to populate fields
+     $('#source_category').change(function() {
+         const sourceCategoryId = $(this).val();
+         const fieldSelect = $('#field');
+         
+         if (sourceCategoryId) {
+             // Fetch fields for the selected source category
+             $.get(`/core/api/categories/${sourceCategoryId}/fields/`, function(data) {
+                 fieldSelect.empty();
+                 
+                 if (data.fields && data.fields.length > 0) {
+                     fieldSelect.append('<option value="">Select field...</option>');
+                     data.fields.forEach(function(field) {
+                         fieldSelect.append(`<option value="${field.id}">${field.label} (${field.field_type})</option>`);
+                     });
+                 } else {
+                     fieldSelect.append('<option value="">No custom fields available for this category</option>');
+                     fieldSelect.prop('disabled', true);
+                 }
+             }).fail(function() {
+                 fieldSelect.empty();
+                 fieldSelect.append('<option value="">Error loading fields...</option>');
+                 fieldSelect.prop('disabled', true);
+             });
+         } else {
+             fieldSelect.empty();
+             fieldSelect.append('<option value="">Select a source category first...</option>');
+             fieldSelect.prop('disabled', true);
+         }
+     });
+    
+    // Prevent same source and target category
+    $('#target_category').change(function() {
+        const sourceCategoryId = $('#source_category').val();
+        const targetCategoryId = $(this).val();
+        
+        if (sourceCategoryId && targetCategoryId && sourceCategoryId === targetCategoryId) {
+            alert('Source and target categories cannot be the same.');
+            $(this).val('');
+        }
+    });
+});
+</script>
+{% endblock %}

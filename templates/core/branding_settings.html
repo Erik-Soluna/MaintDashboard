@@ -1,0 +1,1132 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% load breadcrumb_controls %}
+
+{% breadcrumb_control 'hide' %}
+
+{% block title %}Branding Settings - {{ branding.site_name|default:"Maintenance Dashboard" }}{% endblock %}
+
+
+
+{% block content %}
+{% if not tables_exist %}
+<div class="container-fluid">
+    <div class="alert alert-warning" role="alert">
+        <h4 class="alert-heading">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Branding System Not Yet Available
+        </h4>
+        <p class="mb-0">
+            The branding system requires database setup before it can be used. 
+            Please run the following commands on your server:
+        </p>
+        <hr>
+        <div class="bg-light p-3 rounded">
+            <code>python manage.py migrate</code><br>
+            <code>python manage.py setup_branding</code>
+        </div>
+        <hr>
+        <p class="mb-0">
+            <a href="{% url 'core:settings' %}" class="btn btn-primary">
+                <i class="fas fa-arrow-left me-1"></i>
+                Return to Settings
+            </a>
+        </p>
+    </div>
+</div>
+{% else %}
+
+{% block extra_css %}
+<style>
+.branding-container {
+    background-color: var(--content-bg);
+    min-height: 100vh;
+    color: var(--content-text);
+    padding: 20px;
+}
+
+.branding-header {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.branding-tabs {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.branding-tab-content {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    padding: 20px;
+}
+
+.branding-form-section {
+    margin-bottom: 30px;
+}
+
+.branding-form-section h4 {
+    color: var(--content-text);
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.color-picker-group {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.color-picker-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.color-picker-item label {
+    font-size: 14px;
+    color: var(--content-text);
+    margin: 0;
+}
+
+.color-picker-item input[type="color"] {
+    width: 60px;
+    height: 40px;
+    border: 2px solid var(--card-border);
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.preview-section {
+    background-color: var(--darker-color);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.preview-header {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+}
+
+.preview-navigation {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+}
+
+.preview-footer {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px 20px;
+}
+
+.css-customization-section {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.css-customization-item {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.css-customization-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.css-customization-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.css-customization-meta {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.css-customization-description {
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+}
+
+.css-preview-code {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.tab-nav {
+    background-color: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0 20px;
+}
+
+.tab-nav .nav-link {
+    color: var(--text-secondary);
+    border: none;
+    padding: 15px 25px;
+    font-weight: 500;
+    background: transparent;
+}
+
+.tab-nav .nav-link.active {
+    color: var(--primary-color);
+    background-color: transparent;
+    border-bottom: 2px solid var(--primary-color);
+    font-weight: 600;
+}
+
+.tab-nav .nav-link:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+}
+
+.form-group label {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.form-control {
+    background-color: var(--form-bg);
+    border-color: var(--form-border);
+    color: var(--form-text);
+}
+
+.form-control:focus {
+    background-color: var(--form-bg);
+    border-color: var(--accent-color);
+    color: var(--form-text);
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+/* Color Picker Styling */
+.color-picker-group {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.color-picker-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.color-picker-item label {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 0;
+}
+
+.color-picker-item input[type="color"] {
+    width: 100%;
+    height: 50px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.color-picker-item input[type="color"]:hover {
+    border-color: var(--accent-color);
+    transform: scale(1.02);
+}
+
+.color-picker-item input[type="color"]:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+    outline: none;
+}
+
+/* Opacity input styling */
+.color-picker-item input[type="number"] {
+    width: 100%;
+    height: 50px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.color-picker-item input[type="number"]:hover {
+    border-color: var(--accent-color);
+    transform: scale(1.02);
+}
+
+.color-picker-item input[type="number"]:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+    outline: none;
+}
+
+/* Branding Form Section Styling */
+.branding-form-section {
+    background-color: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.branding-form-section h4 {
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.branding-form-section .text-muted {
+    color: var(--text-secondary) !important;
+    margin-bottom: 20px;
+}
+</style>
+{% endblock %}
+<div class="branding-container">
+    <!-- Header -->
+    <div class="branding-header">
+        <h2><i class="fas fa-palette me-2"></i>Branding Settings</h2>
+        <p class="text-muted mb-0">Customize the appearance, labels, and styling of your maintenance dashboard.</p>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="branding-tabs">
+        <ul class="nav nav-tabs tab-nav" id="brandingTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
+                    <i class="fas fa-cog me-2"></i>Basic Settings
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="navigation-tab" data-bs-toggle="tab" data-bs-target="#navigation" type="button" role="tab">
+                    <i class="fas fa-bars me-2"></i>Navigation Labels
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="appearance-tab" data-bs-toggle="tab" data-bs-target="#appearance" type="button" role="tab">
+                    <i class="fas fa-paint-brush me-2"></i>Appearance
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="css-tab" data-bs-toggle="tab" data-bs-target="#css" type="button" role="tab">
+                    <i class="fas fa-code me-2"></i>CSS Customizations
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="preview-tab" data-bs-toggle="tab" data-bs-target="#preview" type="button" role="tab">
+                    <i class="fas fa-eye me-2"></i>Live Preview
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="brandingTabContent">
+        <!-- Basic Settings Tab -->
+        <div class="tab-pane fade show active branding-tab-content" id="basic" role="tabpanel">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="basic">
+                
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-info-circle me-2"></i>Site Information</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ basic_form.site_name|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ basic_form.site_tagline|as_crispy_field }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ basic_form.window_title_prefix|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ basic_form.window_title_suffix|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-image me-2"></i>Logo & Branding</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ basic_form.header_brand_text|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ basic_form.logo_file|as_crispy_field }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ basic_form.favicon_file|as_crispy_field }}
+                            {% if branding.favicon %}
+                            <div class="mt-2">
+                                <label class="form-label">Current Favicon</label>
+                                <div class="border rounded p-2 text-center">
+                                    <img src="{{ branding.favicon.url }}" alt="Current Favicon" style="max-height: 32px; max-width: 32px;">
+                                    <p class="mt-1 mb-0 text-muted small">Current favicon</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Current Logo Selection</label>
+                            {% if basic_form.logo.queryset.count > 0 %}
+                                {{ basic_form.logo }}
+                                <small class="form-text text-muted">Select from existing logos or upload a new one above</small>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    No logos available. Upload a new logo above to get started.
+                                </div>
+                            {% endif %}
+                            {% if basic_form.logo.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    {{ basic_form.logo.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if branding.logo %}
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Current Logo Preview</label>
+                            <div class="border rounded p-3 text-center">
+                                <img src="{{ branding.logo.image.url }}" alt="{{ branding.logo.name }}" style="max-height: 100px; max-width: 100%;">
+                                <p class="mt-2 mb-0 text-muted">{{ branding.logo.name }}</p>
+                                <p class="mt-1 mb-0 text-muted small">ID: {{ branding.logo.id }} | Active: {{ branding.logo.is_active|yesno:"Yes,No" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                No logo is currently selected. Upload a new logo above or select from existing logos.
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-copyright me-2"></i>Footer Customization</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ basic_form.footer_copyright_text|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ basic_form.footer_powered_by_text|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-route me-2"></i>Breadcrumb Settings</h4>
+                    <p class="text-muted">Control the display and appearance of breadcrumb navigation.</p>
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ basic_form.breadcrumb_enabled|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ basic_form.breadcrumb_home_text|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ basic_form.breadcrumb_separator|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <button type="button" class="btn btn-outline-secondary btn-lg me-3" onclick="resetToDefaults('basic')">
+                        <i class="fas fa-undo me-2"></i>Reset to Defaults
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>Save Basic Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Navigation Labels Tab -->
+        <div class="tab-pane fade branding-tab-content" id="navigation" role="tabpanel">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="navigation">
+                
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-bars me-2"></i>Navigation Menu Labels</h4>
+                    <p class="text-muted">Customize the labels displayed in the main navigation menu.</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ navigation_form.navigation_overview_label|as_crispy_field }}
+                            {{ navigation_form.navigation_equipment_label|as_crispy_field }}
+                            {{ navigation_form.navigation_maintenance_label|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ navigation_form.navigation_calendar_label|as_crispy_field }}
+                            {{ navigation_form.navigation_map_label|as_crispy_field }}
+                            {{ navigation_form.navigation_settings_label|as_crispy_field }}
+                            {{ navigation_form.navigation_debug_label|as_crispy_field }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <button type="button" class="btn btn-outline-secondary btn-lg me-3" onclick="resetToDefaults('navigation')">
+                        <i class="fas fa-undo me-2"></i>Reset to Defaults
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>Save Navigation Labels
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Appearance Tab -->
+        <div class="tab-pane fade branding-tab-content" id="appearance" role="tabpanel">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="appearance">
+                
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-palette me-2"></i>Theme Colors</h4>
+                    <p class="text-muted">Customize the primary colors used throughout the website.</p>
+                    
+                    <div class="color-picker-group">
+                        <div class="color-picker-item">
+                            <label>Primary Color</label>
+                            {{ appearance_form.primary_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Secondary Color</label>
+                            {{ appearance_form.secondary_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Accent Color</label>
+                            {{ appearance_form.accent_color }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-heading me-2"></i>Header & Navigation Colors</h4>
+                    <p class="text-muted">Customize the colors of the header and navigation elements.</p>
+                    
+                    <div class="color-picker-group">
+                        <div class="color-picker-item">
+                            <label>Header Background</label>
+                            {{ appearance_form.header_background_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Header Text</label>
+                            {{ appearance_form.header_text_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Header Border</label>
+                            {{ appearance_form.header_border_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Navigation Background</label>
+                            {{ appearance_form.navigation_background_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Navigation Text</label>
+                            {{ appearance_form.navigation_text_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Navigation Hover</label>
+                            {{ appearance_form.navigation_hover_color }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-layer-group me-2"></i>Content Area Colors</h4>
+                    <p class="text-muted">Customize the colors of content areas, cards, and backgrounds.</p>
+                    
+                    <div class="color-picker-group">
+                        <div class="color-picker-item">
+                            <label>Content Background</label>
+                            {{ appearance_form.content_background_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Content Text</label>
+                            {{ appearance_form.content_text_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Card Background</label>
+                            {{ appearance_form.card_background_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Card Border</label>
+                            {{ appearance_form.card_border_color }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-mouse-pointer me-2"></i>Button & Form Colors</h4>
+                    <p class="text-muted">Customize the colors of buttons, forms, and interactive elements.</p>
+                    
+                    <div class="color-picker-group">
+                        <div class="color-picker-item">
+                            <label>Primary Button Background</label>
+                            {{ appearance_form.button_primary_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Primary Button Text</label>
+                            {{ appearance_form.button_primary_text_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Secondary Button Background</label>
+                            {{ appearance_form.button_secondary_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Secondary Button Text</label>
+                            {{ appearance_form.button_secondary_text_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Form Background</label>
+                            {{ appearance_form.form_background_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Form Border</label>
+                            {{ appearance_form.form_border_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Form Text</label>
+                            {{ appearance_form.form_text_color }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-exclamation-triangle me-2"></i>Status Colors</h4>
+                    <p class="text-muted">Customize the colors used for success, warning, danger, and info messages.</p>
+                    
+                    <div class="color-picker-group">
+                        <div class="color-picker-item">
+                            <label>Success Color</label>
+                            {{ appearance_form.success_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Warning Color</label>
+                            {{ appearance_form.warning_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Danger Color</label>
+                            {{ appearance_form.danger_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Info Color</label>
+                            {{ appearance_form.info_color }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-chevron-down me-2"></i>Dropdown & Menu Colors</h4>
+                    <p class="text-muted">Customize the appearance of dropdown menus and navigation popups.</p>
+                    
+                    <div class="color-picker-group">
+                        <div class="color-picker-item">
+                            <label>Dropdown Background</label>
+                            {{ appearance_form.dropdown_background_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Dropdown Background Opacity</label>
+                            {{ appearance_form.dropdown_background_opacity }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Dropdown Text</label>
+                            {{ appearance_form.dropdown_text_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Dropdown Border</label>
+                            {{ appearance_form.dropdown_border_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Dropdown Hover Background</label>
+                            {{ appearance_form.dropdown_hover_background_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Dropdown Hover Text</label>
+                            {{ appearance_form.dropdown_hover_text_color }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-route me-2"></i>Breadcrumb Colors</h4>
+                    <p class="text-muted">Customize the colors of breadcrumb navigation elements.</p>
+                    
+                    <div class="color-picker-group">
+                        <div class="color-picker-item">
+                            <label>Breadcrumb Link</label>
+                            {{ appearance_form.breadcrumb_link_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Breadcrumb Text</label>
+                            {{ appearance_form.breadcrumb_text_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Breadcrumb Separator</label>
+                            {{ appearance_form.breadcrumb_separator_color }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center">
+                    <button type="button" class="btn btn-outline-secondary btn-lg me-3" onclick="resetToDefaults('appearance')">
+                        <i class="fas fa-undo me-2"></i>Reset to Defaults
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-2"></i>Save Appearance Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- CSS Customizations Tab -->
+        <div class="tab-pane fade branding-tab-content" id="css" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4><i class="fas fa-code me-2"></i>CSS Customizations</h4>
+                <a href="{% url 'core:css_customization_create' %}" class="btn btn-success">
+                    <i class="fas fa-plus me-2"></i>Add CSS Customization
+                </a>
+            </div>
+            
+            <div class="css-customization-section">
+                {% if css_customizations %}
+                    {% for css in css_customizations %}
+                        <div class="css-customization-item">
+                            <div class="css-customization-header">
+                                <div>
+                                    <span class="css-customization-name">{{ css.name }}</span>
+                                    <span class="badge badge-{{ css.item_type }} ms-2">{{ css.get_item_type_display }}</span>
+                                </div>
+                                <div class="css-customization-meta">
+                                    <span>Priority: {{ css.priority }}</span>
+                                    <span>Order: {{ css.order }}</span>
+                                    <span class="badge badge-{{ css.is_active|yesno:'success,secondary' }}">
+                                        {{ css.is_active|yesno:'Active,Inactive' }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            {% if css.description %}
+                                <div class="css-customization-description">{{ css.description }}</div>
+                            {% endif %}
+                            
+                            <div class="css-preview-code">{{ css.css_code|truncatechars:200 }}</div>
+                            
+                            <div class="action-buttons">
+                                <a href="{% url 'core:css_customization_edit' css.pk %}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-edit me-1"></i>Edit
+                                </a>
+                                <a href="{% url 'core:css_toggle' css.pk %}" class="btn btn-{{ css.is_active|yesno:'warning,success' }} btn-sm">
+                                    <i class="fas fa-{{ css.is_active|yesno:'pause,play' }} me-1"></i>
+                                    {{ css.is_active|yesno:'Deactivate,Activate' }}
+                                </a>
+                                <a href="{% url 'core:css_customization_delete' css.pk %}" class="btn btn-danger btn-sm" 
+                                   onclick="return confirm('Are you sure you want to delete this CSS customization?')">
+                                    <i class="fas fa-trash me-1"></i>Delete
+                                </a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    
+                    <div class="text-center mt-3">
+                        <a href="{% url 'core:css_customization_list' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-list me-2"></i>View All CSS Customizations
+                        </a>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-code fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No CSS customizations found.</p>
+                        <a href="{% url 'core:css_customization_create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Create Your First CSS Customization
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Live Preview Tab -->
+        <div class="tab-pane fade branding-tab-content" id="preview" role="tabpanel">
+            <div class="branding-form-section">
+                <h4><i class="fas fa-eye me-2"></i>Live Preview</h4>
+                <p class="text-muted">See how your branding changes will look in real-time.</p>
+            </div>
+
+            <div class="preview-section">
+                <!-- Header Preview -->
+                <div class="preview-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            {% if branding.logo %}
+                                <img src="{{ branding.logo.image.url }}" alt="{{ branding.logo.name }}" style="height: 40px; width: auto; margin-right: 15px;">
+                            {% else %}
+                                <i class="fas fa-tools fa-2x me-3" style="color: var(--primary-color);"></i>
+                            {% endif %}
+                            <div>
+                                <h4 class="mb-0" style="color: var(--text-primary);">
+                                    {{ branding.header_brand_text|default:"Maintenance Dashboard" }}
+                                </h4>
+                                {% if branding.site_tagline %}
+                                    <small class="text-muted">{{ branding.site_tagline }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="version-badge">
+                            <small class="text-muted">{{ app_version }}</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Preview -->
+                <div class="preview-navigation">
+                    <div class="d-flex gap-3 flex-wrap">
+                        <a href="#" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-home me-1"></i>{{ branding.navigation_overview_label|default:"Overview" }}
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-cogs me-1"></i>{{ branding.navigation_equipment_label|default:"Equipment" }}
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-calendar-check me-1"></i>{{ branding.navigation_maintenance_label|default:"Maintenance" }}
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-calendar me-1"></i>{{ branding.navigation_calendar_label|default:"Calendar" }}
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-map me-1"></i>{{ branding.navigation_map_label|default:"Map" }}
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-cog me-1"></i>{{ branding.navigation_settings_label|default:"Settings" }}
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Footer Preview -->
+                <div class="preview-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">{{ branding.footer_copyright_text|default:"© 2025 Maintenance Dashboard. All rights reserved." }}</small>
+                        </div>
+                        <div>
+                            <small class="text-muted">{{ branding.footer_powered_by_text|default:"Powered by Django" }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-3">
+                <a href="{% url 'core:css_preview' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-code me-2"></i>CSS Preview & Testing
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tabs
+    var triggerTabList = [].slice.call(document.querySelectorAll('#brandingTabs button'))
+    triggerTabList.forEach(function (triggerEl) {
+        triggerEl.addEventListener('click', function (event) {
+            event.preventDefault()
+            
+            // Remove active class from all tabs and content
+            document.querySelectorAll('#brandingTabs .nav-link').forEach(function(tab) {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-pane').forEach(function(content) {
+                content.classList.remove('show', 'active');
+            });
+            
+            // Add active class to clicked tab
+            this.classList.add('active');
+            
+            // Show corresponding content
+            var targetId = this.getAttribute('data-bs-target');
+            if (targetId) {
+                var targetContent = document.querySelector(targetId);
+                if (targetContent) {
+                    targetContent.classList.add('show', 'active');
+                }
+            }
+        })
+    })
+
+    // Color picker change handlers
+    document.querySelectorAll('.color-picker input[type="color"]').forEach(function(colorPicker) {
+        colorPicker.addEventListener('change', function() {
+            // Update CSS variables for live preview
+            const colorName = this.name.replace('primary_color', 'primary')
+                                      .replace('secondary_color', 'secondary')
+                                      .replace('accent_color', 'accent');
+            document.documentElement.style.setProperty(`--${colorName}-color`, this.value);
+        });
+    });
+
+    // Form submission handling
+    document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+        });
+    });
+
+    // Default values for reset functionality
+    const defaultValues = {
+        basic: {
+            site_name: 'Maintenance Dashboard',
+            site_tagline: 'Professional maintenance management system',
+            window_title_prefix: '',
+            window_title_suffix: ' | Maintenance Dashboard',
+            header_brand_text: 'MaintDashboard',
+            footer_copyright_text: '© 2025 Maintenance Dashboard. All rights reserved.',
+            footer_powered_by_text: 'Powered by Soluna',
+            breadcrumb_enabled: true,
+            breadcrumb_home_text: 'Home',
+            breadcrumb_separator: '>'
+        },
+        navigation: {
+            navigation_overview_label: 'Overview',
+            navigation_equipment_label: 'Equipment',
+            navigation_maintenance_label: 'Maintenance',
+            navigation_calendar_label: 'Calendar',
+            navigation_map_label: 'Map',
+            navigation_settings_label: 'Settings',
+            navigation_debug_label: 'Debug'
+        },
+        appearance: {
+            primary_color: '#4299e1',
+            secondary_color: '#2d3748',
+            accent_color: '#3182ce',
+            header_background_color: '#0f1419',
+            header_text_color: '#ffffff',
+            header_border_color: '#4a5568',
+            navigation_background_color: '#2d3748',
+            navigation_text_color: '#e2e8f0',
+            navigation_hover_color: '#4299e1',
+            content_background_color: '#1a2238',
+            content_text_color: '#e2e8f0',
+            card_background_color: '#2d3748',
+            card_border_color: '#4a5568',
+            button_primary_color: '#4299e1',
+            button_primary_text_color: '#ffffff',
+            button_secondary_color: '#718096',
+            button_secondary_text_color: '#ffffff',
+            form_background_color: '#2d3748',
+            form_border_color: '#4a5568',
+            form_text_color: '#e2e8f0',
+            success_color: '#48bb78',
+            warning_color: '#ed8936',
+            danger_color: '#f56565',
+            info_color: '#4299e1',
+            dropdown_background_color: '#2d3748',
+            dropdown_background_opacity: '0.95',
+            dropdown_text_color: '#e2e8f0',
+            dropdown_border_color: '#4a5568',
+            dropdown_hover_background_color: '#4a5568',
+            dropdown_hover_text_color: '#ffffff',
+            breadcrumb_link_color: '#4299e1',
+            breadcrumb_text_color: '#a0aec0',
+            breadcrumb_separator_color: '#a0aec0'
+        }
+    };
+
+    // Reset to defaults function
+    window.resetToDefaults = function(formType) {
+        if (confirm('Are you sure you want to reset all ' + formType + ' settings to their default values? This action cannot be undone.')) {
+            const defaults = defaultValues[formType];
+            if (defaults) {
+                Object.keys(defaults).forEach(function(fieldName) {
+                    const field = document.querySelector(`[name="${fieldName}"]`);
+                    if (field) {
+                        if (field.type === 'color') {
+                            field.value = defaults[fieldName];
+                        } else if (field.type === 'number') {
+                            field.value = defaults[fieldName];
+                        } else {
+                            field.value = defaults[fieldName];
+                        }
+                        
+                        // Trigger change event to update live preview
+                        field.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+                
+                // Show success message
+                if (typeof showMessage === 'function') {
+                    showMessage('Settings reset to defaults successfully!', 'success');
+                } else {
+                    alert('Settings reset to defaults successfully!');
+                }
+            }
+        }
+    };
+
+    // Image preview functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        // Logo file preview
+        const logoFileInput = document.querySelector('input[name="logo_file"]');
+        if (logoFileInput) {
+            logoFileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    // Validate file type
+                    if (!file.type.startsWith('image/')) {
+                        alert('Please select a valid image file for the logo.');
+                        this.value = '';
+                        return;
+                    }
+                    
+                    // Create preview
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        // Remove existing preview
+                        const existingPreview = document.querySelector('.logo-preview');
+                        if (existingPreview) {
+                            existingPreview.remove();
+                        }
+                        
+                        // Create new preview
+                        const preview = document.createElement('div');
+                        preview.className = 'logo-preview mt-2';
+                        preview.innerHTML = `
+                            <label class="form-label">New Logo Preview</label>
+                            <div class="border rounded p-3 text-center">
+                                <img src="${e.target.result}" alt="Logo Preview" style="max-height: 100px; max-width: 100%;">
+                                <p class="mt-2 mb-0 text-muted">${file.name}</p>
+                                <p class="mt-1 mb-0 text-success small"><i class="fas fa-check-circle me-1"></i>Ready to upload</p>
+                            </div>
+                        `;
+                        
+                        // Insert after the file input
+                        logoFileInput.parentNode.appendChild(preview);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // Favicon file preview
+        const faviconFileInput = document.querySelector('input[name="favicon_file"]');
+        if (faviconFileInput) {
+            faviconFileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    // Validate file type
+                    if (!file.type.startsWith('image/')) {
+                        alert('Please select a valid image file for the favicon.');
+                        this.value = '';
+                        return;
+                    }
+                    
+                    // Create preview
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        // Remove existing preview
+                        const existingPreview = document.querySelector('.favicon-preview');
+                        if (existingPreview) {
+                            existingPreview.remove();
+                        }
+                        
+                        // Create new preview
+                        const preview = document.createElement('div');
+                        preview.className = 'favicon-preview mt-2';
+                        preview.innerHTML = `
+                            <label class="form-label">New Favicon Preview</label>
+                            <div class="border rounded p-3 text-center">
+                                <img src="${e.target.result}" alt="Favicon Preview" style="max-height: 50px; max-width: 100%;">
+                                <p class="mt-2 mb-0 text-muted">${file.name}</p>
+                                <p class="mt-1 mb-0 text-success small"><i class="fas fa-check-circle me-1"></i>Ready to upload</p>
+                            </div>
+                        `;
+                        
+                        // Insert after the file input
+                        faviconFileInput.parentNode.appendChild(preview);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

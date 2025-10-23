@@ -276,7 +276,7 @@
                 <i class="fas fa-bug"></i>
             </div>
             <div class="quick-action-title">Debug & Diagnostics</div>
-            <div class="quick-action-desc">System health, tools, and Playwright testing</div>
+            <div class="quick-action-desc">System health monitoring and diagnostic tools</div>
         </a>
         {% endif %}
         
@@ -835,79 +835,9 @@ function getEventTypeBreakdown(data) {
     ).join('');
 }
 
-// Playwright Functions
-function submitPlaywrightPrompt() {
-    const prompt = document.getElementById('playwright-prompt').value.trim();
-    if (!prompt) {
-        alert('Please enter a prompt for Playwright testing.');
-        return;
-    }
-    
-    const logsDiv = document.getElementById('playwrightLogs');
-    logsDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Submitting Playwright test...</div>';
-    
-    fetch('{% url "core:playwright_debug_api" %}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrftoken
-        },
-        body: JSON.stringify({ prompt: prompt })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            logsDiv.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
-        } else {
-            logsDiv.innerHTML = `<div class="alert alert-success">Playwright test submitted successfully! ID: ${data.id}</div>`;
-            // Refresh logs after a short delay
-            setTimeout(refreshPlaywrightLogs, 2000);
-        }
-    })
-    .catch(error => {
-        logsDiv.innerHTML = `<div class="alert alert-danger">Error submitting test: ${error.message}</div>`;
-    });
-}
-
-function refreshPlaywrightLogs() {
-    const logsDiv = document.getElementById('playwrightLogs');
-    
-    fetch('{% url "core:playwright_debug_api" %}')
-    .then(response => response.json())
-    .then(data => {
-        if (data.logs && data.logs.length > 0) {
-            let html = '<h6 class="mb-3">Recent Playwright Debug Logs</h6>';
-            
-            data.logs.forEach(log => {
-                const statusClass = log.status === 'done' ? 'done' : 
-                                  log.status === 'running' ? 'running' : 
-                                  log.status === 'error' ? 'error' : 'pending';
-                
-                html += `
-                    <div class="log-entry ${statusClass}">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <strong>${log.prompt}</strong>
-                                <br><small class="text-muted">ID: ${log.id} | Status: ${log.status}</small>
-                                <br><small class="text-muted">Started: ${log.started_at || 'N/A'} | Finished: ${log.finished_at || 'N/A'}</small>
-                            </div>
-                            <span class="badge ${log.status === 'done' ? 'bg-success' : log.status === 'running' ? 'bg-primary' : log.status === 'error' ? 'bg-danger' : 'bg-warning'}">${log.status}</span>
-                        </div>
-                        ${log.output ? `<div class="mt-2"><strong>Output:</strong><pre style="font-size: 11px; margin-top: 5px;">${log.output}</pre></div>` : ''}
-                        ${log.error_message ? `<div class="mt-2 text-danger"><strong>Error:</strong> ${log.error_message}</div>` : ''}
-                    </div>
-                `;
-            });
-            
-            logsDiv.innerHTML = html;
-        } else {
-            logsDiv.innerHTML = '<div class="text-center text-muted">No Playwright logs found.</div>';
-        }
-    })
-    .catch(error => {
-        logsDiv.innerHTML = `<div class="alert alert-danger">Error loading logs: ${error.message}</div>`;
-    });
-}
+// Playwright Functions - DEPRECATED (functionality removed)
+// function submitPlaywrightPrompt() { }
+// function refreshPlaywrightLogs() { }
 
 // Database Management Functions
 function showDatabaseClearModal() {

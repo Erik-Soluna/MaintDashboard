@@ -1,0 +1,1797 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <title>Add Maintenance Activity</title>
+    
+    <!-- Favicon -->
+    
+        <link rel="icon" type="image/x-icon" href="/static/images/favicon.ico">
+        <link rel="shortcut icon" type="image/x-icon" href="/static/images/favicon.ico">
+    
+    
+    <!-- Bootstrap 4 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet">
+    
+         <!-- Custom CSS -->
+     <link href="/static/css/custom.css" rel="stylesheet">
+     
+     <!-- Custom Branding CSS -->
+     
+    
+    
+    
+    <style>
+        :root {
+             --primary-color: #4299e1;
+             --secondary-color: #2d3748;
+             --accent-color: #3182ce;
+             --success-color: #48bb78;
+             --warning-color: #ed8936;
+             --danger-color: #f56565;
+             --info-color: #4299e1;
+             --light-color: #e2e8f0;
+             --dark-color: #1a2238;
+             --darker-color: #0f1419;
+             
+             /* Header and navigation colors */
+             --header-bg: #0f1419;
+             --header-text: #ffffff;
+             --header-border: #4a5568;
+             --nav-bg: #2d3748;
+             --nav-text: #e2e8f0;
+             --nav-hover: #4299e1;
+             
+             /* Content area colors */
+             --content-bg: #1a2238;
+             --content-text: #e2e8f0;
+             --card-bg: #2d3748;
+             --card-border: #4a5568;
+             
+             /* Button and form colors */
+             --btn-primary-bg: #4299e1;
+             --btn-primary-text: #ffffff;
+             --btn-secondary-bg: #718096;
+             --btn-secondary-text: #ffffff;
+             --form-bg: #2d3748;
+             --form-border: #4a5568;
+             --form-text: #e2e8f0;
+             --dropdown-bg: #2d3748;
+             --dropdown-bg-opacity: 0.95;
+             --dropdown-text: #e2e8f0;
+             --dropdown-border: #4a5568;
+                           --dropdown-hover-bg: #4a5568;
+              --dropdown-hover-text: #ffffff;
+              
+              /* Breadcrumb colors */
+              --breadcrumb-link: #4299e1;
+              --breadcrumb-text: #a0aec0;
+              --breadcrumb-separator: #a0aec0;
+         }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            background-color: var(--content-bg);
+            color: var(--content-text);
+        }
+        
+        /* Dark Theme (Default) */
+        body, body.theme-dark {
+            background-color: var(--content-bg);
+            color: var(--content-text);
+        }
+        
+        /* Light Theme */
+        body.theme-light {
+            background-color: #f7fafc;
+            color: #2d3748;
+        }
+        
+        /* Light Theme Variables */
+        body.theme-light {
+            --bg-primary: var(--card-bg);
+            --bg-secondary: var(--content-bg);
+            --bg-tertiary: var(--darker-color);
+            --text-primary: var(--content-text);
+            --text-secondary: #a0aec0;
+            --border-color: var(--card-border);
+        }
+        
+        /* Dark Theme Variables */
+        body, body.theme-dark {
+            --bg-primary: var(--card-bg);
+            --bg-secondary: var(--content-bg);
+            --bg-tertiary: var(--darker-color);
+            --text-primary: var(--content-text);
+            --text-secondary: #a0aec0;
+            --border-color: var(--card-border);
+        }
+
+        /* Unified Header Styling */
+        .main-header {
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--header-border);
+            padding: 15px 20px;
+        }
+        
+        .header-brand {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--header-text);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+        }
+        
+        .header-brand:hover {
+            color: var(--nav-hover);
+            text-decoration: none;
+        }
+        
+        .header-logo {
+            height: 40px;
+            width: auto;
+            max-width: 200px;
+            object-fit: contain;
+        }
+        
+        .brand-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--header-text);
+        }
+        
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .version-badge {
+            font-size: 12px;
+            padding: 4px 8px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .version-badge small {
+            color: var(--text-secondary) !important;
+            font-weight: 500;
+        }
+        
+        .site-selector {
+            background-color: var(--nav-bg);
+            color: var(--nav-text);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 8px 12px;
+        }
+        
+        .site-selector:focus {
+            background-color: var(--nav-bg);
+            color: var(--nav-text);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+        }
+        
+        /* Navigation Tabs */
+        .nav-tabs-custom {
+            border-bottom: 1px solid var(--card-border);
+            background-color: var(--nav-bg);
+            padding: 0 20px;
+        }
+        
+        .nav-tabs-custom .nav-link {
+            color: var(--nav-text);
+            border: none;
+            padding: 15px 25px;
+            font-weight: 500;
+            background: transparent;
+        }
+        
+        .nav-tabs-custom .nav-link.active {
+            color: var(--accent-color);
+            background-color: transparent;
+            border-bottom: 2px solid var(--accent-color);
+            font-weight: 600;
+        }
+        
+        .nav-tabs-custom .nav-link:hover {
+            color: var(--nav-hover);
+            background-color: var(--nav-bg);
+        }
+        
+        /* Page Content */
+        .main-container {
+            background-color: var(--content-bg);
+            min-height: calc(100vh - 140px);
+            padding: 20px;
+        }
+        
+        .page-header {
+            background-color: var(--card-bg);
+            color: var(--content-text);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--card-border);
+        }
+        
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--content-text);
+        }
+        
+        .card-header {
+            background-color: var(--nav-bg);
+            border-bottom: 1px solid var(--card-border);
+            color: var(--nav-text);
+        }
+        
+        .card-body {
+            background-color: var(--card-bg);
+        }
+        
+        .form-control {
+            background-color: var(--form-bg);
+            color: var(--form-text);
+            border: 1px solid var(--form-border);
+        }
+        
+        .form-control:focus {
+            background-color: var(--form-bg);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+            color: var(--form-text);
+        }
+        
+        .btn-primary {
+            background-color: var(--btn-primary-bg);
+            border-color: var(--btn-primary-bg);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        
+        .btn-outline-secondary {
+            color: var(--text-secondary);
+            border-color: var(--card-border);
+        }
+        
+        .btn-outline-secondary:hover {
+            background-color: var(--card-border);
+            border-color: var(--card-border);
+            color: var(--content-text);
+        }
+        
+        /* Enhanced Button Styling with Branding Colors */
+        .btn-primary {
+            background-color: var(--btn-primary-bg);
+            border-color: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+            color: var(--btn-primary-text);
+        }
+        
+        .btn-secondary {
+            background-color: var(--btn-secondary-bg);
+            border-color: var(--btn-secondary-bg);
+            color: var(--btn-secondary-text);
+        }
+        
+        .btn-secondary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            color: var(--btn-secondary-text);
+        }
+        
+        .btn-success {
+            background-color: var(--success-color);
+            border-color: var(--success-color);
+            color: white;
+        }
+        
+        .btn-warning {
+            background-color: var(--warning-color);
+            border-color: var(--warning-color);
+            color: white;
+        }
+        
+        .btn-danger {
+            background-color: var(--danger-color);
+            border-color: var(--danger-color);
+            color: white;
+        }
+        
+        .btn-info {
+            background-color: var(--info-color);
+            border-color: var(--info-color);
+            color: white;
+        }
+        
+        /* Enhanced Form Styling with Branding Colors */
+        .form-control {
+            background-color: var(--form-bg);
+            color: var(--form-text);
+            border: 1px solid var(--form-border);
+        }
+        
+        .form-control:focus {
+            background-color: var(--form-bg);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+            color: var(--form-text);
+        }
+        
+        .form-label {
+            color: var(--form-text);
+            font-weight: 500;
+        }
+        
+        /* Enhanced Card Styling with Branding Colors */
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            color: var(--content-text);
+        }
+        
+        .card-header {
+            background-color: var(--nav-bg);
+            border-bottom: 1px solid var(--card-border);
+            color: var(--nav-text);
+        }
+        
+        .card-body {
+            background-color: var(--card-bg);
+            color: var(--content-text);
+        }
+        
+        /* Enhanced Navigation Styling with Branding Colors */
+        .nav-tabs-custom {
+            border-bottom: 1px solid var(--card-border);
+            background-color: var(--nav-bg);
+            padding: 0 20px;
+        }
+        
+        .nav-tabs-custom .nav-link {
+            color: var(--nav-text);
+            border: none;
+            padding: 15px 25px;
+            font-weight: 500;
+            background: transparent;
+        }
+        
+        .nav-tabs-custom .nav-link.active {
+            color: var(--accent-color);
+            background-color: transparent;
+            border-bottom: 2px solid var(--accent-color);
+            font-weight: 600;
+        }
+        
+        .nav-tabs-custom .nav-link:hover {
+            color: var(--nav-hover);
+            background-color: var(--nav-bg);
+        }
+        
+        /* Enhanced Site Selector with Branding Colors */
+        .site-selector {
+            background-color: var(--nav-bg);
+            color: var(--nav-text);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 8px 12px;
+        }
+        
+        .site-selector:focus {
+            background-color: var(--nav-bg);
+            color: var(--nav-text);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+        }
+        
+        /* Enhanced Table Styling with Branding Colors */
+        .table {
+            background-color: var(--card-bg);
+            color: var(--text-primary);
+        }
+        
+        .table th {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--card-border);
+            color: var(--content-text);
+        }
+        
+        .table td {
+            border-bottom: 1px solid var(--card-border);
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: var(--content-bg);
+        }
+        
+        .breadcrumb {
+            background: transparent;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .breadcrumb-item a {
+            color: var(--breadcrumb-link);
+        }
+        
+        .breadcrumb-item.active {
+            color: var(--breadcrumb-text);
+        }
+        
+        .breadcrumb-item + .breadcrumb-item::before {
+            content: ">";
+            color: var(--breadcrumb-separator);
+        }
+        
+        .badge-secondary {
+            background-color: var(--secondary-color);
+        }
+        
+        .badge-success {
+            background-color: var(--success-color);
+        }
+        
+        .badge-warning {
+            background-color: var(--warning-color);
+        }
+        
+        .badge-danger {
+            background-color: var(--danger-color);
+        }
+        
+        .badge-primary {
+            background-color: var(--primary-color);
+        }
+        
+        /* Footer */
+        .footer {
+            background-color: var(--darker-color);
+            color: var(--text-secondary);
+            padding: 20px 0;
+            border-top: 1px solid var(--card-border);
+        }
+        
+        /* Modal styling */
+        .modal-content {
+            background-color: var(--card-bg);
+            color: var(--content-text);
+            border: 1px solid var(--card-border);
+        }
+        
+        .modal-header {
+            border-bottom: 1px solid var(--card-border);
+        }
+        
+        .close {
+            color: var(--content-text);
+        }
+        
+        /* Dropdown Menu Fixes */
+        .dropdown-menu {
+            background-color: var(--dropdown-bg);
+            border: 1px solid var(--dropdown-border);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1050;
+            min-width: 200px;
+            padding: 8px 0;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            display: none;
+            float: left;
+            max-height: 90vh;
+            overflow-y: auto;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            backdrop-filter: blur(10px);
+        }
+        
+        .dropdown-item {
+            color: var(--dropdown-text);
+            padding: 8px 16px;
+            transition: background-color 0.2s ease;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .dropdown-item:hover {
+            background-color: var(--dropdown-hover-bg);
+            color: var(--dropdown-hover-text);
+        }
+        
+        .dropdown-item:focus {
+            background-color: var(--dropdown-hover-bg);
+            color: var(--dropdown-hover-text);
+        }
+        
+        .dropdown-divider {
+            border-top: 1px solid var(--border-color);
+            margin: 8px 0;
+        }
+        
+        /* Ensure dropdowns are not clipped */
+        .dropdown {
+            position: relative;
+        }
+        
+        .dropdown.show .dropdown-menu {
+            display: block;
+        }
+        
+        .dropdown-menu-right {
+            right: 0;
+            left: auto;
+        }
+        
+        /* Fix for dropdown positioning and overflow */
+        .navbar-nav .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 1050;
+            float: none;
+            min-width: 160px;
+            max-width: 300px;
+            overflow: visible;
+            word-wrap: break-word;
+        }
+        
+        /* Form control dropdowns */
+        .form-control select {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 6px;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .form-control select:focus {
+            background-color: var(--form-bg);
+            color: var(--form-text);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+        }
+        
+        /* Select form control improvements */
+        select.form-control {
+            padding-right: 30px;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 8px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            height: auto;
+            min-height: 38px;
+        }
+        
+        select.form-control option {
+            background-color: var(--form-bg);
+            color: var(--form-text);
+            padding: 8px 12px;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+        }
+        
+        /* Site selector dropdown fixes */
+        .site-selector {
+            background-color: var(--form-bg);
+            color: var(--form-text);
+            border: 1px solid var(--form-border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            z-index: 1040;
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            height: auto;
+            min-height: 38px;
+        }
+        
+        .site-selector:focus {
+            background-color: var(--form-bg);
+            color: var(--form-text);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25);
+        }
+        
+        /* Navigation dropdown fixes */
+        .nav-tabs-custom {
+            border-bottom: 1px solid var(--card-border);
+            background-color: var(--nav-bg);
+            padding: 0 20px;
+            position: relative;
+            z-index: 1030;
+            overflow: visible;
+        }
+        
+        .nav-tabs-custom .dropdown-menu {
+            top: 100%;
+            margin-top: 0;
+            position: absolute;
+            z-index: 1050;
+            min-width: 200px;
+            max-height: 90vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        /* Header positioning */
+        .main-header {
+            background-color: var(--header-bg);
+            border-bottom: 1px solid var(--header-border);
+            padding: 15px 20px;
+            position: relative;
+            z-index: 1040;
+            overflow: visible;
+        }
+        
+        /* Fix for table overflow issues */
+        .table-responsive {
+            overflow-x: auto;
+            overflow-y: visible;
+            max-width: 100%;
+        }
+        
+        .table {
+            width: 100%;
+            max-width: 100%;
+            margin-bottom: 0;
+            table-layout: fixed;
+        }
+        
+        .table td,
+        .table th {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 12px 8px;
+            vertical-align: middle;
+        }
+        
+        .table td:last-child,
+        .table th:last-child {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+        }
+        
+        /* Fix for long text in table cells */
+        .table .text-wrap {
+            white-space: normal !important;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Card content overflow fixes */
+        .card {
+            overflow: visible;
+        }
+        
+        .card-body {
+            overflow: visible;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Modal fixes */
+        .modal-content {
+            overflow: visible;
+        }
+        
+        .modal-body {
+            overflow-y: auto;
+            max-height: 70vh;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        /* Form control fixes */
+        .form-control {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-sizing: border-box;
+            max-width: 100%;
+        }
+        
+        /* Button group fixes */
+        .btn-group {
+            overflow: visible;
+            white-space: nowrap;
+        }
+        
+        .btn-group .btn {
+            float: none;
+            display: inline-block;
+        }
+        
+        /* Navbar fixes */
+        .navbar-nav {
+            overflow: visible;
+        }
+        
+        .navbar-nav .nav-item {
+            position: relative;
+        }
+        
+        .navbar-nav .dropdown {
+            position: static;
+        }
+        
+        /* Container fixes */
+        .container-fluid {
+            overflow-x: hidden;
+            overflow-y: visible;
+        }
+        
+        /* Text truncation utilities */
+        .text-truncate {
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+        }
+        
+        .text-wrap {
+            white-space: normal !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+        }
+        
+        /* Flex container fixes */
+        .d-flex {
+            overflow: visible;
+        }
+        
+        /* Badge overflow fixes */
+        .badge {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+            display: inline-block;
+            white-space: nowrap;
+        }
+        
+        .badge.text-wrap {
+            white-space: normal !important;
+            max-width: none;
+        }
+        
+        /* Breadcrumb fixes */
+        .breadcrumb {
+            background: transparent;
+            padding: 0;
+            margin: 0;
+            overflow: visible;
+            flex-wrap: wrap;
+        }
+        
+        .breadcrumb-item {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        
+        .breadcrumb-item:last-child {
+            max-width: none;
+            overflow: visible;
+            text-overflow: unset;
+        }
+        
+        /* Alerts */
+        .alert {
+            border: none;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        
+        .alert-success {
+            background-color: rgba(72, 187, 120, 0.2);
+            color: var(--success-color);
+            border-left-color: var(--success-color);
+        }
+        
+        .alert-danger {
+            background-color: rgba(245, 101, 101, 0.2);
+            color: var(--danger-color);
+            border-left-color: var(--danger-color);
+        }
+        
+        .alert-warning {
+            background-color: rgba(237, 137, 54, 0.2);
+            color: var(--warning-color);
+            border-left-color: var(--warning-color);
+        }
+        
+        .alert-info {
+            background-color: rgba(66, 153, 225, 0.2);
+            color: var(--info-color);
+            border-left-color: var(--info-color);
+        }
+    </style>
+</head>
+<body class="theme-light">
+    <input type="hidden" name="csrfmiddlewaretoken" value="i24ZFDPPPiaaHIOIfNOku8xDH50cAMcYu04e8InWQswDZqr5L6srBbwPTv0eTW1n">
+    <!-- Main Header -->
+    <div class="main-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <a href="/" class="header-brand">
+                
+                    <i class="fas fa-tools me-2"></i>
+                
+                <span class="brand-text">Maintenance Dashboard</span>
+                
+            </a>
+            <span class="version-badge ml-3">
+                <small class="text-muted">v634.814b060</small>
+            </span>
+        </div>
+        
+        <div class="header-controls">
+            <!-- Site Selector -->
+            <div class="d-flex align-items-center">
+                <select id="site-selector" class="site-selector form-control form-control-sm" onchange="changeSite(this.value)">
+                    <option value="" selected>All - Soluna</option>
+                    
+                    <option value="1" >
+                        Dorothy 1A
+                    </option>
+                    
+                    <option value="15" >
+                        Dorothy 1B
+                    </option>
+                    
+                    <option value="10" >
+                        Sophie
+                    </option>
+                    
+                </select>
+            </div>
+            
+            <!-- User Info -->
+            
+            <div class="dropdown">
+                <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
+                    <i class="fas fa-user me-1"></i>
+                    System Administrator
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                    <a class="dropdown-item" href="/profile/">
+                        <i class="fas fa-user-cog me-1"></i> Profile
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="/auth/logout/">
+                        <i class="fas fa-sign-out-alt me-1"></i> Logout
+                    </a>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs-custom">
+        <ul class="nav nav-tabs border-0">
+            <li class="nav-item">
+                                 <a class="nav-link " 
+                    href="/">
+                     <i class="fas fa-home me-1"></i> Overview
+                 </a>
+            </li>
+
+            <li class="nav-item dropdown">
+                                 <a class="nav-link dropdown-toggle " 
+                    href="#" data-toggle="dropdown">
+                     <i class="fas fa-cogs me-1"></i> Equipment
+                 </a>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="/equipment/">Equipment List</a>
+                    <a class="dropdown-item" href="/equipment/add/">Add Equipment</a>
+                </div>
+            </li>
+            <li class="nav-item dropdown">
+                                 <a class="nav-link dropdown-toggle " 
+                    href="#" data-toggle="dropdown">
+                     <i class="fas fa-calendar-check me-1"></i> Maintenance
+                 </a>
+                <div class="dropdown-menu">
+                    <a class="dropdown-item" href="/maintenance/">Activities</a>
+                    <a class="dropdown-item" href="/maintenance/schedules/">Schedules</a>
+                    <a class="dropdown-item" href="/maintenance/schedule-overrides/">Schedule Overrides</a>
+                </div>
+            </li>
+            <li class="nav-item">
+                                 <a class="nav-link" href="/events/calendar/">
+                     <i class="fas fa-calendar me-1"></i> Calendar
+                 </a>
+            </li>
+            <li class="nav-item">
+                                 <a class="nav-link" href="/map/">
+                     <i class="fas fa-map me-1"></i> Map
+                 </a>
+            </li>
+            <li class="nav-item dropdown">
+                                 <a class="nav-link dropdown-toggle" href="#" data-toggle="dropdown">
+                     <i class="fas fa-cog me-1"></i> Settings
+                 </a>
+                                 <div class="dropdown-menu">
+                     <a class="dropdown-item" href="/branding/">
+                         <i class="fas fa-palette me-1"></i> Branding
+                     </a>
+                     <a class="dropdown-item" href="/settings/">General Settings</a>
+                     <a class="dropdown-item" href="/locations/settings/">Locations</a>
+                     <a class="dropdown-item" href="/customers/settings/">Customers</a>
+                     <a class="dropdown-item" href="/equipment-items/settings/">Equipment Items</a>
+                     <div class="dropdown-divider"></div>
+                     <a class="dropdown-item" href="/version/html/">
+                         <i class="fas fa-code-branch me-1"></i> Version Info
+                     </a>
+                     <a class="dropdown-item" href="/version/form/">
+                         <i class="fas fa-edit me-1"></i> Set Version
+                     </a>
+                 </div>
+            </li>
+            
+            <li class="nav-item">
+                                 <a class="nav-link " 
+                    href="/debug/">
+                     <i class="fas fa-bug me-1"></i> Debug
+                 </a>
+            </li>
+            
+        </ul>
+    </div>
+
+    <!-- Breadcrumb -->
+    
+    
+    <div class="container-fluid mt-3">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                
+            </ol>
+        </nav>
+    </div>
+    
+
+    <!-- Fixed Message Container -->
+    <div id="fixed-message-container" class="fixed-message-container" style="display: none;">
+        <div class="container-fluid">
+            <div id="message-container">
+                <!-- Messages will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Legacy Messages (for backward compatibility) -->
+    
+
+    <!-- Main Content -->
+    <main class="container-fluid main-container">
+        
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Add Maintenance Activity</h1>
+                <a href="/maintenance/" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Maintenance
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Activity Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <input type="hidden" name="csrfmiddlewaretoken" value="i24ZFDPPPiaaHIOIfNOku8xDH50cAMcYu04e8InWQswDZqr5L6srBbwPTv0eTW1n">
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="id_title" class="form-label">Title</label>
+                                    <input type="text" name="title" value="Test Activity" maxlength="200" required id="id_title">
+                                    
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="id_activity_type" class="form-label">Activity type</label>
+                                    <select name="activity_type" data-quick-create="true" data-category-field="id_quick_category" data-activity-field="id_quick_activity_type" required id="id_activity_type">
+  <option value="">---------</option>
+
+  <option value="15" selected>Filter Replacement - Replace air, oil, and fuel filters as per schedule</option>
+
+  <option value="16">Lubrication - Apply lubricants to moving parts and bearings</option>
+
+  <option value="14">Oil Analysis - Oil sampling and analysis for contamination and degradation</option>
+
+  <option value="1">PM-001 - Regular preventive maintenance inspection and service</option>
+
+  <option value="2">PM-002 - Annual comprehensive maintenance and inspection</option>
+
+  <option value="3">PM-003 - Quarterly preventive maintenance check</option>
+
+  <option value="4">INS-001 - Monthly operational inspection</option>
+
+  <option value="5">INS-002 - Annual detailed inspection</option>
+
+  <option value="11">Routine Inspection - Regular visual inspection of equipment condition and operation</option>
+
+  <option value="12">Safety Inspection - Comprehensive safety inspection of equipment and surrounding area</option>
+
+  <option value="13">Thermal Inspection - Infrared thermal imaging inspection for hot spots and anomalies</option>
+
+  <option value="18">Component Replacement - Replace failed or damaged components</option>
+
+  <option value="17">Emergency Repair - Urgent repair to restore equipment operation</option>
+
+  <option value="19">System Restoration - Restore system operation after failure</option>
+
+  <option value="22">Insulation Testing - Test electrical insulation resistance and integrity</option>
+
+  <option value="20">Load Testing - Test equipment under various load conditions</option>
+
+  <option value="21">Performance Testing - Evaluate equipment performance parameters</option>
+
+  <option value="6">TEST-001 - Functional testing and verification</option>
+
+  <option value="7">TEST-002 - Performance testing and analysis</option>
+
+  <option value="8">CM-001 - Emergency repair and troubleshooting</option>
+
+  <option value="9">CAL-001 - Equipment calibration and adjustment</option>
+
+  <option value="23">Instrument Calibration - Calibrate measurement instruments and sensors</option>
+
+  <option value="24">System Calibration - Calibrate entire system for optimal performance</option>
+
+  <option value="26">Area Cleaning - Clean equipment area and remove debris</option>
+
+  <option value="10">CLN-001 - Regular cleaning and maintenance</option>
+
+  <option value="25">Equipment Cleaning - Clean equipment surfaces and components</option>
+
+</select>
+                                    
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="id_equipment" class="form-label">Equipment</label>
+                                    <select name="equipment" required id="id_equipment">
+  <option value="">---------</option>
+
+  <option value="1" selected>32212679622 (Active)</option>
+
+  <option value="2">32212679623 (Active)</option>
+
+  <option value="3">32212679624 (Active)</option>
+
+  <option value="4">32212679625 (Active)</option>
+
+  <option value="5">32212680025 (Active)</option>
+
+  <option value="6">32212680026 (Active)</option>
+
+  <option value="7">52212725138 (Active)</option>
+
+  <option value="8">52212725139 (Active)</option>
+
+  <option value="9">GIGA-24010323 (Active)</option>
+
+  <option value="10">MD2550-2201 (Active)</option>
+
+  <option value="11">MD2550-2202 (Active)</option>
+
+  <option value="12">MD2550-2203 (Active)</option>
+
+  <option value="13">MD2550-2204 (Active)</option>
+
+  <option value="14">MD2550-2205 (Active)</option>
+
+  <option value="15">MD2550-2207 (Active)</option>
+
+  <option value="16">MD2550-2208 (Active)</option>
+
+  <option value="17">MD2550-2209 (Active)</option>
+
+  <option value="18">MD2550-2210 (Active)</option>
+
+  <option value="19">MD2550-2211 (Active)</option>
+
+  <option value="20">MD2550-2212 (Active)</option>
+
+  <option value="21">MT9921 (Active)</option>
+
+  <option value="22">MT9922 (Active)</option>
+
+  <option value="23">MT9923 (Active)</option>
+
+  <option value="24">MT9924 (Active)</option>
+
+  <option value="25">MT9925 (Active)</option>
+
+  <option value="26">MT9926 (Active)</option>
+
+  <option value="27">MT9927 (Active)</option>
+
+  <option value="28">MT9928 (Active)</option>
+
+  <option value="29">MT9929 (Active)</option>
+
+  <option value="30">MT9930 (Active)</option>
+
+  <option value="31">MT9931 (Active)</option>
+
+  <option value="32">MZ060X3 (Active)</option>
+
+</select>
+                                    
+                                    <!-- Debug information -->
+                                    
+                                        <small class="text-muted">
+                                            32 equipment available
+                                            
+                                            
+                                        </small>
+                                    
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="id_assigned_to" class="form-label">Assigned to</label>
+                                    <select name="assigned_to" id="id_assigned_to">
+  <option value="" selected>---------</option>
+
+  <option value="1">admin</option>
+
+</select>
+                                    
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="id_description" class="form-label">Description</label>
+                            <textarea name="description" cols="40" rows="3" id="id_description">
+Test description</textarea>
+                            
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="id_scheduled_start" class="form-label">Scheduled start</label>
+                                    <input type="datetime-local" name="scheduled_start" value="2025-10-04T08:48" required id="id_scheduled_start">
+                                    
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="id_scheduled_end" class="form-label">Scheduled end</label>
+                                    <input type="datetime-local" name="scheduled_end" value="2025-10-04T10:48" required id="id_scheduled_end">
+                                    
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="id_priority" class="form-label">Priority</label>
+                                    <select name="priority" id="id_priority">
+  <option value="low">Low</option>
+
+  <option value="medium" selected>Medium</option>
+
+  <option value="high">High</option>
+
+  <option value="critical">Critical</option>
+
+</select>
+                                    
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="id_status" class="form-label">Status</label>
+                                    <select name="status" id="id_status">
+  <option value="scheduled">Scheduled</option>
+
+  <option value="pending" selected>Pending</option>
+
+  <option value="in_progress">In Progress</option>
+
+  <option value="completed">Completed</option>
+
+  <option value="cancelled">Cancelled</option>
+
+  <option value="overdue">Overdue</option>
+
+</select>
+                                    
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="id_tools_required" class="form-label">Tools required</label>
+                            <textarea name="tools_required" cols="40" rows="2" id="id_tools_required">
+</textarea>
+                            
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="id_parts_required" class="form-label">Parts required</label>
+                            <textarea name="parts_required" cols="40" rows="2" id="id_parts_required">
+</textarea>
+                            
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="id_safety_notes" class="form-label">Safety notes</label>
+                            <textarea name="safety_notes" cols="40" rows="2" id="id_safety_notes">
+</textarea>
+                            
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="/maintenance/" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Activity
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="/maintenance/activity-types/" class="btn btn-outline-primary">
+                            <i class="fas fa-list"></i> Activity Types
+                        </a>
+                        <a href="/equipment/" class="btn btn-outline-success">
+                            <i class="fas fa-cogs"></i> Equipment List
+                        </a>
+                        <a href="/maintenance/schedules/" class="btn btn-outline-info">
+                            <i class="fas fa-calendar-alt"></i> Schedules
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Debug information panel -->
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Debug: Available Equipment</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        
+                        <li><small>1: 32212679622 (active)</small></li>
+                        
+                        <li><small>2: 32212679623 (active)</small></li>
+                        
+                        <li><small>3: 32212679624 (active)</small></li>
+                        
+                        <li><small>4: 32212679625 (active)</small></li>
+                        
+                        <li><small>5: 32212680025 (active)</small></li>
+                        
+                        <li><small>6: 32212680026 (active)</small></li>
+                        
+                        <li><small>7: 52212725138 (active)</small></li>
+                        
+                        <li><small>8: 52212725139 (active)</small></li>
+                        
+                        <li><small>9: GIGA-24010323 (active)</small></li>
+                        
+                        <li><small>10: MD2550-2201 (active)</small></li>
+                        
+                    </ul>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<script>
+// Quick create toggle function
+function toggleQuickCreate() {
+    const quickCreateFields = document.getElementById('quick-create-fields');
+    if (quickCreateFields.style.display === 'none') {
+        quickCreateFields.style.display = 'block';
+    } else {
+        quickCreateFields.style.display = 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const startTimeInput = document.getElementById('id_scheduled_start');
+    const endTimeInput = document.getElementById('id_scheduled_end');
+    const form = document.querySelector('form');
+    
+    // Function to validate time inputs
+    function validateTimeInputs() {
+        const startValue = startTimeInput.value;
+        const endValue = endTimeInput.value;
+        
+        // Clear previous error messages
+        clearTimeErrors();
+        
+        if (startValue && endValue) {
+            const startDateTime = new Date(startValue);
+            const endDateTime = new Date(endValue);
+            
+            // Check if start is after or equal to end
+            if (startDateTime >= endDateTime) {
+                showTimeError('Start time must be before end time');
+                return false;
+            }
+            
+            // Check if same day and start time is after end time
+            if (startDateTime.toDateString() === endDateTime.toDateString()) {
+                if (startDateTime.getTime() >= endDateTime.getTime()) {
+                    showTimeError('For same-day maintenance, start time must be before end time (e.g., cannot start at 7:00 PM and end at 3:00 PM)');
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+    
+    // Function to show time validation error
+    function showTimeError(message) {
+        // Add error class to inputs
+        startTimeInput.classList.add('is-invalid');
+        endTimeInput.classList.add('is-invalid');
+        
+        // Create error message element
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger mt-2';
+        errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + message;
+        errorDiv.id = 'time-validation-error';
+        
+        // Insert error message after the scheduling row
+        const schedulingRow = endTimeInput.closest('.row');
+        schedulingRow.parentNode.insertBefore(errorDiv, schedulingRow.nextSibling);
+    }
+    
+    // Function to clear time validation errors
+    function clearTimeErrors() {
+        startTimeInput.classList.remove('is-invalid');
+        endTimeInput.classList.remove('is-invalid');
+        
+        const errorDiv = document.getElementById('time-validation-error');
+        if (errorDiv) {
+            errorDiv.remove();
+        }
+    }
+    
+    // Add event listeners for real-time validation
+    startTimeInput.addEventListener('change', validateTimeInputs);
+    endTimeInput.addEventListener('change', validateTimeInputs);
+    
+    // Form submission validation
+    form.addEventListener('submit', function(e) {
+        if (!validateTimeInputs()) {
+            e.preventDefault();
+            // Scroll to the error message
+            const errorDiv = document.getElementById('time-validation-error');
+            if (errorDiv) {
+                errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    });
+});
+</script>
+
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-6">
+                                         <p class="mb-0">© 2025 Maintenance Dashboard. All rights reserved.</p>
+                </div>
+                <div class="col-md-6 text-right">
+                                         <small>Powered by Django</small>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    
+    
+    
+    <script>
+        // Site selector change handler
+        function changeSite(siteId) {
+            console.log('changeSite called with:', siteId);
+            
+            // First invalidate the cache to ensure fresh data
+            fetch('/api/invalidate-cache/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': 'i24ZFDPPPiaaHIOIfNOku8xDH50cAMcYu04e8InWQswDZqr5L6srBbwPTv0eTW1n',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ site_id: siteId || 'all' })
+            }).then(response => response.json())
+            .then(data => {
+                console.log('Cache invalidation result:', data);
+                
+                // Now navigate to the new URL
+                const url = new URL(window.location);
+                
+                if (siteId && siteId !== '') {
+                    url.searchParams.set('site_id', siteId);
+                    console.log('Setting site_id to:', siteId);
+                } else {
+                    // Remove the site_id parameter completely for "All - Soluna"
+                    url.searchParams.delete('site_id');
+                    console.log('Removing site_id parameter for All Sites');
+                }
+                
+                // Add a timestamp to force cache busting
+                url.searchParams.set('_t', Date.now());
+                
+                console.log('Navigating to:', url.toString());
+                // Force a page refresh by navigating to the new URL
+                window.location.href = url.toString();
+            })
+            .catch(error => {
+                console.error('Error invalidating cache:', error);
+                // Still navigate even if cache invalidation fails
+                const url = new URL(window.location);
+                
+                if (siteId && siteId !== '') {
+                    url.searchParams.set('site_id', siteId);
+                } else {
+                    url.searchParams.delete('site_id');
+                }
+                
+                url.searchParams.set('_t', Date.now());
+                window.location.href = url.toString();
+            });
+        }
+        
+        // Theme switching function
+        function switchTheme(theme) {
+            if (theme === 'light') {
+                document.body.classList.remove('theme-dark');
+                document.body.classList.add('theme-light');
+            } else {
+                document.body.classList.remove('theme-light');
+                document.body.classList.add('theme-dark');
+            }
+        }
+        
+        // Global JavaScript utilities
+        $(document).ready(function() {
+            // Apply dropdown opacity
+            applyDropdownOpacity();
+            
+            // Enhanced message system
+            initializeMessageSystem();
+            
+            // Add loading state to buttons
+            $('form').on('submit', function() {
+                $(this).find('button[type="submit"]').prop('disabled', true).html(
+                    '<i class="fas fa-spinner fa-spin"></i> Processing...'
+                );
+            });
+            
+            // Confirm delete actions
+            $('.btn-delete').on('click', function(e) {
+                if (!confirm('Are you sure you want to delete this item?')) {
+                    e.preventDefault();
+                }
+            });
+        });
+        
+        // Color utility functions
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+        
+        function applyDropdownOpacity() {
+            const dropdownBg = getComputedStyle(document.documentElement).getPropertyValue('--dropdown-bg');
+            const opacity = getComputedStyle(document.documentElement).getPropertyValue('--dropdown-bg-opacity');
+            
+            if (dropdownBg && opacity) {
+                const rgb = hexToRgb(dropdownBg);
+                if (rgb) {
+                    document.documentElement.style.setProperty(
+                        '--dropdown-bg-rgba', 
+                        `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`
+                    );
+                    
+                    // Apply to all dropdown menus
+                    const dropdowns = document.querySelectorAll('.dropdown-menu');
+                    dropdowns.forEach(dropdown => {
+                        dropdown.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${opacity})`;
+                    });
+                }
+            }
+        }
+        
+        // Enhanced Message System
+        function initializeMessageSystem() {
+            // Move legacy messages to fixed container
+            moveMessagesToFixedContainer();
+            
+            // Auto-dismiss messages after 10 seconds (except error messages)
+            $('.message-alert').each(function() {
+                const $alert = $(this);
+                const messageType = $alert.data('message-type');
+                const messageText = $alert.data('message-text');
+                
+                // Don't auto-dismiss error messages
+                if (messageType === 'error') {
+                    return;
+                }
+                
+                // Auto-dismiss after 10 seconds
+                setTimeout(function() {
+                    if ($alert.is(':visible')) {
+                        $alert.fadeOut('slow', function() {
+                            $(this).remove();
+                            checkIfContainerEmpty();
+                        });
+                    }
+                }, 10000);
+            });
+            
+            // Handle form validation errors with field highlighting
+            $('.message-alert').each(function() {
+                const $alert = $(this);
+                const messageText = $alert.data('message-text');
+                
+                // Check if this is a validation error message
+                if (messageText && (
+                    messageText.includes('required') || 
+                    messageText.includes('invalid') || 
+                    messageText.includes('error') ||
+                    messageText.includes('Please enter') ||
+                    messageText.includes('Please select')
+                )) {
+                    // Flash required fields 3 times
+                    flashRequiredFields();
+                }
+            });
+        }
+        
+        // Move messages to fixed container
+        function moveMessagesToFixedContainer() {
+            const legacyContainer = $('#legacy-message-container');
+            const fixedContainer = $('#fixed-message-container .container-fluid #message-container');
+            
+            if (legacyContainer.length > 0 && fixedContainer.length > 0) {
+                const messages = legacyContainer.find('.message-alert');
+                if (messages.length > 0) {
+                    // Move messages to fixed container
+                    fixedContainer.append(messages);
+                    
+                    // Show fixed container
+                    $('#fixed-message-container').show();
+                    $('body').addClass('has-fixed-message');
+                    
+                    // Hide legacy container
+                    legacyContainer.parent().hide();
+                }
+            }
+        }
+        
+        // Check if message container is empty and hide if so
+        function checkIfContainerEmpty() {
+            const messageContainer = $('#fixed-message-container .container-fluid #message-container');
+            if (messageContainer.children().length === 0) {
+                $('#fixed-message-container').hide();
+                $('body').removeClass('has-fixed-message');
+            }
+        }
+        
+        // Global function to show messages programmatically
+        window.showMessage = function(message, type = 'info', autoDismiss = true) {
+            const messageContainer = $('#fixed-message-container .container-fluid #message-container');
+            const alertClass = type === 'error' ? 'alert-danger' : 
+                              type === 'success' ? 'alert-success' : 
+                              type === 'warning' ? 'alert-warning' : 'alert-info';
+            
+            const messageHtml = `
+                <div class="alert ${alertClass} alert-dismissible fade show message-alert" 
+                     data-message-type="${type}" 
+                     data-message-text="${message.replace(/"/g, '&quot;')}" 
+                     role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    ${message}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            `;
+            
+            messageContainer.append(messageHtml);
+            $('#fixed-message-container').show();
+            $('body').addClass('has-fixed-message');
+            
+            // Auto-dismiss if enabled and not an error
+            if (autoDismiss && type !== 'error') {
+                setTimeout(function() {
+                    const $alert = messageContainer.find('.message-alert').last();
+                    if ($alert.is(':visible')) {
+                        $alert.fadeOut('slow', function() {
+                            $(this).remove();
+                            checkIfContainerEmpty();
+                        });
+                    }
+                }, 10000);
+            }
+            
+            // Check for validation errors and flash fields
+            if (message.includes('required') || message.includes('invalid') || message.includes('error')) {
+                flashRequiredFields();
+            }
+        };
+        
+        // Flash required fields function
+        function flashRequiredFields() {
+            // Find all required fields (inputs with required attribute or validation errors)
+            const requiredFields = $('input[required], select[required], textarea[required], .is-invalid');
+            
+            if (requiredFields.length > 0) {
+                // Flash animation - 3 times
+                let flashCount = 0;
+                const maxFlashes = 3;
+                
+                function flash() {
+                    if (flashCount >= maxFlashes) return;
+                    
+                    requiredFields.addClass('flash-highlight');
+                    
+                    setTimeout(function() {
+                        requiredFields.removeClass('flash-highlight');
+                        flashCount++;
+                        
+                        if (flashCount < maxFlashes) {
+                            setTimeout(flash, 300); // Wait 300ms between flashes
+                        }
+                    }, 200); // Flash duration
+                }
+                
+                flash();
+            }
+        }
+        
+        // Add CSS for enhanced message system
+        if (!document.getElementById('flash-styles')) {
+            const style = document.createElement('style');
+            style.id = 'flash-styles';
+            style.textContent = `
+                .fixed-message-container {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    z-index: 9999;
+                    background: rgba(0, 0, 0, 0.8);
+                    backdrop-filter: blur(5px);
+                    padding: 10px 0;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+                }
+                
+                .fixed-message-container .alert {
+                    margin-bottom: 10px;
+                    border-radius: 8px;
+                    border: none;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                }
+                
+                .fixed-message-container .alert:last-child {
+                    margin-bottom: 0;
+                }
+                
+                .flash-highlight {
+                    animation: flash-animation 0.2s ease-in-out;
+                    border-color: #dc3545 !important;
+                    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+                }
+                
+                @keyframes flash-animation {
+                    0% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                    100% { opacity: 1; }
+                }
+                
+                .message-alert {
+                    transition: all 0.3s ease;
+                }
+                
+                .message-alert.fade-out {
+                    opacity: 0;
+                    transform: translateY(-10px);
+                }
+                
+                /* Adjust body padding when fixed message is shown */
+                body.has-fixed-message {
+                    padding-top: 80px;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    </script>
+</body>
+</html>

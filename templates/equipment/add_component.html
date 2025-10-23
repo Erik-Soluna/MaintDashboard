@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Add Component - {{ equipment.name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_list' %}">Equipment</a></li>
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_detail' equipment.id %}">{{ equipment.name }}</a></li>
+<li class="breadcrumb-item active">Add Component</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="fas fa-puzzle-piece me-2"></i>
+                        Add Component
+                    </h1>
+                    <p class="text-muted mb-0">Add component to {{ equipment.name }}</p>
+                </div>
+                <div>
+                    <a href="{% url 'equipment:equipment_detail' equipment.id %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Equipment
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>
+                    Component Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.name|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.part_number|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            {{ form.description|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ form.quantity|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.is_critical|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            <!-- Spacer for alignment -->
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.replacement_date|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.next_replacement_date|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'equipment:equipment_detail' equipment.id %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times me-1"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-1"></i> Save Component
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Component Help -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Component Guidelines
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><strong>Name:</strong> Use descriptive names (e.g., "Transformer Fan", "Circuit Breaker")</li>
+                            <li><strong>Part Number:</strong> Manufacturer's part number if available</li>
+                            <li><strong>Critical Components:</strong> Mark components that are essential for operation</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-unstyled">
+                            <li><strong>Replacement Dates:</strong> Track when components were last replaced</li>
+                            <li><strong>Next Replacement:</strong> Schedule future replacements based on maintenance cycles</li>
+                            <li><strong>Quantity:</strong> Number of this component installed</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Auto-calculate next replacement date based on replacement date
+    $('#id_replacement_date').on('change', function() {
+        const replacementDate = this.value;
+        if (replacementDate) {
+            // Set next replacement to 1 year from replacement date
+            const nextDate = new Date(replacementDate);
+            nextDate.setFullYear(nextDate.getFullYear() + 1);
+            
+            const nextDateStr = nextDate.toISOString().split('T')[0];
+            $('#id_next_replacement_date').val(nextDateStr);
+        }
+    });
+    
+    // Validate that next replacement date is after replacement date
+    $('#id_next_replacement_date').on('change', function() {
+        const replacementDate = $('#id_replacement_date').val();
+        const nextDate = this.value;
+        
+        if (replacementDate && nextDate && nextDate <= replacementDate) {
+            alert('Next replacement date must be after the replacement date');
+            this.value = '';
+        }
+    });
+});
+</script>
+{% endblock %}

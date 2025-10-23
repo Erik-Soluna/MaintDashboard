@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load crispy_forms_tags %}
 
 {% block title %}Add Maintenance Activity{% endblock %}
 
@@ -17,7 +18,7 @@
     </div>
 
     <div class="row">
-        <div class="col-lg-8">
+        <div class="col-lg-10">
             <div class="card">
                 <div class="card-header">
                     <h5 class="mb-0">Activity Details</h5>
@@ -26,277 +27,203 @@
                     <form method="post">
                         {% csrf_token %}
                         
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="{{ form.title.id_for_label }}" class="form-label">{{ form.title.label }}</label>
-                                    {{ form.title }}
-                                    {% if form.title.errors %}
-                                        <div class="text-danger">{{ form.title.errors }}</div>
-                                    {% endif %}
-                                </div>
+                        <!-- Equipment count info -->
+                        {% if equipment_count == 0 %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                No active equipment found
+                                {% if selected_site %}
+                                    for site "{{ selected_site.name|default:'All Sites' }}"
+                                {% endif %}
+                                {% if total_equipment_count > 0 %}
+                                    ({{ total_equipment_count }} total equipment available).
+                                    <a href="?site_id=" class="btn btn-sm btn-outline-primary ms-2">Show All Equipment</a>
+                                {% else %}
+                                    . <a href="{% url 'equipment:add_equipment' %}">Add equipment</a> first.
+                                {% endif %}
                             </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="{{ form.activity_type.id_for_label }}" class="form-label">{{ form.activity_type.label }}</label>
-                                    {{ form.activity_type }}
-                                    {% if form.activity_type.errors %}
-                                        <div class="text-danger">{{ form.activity_type.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="{{ form.equipment.id_for_label }}" class="form-label">{{ form.equipment.label }}</label>
-                                    {{ form.equipment }}
-                                    {% if form.equipment.errors %}
-                                        <div class="text-danger">{{ form.equipment.errors }}</div>
-                                    {% endif %}
-                                    <!-- Debug information -->
-                                    {% if equipment_count == 0 %}
-                                        <div class="alert alert-warning mt-2">
-                                            <i class="fas fa-exclamation-triangle"></i>
-                                            No active equipment found
-                                            {% if selected_site %}
-                                                for site "{{ selected_site.name }}"
-                                            {% endif %}
-                                            {% if total_equipment_count > 0 %}
-                                                ({{ total_equipment_count }} total equipment available).
-                                                <a href="?site_id=" class="btn btn-sm btn-outline-primary ms-2">Show All Equipment</a>
-                                            {% else %}
-                                                . <a href="{% url 'equipment:add_equipment' %}">Add equipment</a> first.
-                                            {% endif %}
-                                        </div>
-                                    {% else %}
-                                        <small class="text-muted">
-                                            {{ equipment_count }} equipment available
-                                            {% if selected_site %}
-                                                for {{ selected_site.name }}
-                                            {% endif %}
-                                            {% if total_equipment_count != equipment_count %}
-                                                ({{ total_equipment_count }} total)
-                                            {% endif %}
-                                        </small>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="{{ form.assigned_to.id_for_label }}" class="form-label">{{ form.assigned_to.label }}</label>
-                                    {{ form.assigned_to }}
-                                    {% if form.assigned_to.errors %}
-                                        <div class="text-danger">{{ form.assigned_to.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-group mb-3">
-                            <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
-                            {{ form.description }}
-                            {% if form.description.errors %}
-                                <div class="text-danger">{{ form.description.errors }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="{{ form.scheduled_start.id_for_label }}" class="form-label">{{ form.scheduled_start.label }}</label>
-                                    {{ form.scheduled_start }}
-                                    {% if form.scheduled_start.errors %}
-                                        <div class="text-danger">{{ form.scheduled_start.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="{{ form.scheduled_end.id_for_label }}" class="form-label">{{ form.scheduled_end.label }}</label>
-                                    {{ form.scheduled_end }}
-                                    {% if form.scheduled_end.errors %}
-                                        <div class="text-danger">{{ form.scheduled_end.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="{{ form.priority.id_for_label }}" class="form-label">{{ form.priority.label }}</label>
-                                    {{ form.priority }}
-                                    {% if form.priority.errors %}
-                                        <div class="text-danger">{{ form.priority.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="{{ form.status.id_for_label }}" class="form-label">{{ form.status.label }}</label>
-                                    {{ form.status }}
-                                    {% if form.status.errors %}
-                                        <div class="text-danger">{{ form.status.errors }}</div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-group mb-3">
-                            <label for="{{ form.tools_required.id_for_label }}" class="form-label">{{ form.tools_required.label }}</label>
-                            {{ form.tools_required }}
-                            {% if form.tools_required.errors %}
-                                <div class="text-danger">{{ form.tools_required.errors }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="form-group mb-3">
-                            <label for="{{ form.parts_required.id_for_label }}" class="form-label">{{ form.parts_required.label }}</label>
-                            {{ form.parts_required }}
-                            {% if form.parts_required.errors %}
-                                <div class="text-danger">{{ form.parts_required.errors }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="form-group mb-3">
-                            <label for="{{ form.safety_notes.id_for_label }}" class="form-label">{{ form.safety_notes.label }}</label>
-                            {{ form.safety_notes }}
-                            {% if form.safety_notes.errors %}
-                                <div class="text-danger">{{ form.safety_notes.errors }}</div>
-                            {% endif %}
-                        </div>
-
-                        <div class="d-flex justify-content-between">
-                            <a href="{% url 'maintenance:maintenance_list' %}" class="btn btn-secondary">Cancel</a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Save Activity
-                            </button>
-                        </div>
+                        {% endif %}
+                        
+                        <!-- Render form using crispy forms for cleaner layout with recurring options -->
+                        {% crispy form %}
                     </form>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-4">
+        <div class="col-lg-2">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-clock"></i> Quick Schedule</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">Set start time:</p>
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="quickSchedule(2)">
+                            <i class="fas fa-fast-forward"></i> In 2 Hours
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="quickSchedule(4)">
+                            <i class="fas fa-forward"></i> In 4 Hours
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm" onclick="quickScheduleAfternoon()">
+                            <i class="fas fa-sun"></i> This Afternoon
+                        </button>
+                        <button type="button" class="btn btn-outline-info btn-sm" onclick="quickScheduleTomorrow()">
+                            <i class="fas fa-calendar-day"></i> Tomorrow 9am
+                        </button>
+                    </div>
+                    <small class="text-muted d-block mt-2">Duration: 3 hours</small>
+                </div>
+            </div>
+            
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Quick Actions</h5>
+                    <h5 class="mb-0">Quick Links</h5>
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="{% url 'maintenance:activity_type_list' %}" class="btn btn-outline-primary">
+                        <a href="{% url 'maintenance:activity_type_list' %}" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-list"></i> Activity Types
                         </a>
-                        <a href="{% url 'equipment:equipment_list' %}" class="btn btn-outline-success">
+                        <a href="{% url 'equipment:equipment_list' %}" class="btn btn-outline-success btn-sm">
                             <i class="fas fa-cogs"></i> Equipment List
                         </a>
-                        <a href="{% url 'maintenance:schedule_list' %}" class="btn btn-outline-info">
+                        <a href="{% url 'maintenance:schedule_list' %}" class="btn btn-outline-info btn-sm">
                             <i class="fas fa-calendar-alt"></i> Schedules
                         </a>
                     </div>
                 </div>
             </div>
-            
-            <!-- Debug information panel -->
-            {% if equipment_list %}
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h6 class="mb-0">Debug: Available Equipment</h6>
-                </div>
-                <div class="card-body">
-                    <ul class="list-unstyled mb-0">
-                        {% for equipment in equipment_list %}
-                        <li><small>{{ equipment.id }}: {{ equipment.name }} ({{ equipment.status }})</small></li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            </div>
-            {% endif %}
         </div>
     </div>
 </div>
 
 <script>
+// Quick create toggle function
+function toggleQuickCreate() {
+    const quickCreateFields = document.getElementById('quick-create-fields');
+    if (quickCreateFields) {
+        quickCreateFields.style.display = quickCreateFields.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+// Quick schedule functions
+function quickSchedule(hoursFromNow) {
+    const now = new Date();
+    const startTime = new Date(now.getTime() + (hoursFromNow * 60 * 60 * 1000));
+    const endTime = new Date(startTime.getTime() + (3 * 60 * 60 * 1000)); // 3 hour duration
+    
+    setDateTimeFields(startTime, endTime);
+    showScheduleConfirmation(hoursFromNow);
+}
+
+function quickScheduleAfternoon() {
+    const now = new Date();
+    const startTime = new Date(now);
+    startTime.setHours(14, 0, 0, 0); // 2:00 PM
+    
+    // If it's already past 2pm, schedule for tomorrow
+    if (now.getHours() >= 14) {
+        startTime.setDate(startTime.getDate() + 1);
+    }
+    
+    const endTime = new Date(startTime.getTime() + (3 * 60 * 60 * 1000)); // 3 hour duration
+    setDateTimeFields(startTime, endTime);
+    showScheduleConfirmation('afternoon');
+}
+
+function quickScheduleTomorrow() {
+    const now = new Date();
+    const startTime = new Date(now);
+    startTime.setDate(startTime.getDate() + 1);
+    startTime.setHours(9, 0, 0, 0); // 9:00 AM tomorrow
+    
+    const endTime = new Date(startTime.getTime() + (3 * 60 * 60 * 1000)); // 3 hour duration
+    setDateTimeFields(startTime, endTime);
+    showScheduleConfirmation('tomorrow');
+}
+
+function setDateTimeFields(startTime, endTime) {
+    // Format for datetime-local input: YYYY-MM-DDTHH:MM
+    const formatDateTime = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+    
+    // Set the scheduled_start field
+    const startField = document.getElementById('id_scheduled_start');
+    if (startField) {
+        startField.value = formatDateTime(startTime);
+    }
+    
+    // Set the scheduled_end field
+    const endField = document.getElementById('id_scheduled_end');
+    if (endField) {
+        endField.value = formatDateTime(endTime);
+    }
+    
+    // Scroll to the date fields to show they were updated
+    if (startField) {
+        startField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        startField.focus();
+        setTimeout(() => startField.blur(), 500);
+    }
+}
+
+function showScheduleConfirmation(type) {
+    const message = typeof type === 'number' 
+        ? `Scheduled for ${type} hours from now` 
+        : type === 'afternoon' 
+            ? 'Scheduled for this afternoon (2:00 PM)'
+            : 'Scheduled for tomorrow at 9:00 AM';
+    
+    // Create a temporary toast notification
+    const toast = document.createElement('div');
+    toast.className = 'alert alert-success position-fixed top-0 end-0 m-3';
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// Show recurring fields toggle
 document.addEventListener('DOMContentLoaded', function() {
-    const startTimeInput = document.getElementById('{{ form.scheduled_start.id_for_label }}');
-    const endTimeInput = document.getElementById('{{ form.scheduled_end.id_for_label }}');
-    const form = document.querySelector('form');
-    
-    // Function to validate time inputs
-    function validateTimeInputs() {
-        const startValue = startTimeInput.value;
-        const endValue = endTimeInput.value;
-        
-        // Clear previous error messages
-        clearTimeErrors();
-        
-        if (startValue && endValue) {
-            const startDateTime = new Date(startValue);
-            const endDateTime = new Date(endValue);
-            
-            // Check if start is after or equal to end
-            if (startDateTime >= endDateTime) {
-                showTimeError('Start time must be before end time');
-                return false;
-            }
-            
-            // Check if same day and start time is after end time
-            if (startDateTime.toDateString() === endDateTime.toDateString()) {
-                if (startDateTime.getTime() >= endDateTime.getTime()) {
-                    showTimeError('For same-day maintenance, start time must be before end time (e.g., cannot start at 7:00 PM and end at 3:00 PM)');
-                    return false;
+    const makeRecurringCheckbox = document.getElementById('id_make_recurring');
+    if (makeRecurringCheckbox) {
+        makeRecurringCheckbox.addEventListener('change', function() {
+            const recurringFields = document.querySelectorAll('[id^="id_recurrence"]');
+            recurringFields.forEach(field => {
+                const wrapper = field.closest('.form-group, .mb-3');
+                if (wrapper) {
+                    wrapper.style.display = this.checked ? 'block' : 'none';
                 }
+            });
+        });
+        
+        // Initial state
+        makeRecurringCheckbox.dispatchEvent(new Event('change'));
+    }
+    
+    // Show custom frequency field when 'custom' is selected
+    const frequencyField = document.getElementById('id_recurrence_frequency');
+    if (frequencyField) {
+        frequencyField.addEventListener('change', function() {
+            const customFreqWrapper = document.getElementById('id_recurrence_frequency_days')?.closest('.form-group, .mb-3');
+            if (customFreqWrapper) {
+                customFreqWrapper.style.display = this.value === 'custom' ? 'block' : 'none';
             }
-        }
+        });
         
-        return true;
+        // Initial state
+        frequencyField.dispatchEvent(new Event('change'));
     }
-    
-    // Function to show time validation error
-    function showTimeError(message) {
-        // Add error class to inputs
-        startTimeInput.classList.add('is-invalid');
-        endTimeInput.classList.add('is-invalid');
-        
-        // Create error message element
-        const errorDiv = document.createElement('div');
-        errorDiv.className = 'alert alert-danger mt-2';
-        errorDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + message;
-        errorDiv.id = 'time-validation-error';
-        
-        // Insert error message after the scheduling row
-        const schedulingRow = endTimeInput.closest('.row');
-        schedulingRow.parentNode.insertBefore(errorDiv, schedulingRow.nextSibling);
-    }
-    
-    // Function to clear time validation errors
-    function clearTimeErrors() {
-        startTimeInput.classList.remove('is-invalid');
-        endTimeInput.classList.remove('is-invalid');
-        
-        const errorDiv = document.getElementById('time-validation-error');
-        if (errorDiv) {
-            errorDiv.remove();
-        }
-    }
-    
-    // Add event listeners for real-time validation
-    startTimeInput.addEventListener('change', validateTimeInputs);
-    endTimeInput.addEventListener('change', validateTimeInputs);
-    
-    // Form submission validation
-    form.addEventListener('submit', function(e) {
-        if (!validateTimeInputs()) {
-            e.preventDefault();
-            // Scroll to the error message
-            const errorDiv = document.getElementById('time-validation-error');
-            if (errorDiv) {
-                errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }
-    });
 });
 </script>
 

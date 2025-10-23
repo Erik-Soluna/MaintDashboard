@@ -10,12 +10,14 @@ import io
 import os
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django.core.exceptions import ValidationError
 
 import re
 from datetime import datetime, timedelta
@@ -27,7 +29,7 @@ except ImportError:
     PyPDF2 = None
     PYPDF2_AVAILABLE = False
 
-from .models import Equipment, EquipmentDocument, EquipmentComponent
+from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField
 from core.models import EquipmentCategory, Location
 from core.logging_utils import log_error, log_view_access, log_api_call
 from maintenance.models import MaintenanceReport
@@ -131,16 +133,21 @@ def equipment_list(request):
     if selected_site_id is None:
         selected_site_id = request.session.get('selected_site_id')
     
+    selected_site = None
     if selected_site_id:
-        try:
-            selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-            queryset = queryset.filter(
-                Q(location__parent_location=selected_site) | Q(location=selected_site)
-            )
-        except Location.DoesNotExist:
-            logger.warning(f"Selected site with ID {selected_site_id} not found")
-        except Exception as e:
-            log_error(e, f"filtering equipment by site {selected_site_id}", request=request)
+        if selected_site_id == 'all':
+            # Handle "All Sites" selection - no filtering needed
+            pass
+        else:
+            try:
+                selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                queryset = queryset.filter(
+                    Q(location__parent_location=selected_site) | Q(location=selected_site)
+                )
+            except (Location.DoesNotExist, ValueError):
+                logger.warning(f"Selected site with ID {selected_site_id} not found")
+            except Exception as e:
+                log_error(e, f"filtering equipment by site {selected_site_id}", request=request)
     
     # Search functionality
     search_term = request.GET.get('search', '')
@@ -184,6 +191,8 @@ def equipment_list(request):
         'selected_category': category_id,
         'selected_location': location_id,
         'selected_status': status,
+        'selected_site': selected_site,
+        'selected_site_id': selected_site_id,
     }
     
     return render(request, 'equipment/equipment_list.html', context)
@@ -203,16 +212,21 @@ def manage_equipment(request):
     if selected_site_id is None:
         selected_site_id = request.session.get('selected_site_id')
     
+    selected_site = None
     if selected_site_id:
-        try:
-            selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-            equipment_queryset = equipment_queryset.filter(
-                Q(location__parent_location=selected_site) | Q(location=selected_site)
-            )
-        except Location.DoesNotExist:
-            logger.warning(f"Selected site with ID {selected_site_id} not found")
-        except Exception as e:
-            log_error(e, f"filtering equipment by site {selected_site_id}", request=request)
+        if selected_site_id == 'all':
+            # Handle "All Sites" selection - no filtering needed
+            pass
+        else:
+            try:
+                selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                equipment_queryset = equipment_queryset.filter(
+                    Q(location__parent_location=selected_site) | Q(location=selected_site)
+                )
+            except (Location.DoesNotExist, ValueError):
+                logger.warning(f"Selected site with ID {selected_site_id} not found")
+            except Exception as e:
+                log_error(e, f"filtering equipment by site {selected_site_id}", request=request)
     
     equipment_list = equipment_queryset
     
@@ -239,6 +253,8 @@ def manage_equipment(request):
             'location': 'Location'
         },
         'json': json,
+        'selected_site': selected_site,
+        'selected_site_id': selected_site_id,
     }
     
     return render(request, 'equipment/manage_equipment.html', context)
@@ -540,9 +556,24 @@ def equipment_components(request, equipment_id):
     equipment = get_object_or_404(Equipment, id=equipment_id)
     components = equipment.components.all()
     
+    # Calculate component statistics
+    from datetime import date
+    today = date.today()
+    
+    critical_components_count = components.filter(is_critical=True).count()
+    overdue_components_count = components.filter(
+        next_replacement_date__lt=today,
+        next_replacement_date__isnull=False
+    ).count()
+    total_quantity = sum(component.quantity for component in components)
+    
     context = {
         'equipment': equipment,
         'components': components,
+        'today': today,
+        'critical_components_count': critical_components_count,
+        'overdue_components_count': overdue_components_count,
+        'total_quantity': total_quantity,
     }
     
     return render(request, 'equipment/equipment_components.html', context)
@@ -580,9 +611,16 @@ def equipment_documents(request, equipment_id):
     equipment = get_object_or_404(Equipment, id=equipment_id)
     documents = equipment.documents.all()
     
+    # Get maintenance reports for this equipment
+    from maintenance.models import MaintenanceReport
+    maintenance_reports = MaintenanceReport.objects.filter(
+        maintenance_activity__equipment=equipment
+    ).order_by('-created_at')
+    
     context = {
         'equipment': equipment,
         'documents': documents,
+        'maintenance_reports': maintenance_reports,
     }
     
     return render(request, 'equipment/equipment_documents.html', context)
@@ -612,6 +650,31 @@ def add_document(request, equipment_id):
     }
     
     return render(request, 'equipment/add_document.html', context)
+
+
+@login_required
+def delete_document(request, equipment_id, document_id):
+    """Delete an equipment document (admin/staff only)."""
+    # Check if user is staff or superuser
+    if not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, 'You do not have permission to delete documents.')
+        return redirect('equipment:equipment_documents', equipment_id=equipment_id)
+    
+    equipment = get_object_or_404(Equipment, id=equipment_id)
+    document = get_object_or_404(EquipmentDocument, id=document_id, equipment=equipment)
+    
+    if request.method == 'POST':
+        document_title = document.title
+        document.delete()
+        messages.success(request, f'Document "{document_title}" deleted successfully!')
+        return redirect('equipment:equipment_documents', equipment_id=equipment.id)
+    
+    context = {
+        'equipment': equipment,
+        'document': document,
+    }
+    
+    return render(request, 'equipment/delete_document.html', context)
 
 
 @login_required
@@ -833,15 +896,39 @@ def export_equipment_csv(request):
     
     # Get equipment data
     from .models import Equipment
+    from core.models import Location
     equipment_list = Equipment.objects.select_related('category', 'location').all()
     
-    # Apply site filter if provided
+    # Apply site filter - check both GET parameter and session
     site_id = request.GET.get('site_id')
-    if site_id:
-        from django.db.models import Q
-        equipment_list = equipment_list.filter(
-            Q(location__parent_location_id=site_id) | Q(location_id=site_id)
-        )
+    if site_id is None:
+        # If not in GET, check session (respects header selection)
+        site_id = request.session.get('selected_site_id')
+    
+    # Apply filter if site is selected and not 'all'
+    if site_id and site_id != 'all':
+        try:
+            # Validate that site_id is a number
+            site_id_int = int(site_id)
+            from django.db.models import Q
+            
+            # Verify site exists
+            site = Location.objects.filter(id=site_id_int, is_site=True).first()
+            if site:
+                # Filter equipment by site or locations under the site
+                equipment_list = equipment_list.filter(
+                    Q(location__parent_location_id=site_id_int) | Q(location_id=site_id_int)
+                )
+                logger.info(f"CSV export filtered to site: {site.name} ({equipment_list.count()} items)")
+            else:
+                logger.warning(f"Site ID {site_id_int} not found, exporting all equipment")
+        except (ValueError, TypeError) as e:
+            # If site_id is not a number (e.g., customer name), ignore the filter
+            logger.warning(f"Invalid site_id '{site_id}' in export, exporting all equipment")
+            pass
+    else:
+        # 'all' or None means export everything
+        logger.info(f"CSV export: All sites selected ({equipment_list.count()} items)")
     
     # Write data rows
     for equipment in equipment_list:
@@ -1505,3 +1592,331 @@ def generate_maintenance_insights(equipment, activities):
         insights.append("📋 Warranty has expired - consider extended warranty options")
     
     return insights
+
+
+# Custom Field Management Views
+@login_required
+@staff_member_required
+def category_fields_management(request, category_id):
+    """Custom view for managing fields within a category."""
+    from django.db import transaction
+    
+    category = get_object_or_404(EquipmentCategory, id=category_id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'add_field':
+            return add_custom_field(request, category)
+        elif action == 'edit_field':
+            return edit_custom_field(request, category)
+        elif action == 'delete_field':
+            return delete_custom_field(request, category)
+        elif action == 'reorder_fields':
+            return reorder_fields(request, category)
+    
+    # Get all fields for this category
+    fields = category.custom_fields.all().order_by('sort_order', 'label')
+    
+    context = {
+        'category': category,
+        'fields': fields,
+        'field_types': EquipmentCategoryField.FIELD_TYPE_CHOICES,
+    }
+    
+    return render(request, 'equipment/category_fields_management.html', context)
+
+
+@login_required
+@staff_member_required
+@require_http_methods(["POST"])
+def add_custom_field(request, category):
+    """Add a new custom field to a category."""
+    from django.db import transaction
+    
+    try:
+        with transaction.atomic():
+            name = request.POST.get('name', '').strip()
+            label = request.POST.get('label', '').strip()
+            field_type = request.POST.get('field_type', 'text')
+            required = request.POST.get('required') == 'on'
+            help_text = request.POST.get('help_text', '').strip()
+            choices = request.POST.get('choices', '').strip()
+            
+            # Validation
+            if not name or not label:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Name and label are required'
+                })
+            
+            # Check for duplicate names
+            if EquipmentCategoryField.objects.filter(category=category, name=name).exists():
+                return JsonResponse({
+                    'success': False,
+                    'message': f'A field with name "{name}" already exists'
+                })
+            
+            # Create the field
+            field = EquipmentCategoryField.objects.create(
+                category=category,
+                name=name,
+                label=label,
+                field_type=field_type,
+                required=required,
+                help_text=help_text,
+                choices=choices,
+                created_by=request.user,
+                updated_by=request.user
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Field "{label}" added successfully',
+                'field': {
+                    'id': field.id,
+                    'name': field.name,
+                    'label': field.label,
+                    'field_type': field.get_field_type_display(),
+                    'required': field.required,
+                    'help_text': field.help_text,
+                    'choices': field.choices,
+                    'sort_order': field.sort_order,
+                }
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error adding field: {str(e)}'
+        })
+
+
+@login_required
+@staff_member_required
+@require_http_methods(["POST"])
+def edit_custom_field(request, category):
+    """Edit an existing custom field."""
+    from django.db import transaction
+    
+    try:
+        with transaction.atomic():
+            field_id = request.POST.get('field_id')
+            field = get_object_or_404(EquipmentCategoryField, id=field_id, category=category)
+            
+            name = request.POST.get('name', '').strip()
+            label = request.POST.get('label', '').strip()
+            field_type = request.POST.get('field_type', 'text')
+            required = request.POST.get('required') == 'on'
+            help_text = request.POST.get('help_text', '').strip()
+            choices = request.POST.get('choices', '').strip()
+            
+            # Validation
+            if not name or not label:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Name and label are required'
+                })
+            
+            # Check for duplicate names (excluding current field)
+            if EquipmentCategoryField.objects.filter(
+                category=category, name=name
+            ).exclude(id=field_id).exists():
+                return JsonResponse({
+                    'success': False,
+                    'message': f'A field with name "{name}" already exists'
+                })
+            
+            # Update the field
+            field.name = name
+            field.label = label
+            field.field_type = field_type
+            field.required = required
+            field.help_text = help_text
+            field.choices = choices
+            field.updated_by = request.user
+            field.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Field "{label}" updated successfully',
+                'field': {
+                    'id': field.id,
+                    'name': field.name,
+                    'label': field.label,
+                    'field_type': field.get_field_type_display(),
+                    'required': field.required,
+                    'help_text': field.help_text,
+                    'choices': field.choices,
+                    'sort_order': field.sort_order,
+                }
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error updating field: {str(e)}'
+        })
+
+
+@login_required
+@staff_member_required
+@require_http_methods(["POST"])
+def delete_custom_field(request, category):
+    """Delete a custom field."""
+    from django.db import transaction
+    
+    try:
+        with transaction.atomic():
+            field_id = request.POST.get('field_id')
+            field = get_object_or_404(EquipmentCategoryField, id=field_id, category=category)
+            
+            field_name = field.label
+            field.delete()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Field "{field_name}" deleted successfully'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error deleting field: {str(e)}'
+        })
+
+
+@login_required
+@staff_member_required
+@require_http_methods(["POST"])
+def reorder_fields(request, category):
+    """Reorder fields within a category."""
+    from django.db import transaction
+    
+    try:
+        with transaction.atomic():
+            field_orders = json.loads(request.POST.get('field_orders', '[]'))
+            
+            for order_data in field_orders:
+                field_id = order_data.get('field_id')
+                sort_order = order_data.get('sort_order')
+                
+                if field_id and sort_order is not None:
+                    EquipmentCategoryField.objects.filter(
+                        id=field_id, category=category
+                    ).update(sort_order=sort_order)
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Field order updated successfully'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error reordering fields: {str(e)}'
+        })
+
+
+@login_required
+@require_http_methods(["POST"])
+def create_connection(request):
+    """Create a new equipment connection."""
+    from equipment.models import EquipmentConnection
+    
+    try:
+        data = json.loads(request.body)
+        
+        upstream_id = data.get('upstream_equipment')
+        downstream_id = data.get('downstream_equipment')
+        connection_type = data.get('connection_type', 'power')
+        is_critical = data.get('is_critical', True)
+        description = data.get('description', '')
+        
+        if not upstream_id or not downstream_id:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Both upstream and downstream equipment are required'
+            }, status=400)
+        
+        # Get equipment objects
+        upstream = get_object_or_404(Equipment, id=upstream_id)
+        downstream = get_object_or_404(Equipment, id=downstream_id)
+        
+        # Check if connection already exists
+        existing = EquipmentConnection.objects.filter(
+            upstream_equipment=upstream,
+            downstream_equipment=downstream
+        ).first()
+        
+        if existing:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Connection already exists between these equipment'
+            }, status=400)
+        
+        # Create connection
+        connection = EquipmentConnection(
+            upstream_equipment=upstream,
+            downstream_equipment=downstream,
+            connection_type=connection_type,
+            is_critical=is_critical,
+            description=description,
+            created_by=request.user
+        )
+        
+        # Validate (checks for circular dependencies)
+        connection.full_clean()
+        connection.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Connection created successfully',
+            'connection': {
+                'id': connection.id,
+                'upstream_id': upstream.id,
+                'downstream_id': downstream.id,
+                'connection_type': connection.connection_type,
+                'is_critical': connection.is_critical
+            }
+        })
+        
+    except ValidationError as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error creating connection: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Error creating connection: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["DELETE"])
+def delete_connection(request, connection_id):
+    """Delete an equipment connection."""
+    from equipment.models import EquipmentConnection
+    
+    try:
+        connection = get_object_or_404(EquipmentConnection, id=connection_id)
+        
+        # Store info for response before deleting
+        upstream_name = connection.upstream_equipment.name
+        downstream_name = connection.downstream_equipment.name
+        
+        connection.delete()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Connection deleted: {upstream_name} → {downstream_name}'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error deleting connection: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Error deleting connection: {str(e)}'
+        }, status=500)

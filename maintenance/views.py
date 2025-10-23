@@ -18,22 +18,33 @@ from datetime import timedelta, datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.template.loader import render_to_string
 import json
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 from .models import (
     MaintenanceActivity, MaintenanceActivityType, 
     MaintenanceSchedule, MaintenanceChecklist,
-    ActivityTypeCategory, ActivityTypeTemplate, MaintenanceReport
+    ActivityTypeCategory, ActivityTypeTemplate, MaintenanceReport,
+    MaintenanceTimelineEntry
 )
 from equipment.models import Equipment
 from core.models import EquipmentCategory
+from equipment.models import Equipment, EquipmentDocument
 from .forms import (
     MaintenanceActivityForm, MaintenanceScheduleForm, 
     MaintenanceActivityTypeForm, EnhancedMaintenanceActivityTypeForm,
     ActivityTypeCategoryForm, ActivityTypeTemplateForm
 )
 from events.models import CalendarEvent
-from maintenance.models import EquipmentCategorySchedule, GlobalSchedule, ScheduleOverride
-from maintenance.forms import EquipmentCategoryScheduleForm, GlobalScheduleForm, ScheduleOverrideForm
+
+# Import maintenance models and forms to avoid circular imports
+from .models import (
+    EquipmentCategorySchedule, GlobalSchedule, ScheduleOverride
+)
+from .forms import (
+    EquipmentCategoryScheduleForm, GlobalScheduleForm, ScheduleOverrideForm
+)
+
 from django.contrib.auth.models import User
 
 logger = logging.getLogger(__name__)
@@ -229,6 +240,183 @@ def activity_list(request):
 
 
 @login_required
+def bulk_add_activity(request):
+    """Bulk create maintenance activities for multiple equipment items."""
+    from django.db import connection, transaction
+    from django.utils import timezone
+    from equipment.models import Equipment
+    from core.models import Location
+    from datetime import datetime
+    
+    try:
+        connection.ensure_connection()
+        
+        # Get site filtering
+        selected_site_id = request.GET.get('site_id')
+        if selected_site_id is None:
+            selected_site_id = request.session.get('selected_site_id')
+        
+        selected_site = None
+        is_all_sites = False
+        
+        # Build equipment queryset with site filtering
+        equipment_query = Equipment.objects.filter(is_active=True).select_related('location', 'location__parent_location', 'category')
+        
+        if selected_site_id and selected_site_id != 'all':
+            try:
+                selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                equipment_query = equipment_query.filter(
+                    Q(location_id=selected_site_id) | 
+                    Q(location__parent_location_id=selected_site_id)
+                )
+            except Location.DoesNotExist:
+                pass
+        else:
+            is_all_sites = True
+        
+        if request.method == 'POST':
+            # Get form data
+            equipment_ids = request.POST.getlist('equipment_ids')
+            activity_type_id = request.POST.get('activity_type')
+            title_template = request.POST.get('title')
+            description = request.POST.get('description', '')
+            priority = request.POST.get('priority', 'medium')
+            status = request.POST.get('status', 'scheduled')
+            scheduled_start = request.POST.get('scheduled_start')
+            scheduled_end = request.POST.get('scheduled_end')
+            assigned_to_id = request.POST.get('assigned_to')
+            
+            # Recurring fields
+            make_recurring = request.POST.get('make_recurring') == 'on'
+            recurrence_frequency = request.POST.get('recurrence_frequency', '')
+            recurrence_frequency_days = request.POST.get('recurrence_frequency_days')
+            recurrence_end_date = request.POST.get('recurrence_end_date')
+            recurrence_advance_notice_days = request.POST.get('recurrence_advance_notice_days', 7)
+            
+            # Validation
+            if not equipment_ids:
+                messages.error(request, 'Please select at least one equipment item.')
+            elif not activity_type_id:
+                messages.error(request, 'Please select an activity type.')
+            elif not title_template:
+                messages.error(request, 'Please provide a title.')
+            else:
+                try:
+                    activity_type = MaintenanceActivityType.objects.get(id=activity_type_id)
+                    assigned_to = User.objects.get(id=assigned_to_id) if assigned_to_id else None
+                    
+                    # Convert date strings to datetime objects
+                    scheduled_start_dt = datetime.strptime(scheduled_start, '%Y-%m-%dT%H:%M') if scheduled_start else None
+                    scheduled_end_dt = datetime.strptime(scheduled_end, '%Y-%m-%dT%H:%M') if scheduled_end else None
+                    
+                    created_activities = []
+                    created_schedules = []
+                    
+                    # Create activities in a transaction
+                    with transaction.atomic():
+                        for equipment_id in equipment_ids:
+                            equipment = Equipment.objects.get(id=equipment_id, is_active=True)
+                            
+                            # Replace {equipment} placeholder in title
+                            activity_title = title_template.replace('{equipment}', equipment.name)
+                            
+                            activity = MaintenanceActivity.objects.create(
+                                equipment=equipment,
+                                activity_type=activity_type,
+                                title=activity_title,
+                                description=description,
+                                priority=priority,
+                                status=status,
+                                scheduled_start=scheduled_start_dt,
+                                scheduled_end=scheduled_end_dt,
+                                assigned_to=assigned_to,
+                                tools_required=activity_type.tools_required,
+                                parts_required=activity_type.parts_required,
+                                safety_notes=activity_type.safety_notes,
+                                created_by=request.user,
+                                updated_by=request.user,
+                            )
+                            created_activities.append(activity)
+                            
+                            # Handle recurring schedule creation
+                            if make_recurring and recurrence_frequency:
+                                from maintenance.models import MaintenanceSchedule
+                                
+                                # Calculate frequency_days based on the frequency choice
+                                if recurrence_frequency == 'custom':
+                                    frequency_days = int(recurrence_frequency_days) if recurrence_frequency_days else 30
+                                else:
+                                    frequency_map = {
+                                        'daily': 1,
+                                        'weekly': 7,
+                                        'monthly': 30,
+                                        'quarterly': 90,
+                                        'semi_annual': 180,
+                                        'annual': 365,
+                                    }
+                                    frequency_days = frequency_map.get(recurrence_frequency, 30)
+                                
+                                # Parse end date if provided
+                                recurrence_end_date_obj = None
+                                if recurrence_end_date:
+                                    from datetime import datetime
+                                    recurrence_end_date_obj = datetime.strptime(recurrence_end_date, '%Y-%m-%d').date()
+                                
+                                # Create the maintenance schedule
+                                schedule = MaintenanceSchedule.objects.create(
+                                    equipment=equipment,
+                                    activity_type=activity_type,
+                                    frequency=recurrence_frequency,
+                                    frequency_days=frequency_days,
+                                    start_date=scheduled_start_dt.date() if scheduled_start_dt else timezone.now().date(),
+                                    end_date=recurrence_end_date_obj,
+                                    advance_notice_days=int(recurrence_advance_notice_days),
+                                    auto_generate=True,
+                                    is_active=True,
+                                )
+                                created_schedules.append(schedule)
+                    
+                    # Success message
+                    if created_schedules:
+                        messages.success(request, f'Successfully created {len(created_activities)} maintenance activities and {len(created_schedules)} recurring schedules!')
+                    else:
+                        messages.success(request, f'Successfully created {len(created_activities)} maintenance activities!')
+                    return redirect('maintenance:maintenance_list')
+                    
+                except Exception as e:
+                    logger.error(f"Error creating bulk activities: {str(e)}")
+                    messages.error(request, f'Error creating activities: {str(e)}')
+        
+        # GET request - show form
+        equipment_list = equipment_query.order_by('name')
+        activity_types = MaintenanceActivityType.objects.filter(is_active=True).select_related('category').order_by('category__sort_order', 'name')
+        users = User.objects.filter(is_active=True).order_by('username')
+        
+        # Group equipment by category for easier selection
+        from collections import defaultdict
+        equipment_by_category = defaultdict(list)
+        for equipment in equipment_list:
+            category_name = equipment.category.name if equipment.category else 'Uncategorized'
+            equipment_by_category[category_name].append(equipment)
+        
+        context = {
+            'equipment_list': equipment_list,
+            'equipment_by_category': dict(equipment_by_category),
+            'activity_types': activity_types,
+            'users': users,
+            'selected_site': selected_site,
+            'selected_site_id': selected_site_id,
+            'is_all_sites': is_all_sites,
+        }
+        return render(request, 'maintenance/bulk_add_activity.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error in bulk_add_activity: {str(e)}")
+        messages.error(request, f'Error loading bulk creation form: {str(e)}')
+        return redirect('maintenance:maintenance_list')
+
+
+@login_required
 def activity_detail(request, activity_id):
     """Display detailed maintenance activity information with comprehensive timeline."""
     activity = get_object_or_404(
@@ -239,8 +427,69 @@ def activity_detail(request, activity_id):
         id=activity_id
     )
     
-    # Get timeline entries
+    # Get timeline entries and create a comprehensive chronological timeline
     timeline_entries = activity.timeline_entries.all().order_by('-created_at')
+    
+    # Create a comprehensive timeline with all events
+    timeline_events = []
+    
+    # Add activity creation event
+    timeline_events.append({
+        'type': 'activity_created',
+        'title': 'Activity Created',
+        'description': f'Created by {activity.created_by.get_full_name() or activity.created_by.username}',
+        'timestamp': activity.created_at,
+        'created_by': activity.created_by,
+        'icon': 'fa-plus',
+        'color': 'primary'
+    })
+    
+    # Add timeline entries
+    for entry in timeline_entries:
+        timeline_events.append({
+            'type': 'timeline_entry',
+            'title': entry.title,
+            'description': entry.description,
+            'timestamp': entry.created_at,
+            'created_by': entry.created_by,
+            'icon': entry.entry_type,
+            'color': entry.entry_type
+        })
+    
+    # Add status change events if they exist
+    if activity.actual_start:
+        timeline_events.append({
+            'type': 'status_change',
+            'title': 'Activity Started',
+            'description': f'Maintenance activity started at {activity.actual_start.strftime("%Y-%m-%d %H:%M")}',
+            'timestamp': activity.actual_start,
+            'created_by': None,
+            'icon': 'fa-play',
+            'color': 'warning'
+        })
+    
+    if activity.actual_end:
+        timeline_events.append({
+            'type': 'status_change',
+            'title': 'Activity Completed',
+            'description': f'Maintenance activity completed at {activity.actual_end.strftime("%Y-%m-%d %H:%M")}',
+            'timestamp': activity.actual_end,
+            'created_by': None,
+            'icon': 'fa-check',
+            'color': 'success'
+        })
+    
+    # Sort all timeline events by timestamp (newest first)
+    timeline_events.sort(key=lambda x: x['timestamp'], reverse=True)
+    
+    # Get all related documents
+    all_documents = activity.get_all_documents()
+    
+    # Get maintenance reports for this activity
+    maintenance_reports = activity.reports.all().order_by('-created_at')
+    
+    # Get equipment documents that might be relevant
+    equipment_documents = activity.equipment.documents.all().order_by('-created_at')[:10]
     
     # Get related maintenance activities for this equipment
     related_activities = MaintenanceActivity.objects.filter(
@@ -284,6 +533,10 @@ def activity_detail(request, activity_id):
     context = {
         'activity': activity,
         'timeline_entries': timeline_entries,
+        'timeline_events': timeline_events,
+        'all_documents': all_documents,
+        'maintenance_reports': maintenance_reports,
+        'equipment_documents': equipment_documents,
         'related_activities': related_activities,
         'equipment_history': equipment_history,
         'total_maintenance_time': round(total_maintenance_time, 2),
@@ -316,12 +569,23 @@ def add_activity(request):
             selected_site_id = request.session.get('selected_site_id')
         
         selected_site = None
+        is_all_sites = False
+        
         if selected_site_id:
-            try:
-                selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-                logger.info(f"Selected site: {selected_site.name}")
-            except Location.DoesNotExist:
-                logger.warning(f"Invalid site ID: {selected_site_id}")
+            if selected_site_id == 'all':
+                # Handle "All Sites" selection
+                is_all_sites = True
+                logger.info("Selected site: All Sites")
+            else:
+                try:
+                    selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                    logger.info(f"Selected site: {selected_site.name}")
+                except (Location.DoesNotExist, ValueError):
+                    logger.warning(f"Invalid site ID: {selected_site_id}")
+        else:
+            # No site selected, treat as "All Sites"
+            is_all_sites = True
+            logger.info("Selected site: All Sites (default)")
         
         if request.method == 'POST':
             form = MaintenanceActivityForm(request.POST, request=request)
@@ -334,7 +598,18 @@ def add_activity(request):
                 
                 return redirect('maintenance:activity_detail', activity_id=activity.id)
         else:
-            form = MaintenanceActivityForm(request=request)
+            # Get initial data from GET parameters
+            initial_data = {}
+            equipment_id = request.GET.get('equipment')
+            if equipment_id:
+                try:
+                    equipment = Equipment.objects.get(id=equipment_id, is_active=True)
+                    initial_data['equipment'] = equipment
+                    logger.info(f"Pre-populating equipment: {equipment.name}")
+                except (Equipment.DoesNotExist, ValueError):
+                    logger.warning(f"Invalid equipment ID in GET parameter: {equipment_id}")
+            
+            form = MaintenanceActivityForm(initial=initial_data, request=request)
         
         # Debug: Check equipment queryset in form with better error handling
         try:
@@ -354,6 +629,8 @@ def add_activity(request):
             'equipment_count': filtered_equipment_count,
             'total_equipment_count': total_equipment_count,
             'selected_site': selected_site,
+            'selected_site_id': selected_site_id,
+            'is_all_sites': is_all_sites,
             'equipment_list': equipment_list,
         }
         return render(request, 'maintenance/add_activity.html', context)
@@ -621,6 +898,10 @@ def add_activity_type(request):
     else:
         form = MaintenanceActivityTypeForm()
     
+    # Debug: Log form field data
+    print(f"Category choices: {list(form.fields['category'].queryset.values_list('name', flat=True))}")
+    print(f"Equipment categories: {list(form.fields['applicable_equipment_categories'].queryset.values_list('name', flat=True))}")
+    
     context = {'form': form}
     return render(request, 'maintenance/add_activity_type.html', context)
 
@@ -802,7 +1083,7 @@ def export_maintenance_csv(request):
     site_id = request.GET.get('site_id')
     status = request.GET.get('status')
     
-    if site_id:
+    if site_id and site_id != 'all':
         activities = activities.filter(
             Q(equipment__location__parent_location_id=site_id) | 
             Q(equipment__location_id=site_id)
@@ -1059,7 +1340,7 @@ def export_maintenance_schedules_csv(request):
     
     # Apply site filter if provided
     site_id = request.GET.get('site_id')
-    if site_id:
+    if site_id and site_id != 'all':
         schedules = schedules.filter(
             Q(equipment__location__parent_location_id=site_id) | 
             Q(equipment__location_id=site_id)
@@ -1131,14 +1412,34 @@ def overdue_maintenance(request):
 
 @login_required
 def delete_activity(request, activity_id):
-    """Delete maintenance activity."""
+    """Delete maintenance activity and associated calendar events."""
     activity = get_object_or_404(MaintenanceActivity, id=activity_id)
     
     if request.method == 'POST':
         activity_title = activity.title
         
+        # Delete associated calendar events before deleting the activity
+        from events.models import CalendarEvent
+        associated_events = CalendarEvent.objects.filter(maintenance_activity=activity)
+        events_deleted = associated_events.count()
+        
+        # Delete the calendar events first
+        associated_events.delete()
+        
+        # Invalidate dashboard cache
+        try:
+            from core.views import invalidate_dashboard_cache
+            invalidate_dashboard_cache(user_id=request.user.id)
+        except Exception as cache_error:
+            logger.warning(f"Could not invalidate dashboard cache: {cache_error}")
+        
+        # Now delete the maintenance activity
         activity.delete()
-        messages.success(request, f'Maintenance activity "{activity_title}" deleted successfully!')
+        
+        if events_deleted > 0:
+            messages.success(request, f'Maintenance activity "{activity_title}" and {events_deleted} associated calendar event(s) deleted successfully!')
+        else:
+            messages.success(request, f'Maintenance activity "{activity_title}" deleted successfully!')
         
         return redirect('maintenance:maintenance_list')
     
@@ -1617,8 +1918,10 @@ def create_activity_type_from_template(request):
 @login_required
 @require_http_methods(["GET"])
 def fetch_activities(request):
-    """API endpoint: Return maintenance activities in FullCalendar JSON format."""
+    """API endpoint: Return maintenance activities in FullCalendar JSON format (optimized for large datasets)."""
     try:
+        from datetime import datetime, timedelta
+        
         # Filters
         equipment_id = request.GET.get('equipment')
         status = request.GET.get('status')
@@ -1626,25 +1929,70 @@ def fetch_activities(request):
         start = request.GET.get('start')  # ISO date string
         end = request.GET.get('end')      # ISO date string
 
-        queryset = MaintenanceActivity.objects.select_related('equipment', 'activity_type', 'assigned_to')
+        # Start with optimized query using only() to fetch only needed fields
+        queryset = MaintenanceActivity.objects.select_related('equipment', 'equipment__location', 'activity_type', 'assigned_to').only(
+            'id', 'title', 'status', 'priority', 'scheduled_start', 'scheduled_end',
+            'equipment__name', 'equipment__location__name', 
+            'activity_type__name', 'assigned_to__first_name', 'assigned_to__last_name'
+        )
+        
         if equipment_id:
             queryset = queryset.filter(equipment_id=equipment_id)
         if status:
             queryset = queryset.filter(status=status)
-        if site_id:
+        if site_id and site_id != 'all':
             # Filter by equipment's site or parent location
             queryset = queryset.filter(
                 Q(equipment__location__parent_location_id=site_id) |
                 Q(equipment__location_id=site_id)
             )
+        
+        # PERFORMANCE FIX: Apply date filtering to catch overlapping events
         if start and end:
-            # Filter by scheduled_start within the calendar view range
-            queryset = queryset.filter(scheduled_start__date__gte=start, scheduled_end__date__lte=end)
+            # Parse dates
+            try:
+                start_date = datetime.fromisoformat(start.replace('Z', '+00:00'))
+                end_date = datetime.fromisoformat(end.replace('Z', '+00:00'))
+                
+                # Filter for activities that overlap with the calendar view range
+                # Include activities that:
+                # 1. Start within the range, OR
+                # 2. End within the range, OR  
+                # 3. Start before and end after the range (spanning the entire period)
+                queryset = queryset.filter(
+                    Q(scheduled_start__gte=start_date, scheduled_start__lte=end_date) |
+                    Q(scheduled_end__gte=start_date, scheduled_end__lte=end_date) |
+                    Q(scheduled_start__lte=start_date, scheduled_end__gte=end_date)
+                )
+            except (ValueError, AttributeError) as date_error:
+                logger.warning(f"Date parsing error in fetch_activities: {date_error}")
+                # If date parsing fails, add a reasonable fallback filter
+                # Show activities within ±3 months of today
+                from django.utils import timezone as tz
+                fallback_start = tz.now() - timedelta(days=90)
+                fallback_end = tz.now() + timedelta(days=90)
+                queryset = queryset.filter(
+                    scheduled_start__gte=fallback_start,
+                    scheduled_start__lte=fallback_end
+                )
+        else:
+            # No date range specified - use a reasonable default to avoid loading everything
+            # Show activities within ±2 months of today
+            from django.utils import timezone as tz
+            default_start = tz.now() - timedelta(days=60)
+            default_end = tz.now() + timedelta(days=60)
+            queryset = queryset.filter(
+                scheduled_start__gte=default_start,
+                scheduled_start__lte=default_end
+            )
 
-        activities = queryset.all()
-        results = []
-        for activity in activities:
-            results.append({
+        # PERFORMANCE FIX: Add a hard limit as a safety net (max 500 activities)
+        # Order by scheduled_start to show most relevant activities first
+        activities = queryset.order_by('scheduled_start')[:500]
+        
+        # Build results using list comprehension for speed
+        results = [
+            {
                 'id': activity.id,
                 'title': activity.title,
                 'start': activity.scheduled_start.isoformat(),
@@ -1660,9 +2008,14 @@ def fetch_activities(request):
                 'backgroundColor': '#4299e1' if activity.status == 'scheduled' else '#dc3545' if activity.status == 'overdue' else '#28a745' if activity.status == 'completed' else '#ffc107',
                 'borderColor': '#2d3748',
                 'textColor': '#fff',
-            })
+            }
+            for activity in activities
+        ]
+        
+        logger.info(f"fetch_activities returned {len(results)} activities (date range: {start} to {end})")
         return JsonResponse(results, safe=False)
     except Exception as e:
+        logger.error(f"Error in fetch_activities: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
 
@@ -2416,11 +2769,20 @@ def debug_equipment_filtering(request):
     
     # Get site info
     selected_site = None
+    is_all_sites = False
+    
     if selected_site_id:
-        try:
-            selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-        except Location.DoesNotExist:
-            pass
+        if selected_site_id == 'all':
+            # Handle "All Sites" selection
+            is_all_sites = True
+        else:
+            try:
+                selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+            except (Location.DoesNotExist, ValueError):
+                pass
+    else:
+        # No site selected, treat as "All Sites"
+        is_all_sites = True
     
     # Filter equipment by site
     filtered_equipment = all_equipment
@@ -2525,3 +2887,213 @@ def create_activity_api(request):
             'success': False,
             'error': f'Server error: {str(e)}'
         }, status=500)
+
+@login_required
+def add_timeline_entry(request, activity_id):
+    """Add a new timeline entry to a maintenance activity."""
+    activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+    
+    if request.method == 'POST':
+        entry_type = request.POST.get('entry_type')
+        title = request.POST.get('title')
+        description = request.POST.get('description')
+        
+        if entry_type and title and description:
+            try:
+                # Create the timeline entry
+                timeline_entry = MaintenanceTimelineEntry.objects.create(
+                    activity=activity,
+                    entry_type=entry_type,
+                    title=title,
+                    description=description,
+                    created_by=request.user
+                )
+                
+                messages.success(request, 'Timeline entry added successfully!')
+                
+                # Redirect back to the activity detail page
+                return redirect('maintenance:activity_detail', activity_id=activity_id)
+                
+            except Exception as e:
+                logger.error(f"Error creating timeline entry: {str(e)}")
+                messages.error(request, f'Error creating timeline entry: {str(e)}')
+        else:
+            messages.error(request, 'Please fill in all required fields.')
+    
+    # If GET request or validation failed, redirect back to activity detail
+    return redirect('maintenance:activity_detail', activity_id=activity_id)
+
+@receiver(post_save, sender=MaintenanceReport)
+def maintenance_report_post_save(sender, instance, created, **kwargs):
+    """Create timeline entry when maintenance report is uploaded."""
+    if created:
+        MaintenanceTimelineEntry.objects.create(
+            activity=instance.maintenance_activity,
+            entry_type='report_uploaded',
+            title=f'{instance.get_report_type_display()} Uploaded',
+            description=f'Report "{instance.title}" was uploaded by {instance.created_by.get_full_name() or instance.created_by.username}',
+            created_by=instance.created_by
+        )
+
+
+@login_required
+def upload_activity_document(request, activity_id):
+    """Upload a document to a maintenance activity."""
+    activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+    
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        description = request.POST.get('description')
+        document_type = request.POST.get('document_type')
+        file = request.FILES.get('file')
+        
+        if title and file and document_type:
+            try:
+                # Create the document
+                document = EquipmentDocument.objects.create(
+                    equipment=activity.equipment,
+                    title=title,
+                    description=description or '',
+                    document_type=document_type,
+                    file=file,
+                    created_by=request.user
+                )
+                
+                # Create timeline entry
+                MaintenanceTimelineEntry.objects.create(
+                    activity=activity,
+                    entry_type='note',
+                    title=f'Document Uploaded: {title}',
+                    description=f'Document "{title}" was uploaded by {request.user.get_full_name() or request.user.username}',
+                    created_by=request.user
+                )
+                
+                messages.success(request, 'Document uploaded successfully!')
+                return redirect('maintenance:activity_detail', activity_id=activity_id)
+                
+            except Exception as e:
+                logger.error(f"Error uploading document: {str(e)}")
+                messages.error(request, f'Error uploading document: {str(e)}')
+        else:
+            messages.error(request, 'Please fill in all required fields.')
+    
+    context = {
+        'activity': activity,
+        'document_types': EquipmentDocument.DOCUMENT_TYPE_CHOICES,
+    }
+    return render(request, 'maintenance/upload_document.html', context)
+
+
+@login_required
+def delete_report(request, report_id):
+    """Delete a maintenance report (admin/staff only)."""
+    # Check if user is staff or superuser
+    if not (request.user.is_staff or request.user.is_superuser):
+        messages.error(request, 'You do not have permission to delete reports.')
+        return redirect('maintenance:maintenance_list')
+    
+    report = get_object_or_404(MaintenanceReport, id=report_id)
+    activity = report.maintenance_activity
+    
+    if request.method == 'POST':
+        report_title = report.title
+        report.delete()
+        messages.success(request, f'Report "{report_title}" deleted successfully!')
+        return redirect('maintenance:activity_detail', activity_id=activity.id)
+    
+    context = {
+        'report': report,
+        'activity': activity,
+    }
+    return render(request, 'maintenance/delete_report.html', context)
+
+
+@login_required
+def change_activity_status(request, activity_id):
+    """Change activity status without editing the entire activity."""
+    activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+    
+    if request.method == 'POST':
+        new_status = request.POST.get('status')
+        notes = request.POST.get('notes', '')
+        
+        if new_status and new_status in dict(MaintenanceActivity.STATUS_CHOICES):
+            old_status = activity.status
+            activity.status = new_status
+            activity.updated_by = request.user
+            
+            # Handle start/end times based on status
+            if new_status == 'in_progress' and not activity.actual_start:
+                activity.actual_start = timezone.now()
+            elif new_status == 'completed' and not activity.actual_end:
+                activity.actual_end = timezone.now()
+                if not activity.actual_start:
+                    activity.actual_start = activity.scheduled_start
+            
+            activity.save()
+            
+            # Create timeline entry for status change
+            MaintenanceTimelineEntry.objects.create(
+                activity=activity,
+                entry_type='status_change',
+                title=f'Status Changed to {activity.get_status_display()}',
+                description=f'Status changed from {dict(MaintenanceActivity.STATUS_CHOICES).get(old_status, old_status)} to {activity.get_status_display()}' + (f'. Notes: {notes}' if notes else ''),
+                created_by=request.user
+            )
+            
+            messages.success(request, f'Activity status changed to {activity.get_status_display()}')
+            return redirect('maintenance:activity_detail', activity_id=activity_id)
+        else:
+            messages.error(request, 'Invalid status selected.')
+    
+    context = {
+        'activity': activity,
+        'status_choices': MaintenanceActivity.STATUS_CHOICES,
+    }
+    return render(request, 'maintenance/change_status.html', context)
+
+
+@login_required
+def attach_related_activity(request, activity_id):
+    """Attach a related activity to the current activity."""
+    activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+    
+    if request.method == 'POST':
+        related_activity_id = request.POST.get('related_activity_id')
+        relationship_type = request.POST.get('relationship_type', 'related')
+        
+        if related_activity_id:
+            try:
+                related_activity = MaintenanceActivity.objects.get(id=related_activity_id)
+                
+                # Create a many-to-many relationship (you may need to add this field to your model)
+                # For now, we'll create a timeline entry to document the relationship
+                MaintenanceTimelineEntry.objects.create(
+                    activity=activity,
+                    entry_type='note',
+                    title=f'Related Activity Attached: {related_activity.title}',
+                    description=f'Activity "{related_activity.title}" was attached as a {relationship_type} activity by {request.user.get_full_name() or request.user.username}',
+                    created_by=request.user
+                )
+                
+                messages.success(request, 'Related activity attached successfully!')
+                return redirect('maintenance:activity_detail', activity_id=activity_id)
+                
+            except MaintenanceActivity.DoesNotExist:
+                messages.error(request, 'Related activity not found.')
+            except Exception as e:
+                logger.error(f"Error attaching related activity: {str(e)}")
+                messages.error(request, f'Error attaching related activity: {str(e)}')
+        else:
+            messages.error(request, 'Please select a related activity.')
+    
+    # Get potential related activities (same equipment, different activity)
+    potential_related = MaintenanceActivity.objects.filter(
+        equipment=activity.equipment
+    ).exclude(id=activity.id).order_by('-scheduled_start')[:20]
+    
+    context = {
+        'activity': activity,
+        'potential_related': potential_related,
+    }
+    return render(request, 'maintenance/attach_related.html', context)

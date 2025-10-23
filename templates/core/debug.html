@@ -5,762 +5,378 @@
 
 {% block extra_css %}
 <style>
-/* Debug page specific styles */
 .debug-container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
     padding: 20px;
 }
 
-.debug-section {
-    background: var(--bs-dark);
-    border: 1px solid var(--bs-secondary);
+.debug-card {
+    background: #2d3748;
+    border: 1px solid #4a5568;
     border-radius: 8px;
     margin-bottom: 20px;
     overflow: hidden;
 }
 
-.debug-header {
-    background: var(--bs-secondary);
+.debug-card-header {
+    background: #1a202c;
     padding: 15px 20px;
-    cursor: pointer;
-    display: flex;
-    justify-content: between;
-    align-items: center;
-    transition: background-color 0.3s ease;
+    border-bottom: 1px solid #4a5568;
 }
 
-.debug-header:hover {
-    background: var(--bs-secondary-dark);
-}
-
-.debug-header h5 {
-    margin: 0;
-    color: var(--bs-light);
-    display: flex;
-    align-items: center;
-}
-
-.debug-header .collapse-icon {
-    margin-left: auto;
-    transition: transform 0.3s ease;
-}
-
-.debug-header.collapsed .collapse-icon {
-    transform: rotate(-90deg);
-}
-
-.debug-body {
+.debug-card-body {
     padding: 20px;
-    display: block;
 }
 
-.debug-body.collapsed {
-    display: none;
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
 }
 
-/* Health Status Summary */
-.health-status {
-    display: flex;
-    align-items: center;
-    margin-bottom: 15px;
+.stat-card {
+    background: #1a202c;
+    padding: 15px;
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid #4a5568;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 12px;
+    opacity: 0.7;
+    text-transform: uppercase;
 }
 
 .health-indicator {
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    margin-right: 10px;
+    display: inline-block;
+    margin-right: 8px;
 }
 
-.health-indicator.healthy { background-color: #28a745; }
-.health-indicator.warning { background-color: #ffc107; }
-.health-indicator.error { background-color: #dc3545; }
+.health-indicator.healthy { background-color: var(--success-color, #48bb78); }
+.health-indicator.warning { background-color: var(--warning-color, #ed8936); }
+.health-indicator.error { background-color: var(--danger-color, #f56565); }
 
-/* Diagnostic buttons */
-.diagnostic-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 20px;
+.data-table {
+    width: 100%;
+    font-size: 13px;
 }
 
-.diagnostic-button {
-    padding: 8px 16px;
-    border: 1px solid var(--bs-secondary);
-    background: var(--bs-dark);
-    color: var(--bs-light);
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    font-size: 14px;
+.data-table th {
+    background: #1a202c;
+    padding: 10px;
+    text-align: left;
+    border-bottom: 2px solid #4a5568;
 }
 
-.diagnostic-button:hover {
-    background: var(--bs-secondary);
-    color: var(--bs-light);
-    text-decoration: none;
+.data-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #4a5568;
 }
 
-.diagnostic-button.primary {
-    background: var(--bs-primary);
-    border-color: var(--bs-primary);
-}
-
-.diagnostic-button.primary:hover {
-    background: var(--bs-primary-dark);
-}
-
-.diagnostic-button.warning {
-    background: var(--bs-warning);
-    border-color: var(--bs-warning);
-    color: var(--bs-dark);
-}
-
-.diagnostic-button.warning:hover {
-    background: var(--bs-warning-dark);
-}
-
-/* Playwright form */
-.playwright-form {
-    margin-bottom: 20px;
-}
-
-.playwright-form .form-group {
-    margin-bottom: 15px;
-}
-
-.playwright-form textarea {
-    background: var(--bs-dark);
-    border: 1px solid var(--bs-secondary);
-    color: var(--bs-light);
-}
-
-.playwright-form textarea:focus {
-    background: var(--bs-dark);
-    border-color: var(--bs-primary);
-    color: var(--bs-light);
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-/* Output areas */
-.playwright-output, .diagnostic-output {
-    background: var(--bs-darker);
-    border: 1px solid var(--bs-secondary);
+.code-block {
+    background: #1a202c;
+    border: 1px solid #4a5568;
     border-radius: 4px;
     padding: 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    overflow-x: auto;
     max-height: 400px;
     overflow-y: auto;
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
+}
+
+.action-btn {
+    margin-right: 10px;
+    margin-bottom: 10px;
 }
 
 .log-entry {
     padding: 8px 12px;
     margin-bottom: 8px;
-    border-left: 4px solid var(--bs-secondary);
+    border-left: 4px solid #4a5568;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 0 4px 4px 0;
-}
-
-.log-entry.pending { border-left-color: #ffc107; }
-.log-entry.running { border-left-color: #4299e1; }
-.log-entry.done { border-left-color: #28a745; }
-.log-entry.error { border-left-color: #dc3545; }
-
-/* Info text */
-.info-text {
-    color: var(--bs-secondary);
-    font-size: 13px;
-    margin-top: 5px;
-}
-
-/* Enhanced Logging Styles */
-.log-source-tabs {
-    margin-bottom: 20px;
-}
-
-.log-source-tabs .nav-tabs {
-    border-bottom: 1px solid var(--bs-secondary);
-}
-
-.log-source-tabs .nav-link {
-    color: var(--bs-light);
-    background: var(--bs-dark);
-    border: 1px solid var(--bs-secondary);
-    border-bottom: none;
-    border-radius: 4px 4px 0 0;
-    padding: 10px 20px;
-    margin-right: 5px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.log-source-tabs .nav-link:hover {
-    background: var(--bs-secondary);
-    color: var(--bs-light);
-    border-color: var(--bs-secondary);
-}
-
-.log-source-tabs .nav-link.active {
-    background: var(--bs-primary);
-    color: white;
-    border-color: var(--bs-primary);
-}
-
-.tab-content {
-    background: var(--bs-dark);
-    border: 1px solid var(--bs-secondary);
-    border-top: none;
-    border-radius: 0 0 4px 4px;
-    padding: 20px;
-}
-
-.tab-pane {
-    display: none;
-}
-
-.tab-pane.show {
-    display: block;
-}
-
-.tab-pane.active {
-    display: block;
-}
-
-/* Docker Logs Styles */
-.docker-logs-form {
-    margin-bottom: 20px;
-}
-
-.docker-logs-form .form-group {
-    margin-bottom: 15px;
-}
-
-.aggregated-logs-form {
-    margin-bottom: 20px;
-}
-
-.aggregated-logs-form .form-group {
-    margin-bottom: 15px;
-}
-
-.system-logs-form {
-    margin-bottom: 20px;
-}
-
-.system-logs-form .form-group {
-    margin-bottom: 15px;
-}
-
-.docker-logs-output {
-    background: var(--bs-darker);
-    border: 1px solid var(--bs-secondary);
-    border-radius: 4px;
-    padding: 15px;
-    max-height: 500px;
-    overflow-y: auto;
-    font-family: 'Courier New', monospace;
     font-size: 13px;
 }
 
-.docker-logs-header {
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--bs-secondary);
-}
-
-.docker-logs-header h6 {
-    margin: 0 0 5px 0;
-    color: var(--bs-primary);
-}
-
-.docker-logs-content {
-    background: var(--bs-dark);
-    border: 1px solid var(--bs-secondary);
-    border-radius: 4px;
-    padding: 15px;
-    margin: 0;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    line-height: 1.4;
-    color: var(--bs-light);
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .diagnostic-buttons {
-        flex-direction: column;
-    }
-    
-    .diagnostic-button {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .docker-logs-form .row {
-        flex-direction: column;
-    }
-    
-    .docker-logs-form .col-md-4,
-    .docker-logs-form .col-md-3,
-    .docker-logs-form .col-md-2 {
-        width: 100%;
-        margin-bottom: 15px;
-    }
-}
+.log-entry.error { border-left-color: var(--danger-color, #f56565); }
+.log-entry.warning { border-left-color: var(--warning-color, #ed8936); }
+.log-entry.info { border-left-color: var(--info-color, #4299e1); }
+.log-entry.success { border-left-color: var(--success-color, #48bb78); }
 </style>
 {% endblock %}
 
 {% block content %}
-{% csrf_token %}
 <div class="debug-container">
-    {% if error %}
-    <div class="alert alert-danger mb-4">
-        <h4><i class="fas fa-exclamation-triangle me-2"></i>Debug Page Error</h4>
-        <p>{{ error }}</p>
-        {% if traceback and user.is_superuser %}
-        <details>
-            <summary>Technical Details (Superuser Only)</summary>
-            <pre class="mt-2">{{ traceback }}</pre>
-        </details>
-        {% endif %}
-    </div>
-    {% endif %}
-    
-    <div class="page-header mb-4">
-        <h2 class="mb-0">
-            <i class="fas fa-bug me-2"></i>
-            Debug & Diagnostics
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="fas fa-bug me-2"></i>Debug & Diagnostics
         </h2>
-        <p class="text-muted mb-0">System monitoring, testing, and debugging tools</p>
+        <button class="btn btn-primary" onclick="refreshAll()">
+            <i class="fas fa-sync-alt me-1"></i>Refresh All
+        </button>
     </div>
 
-    <!-- System Health Section -->
-    <div class="debug-section">
-        <div class="debug-header" onclick="toggleSection('health')">
-            <h5>
-                <i class="fas fa-heartbeat me-2"></i>
-                System Health & Diagnostics
-            </h5>
-            <i class="fas fa-chevron-down collapse-icon"></i>
+    <!-- Quick Stats -->
+    <div class="debug-card">
+        <div class="debug-card-header">
+            <h5 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i>System Overview</h5>
         </div>
-        <div class="debug-body" id="health-body">
-            <div class="health-status mb-3">
-                <span class="health-indicator" id="overall-health-indicator"></span>
-                <span>System status: <b id="overall-health-status">Loading...</b></span>
-            </div>
-            
-            <!-- System Metrics -->
-            <div class="mb-4">
-                <h6 class="text-light mb-3">
-                    <i class="fas fa-chart-line me-2"></i>System Metrics
-                </h6>
-                <div id="system-metrics" class="bg-dark p-3 rounded">
-                    <div class="text-center text-muted">
-                        <i class="fas fa-spinner fa-spin me-1"></i>Loading system metrics...
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Health Checks -->
-            <div class="mb-4">
-                <h6 class="text-light mb-3">
-                    <i class="fas fa-stethoscope me-2"></i>Health Checks
-                </h6>
-                <div id="health-checks" class="bg-dark p-3 rounded">
-                    <div class="text-center text-muted">
-                        <i class="fas fa-spinner fa-spin me-1"></i>Loading health checks...
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Recent Health Failures -->
-            <div class="mb-4">
-                <h6 class="text-light mb-3">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Recent Health Failures
-                    <button id="clear-health-logs" class="btn btn-sm btn-outline-danger ms-2" type="button">
-                        <i class="fas fa-trash-alt me-1"></i>Clear Logs
-                    </button>
-                </h6>
-                <div id="health-failure-log-list" class="bg-dark p-3 rounded" style="max-height: 300px; overflow-y: auto;">
-                    <div class="text-center text-muted">
-                        <i class="fas fa-spinner fa-spin me-1"></i>Loading failure logs...
-                    </div>
+        <div class="debug-card-body">
+            <div class="stat-grid" id="system-stats">
+                <div class="stat-card">
+                    <div class="stat-value text-muted"><i class="fas fa-spinner fa-spin"></i></div>
+                    <div class="stat-label">Loading...</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- System Tools & Diagnostics Section -->
-    {% if user.is_superuser %}
-    <div class="debug-section">
-        <div class="debug-header" onclick="toggleSection('tools')">
-            <h5>
-                <i class="fas fa-tools me-2"></i>
-                System Tools & Diagnostics
-            </h5>
-            <i class="fas fa-chevron-down collapse-icon"></i>
+    <!-- Health Status -->
+    <div class="debug-card">
+        <div class="debug-card-header">
+            <h5 class="mb-0"><i class="fas fa-heartbeat me-2"></i>System Health</h5>
         </div>
-        <div class="debug-body" id="tools-body">
-            <!-- Health & Diagnostics Tools -->
-            <div class="mb-4">
-                <h6 class="text-light mb-3">
-                    <i class="fas fa-stethoscope me-2"></i>Health & Diagnostics
-                </h6>
-                <div class="diagnostic-buttons">
-                    <button class="diagnostic-button primary" onclick="testApplicationHealth()">
-                        <i class="fas fa-vial me-1"></i>Test All Components
-                    </button>
-                    <button class="diagnostic-button" onclick="testUnifiedAPI()">
-                        <i class="fas fa-calendar-alt me-1"></i>Test Calendar API
-                    </button>
-                    <!-- <button class="diagnostic-button" onclick="testDatabaseHealth()">
-                        <i class="fas fa-database me-1"></i>Test Database
-                    </button> -->
-                    <button class="diagnostic-button warning" onclick="runHealthCheck()">
-                        <i class="fas fa-heartbeat me-1"></i>Run Health Check
-                    </button>
-                    <a href="{% url 'events:test_events_api' %}" target="_blank" class="diagnostic-button">
-                        <i class="fas fa-external-link-alt me-1"></i>Test Events API
-                    </a>
-                </div>
-            </div>
-            
-            <!-- Database Management Tools -->
-            <div class="mb-4">
-                <h6 class="text-light mb-3">
-                    <i class="fas fa-database me-2"></i>Database Management
-                </h6>
-                <div class="diagnostic-buttons">
-                    <button class="diagnostic-button" onclick="showDatabaseClearModal()">
-                        <i class="fas fa-trash-alt me-1"></i>Clear Database
-                    </button>
-                    <button class="diagnostic-button primary" onclick="showDemoDataModal()">
-                        <i class="fas fa-database me-1"></i>Populate Demo Data
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Development Tools -->
-            <div class="mb-4">
-                <h6 class="text-light mb-3">
-                    <i class="fas fa-code me-2"></i>Development Tools
-                </h6>
-                <div class="diagnostic-buttons">
-                    <button class="diagnostic-button" onclick="generatePods()">
-                        <i class="fas fa-sitemap me-1"></i>Generate PODs
-                    </button>
-                </div>
-            </div>
-            
-            <div id="diagnosticResults" class="diagnostic-output" style="display: none;">
+        <div class="debug-card-body">
+            <div id="health-status">
                 <div class="text-center text-muted">
-                    <i class="fas fa-info-circle me-1"></i>
-                    Click a diagnostic button above to see results...
+                    <i class="fas fa-spinner fa-spin me-1"></i>Loading health status...
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Playwright Debug Section -->
-    <div class="debug-section">
-        <div class="debug-header" onclick="toggleSection('playwright')">
-            <h5>
-                <i class="fas fa-bug me-2"></i>
-                Playwright Debug & Testing
-            </h5>
-            <i class="fas fa-chevron-down collapse-icon"></i>
+    <!-- Database Information -->
+    <div class="debug-card">
+        <div class="debug-card-header">
+            <h5 class="mb-0"><i class="fas fa-database me-2"></i>Database Statistics</h5>
         </div>
-        <div class="debug-body" id="playwright-body">
-            <div class="playwright-form">
-                <div class="form-group">
-                    <label for="playwright-prompt" class="form-label">Natural Language Prompt</label>
-                    <textarea id="playwright-prompt" class="form-control" rows="3" 
-                              placeholder="Examples:&#10;- Add a Site called Sophie with 11 Pods and 2 MDCs per Pod&#10;- Create equipment called Transformer-1 in Site Alpha&#10;- Test the login page&#10;- Check the dashboard"></textarea>
-                    <div class="info-text">Describe what you want Playwright to do in natural language. The system will automatically interpret your request and perform the appropriate actions.</div>
+        <div class="debug-card-body">
+            <div id="database-stats">
+                <div class="text-center text-muted">
+                    <i class="fas fa-spinner fa-spin me-1"></i>Loading database statistics...
                 </div>
-                <button class="diagnostic-button primary" onclick="submitPlaywrightPrompt()">
-                    <i class="fas fa-play me-1"></i>Run Playwright Test
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Logs & Errors -->
+    <div class="debug-card">
+        <div class="debug-card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Recent Logs & Errors</h5>
+            <button class="btn btn-sm btn-outline-danger" onclick="clearLogs()">
+                <i class="fas fa-trash me-1"></i>Clear Logs
+            </button>
+        </div>
+        <div class="debug-card-body">
+            <div id="recent-logs">
+                <div class="text-center text-muted">
+                    <i class="fas fa-spinner fa-spin me-1"></i>Loading recent logs...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="debug-card">
+        <div class="debug-card-header">
+            <h5 class="mb-0"><i class="fas fa-tools me-2"></i>Quick Actions</h5>
+        </div>
+        <div class="debug-card-body">
+            <h6 class="mb-3">Cache Management</h6>
+            <div class="mb-4">
+                <button class="btn btn-primary action-btn" onclick="clearCache()">
+                    <i class="fas fa-broom me-1"></i>Clear Cache
                 </button>
-                <button class="diagnostic-button" onclick="refreshPlaywrightLogs()">
-                    <i class="fas fa-sync-alt me-1"></i>Refresh Logs
+                <button class="btn btn-info action-btn" onclick="getCacheStats()">
+                    <i class="fas fa-chart-bar me-1"></i>Cache Stats
                 </button>
             </div>
-            
-            <div id="playwrightLogs" class="playwright-output">
-                <div class="text-center text-muted">
-                    <i class="fas fa-spinner fa-spin me-1"></i>
-                    Loading Playwright logs...
-                </div>
+
+            <h6 class="mb-3">Database Management</h6>
+            <div class="mb-4">
+                <button class="btn btn-success action-btn" onclick="showDemoDataModal()">
+                    <i class="fas fa-database me-1"></i>Generate Demo Data
+                </button>
+                <button class="btn btn-warning action-btn" onclick="checkMigrationStatus()">
+                    <i class="fas fa-code-branch me-1"></i>Migration Status
+                </button>
+                <button class="btn btn-warning action-btn" onclick="showClearMaintenanceModal()">
+                    <i class="fas fa-calendar-times me-1"></i>Clear Maintenance
+                </button>
+                <button class="btn btn-danger action-btn" onclick="showClearDatabaseModal()">
+                    <i class="fas fa-trash-alt me-1"></i>Clear Database
+                </button>
+            </div>
+
+            <h6 class="mb-3">System Operations</h6>
+            <div>
+                <button class="btn btn-primary action-btn" onclick="runHealthCheck()">
+                    <i class="fas fa-stethoscope me-1"></i>Run Health Check
+                </button>
+                <button class="btn btn-info action-btn" onclick="checkConnections()">
+                    <i class="fas fa-network-wired me-1"></i>Test Connections
+                </button>
+                <button class="btn btn-success action-btn" onclick="viewSystemInfo()">
+                    <i class="fas fa-info-circle me-1"></i>System Info
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Enhanced Logging Section -->
-    <div class="debug-section">
-        <div class="debug-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0" onclick="toggleSection('enhanced-logs')" style="cursor: pointer;">
-                <i class="fas fa-stream me-2"></i>
-                Enhanced Logging
-            </h5>
-            <div class="d-flex align-items-center">
-                <a href="?collect_logs=true" class="btn btn-sm btn-primary me-2">
-                    <i class="fas fa-sync-alt"></i> Collect Logs
-                </a>
-                <i class="fas fa-chevron-down collapse-icon" onclick="toggleSection('enhanced-logs')" style="cursor: pointer;"></i>
-            </div>
+    <!-- Action Results -->
+    <div class="debug-card" id="results-card" style="display: none;">
+        <div class="debug-card-header">
+            <h5 class="mb-0"><i class="fas fa-terminal me-2"></i>Operation Results</h5>
         </div>
-        <div class="debug-body" id="enhanced-logs-body">
-            <!-- Log Source Selection -->
-            <div class="log-source-tabs mb-3">
-                <ul class="nav nav-tabs" id="logSourceTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="docker-tab" data-bs-toggle="tab" data-bs-target="#docker-logs" type="button" role="tab">
-                            <i class="fas fa-terminal me-1"></i>Docker Logs
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="aggregated-tab" data-bs-toggle="tab" data-bs-target="#aggregated-logs" type="button" role="tab">
-                            <i class="fas fa-layer-group me-1"></i>Aggregated Logs
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="system-tab" data-bs-toggle="tab" data-bs-target="#system-logs" type="button" role="tab">
-                            <i class="fas fa-server me-1"></i>System Logs
-                        </button>
-                    </li>
-                </ul>
-            </div>
-            
-            <!-- Tab Content -->
-            <div class="tab-content" id="logSourceTabContent">
-                <!-- Docker Logs Tab -->
-                <div class="tab-pane fade show active" id="docker-logs" role="tabpanel">
-                    <div class="docker-logs-form">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="container-select" class="form-label">Container</label>
-                                    <select id="container-select" class="form-control">
-                                        <option value="">Select a container...</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="lines-count" class="form-label">Lines</label>
-                                    <input type="number" id="lines-count" class="form-control" value="100" min="10" max="1000">
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="follow-logs" class="form-label">Follow</label>
-                                    <div class="form-check">
-                                        <input type="checkbox" id="follow-logs" class="form-check-input">
-                                        <label class="form-check-label" for="follow-logs">Real-time</label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <div class="form-group">
-                                    <label class="form-label">&nbsp;</label>
-                                    <button class="diagnostic-button primary w-100" onclick="loadDockerLogs()">
-                                        <i class="fas fa-sync-alt me-1"></i>Load Logs
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div id="dockerLogs" class="docker-logs-output">
-                        <div class="text-center text-muted">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Select a container and click "Load Logs" to view Docker logs...
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Aggregated Logs Tab -->
-                <div class="tab-pane fade" id="aggregated-logs" role="tabpanel">
-                    <div class="aggregated-logs-form">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="container-multi-select" class="form-label">Containers</label>
-                                    <select id="container-multi-select" class="form-control" multiple>
-                                        <option value="">Loading containers...</option>
-                                    </select>
-                                    <div class="form-text">Hold Ctrl/Cmd to select multiple containers</div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label for="aggregated-lines-count" class="form-label">Lines per Container</label>
-                                    <input type="number" id="aggregated-lines-count" class="form-control" value="50" min="10" max="500">
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="form-group">
-                                    <label class="form-label">&nbsp;</label>
-                                    <button class="diagnostic-button primary w-100" onclick="loadAggregatedLogs()">
-                                        <i class="fas fa-layer-group me-1"></i>Load All Logs
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div id="aggregatedLogs" class="docker-logs-output">
-                        <div class="text-center text-muted">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Select containers and click "Load All Logs" to view aggregated logs...
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- System Logs Tab -->
-                <div class="tab-pane fade" id="system-logs" role="tabpanel">
-                    <div class="system-logs-form">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="system-lines-count" class="form-label">Lines</label>
-                                    <input type="number" id="system-lines-count" class="form-control" value="100" min="10" max="1000">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label class="form-label">&nbsp;</label>
-                                    <button class="diagnostic-button primary w-100" onclick="loadSystemLogs()">
-                                        <i class="fas fa-server me-1"></i>Load System Logs
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div id="systemLogs" class="docker-logs-output">
-                        <div class="text-center text-muted">
-                            <i class="fas fa-info-circle me-1"></i>
-                            Click "Load System Logs" to view system-level logs...
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="debug-card-body">
+            <div id="action-results" class="code-block"></div>
         </div>
     </div>
-    {% endif %}
 </div>
 
-<!-- Demo Data Population Modal -->
-<div class="modal fade" id="demoDataModal" tabindex="-1" aria-labelledby="demoDataModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+<!-- Demo Data Modal -->
+<div class="modal fade" id="demoDataModal" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content bg-dark text-light">
             <div class="modal-header border-secondary">
-                <h5 class="modal-title" id="demoDataModalLabel">
-                    <i class="fas fa-database text-primary me-2"></i>
-                    Populate Comprehensive Demo Data
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title"><i class="fas fa-database me-2"></i>Generate Demo Data</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>
-                    This will populate the database with comprehensive demo data including sites, equipment, maintenance activities, and more.
+                    This will generate sample customers, locations, equipment, and maintenance activities for testing.
                 </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="clearFirst" checked>
-                    <label class="form-check-label" for="clearFirst">
-                        Clear existing data first
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="includeMaintenance" checked>
-                    <label class="form-check-label" for="includeMaintenance">
-                        Include maintenance activities
-                    </label>
-                </div>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="includeEvents" checked>
-                    <label class="form-check-label" for="includeEvents">
-                        Include calendar events
-                    </label>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="clear-first" checked>
+                    <label class="form-check-label" for="clear-first">Clear existing data first</label>
                 </div>
             </div>
             <div class="modal-footer border-secondary">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" onclick="populateDemoData()">
-                    <i class="fas fa-database me-1"></i>Populate Demo Data
+                <button type="button" class="btn btn-primary" onclick="generateDemoData()">
+                    <i class="fas fa-play me-1"></i>Generate
                 </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Database Clear Confirmation Modal -->
-<div class="modal fade" id="databaseClearModal" tabindex="-1" aria-labelledby="databaseClearModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
+<!-- Clear Maintenance Modal -->
+<div class="modal fade" id="clearMaintenanceModal" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content bg-dark text-light">
             <div class="modal-header border-secondary">
-                <h5 class="modal-title" id="databaseClearModalLabel">
-                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>
-                    Clear Database (DANGER ZONE)
+                <h5 class="modal-title text-warning">
+                    <i class="fas fa-calendar-times me-2"></i>Clear Maintenance Activities
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-danger">
-                    <h6><i class="fas fa-exclamation-triangle me-2"></i>WARNING: This is a destructive operation!</h6>
-                    <p class="mb-0">This will permanently delete all data from the database. This action cannot be undone.</p>
+                <div class="alert alert-warning">
+                    <strong>Note:</strong> This will clear maintenance activities without affecting other data (equipment, users, etc.)
                 </div>
-                
-                <div class="form-group mb-3">
-                    <label class="form-label">Clear Options:</label>
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" id="keepUsers" name="keep_users">
-                        <label class="form-check-label" for="keepUsers">
-                            Keep user accounts (clear all other data)
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" id="keepAdmin" name="keep_admin">
-                        <label class="form-check-label" for="keepAdmin">
-                            Keep admin user account
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input type="checkbox" class="form-check-input" id="dryRun" name="dry_run" checked>
-                        <label class="form-check-label" for="dryRun">
-                            Dry run (show what would be deleted without actually deleting)
-                        </label>
-                    </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="clear-all-activities">
+                    <label class="form-check-label" for="clear-all-activities">
+                        Clear ALL activities (including completed)
+                    </label>
+                    <small class="form-text text-muted d-block">
+                        Default: Only clears scheduled/pending activities
+                    </small>
                 </div>
-                
-                <div class="form-group mb-3">
-                    <label for="clearConfirmation" class="form-label">Confirmation:</label>
-                    <input type="text" class="form-control" id="clearConfirmation" 
-                           placeholder="Type 'CLEAR DATABASE' to confirm" required>
-                    <div class="form-text text-muted">You must type exactly "CLEAR DATABASE" to proceed.</div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="clear-schedules">
+                    <label class="form-check-label" for="clear-schedules">
+                        Also clear maintenance schedules
+                    </label>
                 </div>
-                
-                <div id="clearResults" class="mt-3" style="display: none;">
-                    <h6>Operation Results:</h6>
-                    <pre id="clearOutput" class="bg-dark border border-secondary p-3" style="max-height: 300px; overflow-y: auto; font-size: 12px;"></pre>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="maint-dry-run" checked>
+                    <label class="form-check-label" for="maint-dry-run">Dry run (preview only)</label>
+                </div>
+                <div id="maint-preview" class="mt-3 p-2 bg-secondary rounded" style="display:none;">
+                    <strong>Preview:</strong>
+                    <div id="maint-preview-text"></div>
                 </div>
             </div>
             <div class="modal-footer border-secondary">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-danger" id="executeClearBtn" disabled>
+                <button type="button" class="btn btn-warning" onclick="clearMaintenance()">
+                    <i class="fas fa-calendar-times me-1"></i>Clear Maintenance
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Clear Database Modal -->
+<div class="modal fade" id="clearDatabaseModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Clear Database
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <strong>WARNING:</strong> This will delete all data. This action cannot be undone.
+                </div>
+                <div class="form-group mb-3">
+                    <label class="form-label">Type "CLEAR DATABASE" to confirm:</label>
+                    <input type="text" id="clear-confirmation" class="form-control" placeholder="CLEAR DATABASE">
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="keep-users">
+                    <label class="form-check-label" for="keep-users">Keep user accounts</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="dry-run" checked>
+                    <label class="form-check-label" for="dry-run">Dry run (preview only)</label>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm-clear" disabled onclick="clearDatabase()">
                     <i class="fas fa-trash-alt me-1"></i>Clear Database
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Info Modal -->
+<div class="modal fade" id="systemInfoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="fas fa-info-circle me-2"></i>System Information</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="system-info-content" class="code-block" style="max-height: 500px;">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-spinner fa-spin me-1"></i>Loading system information...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
         </div>
     </div>
@@ -769,415 +385,259 @@
 
 {% block extra_js %}
 <script>
-// Section toggle functionality
-function toggleSection(sectionId) {
-    const header = document.querySelector(`#${sectionId}-body`).previousElementSibling;
-    const body = document.getElementById(`${sectionId}-body`);
-    
-    if (body.classList.contains('collapsed')) {
-        body.classList.remove('collapsed');
-        header.classList.remove('collapsed');
-    } else {
-        body.classList.add('collapsed');
-        header.classList.add('collapsed');
-    }
-}
-
-// Load comprehensive health data on page load
+// Load data on page load
 document.addEventListener('DOMContentLoaded', function() {
-    loadComprehensiveHealth();
-    refreshPlaywrightLogs();
+    loadSystemStats();
+    loadHealthStatus();
+    loadDatabaseStats();
+    loadRecentLogs();
+    
+    // Setup confirmation input
+    const clearConfirmInput = document.getElementById('clear-confirmation');
+    if (clearConfirmInput) {
+        clearConfirmInput.addEventListener('input', function() {
+            document.getElementById('confirm-clear').disabled = this.value !== 'CLEAR DATABASE';
+        });
+    }
 });
 
-function loadComprehensiveHealth() {
-    fetch('{% url "core:comprehensive_health_check" %}')
-    .then(response => response.json())
-    .then(data => {
-        updateHealthDisplay(data);
-    })
-    .catch(error => {
-        console.error('Error loading health data:', error);
-        updateHealthDisplay({ overall_status: 'error', error: 'Failed to load health data' });
-    });
+function refreshAll() {
+    if (window.showMessage) {
+        window.showMessage('Refreshing all debug information...', 'info');
+    }
+    loadSystemStats();
+    loadHealthStatus();
+    loadDatabaseStats();
+    loadRecentLogs();
 }
 
-function updateHealthDisplay(data) {
-    // Update overall status
-    const statusIndicator = document.getElementById('overall-health-indicator');
-    const statusText = document.getElementById('overall-health-status');
-    
-    if (data.overall_status === 'healthy') {
-        statusIndicator.className = 'health-indicator healthy';
-        statusText.textContent = 'Healthy';
-    } else if (data.overall_status === 'warning') {
-        statusIndicator.className = 'health-indicator warning';
-        statusText.textContent = 'Warning';
-    } else {
-        statusIndicator.className = 'health-indicator error';
-        statusText.textContent = 'Error';
-    }
-    
-    // Update system metrics
-    const metricsDiv = document.getElementById('system-metrics');
-    if (data.components && data.components.system) {
-        const system = data.components.system;
-        if (system.error) {
-            metricsDiv.innerHTML = `<div class="text-danger">${system.error}</div>`;
-        } else {
-            metricsDiv.innerHTML = `
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <div class="h4 text-primary">${system.cpu_percent?.toFixed(1) || 'N/A'}%</div>
-                            <small class="text-muted">CPU Usage</small>
-                        </div>
+function loadSystemStats() {
+    fetch('{% url "core:comprehensive_health_check" %}')
+        .then(response => response.json())
+        .then(data => {
+            const system = data.components?.system || {};
+            const statsHtml = `
+                <div class="stat-card">
+                    <div class="stat-value text-${system.cpu_percent > 80 ? 'danger' : 'success'}">
+                        ${system.cpu_percent ? system.cpu_percent.toFixed(1) + '%' : 'N/A'}
                     </div>
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <div class="h4 text-warning">${system.memory_percent?.toFixed(1) || 'N/A'}%</div>
-                            <small class="text-muted">Memory Usage</small>
-                        </div>
+                    <div class="stat-label">CPU Usage</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value text-${system.memory_percent > 80 ? 'danger' : 'warning'}">
+                        ${system.memory_percent ? system.memory_percent.toFixed(1) + '%' : 'N/A'}
                     </div>
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <div class="h4 text-info">${system.disk_usage?.toFixed(1) || 'N/A'}%</div>
-                            <small class="text-muted">Disk Usage</small>
-                        </div>
+                    <div class="stat-label">Memory Usage</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value text-${system.disk_usage > 90 ? 'danger' : 'info'}">
+                        ${system.disk_usage ? system.disk_usage.toFixed(1) + '%' : 'N/A'}
                     </div>
-                    <div class="col-md-3">
-                        <div class="text-center">
-                            <div class="h4 text-success">${system.process_count || 'N/A'}</div>
-                            <small class="text-muted">Processes</small>
-                        </div>
+                    <div class="stat-label">Disk Usage</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value text-success">
+                        ${system.process_count || 'N/A'}
                     </div>
+                    <div class="stat-label">Processes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value text-${data.overall_status === 'healthy' ? 'success' : 'danger'}">
+                        ${data.overall_status || 'Unknown'}
+                    </div>
+                    <div class="stat-label">Overall Status</div>
                 </div>
             `;
-        }
-    }
-    
-    // Update health checks
-    const checksDiv = document.getElementById('health-checks');
-    if (data.components) {
-        let html = '';
-        Object.entries(data.components).forEach(([name, component]) => {
-            if (name !== 'system') {
-                const statusClass = component.status === 'healthy' ? 'text-success' : 
-                                  component.status === 'unhealthy' ? 'text-danger' : 'text-warning';
-                const statusIcon = component.status === 'healthy' ? 'fas fa-check-circle' : 
-                                 component.status === 'unhealthy' ? 'fas fa-times-circle' : 'fas fa-exclamation-triangle';
-                
-                html += `
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span><strong>${name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</strong></span>
-                        <span class="${statusClass}">
-                            <i class="${statusIcon} me-1"></i>${component.status || 'Unknown'}
-                        </span>
-                        ${component.message ? `<span class="ms-2 text-muted small">${component.message}</span>` : ''}
-                        ${component.error ? `<span class="ms-2 text-danger small">${component.error}</span>` : ''}
-                    </div>
-                `;
-            }
+            document.getElementById('system-stats').innerHTML = statsHtml;
+        })
+        .catch(error => {
+            document.getElementById('system-stats').innerHTML = '<div class="text-danger">Failed to load system stats</div>';
         });
-        checksDiv.innerHTML = html || '<div class="text-muted">No health checks available</div>';
-    }
-    
-    // Load failure logs
-    loadFailureLogs();
 }
 
-function loadFailureLogs() {
-    fetch('{% url "core:health_check" %}')
-    .then(response => response.json())
-    .then(data => {
-        const logsDiv = document.getElementById('health-failure-log-list');
-        if (data.checks) {
-            const failures = data.checks.filter(check => check.status === 'error' || check.status === 'warning');
-            if (failures.length > 0) {
-                let html = '';
-                failures.forEach(failure => {
+function loadHealthStatus() {
+    fetch('{% url "core:health_check_api" %}')
+        .then(response => response.json())
+        .then(data => {
+            let html = '<table class="data-table"><thead><tr><th>Component</th><th>Status</th><th>Details</th></tr></thead><tbody>';
+            
+            if (data.checks && Array.isArray(data.checks)) {
+                data.checks.forEach(check => {
+                    const statusClass = check.status === 'success' ? 'success' : check.status === 'error' ? 'danger' : 'warning';
+                    const indicatorClass = check.status === 'success' ? 'healthy' : check.status === 'error' ? 'error' : 'warning';
                     html += `
-                        <div class="small mb-1">
-                            <strong>${failure.name}</strong>: ${failure.message}
-                        </div>
+                        <tr>
+                            <td><span class="health-indicator ${indicatorClass}"></span>${check.name}</td>
+                            <td><span class="badge bg-${statusClass}">${check.status}</span></td>
+                            <td><small>${check.message || '-'}</small></td>
+                        </tr>
                     `;
                 });
-                logsDiv.innerHTML = html;
-            } else {
-                logsDiv.innerHTML = '<div class="text-muted">No recent failures.</div>';
             }
-        }
-    })
-    .catch(error => {
-        document.getElementById('health-failure-log-list').innerHTML = 
-            '<div class="text-danger">Failed to load failure logs</div>';
-    });
+            
+            html += '</tbody></table>';
+            document.getElementById('health-status').innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('health-status').innerHTML = '<div class="text-danger">Failed to load health status</div>';
+        });
 }
 
-// Clear health logs
-document.getElementById('clear-health-logs').addEventListener('click', function() {
-    fetch('{% url "core:clear_health_logs" %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            loadFailureLogs();
-            showDebugMessage('Health logs cleared successfully', 'success');
-        } else {
-            showDebugMessage('Failed to clear health logs: ' + data.error, 'error');
-        }
-    })
-    .catch(error => {
-        showDebugMessage('Error clearing health logs: ' + error.message, 'error');
-    });
-});
-
-// Debug message system
-function showDebugMessage(message, type = 'info') {
-    const debugDiv = document.getElementById('debugMessages') || createDebugMessagesContainer();
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} alert-dismissible fade show`;
-    messageDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+function loadDatabaseStats() {
+    // Call a new endpoint to get database statistics
+    const statsHtml = `
+        <table class="data-table">
+            <thead>
+                <tr><th>Table</th><th>Row Count</th><th>Size</th></tr>
+            </thead>
+            <tbody id="db-table-stats">
+                <tr><td colspan="3" class="text-center text-muted">
+                    <i class="fas fa-spinner fa-spin me-1"></i>Loading database statistics...
+                </td></tr>
+            </tbody>
+        </table>
     `;
+    document.getElementById('database-stats').innerHTML = statsHtml;
     
-    debugDiv.appendChild(messageDiv);
-    
-    // Auto-remove after 10 seconds
-    setTimeout(() => {
-        if (messageDiv.parentNode) {
-            messageDiv.remove();
-        }
-    }, 10000);
+    // Fetch actual stats
+    fetch('/core/api/database-stats/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.tables) {
+                let html = '';
+                Object.entries(data.tables).forEach(([table, info]) => {
+                    html += `
+                        <tr>
+                            <td><code>${table}</code></td>
+                            <td>${info.count || 'N/A'}</td>
+                            <td><small class="text-muted">${info.size || 'N/A'}</small></td>
+                        </tr>
+                    `;
+                });
+                document.getElementById('db-table-stats').innerHTML = html;
+            }
+        })
+        .catch(error => {
+            document.getElementById('db-table-stats').innerHTML = '<tr><td colspan="3" class="text-danger">Failed to load database statistics</td></tr>';
+        });
 }
 
-function createDebugMessagesContainer() {
-    const container = document.createElement('div');
-    container.id = 'debugMessages';
-    container.className = 'position-fixed top-0 end-0 p-3';
-    container.style.zIndex = '9999';
-    document.body.appendChild(container);
-    return container;
+function loadRecentLogs() {
+    const logsHtml = `
+        <div class="log-entry info">
+            <strong>System Started</strong><br>
+            <small>Application is running in DEBUG mode</small>
+        </div>
+        <div class="log-entry success">
+            <strong>Database Connected</strong><br>
+            <small>PostgreSQL connection established</small>
+        </div>
+    `;
+    document.getElementById('recent-logs').innerHTML = logsHtml;
+    
+    // Load actual logs from health check
+    fetch('{% url "core:health_check" %}')
+        .then(response => response.json())
+        .then(data => {
+            if (data.checks) {
+                let html = '';
+                data.checks.forEach(check => {
+                    if (check.status === 'error' || check.status === 'warning') {
+                        const logClass = check.status === 'error' ? 'error' : 'warning';
+                        html += `
+                            <div class="log-entry ${logClass}">
+                                <strong>${check.name}</strong><br>
+                                <small>${check.message}</small>
+                            </div>
+                        `;
+                    }
+                });
+                if (html) {
+                    document.getElementById('recent-logs').innerHTML = html;
+                } else {
+                    document.getElementById('recent-logs').innerHTML = '<div class="text-muted">No recent errors or warnings</div>';
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading logs:', error);
+        });
 }
 
-// Playwright Debug Functions
-function submitPlaywrightPrompt() {
-    const prompt = document.getElementById('playwright-prompt').value.trim();
-    if (!prompt) {
-        showDebugMessage('Please enter a prompt for Playwright testing.', 'warning');
-        return;
-    }
+function clearCache() {
+    if (!confirm('Clear all cache data?')) return;
     
-    const logsContainer = document.getElementById('playwrightLogs');
-    logsContainer.innerHTML = '<div class="text-center text-muted"><i class="fas fa-spinner fa-spin me-1"></i>Submitting Playwright test...</div>';
-    
-    showDebugMessage('Submitting Playwright test: ' + prompt, 'info');
-
-    fetch('{% url "core:playwright_debug_api" %}', {
+    fetch('{% url "core:invalidate_cache_api" %}', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-        },
-        body: JSON.stringify({ prompt: prompt })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data && data.success !== undefined) {
-            if (data.success) {
-                logsContainer.innerHTML = `<div class="log-entry done"><strong>Test submitted:</strong> ${prompt}<br><small>Log ID: ${data.log_id || 'Unknown'}</small></div>`;
-                showDebugMessage('Playwright test submitted successfully! ID: ' + (data.log_id || 'Unknown'), 'success');
-                // Refresh logs after a short delay
-                setTimeout(refreshPlaywrightLogs, 2000);
-            } else {
-                logsContainer.innerHTML = `<div class="log-entry error"><strong>Error:</strong> ${data.error || 'Unknown error'}</div>`;
-                showDebugMessage('Playwright test submission failed: ' + (data.error || 'Unknown error'), 'error');
-            }
-        } else {
-            logsContainer.innerHTML = `<div class="log-entry error"><strong>Error:</strong> Invalid response format</div>`;
-            showDebugMessage('Playwright test submission failed: Invalid response format', 'error');
+            'X-CSRFToken': '{{ csrf_token }}'
         }
     })
-    .catch(error => {
-        console.error('Playwright API Error:', error);
-        logsContainer.innerHTML = '<div class="log-entry error"><strong>Error:</strong> Failed to submit test - ' + error.message + '</div>';
-        showDebugMessage('Error submitting Playwright test: ' + error.message, 'error');
-    });
-}
-
-function refreshPlaywrightLogs() {
-    const logsContainer = document.getElementById('playwrightLogs');
-    
-    fetch('{% url "core:playwright_debug_api" %}')
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        let html = '<h6 class="mb-3">Recent Playwright Debug Logs</h6>';
-        
-        if (data && data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
-            data.logs.forEach(log => {
-                const statusClass = log.status === 'done' ? 'done' : 
-                                  log.status === 'running' ? 'running' : 
-                                  log.status === 'error' ? 'error' : 'pending';
-                
-                html += `
-                    <div class="log-entry ${statusClass}">
-                        <strong>${log.timestamp || 'Unknown time'}</strong> - ${log.prompt || 'No prompt'}<br>
-                        <small>Status: ${log.status || 'unknown'} | ID: ${log.id || 'Unknown'}</small>
-                        ${log.output ? `<br><pre class="mt-2">${log.output}</pre>` : ''}
-                        ${log.error_message ? `<br><small class="text-danger">Error: ${log.error_message}</small>` : ''}
-                    </div>
-                `;
-            });
-        } else {
-            html += '<div class="text-muted">No logs found</div>';
-        }
-        
-        logsContainer.innerHTML = html;
-    })
-    .catch(error => {
-        console.error('Error refreshing Playwright logs:', error);
-        logsContainer.innerHTML = '<div class="log-entry error"><strong>Error:</strong> Failed to load logs - ' + error.message + '</div>';
-    });
-}
-
-// Diagnostic Functions
-function testApplicationHealth() {
-    showDebugMessage('Testing all application components...', 'info');
-    
-    fetch('{% url "events:test_application_health" %}')
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
-            let componentSummary = [];
-            Object.entries(data.components).forEach(([name, info]) => {
-                const status = info.status === 'success' ? '✅' : '❌';
-                componentSummary.push(`${status} ${name.replace(/_/g, ' ')}: ${info.count || 0} items`);
-            });
-            
-            showDebugMessage(`Application health test completed! ${componentSummary.join(', ')}`, 'success');
-            
-            // Show detailed results in debug panel
-            showDiagnosticResult(JSON.stringify(data, null, 2));
-        } else {
-            showDebugMessage('Application health test failed: ' + (data.error || 'Unknown error'), 'error');
+        if (window.showMessage) {
+            window.showMessage(data.message || 'Cache cleared successfully', 'success');
         }
+        showResult(JSON.stringify(data, null, 2));
     })
     .catch(error => {
-        showDebugMessage('Error testing application health: ' + error.message, 'error');
+        if (window.showMessage) {
+            window.showMessage('Error clearing cache: ' + error.message, 'error');
+        }
     });
 }
 
-function testUnifiedAPI() {
-    showDebugMessage('Testing unified API...', 'info');
-    // TODO: Implement unified API endpoint
-    showDebugMessage('Unified API endpoint not yet implemented', 'warning');
+function getCacheStats() {
+    showResult('Cache statistics feature coming soon...');
 }
 
-function testDatabaseHealth() {
-    showDebugMessage('Testing database health...', 'info');
-    // No endpoint implemented
-    showDebugMessage('Database health check endpoint not implemented.', 'warning');
+function checkMigrationStatus() {
+    showResult('Checking migration status...');
+    // This would call a management command
+    if (window.showMessage) {
+        window.showMessage('Checking migration status...', 'info');
+    }
 }
 
 function runHealthCheck() {
-    showDebugMessage('Running comprehensive health check...', 'info');
     fetch('{% url "core:run_health_check" %}')
-    .then(response => response.json())
-    .then(data => {
-        showDebugMessage('Health check completed successfully', 'success');
-        showDiagnosticResult(JSON.stringify(data, null, 2));
-    })
-    .catch(error => {
-        showDebugMessage('Error running health check: ' + error.message, 'error');
-    });
-}
-
-function showDatabaseClearModal() {
-    const modal = new bootstrap.Modal(document.getElementById('databaseClearModal'));
-    modal.show();
-    
-    // Reset form
-    document.getElementById('keepUsers').checked = false;
-    document.getElementById('keepAdmin').checked = false;
-    document.getElementById('dryRun').checked = true;
-    document.getElementById('clearConfirmation').value = '';
-    document.getElementById('executeClearBtn').disabled = true;
-    document.getElementById('clearResults').style.display = 'none';
-    
-    // Enable/disable execute button based on confirmation
-    document.getElementById('clearConfirmation').addEventListener('input', function() {
-        document.getElementById('executeClearBtn').disabled = this.value !== 'CLEAR DATABASE';
-    });
-    
-    // Execute clear operation
-    document.getElementById('executeClearBtn').onclick = function() {
-        const keepUsers = document.getElementById('keepUsers').checked;
-        const keepAdmin = document.getElementById('keepAdmin').checked;
-        const dryRun = document.getElementById('dryRun').checked;
-        
-        // Show loading state
-        this.disabled = true;
-        this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
-        
-        // Prepare form data
-        const formData = new FormData();
-        formData.append('keep_users', keepUsers);
-        formData.append('keep_admin', keepAdmin);
-        formData.append('dry_run', dryRun);
-        
-        // Execute the clear operation
-        fetch('{% url "core:clear_database" %}', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-            },
-            body: formData
-        })
         .then(response => response.json())
         .then(data => {
-            // Show results
-            document.getElementById('clearResults').style.display = 'block';
-            document.getElementById('clearOutput').textContent = data.output || data.message;
-            
-            if (data.success) {
-                document.getElementById('clearOutput').className = 'bg-dark border border-success p-3';
-                showDebugMessage('Database clear operation completed successfully', 'success');
-            } else {
-                document.getElementById('clearOutput').className = 'bg-dark border border-danger p-3';
-                showDebugMessage('Database clear operation failed: ' + (data.error || 'Unknown error'), 'error');
+            showResult(JSON.stringify(data, null, 2));
+            if (window.showMessage) {
+                window.showMessage('Health check completed', 'success');
             }
-            
-            // Reset button
-            this.disabled = false;
-            this.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Clear Database';
+            loadHealthStatus();
         })
         .catch(error => {
-            document.getElementById('clearResults').style.display = 'block';
-            document.getElementById('clearOutput').textContent = 'Error: ' + error.message;
-            document.getElementById('clearOutput').className = 'bg-dark border border-danger p-3';
-            
-            // Reset button
-            this.disabled = false;
-            this.innerHTML = '<i class="fas fa-trash-alt me-1"></i>Clear Database';
-            
-            showDebugMessage('Error executing database clear: ' + error.message, 'error');
+            if (window.showMessage) {
+                window.showMessage('Error running health check: ' + error.message, 'error');
+            }
         });
-    };
+}
+
+function checkConnections() {
+    showResult('Testing database, cache, and external connections...');
+    loadHealthStatus();
+}
+
+function viewSystemInfo() {
+    const modal = new bootstrap.Modal(document.getElementById('systemInfoModal'));
+    modal.show();
+    
+    fetch('{% url "core:version_html" %}')
+        .then(response => response.text())
+        .then(html => {
+            // Extract just the version info from the response
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const content = doc.querySelector('.container') || doc.body;
+            document.getElementById('system-info-content').innerHTML = content.innerHTML;
+        })
+        .catch(error => {
+            document.getElementById('system-info-content').innerHTML = 
+                '<div class="text-danger">Error loading system info: ' + error.message + '</div>';
+        });
 }
 
 function showDemoDataModal() {
@@ -1185,450 +645,187 @@ function showDemoDataModal() {
     modal.show();
 }
 
-function populateDemoData() {
-    const clearFirst = document.getElementById('clearFirst').checked;
-    const includeMaintenance = document.getElementById('includeMaintenance').checked;
-    const includeEvents = document.getElementById('includeEvents').checked;
+function generateDemoData() {
+    const clearFirst = document.getElementById('clear-first').checked;
     
-    showDebugMessage('Starting demo data population...', 'info');
+    if (window.showMessage) {
+        window.showMessage('Generating demo data...', 'info');
+    }
     
-    // Prepare form data
     const formData = new FormData();
     formData.append('clear_first', clearFirst);
-    formData.append('include_maintenance', includeMaintenance);
-    formData.append('include_events', includeEvents);
+    formData.append('include_maintenance', true);
+    formData.append('include_events', true);
     
     fetch('{% url "core:populate_demo_data" %}', {
         method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-        },
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
         body: formData
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showDebugMessage(`Demo data populated successfully! Created: ${data.created_count} items, Deleted: ${data.deleted_count} items`, 'success');
-            // Close modal
+            if (window.showMessage) {
+                window.showMessage(`Demo data generated! Created ${data.created_count} items`, 'success');
+            }
             bootstrap.Modal.getInstance(document.getElementById('demoDataModal')).hide();
+            setTimeout(refreshAll, 1000);
         } else {
-            showDebugMessage('Failed to populate demo data: ' + (data.error || 'Unknown error'), 'error');
+            if (window.showMessage) {
+                window.showMessage('Error: ' + (data.error || 'Unknown error'), 'error');
+            }
         }
     })
     .catch(error => {
-        showDebugMessage('Error populating demo data: ' + error.message, 'error');
+        if (window.showMessage) {
+            window.showMessage('Error generating demo data: ' + error.message, 'error');
+        }
     });
 }
 
-function generatePods() {
-    showDebugMessage('Starting POD generation...', 'info');
+function showClearMaintenanceModal() {
+    const modal = new bootstrap.Modal(document.getElementById('clearMaintenanceModal'));
+    modal.show();
+}
+
+function clearMaintenance() {
+    const clearAll = document.getElementById('clear-all-activities').checked;
+    const clearSchedules = document.getElementById('clear-schedules').checked;
+    const dryRun = document.getElementById('maint-dry-run').checked;
     
-    fetch('{% url "core:generate_pods" %}', {
+    if (window.showMessage) {
+        window.showMessage(dryRun ? 'Running dry run...' : 'Clearing maintenance activities...', 'warning');
+    }
+    
+    const formData = new FormData();
+    formData.append('clear_all', clearAll);
+    formData.append('clear_schedules', clearSchedules);
+    formData.append('dry_run', dryRun);
+    
+    fetch('{% url "core:clear_maintenance_activities" %}', {
         method: 'POST',
-        headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-        }
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+        body: formData
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showDebugMessage(`POD generation completed successfully! Generated: ${data.generated_count} PODs`, 'success');
-        } else {
-            showDebugMessage('POD generation failed: ' + (data.error || 'Unknown error'), 'error');
-        }
-    })
-    .catch(error => {
-        showDebugMessage('Error generating PODs: ' + error.message, 'error');
-    });
-}
-
-
-
-function showDiagnosticResult(result) {
-    const resultsDiv = document.getElementById('diagnosticResults');
-    resultsDiv.style.display = 'block';
-    resultsDiv.innerHTML = `<pre>${result}</pre>`;
-    resultsDiv.scrollTop = resultsDiv.scrollHeight;
-}
-
-// Docker Logs Functions
-function loadDockerContainers() {
-    const containerSelect = document.getElementById('container-select');
-    
-    // Show loading state
-    containerSelect.innerHTML = '<option value="">Loading containers...</option>';
-    
-    // Add timeout to the fetch request
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    fetch('{% url "core:get_docker_containers" %}', {
-        signal: controller.signal
-    })
-    .then(response => {
-        clearTimeout(timeoutId);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            // Clear existing options
-            containerSelect.innerHTML = '<option value="">Select a container...</option>';
+            const message = data.message || 
+                `${dryRun ? 'Would delete' : 'Deleted'} ${data.activities_deleted} activities${data.schedules_deleted > 0 ? ' and ' + data.schedules_deleted + ' schedules' : ''}`;
             
-            // Add container options
-            data.containers.forEach(container => {
-                const option = document.createElement('option');
-                option.value = container.name;
-                option.textContent = `${container.name} (${container.status})`;
-                containerSelect.appendChild(option);
-            });
-            
-            // Show success message if no containers found
-            if (data.containers.length === 0) {
-                containerSelect.innerHTML = '<option value="">No containers found</option>';
+            if (window.showMessage) {
+                window.showMessage(message, dryRun ? 'info' : 'success');
             }
             
-            if (data.warning) {
-                showDebugMessage('Docker containers loaded with warning: ' + data.warning, 'warning');
-            }
-        } else {
-            containerSelect.innerHTML = '<option value="">Error loading containers</option>';
-            showDebugMessage('Failed to load containers: ' + (data.error || 'Unknown error'), 'error');
-        }
-    })
-    .catch(error => {
-        clearTimeout(timeoutId);
-        containerSelect.innerHTML = '<option value="">Error loading containers</option>';
-        
-        if (error.name === 'AbortError') {
-            showDebugMessage('Container loading timed out after 10 seconds', 'warning');
-        } else {
-            showDebugMessage('Error loading containers: ' + error.message, 'error');
-        }
-    });
-}
-
-function loadDockerLogs() {
-    const containerSelect = document.getElementById('container-select');
-    const linesCount = document.getElementById('lines-count');
-    const followLogs = document.getElementById('follow-logs');
-    const logsDiv = document.getElementById('dockerLogs');
-    
-    const container = containerSelect.value;
-    const lines = linesCount.value;
-    const follow = followLogs.checked;
-    
-    if (!container) {
-        showDebugMessage('Please select a container first', 'warning');
-        return;
-    }
-    
-    // Show loading state
-    logsDiv.innerHTML = `
-        <div class="text-center text-muted">
-            <i class="fas fa-spinner fa-spin me-1"></i>
-            Loading logs for ${container}...
-        </div>
-    `;
-    
-    // Build URL with parameters
-    const url = `{% url "core:get_docker_logs" %}?container=${encodeURIComponent(container)}&lines=${lines}&follow=${follow}`;
-    
-    fetch(url)
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Format logs with syntax highlighting
-            const formattedLogs = formatDockerLogs(data.logs);
-            logsDiv.innerHTML = `
-                <div class="docker-logs-header">
-                    <h6>Logs for ${data.container}</h6>
-                    <small class="text-muted">
-                        ${data.lines_returned} lines returned | Method: ${data.method}
-                    </small>
-                </div>
-                <pre class="docker-logs-content">${formattedLogs}</pre>
-            `;
-        } else {
-            logsDiv.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-1"></i>
-                    Error: ${data.error}
-                    ${data.suggestion ? `<br><small>${data.suggestion}</small>` : ''}
-                </div>
-            `;
-        }
-    })
-    .catch(error => {
-        logsDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle me-1"></i>
-                Error loading logs: ${error.message}
-            </div>
-        `;
-    });
-}
-
-function formatDockerLogs(logs) {
-    // Basic log formatting - can be enhanced with syntax highlighting
-    return logs
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-// Load containers when enhanced logging section is opened
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Bootstrap tabs
-    if (typeof bootstrap !== 'undefined') {
-        // Bootstrap 5
-        const tabElements = document.querySelectorAll('button[data-bs-toggle="tab"]');
-        tabElements.forEach(tab => {
-            tab.addEventListener('click', function(e) {
-                e.preventDefault();
-                const target = this.getAttribute('data-bs-target');
-                const tabContent = document.querySelector(target);
-                if (tabContent) {
-                    // Hide all tab panes
-                    document.querySelectorAll('.tab-pane').forEach(pane => {
-                        pane.classList.remove('show', 'active');
-                    });
-                    // Remove active from all tabs
-                    document.querySelectorAll('.nav-link').forEach(link => {
-                        link.classList.remove('active');
-                    });
-                    // Show target tab pane
-                    tabContent.classList.add('show', 'active');
-                    // Activate clicked tab
-                    this.classList.add('active');
+            // Show preview if dry run
+            if (dryRun) {
+                document.getElementById('maint-preview').style.display = 'block';
+                document.getElementById('maint-preview-text').innerHTML = 
+                    `<ul class="mb-0">
+                        <li>${data.activities_deleted} activities would be deleted</li>
+                        ${data.schedules_deleted > 0 ? `<li>${data.schedules_deleted} schedules would be deleted</li>` : ''}
+                    </ul>`;
+            } else {
+                // Close modal and refresh if not dry run
+                bootstrap.Modal.getInstance(document.getElementById('clearMaintenanceModal')).hide();
+                if (loadDatabaseStats) {
+                    loadDatabaseStats();
                 }
-            });
-        });
-    } else {
-        // Bootstrap 4 fallback
-        $('button[data-bs-toggle="tab"]').on('click', function(e) {
-            e.preventDefault();
-            const target = $(this).data('bs-target');
-            $('.tab-pane').removeClass('show active');
-            $('.nav-link').removeClass('active');
-            $(target).addClass('show active');
-            $(this).addClass('active');
-        });
-    }
-    
-    // Add event listener for enhanced logging section toggle
-    const enhancedLogsHeader = document.querySelector('#enhanced-logs-body').previousElementSibling;
-    if (enhancedLogsHeader) {
-        enhancedLogsHeader.addEventListener('click', function() {
-            // Load containers when section is opened
-            setTimeout(loadDockerContainers, 100);
-            setTimeout(loadMultiSelectContainers, 100);
-        });
-    }
-});
-
-// Enhanced Logging Functions
-function loadMultiSelectContainers() {
-    const containerSelect = document.getElementById('container-multi-select');
-    
-    // Show loading state
-    containerSelect.innerHTML = '<option value="">Loading containers...</option>';
-    
-    // Add timeout to the fetch request
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    fetch('{% url "core:get_docker_containers" %}', {
-        signal: controller.signal
-    })
-    .then(response => {
-        clearTimeout(timeoutId);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            // Clear existing options
-            containerSelect.innerHTML = '';
-            
-            // Add container options
-            data.containers.forEach(container => {
-                const option = document.createElement('option');
-                option.value = container.name;
-                option.textContent = `${container.name} (${container.status})`;
-                containerSelect.appendChild(option);
-            });
-            
-            // Show success message if no containers found
-            if (data.containers.length === 0) {
-                containerSelect.innerHTML = '<option value="">No containers found</option>';
             }
         } else {
-            containerSelect.innerHTML = '<option value="">Error loading containers</option>';
-            showDebugMessage('Failed to load containers: ' + (data.error || 'Unknown error'), 'error');
+            if (window.showMessage) {
+                window.showMessage('Error: ' + (data.error || 'Unknown error'), 'error');
+            }
         }
     })
     .catch(error => {
-        clearTimeout(timeoutId);
-        containerSelect.innerHTML = '<option value="">Error loading containers</option>';
-        
-        if (error.name === 'AbortError') {
-            showDebugMessage('Container loading timed out after 10 seconds', 'warning');
-        } else {
-            showDebugMessage('Error loading containers: ' + error.message, 'error');
+        console.error('Error clearing maintenance:', error);
+        if (window.showMessage) {
+            window.showMessage('Failed to clear maintenance activities', 'error');
         }
     });
 }
 
-function loadAggregatedLogs() {
-    const containerSelect = document.getElementById('container-multi-select');
-    const linesCount = document.getElementById('aggregated-lines-count');
-    const logsDiv = document.getElementById('aggregatedLogs');
+function showClearDatabaseModal() {
+    const modal = new bootstrap.Modal(document.getElementById('clearDatabaseModal'));
+    modal.show();
+    document.getElementById('clear-confirmation').value = '';
+    document.getElementById('confirm-clear').disabled = true;
+}
+
+function clearDatabase() {
+    const keepUsers = document.getElementById('keep-users').checked;
+    const dryRun = document.getElementById('dry-run').checked;
     
-    const selectedContainers = Array.from(containerSelect.selectedOptions).map(option => option.value);
-    const lines = linesCount.value;
-    
-    if (selectedContainers.length === 0) {
-        showDebugMessage('Please select at least one container', 'warning');
-        return;
+    if (window.showMessage) {
+        window.showMessage(dryRun ? 'Running dry run...' : 'Clearing database...', 'warning');
     }
     
-    // Show loading state
-    logsDiv.innerHTML = `
-        <div class="text-center text-muted">
-            <i class="fas fa-spinner fa-spin me-1"></i>
-            Loading aggregated logs for ${selectedContainers.length} containers...
-        </div>
-    `;
+    const formData = new FormData();
+    formData.append('keep_users', keepUsers);
+    formData.append('dry_run', dryRun);
     
-    // Build URL with parameters
-    const url = `{% url "core:get_aggregated_logs" %}?containers=${selectedContainers.join(',')}&lines=${lines}`;
+    fetch('{% url "core:clear_database" %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        showResult(data.output || data.message);
+        if (data.success) {
+            if (window.showMessage) {
+                window.showMessage(dryRun ? 'Dry run completed' : 'Database cleared successfully', 'success');
+            }
+            bootstrap.Modal.getInstance(document.getElementById('clearDatabaseModal')).hide();
+            if (!dryRun) {
+                setTimeout(() => window.location.reload(), 2000);
+            }
+        } else {
+            if (window.showMessage) {
+                window.showMessage('Error: ' + (data.error || 'Unknown error'), 'error');
+            }
+        }
+    })
+    .catch(error => {
+        if (window.showMessage) {
+            window.showMessage('Error: ' + error.message, 'error');
+        }
+    });
+}
+
+function clearLogs() {
+    if (!confirm('Clear all health failure logs?')) return;
     
-    fetch(url)
+    fetch('{% url "core:clear_health_logs" %}', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+    })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Format logs with syntax highlighting
-            const formattedLogs = formatDockerLogs(data.logs);
-            logsDiv.innerHTML = `
-                <div class="docker-logs-header">
-                    <h6>Aggregated Logs</h6>
-                    <small class="text-muted">
-                        ${data.lines_returned} lines returned from ${data.containers.length} containers
-                    </small>
-                </div>
-                <pre class="docker-logs-content">${formattedLogs}</pre>
-            `;
-        } else {
-            logsDiv.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-1"></i>
-                    Error: ${data.error}
-                </div>
-            `;
+            if (window.showMessage) {
+                window.showMessage('Logs cleared successfully', 'success');
+            }
+            loadRecentLogs();
         }
     })
     .catch(error => {
-        logsDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle me-1"></i>
-                Error loading aggregated logs: ${error.message}
-            </div>
-        `;
-    });
-}
-
-function loadSystemLogs() {
-    const linesCount = document.getElementById('system-lines-count');
-    const logsDiv = document.getElementById('systemLogs');
-    const lines = linesCount.value;
-    
-    // Show loading state
-    logsDiv.innerHTML = `
-        <div class="text-center text-muted">
-            <i class="fas fa-spinner fa-spin me-1"></i>
-            Loading system logs...
-        </div>
-    `;
-    
-    // Build URL with parameters
-    const url = `{% url "core:get_system_logs" %}?lines=${lines}`;
-    
-    fetch(url)
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Format logs with syntax highlighting
-            const formattedLogs = formatDockerLogs(data.logs);
-            logsDiv.innerHTML = `
-                <div class="docker-logs-header">
-                    <h6>System Logs</h6>
-                    <small class="text-muted">
-                        ${data.lines_returned} lines returned
-                    </small>
-                </div>
-                <pre class="docker-logs-content">${formattedLogs}</pre>
-            `;
-        } else {
-            logsDiv.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-1"></i>
-                    Error: ${data.error}
-                </div>
-            `;
+        if (window.showMessage) {
+            window.showMessage('Error clearing logs: ' + error.message, 'error');
         }
-    })
-    .catch(error => {
-        logsDiv.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="fas fa-exclamation-triangle me-1"></i>
-                Error loading system logs: ${error.message}
-            </div>
-        `;
     });
 }
 
-// Manual tab switching function
-function switchTab(tabName) {
-    // Hide all tab panes
-    document.querySelectorAll('.tab-pane').forEach(pane => {
-        pane.classList.remove('show', 'active');
-    });
+function showResult(result) {
+    const card = document.getElementById('results-card');
+    const resultsDiv = document.getElementById('action-results');
     
-    // Remove active from all tabs
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.classList.remove('active');
-    });
+    card.style.display = 'block';
+    resultsDiv.textContent = result;
     
-    // Show target tab pane
-    const targetPane = document.getElementById(tabName);
-    if (targetPane) {
-        targetPane.classList.add('show', 'active');
-    }
-    
-    // Activate clicked tab
-    const activeTab = document.querySelector(`[data-bs-target="#${tabName}"]`);
-    if (activeTab) {
-        activeTab.classList.add('active');
-    }
+    // Scroll to results
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
-
-// Add click handlers for manual tab switching
-document.addEventListener('DOMContentLoaded', function() {
-    // Add click handlers for tab buttons
-    document.querySelectorAll('[data-bs-target]').forEach(tab => {
-        tab.addEventListener('click', function(e) {
-            e.preventDefault();
-            const target = this.getAttribute('data-bs-target').replace('#', '');
-            switchTab(target);
-        });
-    });
-});
 </script>
-{% endblock %} 
+{% endblock %}

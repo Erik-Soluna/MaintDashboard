@@ -49,11 +49,8 @@
                         <div class="col-md-6">
                             {{ form.document_type|as_crispy_field }}
                         </div>
-                        <div class="col-md-3">
-                            {{ form.version|as_crispy_field }}
-                        </div>
-                        <div class="col-md-3">
-                            {{ form.is_current|as_crispy_field }}
+                        <div class="col-md-6">
+                            {{ form.is_active|as_crispy_field }}
                         </div>
                     </div>
                     
@@ -140,12 +137,7 @@ $(document).ready(function() {
         }
     });
     
-    // Auto-fill version if empty
-    $('#id_version').on('blur', function() {
-        if (!this.value.trim()) {
-            this.value = '1.0';
-        }
-    });
+
 });
 </script>
 {% endblock %} 

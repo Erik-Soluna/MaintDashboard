@@ -11,7 +11,6 @@ app_name = 'core'
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),  # Root path for dashboard
     path('dashboard/', views.dashboard, name='dashboard_alt'),  # Alternative dashboard path
-    path('overview/', views.builderio_overview, name='builderio_overview'),  # Builder.io Overview page
     path('profile/', views.profile, name='profile'),
     path('settings/', views.settings_view, name='settings'),
     path('user-management/', views.user_management, name='user_management'),
@@ -28,6 +27,7 @@ urlpatterns = [
     path('map/', views.map_view, name='map_view'),
     path('locations/settings/', views.locations_settings, name='locations_settings'),
     path('equipment-items/settings/', views.equipment_items_settings, name='equipment_items_settings'),
+    path('equipment-conditional-fields/settings/', views.equipment_conditional_fields_settings, name='equipment_conditional_fields_settings'),
     path('equipment-categories/settings/', views.equipment_categories_settings, name='equipment_categories_settings'),
     
     # Debug and utility URLs
@@ -36,8 +36,12 @@ urlpatterns = [
     path('health/api/', views.comprehensive_health_check, name='health_check_api'),  # Alias for template compatibility
     path('health/', views.run_health_check, name='health_check'),  # Alias for template compatibility
     path('health/simple/', views.simple_health_check, name='simple_health_check'),
+    path('health/system/', views.system_health_check, name='system_health_check'),
+    path('health/check/', views.health_check_view, name='health_check_view'),
     path('health/clear-logs/', views.clear_health_logs, name='clear_health_logs'),
-    path('debug/playwright/', views.playwright_debug_api, name='playwright_debug_api'),
+    # path('debug/playwright/', views.playwright_debug_api, name='playwright_debug_api'),  # DEPRECATED
+    path('debug/clear-maintenance/', views.clear_maintenance_activities, name='clear_maintenance_activities'),
+    path('clear-maintenance-data/', views.clear_maintenance_data, name='clear_maintenance_data'),
     path('debug/clear-database/', views.clear_database, name='clear_database'),
     path('debug/populate-demo/', views.populate_demo_data, name='populate_demo_data'),
     path('debug/generate-pods/', views.generate_pods, name='generate_pods'),
@@ -60,21 +64,40 @@ urlpatterns = [
     path('api/customers/add/', views.add_customer_ajax, name='add_customer_ajax'),
     path('api/equipment-items/', views.equipment_items_api, name='equipment_items_api'),
     path('api/users/', views.users_api, name='users_api'),
+    path('api/invalidate-cache/', views.invalidate_cache_api, name='invalidate_cache_api'),
+    path('api/update-timezone/', views.update_user_timezone, name='update_user_timezone'),
     path('api/roles/', views.roles_api, name='roles_api'),
     path('api/roles/<int:role_id>/', views.role_detail_api, name='role_detail_api'),
     path('api/endpoint-metrics/', views.endpoint_metrics_api, name='endpoint_metrics_api'),
-    path('api/playwright-debug/', views.playwright_debug_api, name='playwright_debug_api'),
-    path('api/playwright/natural-language/', views.run_natural_language_test_api, name='run_natural_language_test_api'),
-    path('api/playwright/rbac-suite/', views.run_rbac_test_suite_api, name='run_rbac_test_suite_api'),
-    path('api/playwright/results/', views.get_test_results_api, name='get_test_results_api'),
-    path('api/playwright/scenarios/', views.run_test_scenario_api, name='run_test_scenario_api'),
-    path('api/playwright/screenshots/', views.get_test_screenshots_api, name='get_test_screenshots_api'),
+    path('api/categories/<int:category_id>/fields/', views.category_fields_api, name='category_fields_api'),
+    # Playwright endpoints DEPRECATED - functionality removed
+    # path('api/playwright-debug/', views.playwright_debug_api, name='playwright_debug_api'),
+    # path('api/playwright/natural-language/', views.run_natural_language_test_api, name='run_natural_language_test_api'),
+    # path('api/playwright/rbac-suite/', views.run_rbac_test_suite_api, name='run_rbac_test_suite_api'),
+    # path('api/playwright/results/', views.get_test_results_api, name='get_test_results_api'),
+    # path('api/playwright/scenarios/', views.run_test_scenario_api, name='run_test_scenario_api'),
+    # path('api/playwright/screenshots/', views.get_test_screenshots_api, name='get_test_screenshots_api'),
+    path('api/database-stats/', views.database_stats_api, name='database_stats_api'),
+    path('api/clear-maintenance/', views.clear_maintenance_activities_api, name='clear_maintenance_activities_api'),
+    path('api/reorganize-activity-types/', views.reorganize_activity_types_api, name='reorganize_activity_types_api'),
     path('api/test-health/', views.test_health, name='test_health'),
     path('api/toggle-monitoring/', views.toggle_monitoring, name='toggle_monitoring'),
+    path('api/migrations/', views.run_migrations_api, name='run_migrations_api'),
+    path('api/create-admin/', views.create_admin_user_api, name='create_admin_user_api'),
+    path('api/reset-admin-password/', views.reset_admin_password_api, name='reset_admin_password_api'),
     
     # Other utility URLs
     path('bulk-locations/', views.bulk_locations_view, name='bulk_locations'),
     path('api-explorer/', views.api_explorer, name='api_explorer'),
     path('locations/api/', views.locations_api, name='locations_api'),  # API endpoint for locations
     path('api/locations/<int:location_id>/', views.location_detail_api, name='location_detail_api'),  # API endpoint for individual location operations
+
+    # Branding Settings
+    path('branding/', views.branding_settings, name='branding_settings'),
+    path('branding/css/', views.css_customization_list, name='css_customization_list'),
+    path('branding/css/create/', views.css_customization_create, name='css_customization_create'),
+    path('branding/css/<int:pk>/edit/', views.css_customization_edit, name='css_customization_edit'),
+    path('branding/css/<int:pk>/delete/', views.css_customization_delete, name='css_customization_delete'),
+    path('branding/css/<int:pk>/toggle/', views.css_toggle, name='css_toggle'),
+    path('branding/css/preview/', views.css_preview, name='css_preview'),
 ]

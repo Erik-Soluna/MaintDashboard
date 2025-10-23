@@ -9,9 +9,14 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1 class="h3 mb-0">Maintenance Activities</h1>
-                <a href="{% url 'maintenance:add_activity' %}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Add Activity
-                </a>
+                <div class="btn-group">
+                    <a href="{% url 'maintenance:add_activity' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Activity
+                    </a>
+                    <a href="{% url 'maintenance:bulk_add_activity' %}" class="btn btn-success">
+                        <i class="fas fa-layer-group"></i> Bulk Create
+                    </a>
+                </div>
             </div>
         </div>
     </div>

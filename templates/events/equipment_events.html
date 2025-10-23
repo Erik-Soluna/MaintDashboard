@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Events for {{ equipment.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Events for {{ equipment.name }}</h1>
+            <p class="text-muted mb-0">{{ equipment.category.name }} - {{ equipment.location.get_full_path }}</p>
+        </div>
+        <div class="btn-group">
+            <a href="{% url 'events:add_event' %}?equipment={{ equipment.id }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Add Event
+            </a>
+            <a href="{% url 'equipment:equipment_detail' equipment.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-cog me-1"></i>Equipment Details
+            </a>
+            <a href="{% url 'events:calendar' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-calendar me-1"></i>Calendar
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Events List -->
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Calendar Events</h5>
+                </div>
+                <div class="card-body">
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Event</th>
+                                        <th>Type</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in page_obj %}
+                                    <tr>
+                                        <td>
+                                            <div>
+                                                <strong>{{ event.title }}</strong>
+                                                {% if event.description %}
+                                                <br><small class="text-muted">{{ event.description|truncatechars:50 }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ event.get_event_type_display }}</span>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                {{ event.event_date|date:"M d, Y" }}
+                                                {% if event.start_time %}
+                                                <br><small class="text-muted">{{ event.start_time|time:"H:i" }}{% if event.end_time %} - {{ event.end_time|time:"H:i" }}{% endif %}</small>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if event.is_completed %}
+                                                <span class="badge bg-success">Completed</span>
+                                            {% elif event.is_overdue %}
+                                                <span class="badge bg-danger">Overdue</span>
+                                            {% elif event.is_upcoming %}
+                                                <span class="badge bg-warning">Upcoming</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Scheduled</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{% url 'events:event_detail' event.id %}" class="btn btn-outline-primary" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="{% url 'events:edit_event' event.id %}" class="btn btn-outline-secondary" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                {% if event.maintenance_activity %}
+                                                <a href="{% url 'maintenance:activity_detail' event.maintenance_activity.id %}" class="btn btn-outline-success" title="Maintenance Details">
+                                                    <i class="fas fa-wrench"></i>
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                        <nav aria-label="Events pagination">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1">First</a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                                    </li>
+                                {% endif %}
+
+                                <li class="page-item active">
+                                    <span class="page-link">
+                                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                    </span>
+                                </li>
+
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last</a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Events Found</h5>
+                            <p class="text-muted">No calendar events have been scheduled for {{ equipment.name }}.</p>
+                            <a href="{% url 'events:add_event' %}?equipment={{ equipment.id }}" class="btn btn-primary">
+                                <i class="fas fa-plus me-1"></i>Add First Event
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Equipment Info Card -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Equipment Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Name:</strong><br>
+                            {{ equipment.name }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Category:</strong><br>
+                            {{ equipment.category.name|default:"Uncategorized" }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Location:</strong><br>
+                            {{ equipment.location.get_full_path }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Status:</strong><br>
+                            <span class="badge bg-{% if equipment.status == 'active' %}success{% elif equipment.status == 'inactive' %}danger{% else %}warning{% endif %}">
+                                {{ equipment.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Add any JavaScript functionality here if needed
+$(document).ready(function() {
+    // Initialize tooltips
+    $('[title]').tooltip();
+});
+</script>
+{% endblock %}

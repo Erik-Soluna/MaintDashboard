@@ -1,20 +1,20 @@
 # 🚀 Portainer Deployment Guide for Maintenance Dashboard
 
 ## 📋 **Current Version Information**
-- **Version**: v14800.42dd435
-- **Commit Count**: 14800
-- **Commit Hash**: 42dd435
+- **Version**: v414.11e13c5
+- **Commit Count**: 414
+- **Commit Hash**: 11e13c5
 - **Branch**: latest
-- **Date**: 2025-08-24
+- **Date**: 2025-09-02
 
 ## 🔧 **Required Environment Variables**
 
 ### **Core Version Variables**
 ```bash
-GIT_COMMIT_COUNT=14800
-GIT_COMMIT_HASH=42dd435
+GIT_COMMIT_COUNT=414
+GIT_COMMIT_HASH=11e13c5
 GIT_BRANCH=latest
-GIT_COMMIT_DATE=2025-08-24
+GIT_COMMIT_DATE=2025-09-02
 ```
 
 ### **Database Configuration**
@@ -58,22 +58,58 @@ REDIS_URL=redis://redis:6379/0
 
 ## 🚀 **Deployment Steps**
 
-### **Step 1: Prepare Portainer Environment**
-1. **Copy the environment variables** above into your Portainer stack
-2. **Choose the appropriate stack file** (production or development)
-3. **Ensure the proxy-network exists** (required for Traefik integration)
+### **Step 1: Validate Production Environment**
+Before deploying, validate your production environment:
 
-### **Step 2: Deploy the Stack**
-1. **Upload the stack file** to Portainer
-2. **Set all environment variables** as listed above
-3. **Deploy the stack**
-4. **Monitor the deployment** for any errors
+**Linux/macOS:**
+```bash
+./scripts/validate_production_environment.sh
+```
 
-### **Step 3: Verify Deployment**
+**Windows PowerShell:**
+```powershell
+.\scripts\validate_production_environment.ps1
+```
+
+This will check:
+- ✅ All required files are present
+- ✅ Environment variables are properly configured
+- ✅ Security settings are enabled
+- ✅ Docker configuration is valid
+- ✅ Version information is up to date
+
+### **Step 2: Prepare for Deployment**
+Run the production deployment preparation script:
+
+**Linux/macOS:**
+```bash
+./scripts/portainer_deploy_production.sh
+```
+
+**Windows PowerShell:**
+```powershell
+.\scripts\portainer_deploy_production.ps1
+```
+
+This will:
+- 📊 Update version information automatically
+- 🔧 Validate production configuration
+- 📋 Generate deployment checklist
+- 📝 Create environment variables summary
+
+### **Step 3: Deploy to Portainer**
+1. **Copy the environment variables** from the script output into your Portainer stack
+2. **Upload the stack file** (`portainer-stack.yml`) to Portainer
+3. **Set all environment variables** as listed in the script output
+4. **Deploy the stack**
+5. **Monitor the deployment** for any errors
+
+### **Step 4: Verify Deployment**
 1. **Check container health** - all services should show as healthy
-2. **Test health endpoint**: `http://your-domain/health/simple/`
-3. **Test version endpoint**: `http://your-domain/version/`
+2. **Test health endpoint**: `https://your-domain/health/simple/`
+3. **Test version endpoint**: `https://your-domain/version/`
 4. **Verify database connection** and Redis connectivity
+5. **Follow the deployment checklist** created by the preparation script
 
 ## 🔍 **Health Check Endpoints**
 
@@ -114,12 +150,50 @@ REDIS_URL=redis://redis:6379/0
 2. **Manual**: Use `python version.py --update` to refresh version information
 3. **Redeploy**: Update environment variables in Portainer and redeploy
 
+## 🛠️ **Automated Deployment Scripts**
+
+### **Production Deployment Scripts**
+The following scripts automate the production deployment process:
+
+#### **Linux/macOS Scripts**
+- **`scripts/portainer_deploy_production.sh`** - Complete production deployment preparation
+- **`scripts/validate_production_environment.sh`** - Production environment validation
+- **`scripts/portainer_build.sh`** - Version information capture for Portainer
+
+#### **Windows PowerShell Scripts**
+- **`scripts/portainer_deploy_production.ps1`** - Complete production deployment preparation
+- **`scripts/validate_production_environment.ps1`** - Production environment validation
+- **`scripts/portainer_build.ps1`** - Version information capture for Portainer
+
+### **Script Features**
+- ✅ **Automatic version detection** from git repository
+- ✅ **Environment validation** before deployment
+- ✅ **Security checks** for production readiness
+- ✅ **Deployment checklist generation**
+- ✅ **Cross-platform support** (Linux, macOS, Windows)
+- ✅ **Comprehensive error handling** and reporting
+
+### **Usage Examples**
+```bash
+# Validate production environment
+./scripts/validate_production_environment.sh
+
+# Prepare for deployment
+./scripts/portainer_deploy_production.sh
+
+# Windows PowerShell
+.\scripts\validate_production_environment.ps1
+.\scripts\portainer_deploy_production.ps1
+```
+
 ## 📚 **Additional Resources**
 
 - **GitHub Actions Workflow**: `.github/workflows/auto-version.yml`
 - **Version Management**: `version.py` script
 - **Build Scripts**: `scripts/build_with_version.ps1`
 - **Documentation**: `docs/AUTOMATED_VERSION_MANAGEMENT.md`
+- **Deployment Scripts**: `scripts/portainer_deploy_production.*`
+- **Validation Scripts**: `scripts/validate_production_environment.*`
 
 ## ✅ **Deployment Checklist**
 
@@ -135,7 +209,7 @@ REDIS_URL=redis://redis:6379/0
 
 ---
 
-**Last Updated**: 2025-08-24  
-**Version**: v14800.42dd435  
+**Last Updated**: 2025-09-02  
+**Version**: v414.11e13c5  
 **Branch**: latest
 

@@ -43,7 +43,7 @@ def generate_ical_feed(request):
     events = CalendarEvent.objects.select_related('equipment', 'equipment__location').all()
     
     # Apply filters
-    if site_id:
+    if site_id and site_id != 'all':
         events = events.filter(
             Q(equipment__location__parent_location_id=site_id) | 
             Q(equipment__location_id=site_id)
@@ -187,16 +187,25 @@ def calendar_view(request):
     # Get all sites for the site selector
     sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
     selected_site = None
+    is_all_sites = False
+    
     if selected_site_id:
-        try:
-            selected_site = sites.get(id=selected_site_id)
-            request.session['selected_site_id'] = selected_site_id
-        except Location.DoesNotExist:
-            pass
+        if selected_site_id == 'all':
+            # Handle "All Sites" selection
+            is_all_sites = True
+            request.session['selected_site_id'] = 'all'
+        else:
+            try:
+                selected_site = sites.get(id=selected_site_id)
+                request.session['selected_site_id'] = selected_site_id
+                is_all_sites = False
+            except (Location.DoesNotExist, ValueError):
+                # Handle invalid site_id gracefully
+                pass
 
     # Get equipment for filtering
     equipment_list = Equipment.objects.filter(is_active=True).order_by('name')
-    if selected_site:
+    if selected_site and not is_all_sites:
         equipment_list = equipment_list.filter(
             Q(location__parent_location=selected_site) | Q(location=selected_site)
         )
@@ -228,6 +237,8 @@ def calendar_view(request):
     context = {
         'sites': sites,
         'selected_site': selected_site,
+        'selected_site_id': selected_site_id,
+        'is_all_sites': is_all_sites,
         'equipment_list': equipment_list,
         'event_types': event_types,
         'priority_choices': CalendarEvent.PRIORITY_CHOICES,
@@ -311,7 +322,9 @@ def event_list(request):
         events = events.filter(event_type=event_type)
     
     if equipment_filter:
-        events = events.filter(equipment_id=equipment_filter)
+        equipment_ids = [id.strip() for id in equipment_filter.split(',') if id.strip()]
+        if equipment_ids:
+            events = events.filter(equipment_id__in=equipment_ids)
     
     if status_filter == 'completed':
         events = events.filter(is_completed=True)
@@ -638,15 +651,17 @@ def fetch_events(request):
                 )
         
         # Site filtering
-        if site_id:
+        if site_id and site_id != 'all':
             events = events.filter(
                 Q(equipment__location__parent_location_id=site_id) | 
                 Q(equipment__location_id=site_id)
             )
         
-        # Equipment filtering
+        # Equipment filtering (multiple selection - OR logic)
         if equipment_filter:
-            events = events.filter(equipment_id=equipment_filter)
+            equipment_ids = [id.strip() for id in equipment_filter.split(',') if id.strip()]
+            if equipment_ids:
+                events = events.filter(equipment_id__in=equipment_ids)
         
         # Event type filtering
         if event_type_filter:
@@ -716,12 +731,28 @@ def fetch_unified_events(request):
         equipment_filter = request.GET.get('equipment')
         event_type_filter = request.GET.get('event_type')
         site_id = request.GET.get('site_id')
+        target_timezone = request.GET.get('timezone', 'UTC')  # Get timezone from request
+        
+        # Helper function to convert datetime to target timezone
+        def convert_to_timezone(dt, tz_name):
+            if not dt:
+                return dt
+            try:
+                import pytz
+                target_tz = pytz.timezone(tz_name)
+                if timezone.is_naive(dt):
+                    dt = timezone.make_aware(dt)
+                return dt.astimezone(target_tz)
+            except Exception:
+                return dt
         
         calendar_events = []
         
-        # Fetch Calendar Events
+        # Fetch Calendar Events (excluding those that are duplicates of maintenance activities)
         try:
-            events = CalendarEvent.objects.select_related('equipment', 'equipment__location')
+            events = CalendarEvent.objects.select_related('equipment', 'equipment__location').filter(
+                maintenance_activity__isnull=True  # Exclude events that are duplicates of maintenance activities
+            )
             
             # Date filtering
             if start_date and end_date:
@@ -739,15 +770,17 @@ def fetch_unified_events(request):
                     )
             
             # Site filtering
-            if site_id:
+            if site_id and site_id != 'all':
                 events = events.filter(
                     Q(equipment__location__parent_location_id=site_id) | 
                     Q(equipment__location_id=site_id)
                 )
             
-            # Equipment filtering
+            # Equipment filtering (multiple selection - OR logic)
             if equipment_filter:
-                events = events.filter(equipment_id=equipment_filter)
+                equipment_ids = [id.strip() for id in equipment_filter.split(',') if id.strip()]
+                if equipment_ids:
+                    events = events.filter(equipment_id__in=equipment_ids)
             
             # Event type filtering
             if event_type_filter and not event_type_filter.startswith('maintenance_'):
@@ -823,9 +856,11 @@ def fetch_unified_events(request):
                     Q(equipment__location_id=site_id)
                 )
             
-            # Equipment filtering
+            # Equipment filtering (multiple selection - OR logic)
             if equipment_filter:
-                activities = activities.filter(equipment_id=equipment_filter)
+                equipment_ids = [id.strip() for id in equipment_filter.split(',') if id.strip()]
+                if equipment_ids:
+                    activities = activities.filter(equipment_id__in=equipment_ids)
             
             # Activity type filtering
             if event_type_filter and event_type_filter.startswith('activity_'):
@@ -851,11 +886,15 @@ def fetch_unified_events(request):
                     else:
                         bg_color = '#6c757d'
                     
+                    # Convert times to target timezone
+                    start_time_converted = convert_to_timezone(activity.scheduled_start, target_timezone)
+                    end_time_converted = convert_to_timezone(activity.scheduled_end, target_timezone)
+                    
                     calendar_event = {
                         'id': f'activity_{activity.id}',
                         'title': title,
-                        'start': activity.scheduled_start.isoformat(),
-                        'end': activity.scheduled_end.isoformat() if activity.scheduled_end else None,
+                        'start': start_time_converted.isoformat(),
+                        'end': end_time_converted.isoformat() if end_time_converted else None,
                         'allDay': False,
                         'backgroundColor': bg_color,
                         'borderColor': '#2d3748',
@@ -872,6 +911,7 @@ def fetch_unified_events(request):
                             'assigned_to': activity.assigned_to.get_full_name() if activity.assigned_to else 'Unassigned',
                             'is_completed': activity.status == 'completed',
                             'status': activity.status,
+                            'timezone': activity.timezone if hasattr(activity, 'timezone') else 'UTC',
                         }
                     }
                     
@@ -1079,7 +1119,7 @@ def get_form_data(request):
         
         # Get site filter if provided
         site_id = request.GET.get('site_id')
-        if site_id:
+        if site_id and site_id != 'all':
             equipment_list = equipment_list.filter(
                 Q(location__parent_location_id=site_id) | Q(location_id=site_id)
             )

@@ -29,7 +29,7 @@
                         <div class="col-md-6">
                             <h6>Current Site Selection</h6>
                             {% if selected_site %}
-                                <p><strong>Selected Site:</strong> {{ selected_site.name }} (ID: {{ selected_site.id }})</p>
+                                <p><strong>Selected Site:</strong> {{ selected_site.name|default:'All Sites' }} (ID: {{ selected_site.id|default:'N/A' }})</p>
                             {% else %}
                                 <p><strong>Selected Site:</strong> None</p>
                             {% endif %}

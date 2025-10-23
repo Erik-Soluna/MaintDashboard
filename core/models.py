@@ -618,3 +618,166 @@ class PortainerConfig(models.Model):
         """Ensure only one configuration exists."""
         self.pk = 1
         super().save(*args, **kwargs)
+
+
+class Logo(models.Model):
+    """Site logo that can be managed by admins"""
+    name = models.CharField(max_length=100)
+    image = models.ImageField(upload_to='logos/')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Logo"
+        verbose_name_plural = "Logos"
+
+    def __str__(self):
+        return self.name
+
+class BrandingSettings(models.Model):
+    """Global branding settings for the website"""
+    site_name = models.CharField(max_length=200, default="Maintenance Dashboard", help_text="Main website name displayed in header")
+    site_tagline = models.CharField(max_length=300, blank=True, help_text="Optional tagline below the site name")
+    window_title_prefix = models.CharField(max_length=100, default="", help_text="Text to prepend to all page titles")
+    window_title_suffix = models.CharField(max_length=100, default="", help_text="Text to append to all page titles")
+    
+    # Header customization
+    header_brand_text = models.CharField(max_length=200, default="Maintenance Dashboard", help_text="Text displayed next to logo in header")
+    navigation_overview_label = models.CharField(max_length=50, default="Overview", help_text="Label for Overview navigation item")
+    navigation_equipment_label = models.CharField(max_length=50, default="Equipment", help_text="Label for Equipment navigation item")
+    navigation_maintenance_label = models.CharField(max_length=50, default="Maintenance", help_text="Label for Maintenance navigation item")
+    navigation_calendar_label = models.CharField(max_length=50, default="Calendar", help_text="Label for Calendar navigation item")
+    navigation_map_label = models.CharField(max_length=50, default="Map", help_text="Label for Map navigation item")
+    navigation_settings_label = models.CharField(max_length=50, default="Settings", help_text="Label for Settings navigation item")
+    navigation_debug_label = models.CharField(max_length=50, default="Debug", help_text="Label for Debug navigation item")
+    
+    # Footer customization
+    footer_copyright_text = models.CharField(max_length=200, default="© 2025 Maintenance Dashboard. All rights reserved.", help_text="Copyright text in footer")
+    footer_powered_by_text = models.CharField(max_length=100, default="Powered by Django", help_text="Text displayed in footer")
+    
+    # Breadcrumb customization
+    breadcrumb_enabled = models.BooleanField(default=True, help_text="Whether to show breadcrumbs globally")
+    breadcrumb_home_text = models.CharField(max_length=50, default="Home", help_text="Text for the home breadcrumb link")
+    breadcrumb_separator = models.CharField(max_length=10, default=">", help_text="Separator between breadcrumb items")
+    
+    # Theme customization
+    primary_color = models.CharField(max_length=7, default="#4299e1", help_text="Primary color in hex format (#RRGGBB)")
+    secondary_color = models.CharField(max_length=7, default="#2d3748", help_text="Secondary color in hex format (#RRGGBB)")
+    accent_color = models.CharField(max_length=7, default="#3182ce", help_text="Accent color in hex format (#RRGGBB)")
+    
+    # Header and navigation colors
+    header_background_color = models.CharField(max_length=7, default="#0f1419", help_text="Header background color in hex format (#RRGGBB)")
+    header_text_color = models.CharField(max_length=7, default="#ffffff", help_text="Header text color in hex format (#RRGGBB)")
+    header_border_color = models.CharField(max_length=7, default="#4a5568", help_text="Header border color in hex format (#RRGGBB)")
+    navigation_background_color = models.CharField(max_length=7, default="#2d3748", help_text="Navigation background color in hex format (#RRGGBB)")
+    navigation_text_color = models.CharField(max_length=7, default="#e2e8f0", help_text="Navigation text color in hex format (#RRGGBB)")
+    navigation_hover_color = models.CharField(max_length=7, default="#4299e1", help_text="Navigation hover color in hex format (#RRGGBB)")
+    
+    # Content area colors
+    content_background_color = models.CharField(max_length=7, default="#1a2238", help_text="Main content background color in hex format (#RRGGBB)")
+    content_text_color = models.CharField(max_length=7, default="#e2e8f0", help_text="Main content text color in hex format (#RRGGBB)")
+    card_background_color = models.CharField(max_length=7, default="#2d3748", help_text="Card background color in hex format (#RRGGBB)")
+    card_border_color = models.CharField(max_length=7, default="#4a5568", help_text="Card border color in hex format (#RRGGBB)")
+    
+    # Button and form colors
+    button_primary_color = models.CharField(max_length=7, default="#4299e1", help_text="Primary button background color in hex format (#RRGGBB)")
+    button_primary_text_color = models.CharField(max_length=7, default="#ffffff", help_text="Primary button text color in hex format (#RRGGBB)")
+    button_secondary_color = models.CharField(max_length=7, default="#718096", help_text="Secondary button background color in hex format (#RRGGBB)")
+    button_secondary_text_color = models.CharField(max_length=7, default="#ffffff", help_text="Secondary button text color in hex format (#RRGGBB)")
+    form_background_color = models.CharField(max_length=7, default="#2d3748", help_text="Form background color in hex format (#RRGGBB)")
+    form_border_color = models.CharField(max_length=7, default="#4a5568", help_text="Form border color in hex format (#RRGGBB)")
+    form_text_color = models.CharField(max_length=7, default="#e2e8f0", help_text="Form text color in hex format (#RRGGBB)")
+    
+    # Status colors
+    success_color = models.CharField(max_length=7, default="#48bb78", help_text="Success color in hex format (#RRGGBB)")
+    warning_color = models.CharField(max_length=7, default="#ed8936", help_text="Warning color in hex format (#RRGGBB)")
+    danger_color = models.CharField(max_length=7, default="#f56565", help_text="Danger color in hex format (#RRGGBB)")
+    info_color = models.CharField(max_length=7, default="#4299e1", help_text="Info color in hex format (#RRGGBB)")
+    
+    # Dropdown and menu colors
+    dropdown_background_color = models.CharField(max_length=7, default="#2d3748", help_text="Dropdown menu background color in hex format (#RRGGBB)")
+    dropdown_background_opacity = models.DecimalField(max_digits=3, decimal_places=2, default=0.95, help_text="Dropdown background opacity (0.00 to 1.00)")
+    dropdown_text_color = models.CharField(max_length=7, default="#e2e8f0", help_text="Dropdown menu text color in hex format (#RRGGBB)")
+    dropdown_border_color = models.CharField(max_length=7, default="#4a5568", help_text="Dropdown menu border color in hex format (#RRGGBB)")
+    dropdown_hover_background_color = models.CharField(max_length=7, default="#4a5568", help_text="Dropdown item hover background color in hex format (#RRGGBB)")
+    dropdown_hover_text_color = models.CharField(max_length=7, default="#ffffff", help_text="Dropdown item hover text color in hex format (#RRGGBB)")
+    
+    # Breadcrumb colors
+    breadcrumb_link_color = models.CharField(max_length=7, default="#4299e1", help_text="Breadcrumb link color in hex format (#RRGGBB)")
+    breadcrumb_text_color = models.CharField(max_length=7, default="#a0aec0", help_text="Breadcrumb text color in hex format (#RRGGBB)")
+    breadcrumb_separator_color = models.CharField(max_length=7, default="#a0aec0", help_text="Breadcrumb separator color in hex format (#RRGGBB)")
+    
+    # Logo and favicon
+    logo = models.ForeignKey(Logo, on_delete=models.SET_NULL, null=True, blank=True, help_text="Main site logo")
+    favicon = models.ImageField(upload_to='favicons/', blank=True, help_text="Website favicon (16x16, 32x32, or 48x48 recommended)")
+    
+    # Meta settings
+    is_active = models.BooleanField(default=True, help_text="Whether these branding settings are currently active")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Branding Settings"
+        verbose_name_plural = "Branding Settings"
+    
+    def __str__(self):
+        return f"Branding Settings - {self.site_name}"
+    
+    def save(self, *args, **kwargs):
+        # Ensure only one active branding settings instance
+        if self.is_active:
+            BrandingSettings.objects.exclude(pk=self.pk).update(is_active=False)
+        super().save(*args, **kwargs)
+
+class CSSCustomization(models.Model):
+    """CSS customizations for different item types and components"""
+    ITEM_TYPE_CHOICES = [
+        ('header', 'Header'),
+        ('navigation', 'Navigation'),
+        ('dashboard', 'Dashboard'),
+        ('equipment', 'Equipment'),
+        ('maintenance', 'Maintenance'),
+        ('calendar', 'Calendar'),
+        ('map', 'Map'),
+        ('settings', 'Settings'),
+        ('forms', 'Forms'),
+        ('tables', 'Tables'),
+        ('buttons', 'Buttons'),
+        ('cards', 'Cards'),
+        ('modals', 'Modals'),
+        ('alerts', 'Alerts'),
+        ('breadcrumbs', 'Breadcrumbs'),
+        ('footer', 'Footer'),
+        ('global', 'Global'),
+    ]
+    
+    name = models.CharField(max_length=100, help_text="Name for this CSS customization")
+    item_type = models.CharField(max_length=20, choices=ITEM_TYPE_CHOICES, help_text="Type of item this CSS affects")
+    description = models.TextField(blank=True, help_text="Description of what this CSS customization does")
+    
+    # CSS content
+    css_code = models.TextField(help_text="CSS code (without <style> tags)")
+    is_active = models.BooleanField(default=True, help_text="Whether this CSS customization is currently active")
+    
+    # Priority and ordering
+    priority = models.IntegerField(default=0, help_text="Higher priority CSS loads later (overrides earlier CSS)")
+    order = models.IntegerField(default=0, help_text="Order within the same priority level")
+    
+    # Metadata
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "CSS Customization"
+        verbose_name_plural = "CSS Customizations"
+        ordering = ['-priority', 'order', 'name']
+    
+    def __str__(self):
+        return f"{self.get_item_type_display()} - {self.name}"
+    
+    def get_css_with_comments(self):
+        """Return CSS with descriptive comments"""
+        comments = f"/* {self.name} - {self.description} */\n"
+        return comments + self.css_code

@@ -19,6 +19,8 @@ urlpatterns = [
     # AJAX endpoints
     path('api/data/', views.get_equipment_data, name='get_equipment_data'),
     path('api/search/', views.search_equipment, name='search_equipment'),
+    path('api/connections/', views.create_connection, name='create_connection'),
+    path('api/connections/<int:connection_id>/', views.delete_connection, name='delete_connection'),
     
     # Components
     path('<int:equipment_id>/components/', views.equipment_components, name='equipment_components'),
@@ -27,6 +29,7 @@ urlpatterns = [
     # Documents
     path('<int:equipment_id>/documents/', views.equipment_documents, name='equipment_documents'),
     path('<int:equipment_id>/documents/add/', views.add_document, name='add_document'),
+    path('<int:equipment_id>/documents/<int:document_id>/delete/', views.delete_document, name='delete_document'),
     path('<int:equipment_id>/scan-reports/', views.scan_reports, name='scan_reports'),
     path('<int:equipment_id>/analyze-reports/', views.analyze_reports, name='analyze_reports'),
     
@@ -35,4 +38,7 @@ urlpatterns = [
     path('export/csv/', views.export_equipment_csv, name='export_equipment_csv'),
     path('locations/import/csv/', views.import_locations_csv, name='import_locations_csv'),
     path('locations/export/csv/', views.export_locations_csv, name='export_locations_csv'),
+    
+    # Custom Field Management
+    path('categories/<int:category_id>/fields/', views.category_fields_management, name='category_fields_management'),
 ]

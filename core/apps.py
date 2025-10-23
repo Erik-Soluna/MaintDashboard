@@ -40,7 +40,7 @@ class CoreConfig(AppConfig):
             print(f"Warning: Could not initialize permissions: {e}")
 
     def _ensure_database_tables(self):
-        """Ensure all required database tables exist on startup."""
+        """Ensure all required database tables exist on startup (optimized)."""
         try:
             from django.core.management import call_command
             from django.core.cache import cache
@@ -48,6 +48,10 @@ class CoreConfig(AppConfig):
             import logging
             
             logger = logging.getLogger(__name__)
+            
+            # Skip if already checked in this process
+            if hasattr(self, '_startup_checks_done'):
+                return
             
             # Check if we're in a management command (avoid running during migrations)
             import sys
@@ -57,31 +61,22 @@ class CoreConfig(AppConfig):
             # Check cache backend
             cache_backend = getattr(settings, 'CACHES', {}).get('default', {}).get('BACKEND', '')
             
-            # If using database cache, ensure cache table exists
+            # If using database cache, ensure cache table exists (quick check)
             if 'django.core.cache.backends.db.DatabaseCache' in cache_backend:
                 try:
-                    # Test cache functionality (silent test)
-                    test_key = 'startup_cache_test'
-                    cache.set(test_key, 'test', 10)
-                    cache.get(test_key)
-                    cache.delete(test_key)
-                    # Only log once per process to avoid repetition
-                    if not hasattr(self, '_startup_checks_done'):
-                        logger.debug("Cache functionality verified on startup")
-                        self._startup_checks_done = True
-                except Exception as e:
-                    logger.warning(f"Cache table may be missing, attempting to create: {e}")
+                    # Quick test - don't log success to reduce noise
+                    cache.set('_boot_check', '1', 1)
+                    cache.delete('_boot_check')
+                except Exception:
+                    # Only create if test fails
                     try:
                         call_command('createcachetable', verbosity=0)
-                        logger.info("Cache table created successfully on startup")
-                    except Exception as create_error:
-                        logger.error(f"Failed to create cache table on startup: {create_error}")
+                        logger.info("Cache table created")
+                    except Exception as e:
+                        logger.error(f"Cache table creation failed: {e}")
             
-            # Only log once per process to avoid repetition
-            if not hasattr(self, '_startup_checks_done'):
-                logger.debug("Database tables check completed on startup")
-                self._startup_checks_done = True
+            self._startup_checks_done = True
             
         except Exception as e:
             # Don't fail the app startup if database check fails
-            logger.warning(f"Database tables check failed on startup: {e}")
+            pass
