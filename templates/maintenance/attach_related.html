@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Attach Related Activity - {{ activity.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-0">Attach Related Activity</h1>
+                    <p class="text-muted mb-0">{{ activity.title }} - {{ activity.equipment.name }}</p>
+                </div>
+                <a href="{% url 'maintenance:activity_detail' activity.id %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Activity
+                </a>
+            </div>
+
+            <!-- Current Activity Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Current Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Title:</strong> {{ activity.title }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Status:</strong>
+                            <span class="badge {% if activity.status == 'completed' %}bg-success{% elif activity.status == 'in_progress' %}bg-warning{% elif activity.status == 'overdue' %}bg-danger{% else %}bg-secondary{% endif %} ms-2">
+                                {{ activity.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <strong>Scheduled:</strong> {{ activity.scheduled_start|date:"M d, Y H:i" }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Type:</strong> {{ activity.activity_type.name }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attach Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-link me-2"></i>Select Related Activity</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="related_activity_id" class="form-label">Related Activity *</label>
+                            <select class="form-select" id="related_activity_id" name="related_activity_id" required>
+                                <option value="">--- Select Related Activity ---</option>
+                                {% for related in potential_related %}
+                                <option value="{{ related.id }}">
+                                    {{ related.title }} ({{ related.scheduled_start|date:"M d, Y" }} - {{ related.get_status_display }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Showing activities for the same equipment: {{ activity.equipment.name }}</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="relationship_type" class="form-label">Relationship Type</label>
+                            <select class="form-select" id="relationship_type" name="relationship_type">
+                                <option value="related">Related</option>
+                                <option value="dependent">Dependent</option>
+                                <option value="blocking">Blocking</option>
+                                <option value="follows">Follows</option>
+                                <option value="precedes">Precedes</option>
+                            </select>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Note:</strong> This will create a timeline entry documenting the relationship between the activities.
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'maintenance:activity_detail' activity.id %}" class="btn btn-secondary">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-link me-1"></i>Attach Activity
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

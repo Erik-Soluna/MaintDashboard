@@ -1,0 +1,322 @@
+# AUTOMATED PORTAINER DEVELOPMENT STACK
+# Version: 2025-09-03-FULLY-AUTOMATED
+# Purpose: Zero-touch deployment with complete automation
+#
+# 🚀 FEATURES:
+# - Automatic database creation and migration
+# - Automatic admin user creation
+# - Automatic static file collection
+# - Automatic branding setup
+# - Health checks and error recovery
+# - Migration conflict resolution
+#
+# 🔧 USAGE:
+# 1. Deploy this stack in Portainer
+# 2. Wait for services to start (2-3 minutes)
+# 3. Access at your configured domain
+# 4. Login with admin credentials (see environment variables)
+
+services:
+  db-dev:
+    image: postgres:15
+    container_name: maintenance_db_dev_auto
+    volumes:
+      - postgres_data_dev_auto:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_DB: ${DB_NAME:-maintenance_dashboard_dev}
+      POSTGRES_USER: ${DB_USER:-maintenance_user_dev}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-DevPassword2024!}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5434:5432"
+    networks:
+      - maintenance_network_dev_auto
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-maintenance_user_dev} -d ${DB_NAME:-maintenance_dashboard_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  redis-dev:
+    image: redis:7-alpine
+    container_name: maintenance_redis_dev_auto
+    ports:
+      - "6381:6379"
+    networks:
+      - maintenance_network_dev_auto
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  web-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-0}
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-unknown}
+        GIT_BRANCH: ${GIT_BRANCH:-unknown}
+        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-unknown}
+    container_name: maintenance_web_dev_auto
+    entrypoint: ["./scripts/deployment/docker-entrypoint-automated.sh"]
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    volumes:
+      - static_volume_dev_auto:/app/staticfiles
+      - media_volume_dev_auto:/app/media
+    ports:
+      - "4407:8000"
+    environment:
+      # Django Configuration
+      - DEBUG=True
+      - SECRET_KEY=django-development-secret-key-change-this-immediately-2024
+      - ALLOWED_HOSTS=dev.maintenance.errorlog.app,localhost,127.0.0.1,maintenance-web-dev-auto
+      
+      # Database Configuration
+      - DB_NAME=maintenance_dashboard_dev
+      - DB_USER=maintenance_user_dev
+      - DB_PASSWORD=DevPassword2024!
+      - DB_HOST=db-dev
+      - DB_PORT=5432
+      - POSTGRES_PASSWORD=DevPassword2024!
+      
+      # Redis Configuration
+      - REDIS_URL=redis://redis-dev:6379/0
+      
+      # Admin User Configuration
+      - ADMIN_USERNAME=admin
+      - ADMIN_EMAIL=admin@dev.maintenance.errorlog.app
+      - ADMIN_PASSWORD=DevAdminPassword2024!
+      
+      # Domain Configuration
+      - DOMAIN=dev.maintenance.errorlog.app
+      
+      # Automation Settings
+      - AUTO_MIGRATE=true
+      - AUTO_CREATE_ADMIN=true
+      - AUTO_SETUP_BRANDING=true
+      - SKIP_DB_INIT=false
+      - SKIP_COLLECTSTATIC=false
+      - FORCE_FRESH_START=false
+      
+      # Retry Configuration
+      - MAX_RETRIES=30
+      - RETRY_DELAY=5
+      
+      # Migration Settings
+      - MIGRATION_CONFLICT_RESOLUTION=true
+      - AUTO_MERGE_MIGRATIONS=true
+      - FORCE_MIGRATION_MERGE=false
+      
+      # Security Settings (Development)
+      - SECURE_SSL_REDIRECT=False
+      - SESSION_COOKIE_SECURE=False
+      - CSRF_COOKIE_SECURE=False
+      - SECURE_BROWSER_XSS_FILTER=True
+      - SECURE_CONTENT_TYPE_NOSNIFF=True
+      - SECURE_HSTS_SECONDS=0
+      - SECURE_HSTS_INCLUDE_SUBDOMAINS=False
+      - SECURE_HSTS_PRELOAD=False
+      - CSRF_TRUSTED_ORIGINS=http://dev.maintenance.errorlog.app,https://dev.maintenance.errorlog.app,http://localhost:4407
+      - SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https
+      
+      # Branding Configuration
+      - BRANDING_AUTO_SETUP=True
+      - BRANDING_SITE_NAME=Maintenance Dashboard (Dev-Auto)
+      - BRANDING_SITE_TAGLINE=Automated Development Environment
+      - BRANDING_WINDOW_TITLE_PREFIX=Maintenance Dashboard
+      - BRANDING_WINDOW_TITLE_SUFFIX=Dev-Auto
+      - BRANDING_HEADER_BRAND_TEXT=Maintenance Dashboard (Dev-Auto)
+      - BRANDING_PRIMARY_COLOR=#4299e1
+      - BRANDING_SECONDARY_COLOR=#2d3748
+      - BRANDING_ACCENT_COLOR=#3182ce
+      
+    depends_on:
+      db-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+    networks:
+      - maintenance_network_dev_auto
+      - proxy-network
+    labels:
+      # Traefik Configuration
+      - "traefik.enable=true"
+      - "traefik.http.routers.maintenance-web-dev-auto.rule=Host(`dev.maintenance.errorlog.app`)"
+      - "traefik.http.routers.maintenance-web-dev-auto.entrypoints=websecure"
+      - "traefik.http.routers.maintenance-web-dev-auto.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.maintenance-web-dev-auto.tls.domains[0].main=dev.maintenance.errorlog.app"
+      - "traefik.http.services.maintenance-web-dev-auto.loadbalancer.server.port=8000"
+      - "traefik.docker.network=proxy-network"
+      
+      # Security Headers
+      - "traefik.http.middlewares.maintenance-dev-auto-security.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.maintenance-dev-auto-security.headers.customrequestheaders.X-Forwarded-Host=dev.maintenance.errorlog.app"
+      - "traefik.http.middlewares.maintenance-dev-auto-security.headers.customresponseheaders.X-Content-Type-Options=nosniff"
+      - "traefik.http.middlewares.maintenance-dev-auto-security.headers.customresponseheaders.X-Frame-Options=SAMEORIGIN"
+      - "traefik.http.middlewares.maintenance-dev-auto-security.headers.customresponseheaders.X-XSS-Protection=1; mode=block"
+      - "traefik.http.routers.maintenance-web-dev-auto.middlewares=maintenance-dev-auto-security"
+      
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/simple/", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s  # Extended start period for initialization
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  celery-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-0}
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-unknown}
+        GIT_BRANCH: ${GIT_BRANCH:-unknown}
+        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-unknown}
+    container_name: maintenance_celery_dev_auto
+    entrypoint: ["./scripts/deployment/docker-entrypoint-automated.sh"]
+    command: ["celery"]
+    environment:
+      # Django Configuration
+      - DEBUG=True
+      - SECRET_KEY=django-development-secret-key-change-this-immediately-2024
+      
+      # Database Configuration
+      - DB_NAME=maintenance_dashboard_dev
+      - DB_USER=maintenance_user_dev
+      - DB_PASSWORD=DevPassword2024!
+      - DB_HOST=db-dev
+      - DB_PORT=5432
+      
+      # Redis Configuration
+      - REDIS_URL=redis://redis-dev:6379/0
+      - C_FORCE_ROOT=1
+      
+      # Celery Configuration
+      - CELERY_BROKER_URL=redis://redis-dev:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis-dev:6379/0
+      - CELERY_WORKER_CONCURRENCY=1
+      - CELERY_WORKER_MAX_TASKS_PER_CHILD=500
+      - CELERY_WORKER_PREFETCH_MULTIPLIER=1
+      
+      # Automation Settings (Skip DB init for worker)
+      - SKIP_DB_INIT=true
+      - MAX_RETRIES=30
+      - RETRY_DELAY=5
+      
+    depends_on:
+      db-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+      web-dev:
+        condition: service_healthy
+    networks:
+      - maintenance_network_dev_auto
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A maintenance_dashboard inspect ping || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  celery-beat-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-0}
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-unknown}
+        GIT_BRANCH: ${GIT_BRANCH:-unknown}
+        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-unknown}
+    container_name: maintenance_celery_beat_dev_auto
+    entrypoint: ["./scripts/deployment/docker-entrypoint-automated.sh"]
+    command: ["celery-beat"]
+    environment:
+      # Django Configuration
+      - DEBUG=True
+      - SECRET_KEY=django-development-secret-key-change-this-immediately-2024
+      
+      # Database Configuration
+      - DB_NAME=maintenance_dashboard_dev
+      - DB_USER=maintenance_user_dev
+      - DB_PASSWORD=DevPassword2024!
+      - DB_HOST=db-dev
+      - DB_PORT=5432
+      
+      # Redis Configuration
+      - REDIS_URL=redis://redis-dev:6379/0
+      
+      # Celery Beat Configuration
+      - CELERY_BROKER_URL=redis://redis-dev:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis-dev:6379/0
+      
+      # Automation Settings (Skip DB init for beat)
+      - SKIP_DB_INIT=true
+      - MAX_RETRIES=30
+      - RETRY_DELAY=5
+      
+    depends_on:
+      db-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+      web-dev:
+        condition: service_healthy
+    networks:
+      - maintenance_network_dev_auto
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'celery.*beat' || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+networks:
+  maintenance_network_dev_auto:
+    driver: bridge
+  proxy-network:
+    external: true
+
+volumes:
+  postgres_data_dev_auto:
+  static_volume_dev_auto:
+  media_volume_dev_auto:

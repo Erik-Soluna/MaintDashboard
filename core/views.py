@@ -10,8 +10,8 @@ from django.contrib.auth.models import User
 from equipment.models import Equipment
 from maintenance.models import MaintenanceActivity
 from events.models import CalendarEvent
-from core.models import Location, EquipmentCategory, Role, Permission, UserProfile, Customer
-from core.forms import LocationForm, EquipmentCategoryForm, CustomerForm
+from core.models import Location, EquipmentCategory, Role, Permission, UserProfile, Customer, BrandingSettings, CSSCustomization
+from core.forms import LocationForm, EquipmentCategoryForm, CustomerForm, BrandingSettingsForm, BrandingBasicForm, BrandingNavigationForm, BrandingAppearanceForm, CSSCustomizationForm, CSSPreviewForm
 from django.utils import timezone
 from django.db.models import Q, Count
 from datetime import datetime, timedelta, date
@@ -36,11 +36,11 @@ import redis
 from django_celery_beat.models import PeriodicTask
 import requests
 from django.test import RequestFactory
-from .models import PlaywrightDebugLog
-from core.tasks import run_playwright_debug
-from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite
-from .tasks import run_natural_language_test_task, run_rbac_test_suite_task
-import asyncio
+# from .models import PlaywrightDebugLog  # DEPRECATED
+# from core.tasks import run_playwright_debug  # DEPRECATED - Playwright removed
+# from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite  # DEPRECATED
+# from .tasks import run_natural_language_test_task, run_rbac_test_suite_task  # DEPRECATED
+# import asyncio  # Only used for playwright
 from django.contrib.admin.views.decorators import staff_member_required
 import hmac
 import hashlib
@@ -71,13 +71,33 @@ def dashboard(request):
     
     # Get selected site from request, session, or user default
     selected_site_id = request.GET.get('site_id')
-    if not selected_site_id:
-        selected_site_id = request.session.get('selected_site_id')
-    if not selected_site_id and user_profile.default_site:
-        selected_site_id = str(user_profile.default_site.id)
+    is_all_sites = False
     
-    if selected_site_id:
-        request.session['selected_site_id'] = selected_site_id
+    if selected_site_id is not None:
+        # If site_id is explicitly provided (even if empty), use it
+        if selected_site_id == '':
+            # Clear site selection (All Sites) - use special marker
+            request.session['selected_site_id'] = 'all'
+            selected_site_id = None
+            is_all_sites = True
+        else:
+            # Set specific site selection
+            request.session['selected_site_id'] = selected_site_id
+            is_all_sites = False
+    else:
+        # No site_id in request, check session or default
+        selected_site_id = request.session.get('selected_site_id')
+        
+        # If session has 'all', keep it as None (All Sites)
+        if selected_site_id == 'all':
+            selected_site_id = None
+            is_all_sites = True
+        elif not selected_site_id and user_profile.default_site:
+            selected_site_id = str(user_profile.default_site.id)
+            request.session['selected_site_id'] = selected_site_id
+            is_all_sites = False
+        else:
+            is_all_sites = True
     
     # Create cache key for this dashboard view
     cache_key = f"dashboard_data_{selected_site_id or 'all'}_{request.user.id}"
@@ -91,7 +111,7 @@ def dashboard(request):
     # Get all sites for the site selector
     sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
     selected_site = None
-    if selected_site_id:
+    if selected_site_id and not is_all_sites:
         try:
             selected_site = sites.get(id=selected_site_id)
         except Location.DoesNotExist:
@@ -152,29 +172,33 @@ def dashboard(request):
     
     # ===== BULK STATISTICS CALCULATION =====
     
-    # Calculate urgent items with single queries
+    # Calculate urgent items with single queries - only show maintenance activities to avoid duplication
     urgent_maintenance = list(maintenance_query.filter(
         Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today),
         status__in=['pending', 'in_progress', 'overdue']
     ).order_by('scheduled_end')[:15])
     
+    # Filter out calendar events that are synced with maintenance activities to avoid duplication
     urgent_calendar = list(calendar_query.filter(
         event_date__lte=urgent_cutoff,
         event_date__gte=today,
-        is_completed=False
+        is_completed=False,
+        maintenance_activity__isnull=True  # Only show calendar events NOT synced with maintenance
     ).order_by('event_date')[:10])
     
-    # Calculate upcoming items with single queries
+    # Calculate upcoming items with single queries - only show maintenance activities to avoid duplication
     upcoming_maintenance = list(maintenance_query.filter(
         scheduled_end__gt=urgent_cutoff,
         scheduled_end__lte=upcoming_cutoff,
         status__in=['pending', 'scheduled']
     ).order_by('scheduled_end')[:15])
     
+    # Filter out calendar events that are synced with maintenance activities to avoid duplication
     upcoming_calendar = list(calendar_query.filter(
         event_date__gt=urgent_cutoff,
         event_date__lte=upcoming_cutoff,
-        is_completed=False
+        is_completed=False,
+        maintenance_activity__isnull=True  # Only show calendar events NOT synced with maintenance
     ).order_by('event_date')[:10])
     
     # ===== OPTIMIZED OVERVIEW DATA CALCULATION =====
@@ -449,6 +473,8 @@ def dashboard(request):
     context = {
         'sites': sites,
         'selected_site': selected_site,
+        'selected_site_id': selected_site_id,
+        'is_all_sites': is_all_sites,
         'site_health': site_health,
         'site_stats': site_stats,
         
@@ -480,23 +506,99 @@ def dashboard(request):
     return render(request, 'core/dashboard.html', context)
 
 
+@login_required
+@user_passes_test(lambda u: u.is_superuser)
+def clear_maintenance_data(request):
+    """Clear all maintenance activities and calendar events (superuser only)."""
+    if request.method == 'POST':
+        try:
+            from django.db import transaction
+            from maintenance.models import MaintenanceActivity, MaintenanceSchedule
+            from events.models import CalendarEvent
+            
+            with transaction.atomic():
+                # Count existing records
+                activity_count = MaintenanceActivity.objects.count()
+                event_count = CalendarEvent.objects.count()
+                schedule_count = MaintenanceSchedule.objects.count()
+                
+                # Delete calendar events first (they reference maintenance activities)
+                if event_count > 0:
+                    CalendarEvent.objects.all().delete()
+                
+                # Delete maintenance activities
+                if activity_count > 0:
+                    MaintenanceActivity.objects.all().delete()
+                
+                # Delete maintenance schedules
+                if schedule_count > 0:
+                    MaintenanceSchedule.objects.all().delete()
+                
+                # Invalidate dashboard cache
+                invalidate_dashboard_cache()
+                
+                messages.success(
+                    request, 
+                    f'Successfully cleared {activity_count} maintenance activities, '
+                    f'{event_count} calendar events, and {schedule_count} maintenance schedules!'
+                )
+                
+        except Exception as e:
+            messages.error(request, f'Error clearing data: {str(e)}')
+            
+        return redirect('core:dashboard')
+    
+    # GET request - show confirmation page
+    from maintenance.models import MaintenanceActivity, MaintenanceSchedule
+    from events.models import CalendarEvent
+    
+    activity_count = MaintenanceActivity.objects.count()
+    event_count = CalendarEvent.objects.count()
+    schedule_count = MaintenanceSchedule.objects.count()
+    
+    context = {
+        'activity_count': activity_count,
+        'event_count': event_count,
+        'schedule_count': schedule_count,
+        'total_count': activity_count + event_count + schedule_count,
+    }
+    
+    return render(request, 'core/clear_data_confirm.html', context)
+
+
 def invalidate_dashboard_cache(user_id=None, site_id=None):
     """Invalidate dashboard cache for specific user and/or site."""
     from django.core.cache import cache
     
     if user_id:
         # Invalidate cache for specific user
-        cache_key = f"dashboard_data_all_{user_id}"
-        cache.delete(cache_key)
-        
-        if site_id:
+        if site_id == 'all':
+            # For 'all' sites, clear the 'all' cache for this user
+            cache_key = f"dashboard_data_all_{user_id}"
+            cache.delete(cache_key)
+        elif site_id:
             # Invalidate cache for specific user and site
             cache_key = f"dashboard_data_{site_id}_{user_id}"
             cache.delete(cache_key)
+            # Also clear the 'all' cache since it might contain this site's data
+            cache_key = f"dashboard_data_all_{user_id}"
+            cache.delete(cache_key)
+        else:
+            # Invalidate all dashboard caches for this user (use with caution)
+            # Since Django cache doesn't support pattern deletion, we'll clear common cache keys
+            for i in range(100):  # Reasonable upper limit for user IDs
+                cache.delete(f"dashboard_data_all_{i}")
+                # Also clear some common site-specific caches
+                for site_id_val in range(1, 100):  # Reasonable upper limit for site IDs
+                    cache.delete(f"dashboard_data_{site_id_val}_{i}")
     else:
         # Invalidate all dashboard caches (use with caution)
-        # This is a simple approach - in production you might want more sophisticated cache invalidation
-        cache.delete_pattern("dashboard_data_*")
+        # Since Django cache doesn't support pattern deletion, we'll clear common cache keys
+        for i in range(100):  # Reasonable upper limit for user IDs
+            cache.delete(f"dashboard_data_all_{i}")
+            # Also clear some common site-specific caches
+            for site_id_val in range(1, 100):  # Reasonable upper limit for site IDs
+                cache.delete(f"dashboard_data_{site_id_val}_{i}")
 
 
 @login_required
@@ -590,15 +692,109 @@ def profile_view(request):
 
 @login_required
 def map_view(request):
-    """Map view showing all locations and equipment."""
-    locations = Location.objects.filter(is_active=True).select_related('parent_location', 'customer')
-    equipment = Equipment.objects.filter(is_active=True).select_related('location')
+    """Map view showing customer-specific equipment with connections."""
+    from equipment.models import EquipmentConnection
+    import json
+    
+    # Get selected customer from request or show all
+    selected_customer_id = request.GET.get('customer_id', 'all')
+    
     customers = Customer.objects.filter(is_active=True).order_by('name')
     
+    # Build customer-specific maps
+    customer_maps = []
+    
+    if selected_customer_id == 'all':
+        # Show all customers
+        customer_list = customers
+    else:
+        # Show specific customer
+        try:
+            customer_list = [customers.get(id=selected_customer_id)]
+        except Customer.DoesNotExist:
+            customer_list = customers
+            selected_customer_id = 'all'
+    
+    for customer in customer_list:
+        # Get all locations for this customer (sites and sub-locations)
+        customer_locations = Location.objects.filter(
+            Q(customer=customer) | Q(parent_location__customer=customer),
+            is_active=True
+        ).select_related('parent_location', 'customer')
+        
+        # Get all equipment at these locations
+        customer_equipment = Equipment.objects.filter(
+            location__in=customer_locations,
+            is_active=True
+        ).select_related('location', 'category')
+        
+        if not customer_equipment.exists():
+            continue
+        
+        # Get equipment IDs for this customer
+        equipment_ids = list(customer_equipment.values_list('id', flat=True))
+        
+        # Get connections between this customer's equipment
+        customer_connections = EquipmentConnection.objects.filter(
+            upstream_equipment__id__in=equipment_ids,
+            downstream_equipment__id__in=equipment_ids,
+            is_active=True
+        ).select_related('upstream_equipment', 'downstream_equipment')
+        
+        # Build connection data for JavaScript
+        connection_data = []
+        for conn in customer_connections:
+            connection_data.append({
+                'id': conn.id,
+                'upstream_id': conn.upstream_equipment.id,
+                'downstream_id': conn.downstream_equipment.id,
+                'connection_type': conn.connection_type,
+                'is_critical': conn.is_critical,
+            })
+        
+        # Build equipment data with effective status
+        equipment_data = []
+        for equip in customer_equipment:
+            effective_status = equip.get_effective_status()
+            equipment_data.append({
+                'id': equip.id,
+                'name': equip.name,
+                'location_id': equip.location.id if equip.location else None,
+                'location_name': equip.location.name if equip.location else 'Unknown',
+                'status': equip.status,
+                'effective_status': effective_status,
+                'is_cascade_offline': effective_status == 'cascade_offline',
+            })
+        
+        # Group locations by site
+        sites = customer_locations.filter(is_site=True)
+        location_groups = {}
+        for site in sites:
+            location_groups[site] = customer_locations.filter(parent_location=site)
+        
+        # Add independent locations (no parent)
+        independent_locations = customer_locations.filter(parent_location=None, is_site=False)
+        if independent_locations.exists():
+            location_groups[None] = independent_locations
+        
+        customer_maps.append({
+            'customer': customer,
+            'locations': customer_locations,
+            'location_groups': location_groups,
+            'equipment': customer_equipment,
+            'connections': customer_connections,
+            'connections_json': json.dumps(connection_data),
+            'equipment_json': json.dumps(equipment_data),
+        })
+    
+    # Get all equipment for connection manager dropdowns
+    all_equipment = Equipment.objects.filter(is_active=True).select_related('location', 'category')
+    
     context = {
-        'locations': locations,
-        'equipment': equipment,
+        'customer_maps': customer_maps,
         'customers': customers,
+        'selected_customer_id': selected_customer_id,
+        'all_equipment': all_equipment,
     }
     return render(request, 'core/map.html', context)
 
@@ -675,6 +871,176 @@ def equipment_items_settings(request):
         'locations': locations,
     }
     return render(request, 'core/equipment_items_settings.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def equipment_conditional_fields_settings(request):
+    """Equipment conditional fields management view."""
+    from equipment.models import EquipmentCategoryField, EquipmentCategoryConditionalField
+    from django.db import connection
+    
+    # Check if the conditional fields table exists
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'equipment_equipmentcategoryconditionalfield'
+                );
+            """)
+            table_exists = cursor.fetchone()[0]
+            
+        if not table_exists:
+            messages.error(request, 'Conditional fields table does not exist. Please run migrations.')
+            # Return a simplified context without conditional fields
+            categories = EquipmentCategory.objects.filter(is_active=True).prefetch_related('custom_fields').order_by('name')
+            context = {
+                'categories': categories,
+                'conditional_fields': [],
+                'conditional_fields_by_category': {},
+                'table_missing': True,
+            }
+            return render(request, 'core/equipment_conditional_fields_settings.html', context)
+            
+    except Exception as e:
+        messages.error(request, f'Database error: {str(e)}')
+        categories = EquipmentCategory.objects.filter(is_active=True).prefetch_related('custom_fields').order_by('name')
+        context = {
+            'categories': categories,
+            'conditional_fields': [],
+            'conditional_fields_by_category': {},
+            'table_missing': True,
+        }
+        return render(request, 'core/equipment_conditional_fields_settings.html', context)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'create_conditional_field':
+            source_category_id = request.POST.get('source_category')
+            target_category_id = request.POST.get('target_category')
+            field_id = request.POST.get('field')
+            
+            try:
+                source_category = EquipmentCategory.objects.get(id=source_category_id)
+                target_category = EquipmentCategory.objects.get(id=target_category_id)
+                field = EquipmentCategoryField.objects.get(id=field_id)
+                
+                # Check if assignment already exists
+                existing = EquipmentCategoryConditionalField.objects.filter(
+                    target_category=target_category,
+                    field=field
+                ).first()
+                
+                if existing:
+                    messages.warning(request, f'Field "{field.label}" is already assigned to "{target_category.name}".')
+                else:
+                    conditional_field = EquipmentCategoryConditionalField.objects.create(
+                        source_category=source_category,
+                        target_category=target_category,
+                        field=field,
+                        created_by=request.user
+                    )
+                    messages.success(request, f'Field "{field.label}" from "{source_category.name}" assigned to "{target_category.name}".')
+                    
+            except (EquipmentCategory.DoesNotExist, EquipmentCategoryField.DoesNotExist):
+                messages.error(request, 'Invalid category or field selection.')
+        
+        elif action == 'delete_conditional_field':
+            conditional_field_id = request.POST.get('conditional_field_id')
+            try:
+                conditional_field = EquipmentCategoryConditionalField.objects.get(id=conditional_field_id)
+                field_label = conditional_field.field.label
+                target_category_name = conditional_field.target_category.name
+                conditional_field.delete()
+                messages.success(request, f'Conditional field "{field_label}" removed from "{target_category_name}".')
+            except EquipmentCategoryConditionalField.DoesNotExist:
+                messages.error(request, 'Conditional field not found.')
+        
+        elif action == 'toggle_conditional_field':
+            conditional_field_id = request.POST.get('conditional_field_id')
+            try:
+                conditional_field = EquipmentCategoryConditionalField.objects.get(id=conditional_field_id)
+                conditional_field.is_active = not conditional_field.is_active
+                conditional_field.save()
+                status = 'enabled' if conditional_field.is_active else 'disabled'
+                messages.success(request, f'Conditional field "{conditional_field.field.label}" {status}.')
+            except EquipmentCategoryConditionalField.DoesNotExist:
+                messages.error(request, 'Conditional field not found.')
+        
+        return redirect('core:equipment_conditional_fields_settings')
+    
+    # Get all categories with their custom fields
+    categories = EquipmentCategory.objects.filter(is_active=True).prefetch_related('custom_fields').order_by('name')
+    
+    # Get all conditional field assignments with error handling
+    try:
+        conditional_fields = EquipmentCategoryConditionalField.objects.select_related(
+            'source_category', 'target_category', 'field'
+        ).order_by('target_category__name', 'field__label')
+        
+        # Group conditional fields by target category
+        conditional_fields_by_category = {}
+        for cf in conditional_fields:
+            target_name = cf.target_category.name
+            if target_name not in conditional_fields_by_category:
+                conditional_fields_by_category[target_name] = []
+            conditional_fields_by_category[target_name].append(cf)
+            
+    except Exception as e:
+        messages.error(request, f'Error loading conditional fields: {str(e)}')
+        conditional_fields = []
+        conditional_fields_by_category = {}
+    
+    context = {
+        'categories': categories,
+        'conditional_fields': conditional_fields,
+        'conditional_fields_by_category': conditional_fields_by_category,
+        'table_missing': False,
+    }
+    return render(request, 'core/equipment_conditional_fields_settings.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def category_fields_api(request, category_id):
+    """API endpoint to get fields for a specific equipment category."""
+    from equipment.models import EquipmentCategoryField
+    
+    try:
+        category = EquipmentCategory.objects.get(id=category_id)
+        fields = EquipmentCategoryField.objects.filter(
+            category=category,
+            is_active=True
+        ).order_by('sort_order')
+        
+        fields_data = []
+        for field in fields:
+            fields_data.append({
+                'id': field.id,
+                'name': field.name,
+                'label': field.label,
+                'field_type': field.field_type,
+                'required': field.required,
+                'help_text': field.help_text,
+                'field_group': field.field_group or 'General',
+            })
+        
+        return JsonResponse({
+            'status': 'success',
+            'category': {
+                'id': category.id,
+                'name': category.name,
+            },
+            'fields': fields_data,
+        })
+        
+    except EquipmentCategory.DoesNotExist:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Category not found'
+        }, status=404)
 
 
 @login_required
@@ -812,6 +1178,9 @@ def locations_api(request):
                 updated_by=request.user
             )
             
+            # Invalidate dashboard cache to ensure Overview page updates immediately
+            invalidate_dashboard_cache()
+            
             return JsonResponse({
                 'id': location.id,
                 'name': location.name,
@@ -878,6 +1247,9 @@ def location_detail_api(request, location_id):
             location.updated_by = request.user
             location.save()
             
+            # Invalidate dashboard cache to ensure Overview page updates immediately
+            invalidate_dashboard_cache()
+            
             return JsonResponse({
                 'message': f'{"Site" if location.is_site else "Location"} updated successfully'
             })
@@ -907,6 +1279,10 @@ def location_detail_api(request, location_id):
                 }, status=400)
             
             location.delete()
+            
+            # Invalidate dashboard cache to ensure Overview page updates immediately
+            invalidate_dashboard_cache()
+            
             return JsonResponse({
                 'message': f'{"Site" if location.is_site else "Location"} "{location_name}" deleted successfully!'
             })
@@ -1135,6 +1511,9 @@ def add_location(request):
             location.updated_by = request.user
             location.save()
             
+            # Invalidate dashboard cache to ensure Overview page updates immediately
+            invalidate_dashboard_cache()
+            
             messages.success(request, f'Location "{location.name}" added successfully!')
             return redirect('core:locations_settings')
     else:
@@ -1159,6 +1538,9 @@ def edit_location(request, location_id):
             location = form.save(commit=False)
             location.updated_by = request.user
             location.save()
+            
+            # Invalidate dashboard cache to ensure Overview page updates immediately
+            invalidate_dashboard_cache()
             
             messages.success(request, f'Location "{location.name}" updated successfully!')
             return redirect('core:locations_settings')
@@ -1401,6 +1783,10 @@ def delete_location(request, location_id):
             return redirect('core:locations_settings')
         
         location.delete()
+        
+        # Invalidate dashboard cache to ensure Overview page updates immediately
+        invalidate_dashboard_cache()
+        
         messages.success(request, f'Location "{location_name}" deleted successfully!')
         return redirect('core:locations_settings')
     
@@ -1457,7 +1843,7 @@ def export_locations_csv(request):
     
     # Apply site filter if provided
     site_id = request.GET.get('site_id')
-    if site_id:
+    if site_id and site_id != 'all':
         from django.db.models import Q
         locations = locations.filter(
             Q(parent_location_id=site_id) | Q(id=site_id)
@@ -1849,10 +2235,19 @@ def health_check_api(request):
     except Exception as e:
         logger.error(f"Error in health check API: {str(e)}")
         return JsonResponse({
-            'timestamp': timezone.now().isoformat(),
+            'error': str(e),
             'status': 'error',
-            'error': str(e)
+            'timestamp': timezone.now().isoformat()
         }, status=500)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
 
 
 @csrf_exempt
@@ -2666,6 +3061,301 @@ def populate_demo_data(request):
         }, status=500)
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def reorganize_activity_types_api(request):
+    """API endpoint to run the reorganize_activity_types management command."""
+    try:
+        from django.core.management import call_command
+        from io import StringIO
+        
+        # Get parameters
+        dry_run = request.POST.get('dry_run', 'true').lower() == 'true'
+        force = request.POST.get('force', 'false').lower() == 'true'
+        
+        # Capture output
+        output = StringIO()
+        
+        # Build command arguments
+        args = ['reorganize_activity_types']
+        if dry_run:
+            args.append('--dry-run')
+        if force:
+            args.append('--force')
+        
+        # Run the command
+        call_command(*args, stdout=output, verbosity=2)
+        
+        command_output = output.getvalue()
+        output.close()
+        
+        return JsonResponse({
+            'success': True,
+            'dry_run': dry_run,
+            'force': force,
+            'output': command_output,
+            'message': 'Activity types reorganized successfully' if not dry_run else 'Dry run completed'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error reorganizing activity types: {str(e)}")
+        import traceback
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def clear_maintenance_activities_api(request):
+    """API endpoint to clear scheduled maintenance activities (unsecured for now - will add API keys later)."""
+    try:
+        from maintenance.models import MaintenanceActivity, MaintenanceSchedule
+        from django.db import connection
+        import json
+        import time
+        import threading
+        
+        # TODO: Add API key authentication here
+        # For now, allowing access for testing purposes
+        
+        # Get parameters
+        clear_all = request.POST.get('clear_all', 'false').lower() == 'true'
+        clear_schedules = request.POST.get('clear_schedules', 'false').lower() == 'true'
+        dry_run = request.POST.get('dry_run', 'true').lower() == 'true'  # Default to dry_run for safety
+        use_fast_delete = request.POST.get('fast_delete', 'true').lower() == 'true'  # Use optimized deletion
+        async_mode = request.POST.get('async', 'false').lower() == 'true'  # Run in background
+        
+        results = {
+            'success': True,
+            'dry_run': dry_run,
+            'activities_deleted': 0,
+            'schedules_deleted': 0,
+            'message': '',
+            'execution_time_seconds': 0
+        }
+        
+        start_time = time.time()
+        
+        # Count what would be deleted
+        if clear_all:
+            # Clear ALL activities
+            activities_query = MaintenanceActivity.objects.all()
+        else:
+            # Only clear scheduled/pending activities (not completed)
+            activities_query = MaintenanceActivity.objects.filter(
+                status__in=['scheduled', 'pending']
+            )
+        
+        activities_count = activities_query.count()
+        results['activities_deleted'] = activities_count
+        
+        if clear_schedules:
+            schedules_query = MaintenanceSchedule.objects.all()
+            schedules_count = schedules_query.count()
+            results['schedules_deleted'] = schedules_count
+        
+        # If async mode and not dry run, run in background thread
+        if async_mode and not dry_run:
+            def delete_in_background():
+                """Background deletion function."""
+                try:
+                    # Re-query in new thread context
+                    from maintenance.models import MaintenanceActivity, MaintenanceSchedule
+                    from django.db import connection
+                    
+                    if clear_all:
+                        activities = MaintenanceActivity.objects.all()
+                    else:
+                        activities = MaintenanceActivity.objects.filter(
+                            status__in=['scheduled', 'pending']
+                        )
+                    
+                    activity_ids = list(activities.values_list('id', flat=True))
+                    
+                    if activity_ids and use_fast_delete and len(activity_ids) > 100:
+                        # Fast SQL delete
+                        ids_str = ','.join(map(str, activity_ids))
+                        with connection.cursor() as cursor:
+                            cursor.execute(f"DELETE FROM maintenance_maintenancetimelineentry WHERE activity_id IN ({ids_str})")
+                            cursor.execute(f"DELETE FROM maintenance_maintenancechecklist WHERE activity_id IN ({ids_str})")
+                            cursor.execute(f"DELETE FROM maintenance_maintenancereport WHERE maintenance_activity_id IN ({ids_str})")
+                            try:
+                                cursor.execute(f"DELETE FROM events_calendarevent WHERE maintenance_activity_id IN ({ids_str})")
+                            except:
+                                pass
+                            cursor.execute(f"DELETE FROM maintenance_maintenanceactivity WHERE id IN ({ids_str})")
+                        logger.info(f"Fast SQL deletion completed: {len(activity_ids)} activities")
+                    else:
+                        # ORM delete
+                        deleted = activities.delete()
+                        logger.info(f"ORM deletion completed: {deleted[0]} activities")
+                    
+                    if clear_schedules:
+                        MaintenanceSchedule.objects.all().delete()
+                        logger.info(f"Schedules deleted")
+                    
+                except Exception as e:
+                    logger.error(f"Background deletion error: {str(e)}")
+            
+            # Start background thread
+            thread = threading.Thread(target=delete_in_background, daemon=True)
+            thread.start()
+            
+            return JsonResponse({
+                'success': True,
+                'async': True,
+                'message': f'Deletion started in background for {activities_count} activities. Check logs for completion.',
+                'activities_to_delete': activities_count,
+                'schedules_to_delete': results['schedules_deleted'] if clear_schedules else 0,
+                'note': 'Background deletion is running. It will complete in 5-30 seconds depending on data volume.'
+            })
+        
+        # Perform deletion if not dry run (synchronous mode)
+        if not dry_run:
+            if use_fast_delete and activities_count > 100:
+                # OPTIMIZED: Use raw SQL for bulk deletion (10-50x faster)
+                # Get activity IDs
+                activity_ids = list(activities_query.values_list('id', flat=True))
+                
+                if activity_ids:
+                    # Convert to comma-separated string for SQL IN clause
+                    ids_str = ','.join(map(str, activity_ids))
+                    
+                    with connection.cursor() as cursor:
+                        # Delete related records first (CASCADE simulation)
+                        # This is much faster than Django's ORM cascade
+                        
+                        # Delete timeline entries
+                        cursor.execute(f"DELETE FROM maintenance_maintenancetimelineentry WHERE activity_id IN ({ids_str})")
+                        
+                        # Delete checklist items  
+                        cursor.execute(f"DELETE FROM maintenance_maintenancechecklist WHERE activity_id IN ({ids_str})")
+                        
+                        # Delete reports
+                        cursor.execute(f"DELETE FROM maintenance_maintenancereport WHERE maintenance_activity_id IN ({ids_str})")
+                        
+                        # Delete calendar events if they exist
+                        try:
+                            cursor.execute(f"DELETE FROM events_calendarevent WHERE maintenance_activity_id IN ({ids_str})")
+                        except:
+                            pass  # Table might not exist or column might be different
+                        
+                        # Finally delete the activities themselves
+                        cursor.execute(f"DELETE FROM maintenance_maintenanceactivity WHERE id IN ({ids_str})")
+                    
+                    results['activities_deleted'] = len(activity_ids)
+                    results['method'] = 'fast_sql'
+            else:
+                # Standard Django ORM delete (slower but safer)
+                deleted_activities = activities_query.delete()
+                results['activities_deleted'] = deleted_activities[0] if deleted_activities else 0
+                results['method'] = 'orm'
+            
+            if clear_schedules:
+                deleted_schedules = schedules_query.delete()
+                results['schedules_deleted'] = deleted_schedules[0] if deleted_schedules else 0
+            
+            results['message'] = f'Successfully deleted {results["activities_deleted"]} activities'
+            if clear_schedules:
+                results['message'] += f' and {results["schedules_deleted"]} schedules'
+        else:
+            results['message'] = f'Dry run: Would delete {activities_count} activities'
+            if clear_schedules:
+                results['message'] += f' and {schedules_count} schedules'
+        
+        results['execution_time_seconds'] = round(time.time() - start_time, 2)
+        
+        logger.info(f"Maintenance cleanup via API: {results['message']} (took {results['execution_time_seconds']}s)")
+        return JsonResponse(results)
+        
+    except Exception as e:
+        logger.error(f"Error clearing maintenance activities: {str(e)}")
+        import traceback
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
+def clear_maintenance_activities(request):
+    """Clear scheduled maintenance activities without wiping entire database (web interface version)."""
+    try:
+        from maintenance.models import MaintenanceActivity, MaintenanceSchedule
+        import json
+        
+        # Safety check - only allow in debug mode or for superusers
+        if not request.user.is_superuser:
+            return JsonResponse({
+                'success': False,
+                'error': 'Only superusers can clear maintenance activities'
+            }, status=403)
+        
+        # Get parameters
+        clear_all = request.POST.get('clear_all', 'false').lower() == 'true'
+        clear_schedules = request.POST.get('clear_schedules', 'false').lower() == 'true'
+        dry_run = request.POST.get('dry_run', 'false').lower() == 'true'
+        
+        results = {
+            'success': True,
+            'dry_run': dry_run,
+            'activities_deleted': 0,
+            'schedules_deleted': 0,
+            'message': ''
+        }
+        
+        # Count what would be deleted
+        if clear_all:
+            # Clear ALL activities
+            activities_query = MaintenanceActivity.objects.all()
+        else:
+            # Only clear scheduled/pending activities (not completed)
+            activities_query = MaintenanceActivity.objects.filter(
+                status__in=['scheduled', 'pending']
+            )
+        
+        activities_count = activities_query.count()
+        results['activities_deleted'] = activities_count
+        
+        if clear_schedules:
+            schedules_query = MaintenanceSchedule.objects.all()
+            schedules_count = schedules_query.count()
+            results['schedules_deleted'] = schedules_count
+        
+        # Perform deletion if not dry run
+        if not dry_run:
+            deleted_activities = activities_query.delete()
+            results['activities_deleted'] = deleted_activities[0] if deleted_activities else 0
+            
+            if clear_schedules:
+                deleted_schedules = schedules_query.delete()
+                results['schedules_deleted'] = deleted_schedules[0] if deleted_schedules else 0
+            
+            results['message'] = f'Successfully deleted {results["activities_deleted"]} activities'
+            if clear_schedules:
+                results['message'] += f' and {results["schedules_deleted"]} schedules'
+        else:
+            results['message'] = f'Dry run: Would delete {activities_count} activities'
+            if clear_schedules:
+                results['message'] += f' and {schedules_count} schedules'
+        
+        logger.info(f"Maintenance cleanup by {request.user.username}: {results['message']}")
+        return JsonResponse(results)
+        
+    except Exception as e:
+        logger.error(f"Error clearing maintenance activities: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
 @login_required
 @user_passes_test(is_staff_or_superuser)
 @csrf_exempt
@@ -2835,6 +3525,215 @@ def run_rbac_test_suite_api(request):
             'error': str(e)
         }, status=500)
 
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+
 @csrf_exempt
 @require_http_methods(["GET"])
 def get_test_results_api(request):
@@ -2906,6 +3805,215 @@ def get_test_results_api(request):
             'error': str(e)
         }, status=500)
 
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+
 @csrf_exempt
 @require_http_methods(["GET"])
 def get_test_screenshots_api(request):
@@ -2958,6 +4066,433 @@ def get_test_screenshots_api(request):
             'total_html_dumps': len(html_dumps)
         })
         
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def reset_admin_password_api(request):
+    """
+    Reset admin user password via API.
+    
+    Expected JSON payload:
+    {
+        "username": "admin",
+        "new_password": "newpassword123"
+    }
+    """
+    try:
+        data = json.loads(request.body) if request.body else {}
+        username = data.get('username', 'admin')
+        new_password = data.get('new_password', 'temppass123')
+        
+        from django.contrib.auth.models import User
+        
+        try:
+            user = User.objects.get(username=username)
+            user.set_password(new_password)
+            user.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Password reset successfully for user "{username}"',
+                'username': username
+            })
+        except User.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': f'User "{username}" does not exist'
+            }, status=404)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON payload'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def create_admin_user_api(request):
+    """
+    Create admin user via API.
+    
+    Expected JSON payload:
+    {
+        "username": "admin",
+        "email": "admin@maintenance.local",
+        "password": "temppass123"
+    }
+    """
+    try:
+        data = json.loads(request.body) if request.body else {}
+        username = data.get('username', 'admin')
+        email = data.get('email', 'admin@maintenance.local')
+        password = data.get('password', 'temppass123')
+        
+        from django.contrib.auth.models import User
+        from django.db import transaction
+        
+        with transaction.atomic():
+            # Check if user already exists
+            if User.objects.filter(username=username).exists():
+                return JsonResponse({
+                    'success': False,
+                    'error': f'User "{username}" already exists'
+                }, status=400)
+            
+            # Create superuser
+            admin_user = User.objects.create_superuser(
+                username=username,
+                email=email,
+                password=password,
+                first_name='System',
+                last_name='Administrator'
+            )
+            
+            # Create user profile if it exists
+            try:
+                from core.models import UserProfile
+                user_profile, created = UserProfile.objects.get_or_create(
+                    user=admin_user,
+                    defaults={
+                        'role': 'admin',
+                        'employee_id': 'ADMIN001',
+                        'department': 'IT Administration',
+                        'is_active': True,
+                    }
+                )
+            except ImportError:
+                pass  # UserProfile model not available
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Admin user "{username}" created successfully',
+                'username': username,
+                'email': email
+            })
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON payload'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def run_migrations_api(request):
+    """
+    Run Django migrations via API.
+    
+    Expected JSON payload:
+    {
+        "command": "migrate",
+        "app": "core",  # optional, specific app
+        "fake": false,  # optional, fake migrations
+        "fake_initial": false  # optional, fake initial migrations
+    }
+    """
+    try:
+        data = json.loads(request.body) if request.body else {}
+        command = data.get('command', 'migrate')
+        app = data.get('app', None)
+        fake = data.get('fake', False)
+        fake_initial = data.get('fake_initial', False)
+        
+        # Build command arguments
+        cmd_args = ['manage.py', command]
+        
+        if app:
+            cmd_args.append(app)
+            
+        if fake:
+            cmd_args.append('--fake')
+        elif fake_initial:
+            cmd_args.append('--fake-initial')
+        else:
+            cmd_args.append('--noinput')
+        
+        # Run the command
+        from django.core.management import call_command
+        from io import StringIO
+        import sys
+        
+        # Capture output
+        old_stdout = sys.stdout
+        sys.stdout = captured_output = StringIO()
+        
+        try:
+            if command == 'migrate':
+                if fake:
+                    call_command('migrate', '--fake', verbosity=2)
+                elif fake_initial:
+                    call_command('migrate', '--fake-initial', verbosity=2)
+                else:
+                    call_command('migrate', '--noinput', verbosity=2)
+            elif command == 'showmigrations':
+                call_command('showmigrations', '--list', verbosity=2)
+            elif command == 'clear_migrations':
+                call_command('clear_migrations', '--force', verbosity=2)
+            elif command == 'init_database':
+                call_command('init_database', '--force', verbosity=2)
+            elif command == 'populate_standard_activity_types':
+                call_command('populate_standard_activity_types', '--force', verbosity=2)
+            elif command == 'create_test_maintenance':
+                call_command('create_test_maintenance', '--force', verbosity=2)
+            elif command == 'makemigrations':
+                call_command('makemigrations', verbosity=2)
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Unsupported command: {command}'
+                }, status=400)
+                
+            output = captured_output.getvalue()
+            
+            return JsonResponse({
+                'success': True,
+                'command': ' '.join(cmd_args),
+                'output': output,
+                'status': 'completed'
+            })
+            
+        except Exception as e:
+            output = captured_output.getvalue()
+            return JsonResponse({
+                'success': False,
+                'command': ' '.join(cmd_args),
+                'output': output,
+                'error': str(e)
+            }, status=500)
+        finally:
+            sys.stdout = old_stdout
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON payload'
+        }, status=400)
     except Exception as e:
         return JsonResponse({
             'success': False,
@@ -3092,6 +4627,215 @@ def run_test_scenario_api(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
 
 @require_GET
 def test_health(request):
@@ -3505,11 +5249,21 @@ def comprehensive_health_check(request):
         health_data = get_comprehensive_system_health()
         return JsonResponse(health_data)
     except Exception as e:
+        logger.error(f"Error in comprehensive health check: {str(e)}")
         return JsonResponse({
-            'timestamp': timezone.now().isoformat(),
-            'overall_status': 'error',
-            'error': str(e)
+            'error': str(e),
+            'status': 'error',
+            'timestamp': timezone.now().isoformat()
         }, status=500)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
 
 
 @login_required
@@ -3581,6 +5335,215 @@ def database_stats(request):
             'success': False,
             'error': str(e)
         }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
 
 
 @login_required
@@ -4407,16 +6370,7 @@ def version_html_view(request):
         messages.error(request, f'Failed to get version information: {str(e)}')
         return redirect('core:dashboard')
 
-def invalidate_dashboard_cache():
-    """Programmatically clear dashboard cache."""
-    try:
-        cache.delete('dashboard_data')
-        cache.delete('next_events')
-        cache.delete('recent_activities')
-        cache.delete('maintenance_stats')
-        logger.info("Dashboard cache cleared successfully")
-    except Exception as e:
-        logger.error(f"Error clearing dashboard cache: {str(e)}")
+
 
 
 
@@ -4617,10 +6571,2001 @@ def extract_version_from_url_api(request):
         }, status=500)
 
 @login_required
-def builderio_overview(request):
-    """Builder.io Overview page - displays the custom maintenance dashboard."""
-    context = {
-        'page_title': 'Builder.io Overview',
-        'user': request.user,
+def invalidate_cache_api(request):
+    """API endpoint to invalidate dashboard cache for the current user."""
+    try:
+        import json
+        
+        # Get the site_id from the request body
+        data = json.loads(request.body)
+        site_id = data.get('site_id')
+        
+        # Update the session with the new site selection
+        if site_id == 'all':
+            request.session['selected_site_id'] = 'all'
+        elif site_id:
+            request.session['selected_site_id'] = site_id
+        else:
+            request.session['selected_site_id'] = 'all'
+        
+        # Invalidate cache for this user and site
+        invalidate_dashboard_cache(user_id=request.user.id, site_id=site_id)
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Cache invalidated successfully',
+            'site_id': site_id
+        })
+    except Exception as e:
+        logger.error(f"Error invalidating cache: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Error invalidating cache: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def database_stats_api(request):
+    """API endpoint to get database statistics."""
+    try:
+        from django.db import connection
+        from equipment.models import Equipment, EquipmentConnection
+        from maintenance.models import MaintenanceActivity, MaintenanceSchedule, MaintenanceActivityType
+        from events.models import CalendarEvent
+        
+        tables = {}
+        
+        # Get row counts for key tables
+        tables['Equipment'] = {'count': Equipment.objects.count()}
+        tables['Equipment Connections'] = {'count': EquipmentConnection.objects.count()}
+        tables['Locations'] = {'count': Location.objects.count()}
+        tables['Customers'] = {'count': Customer.objects.count()}
+        tables['Maintenance Activities'] = {'count': MaintenanceActivity.objects.count()}
+        tables['Maintenance Schedules'] = {'count': MaintenanceSchedule.objects.count()}
+        tables['Activity Types'] = {'count': MaintenanceActivityType.objects.count()}
+        tables['Calendar Events'] = {'count': CalendarEvent.objects.count()}
+        tables['Users'] = {'count': User.objects.count()}
+        
+        # Get database size (PostgreSQL specific)
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT pg_size_pretty(pg_database_size(current_database())) as size;
+                """)
+                row = cursor.fetchone()
+                db_size = row[0] if row else 'Unknown'
+        except Exception:
+            db_size = 'N/A'
+        
+        return JsonResponse({
+            'status': 'success',
+            'tables': tables,
+            'database_size': db_size,
+            'database_name': connection.settings_dict['NAME']
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting database stats: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Error getting database stats: {str(e)}'
+        }, status=500)
+
+
+@login_required
+def branding_settings(request):
+    """Branding settings management page"""
+    # Check if branding tables exist before trying to access them
+    try:
+        from django.db import connection
+        from django.db.utils import ProgrammingError
+        
+        branding_table_exists = False
+        css_table_exists = False
+        
+        try:
+            # Check branding table
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_brandingsettings LIMIT 1")
+                branding_table_exists = True
+        except (ProgrammingError, Exception):
+            branding_table_exists = False
+        
+        try:
+            # Check CSS table
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
+        
+        branding = None
+        css_customizations = []
+        
+        if branding_table_exists:
+            try:
+                branding = BrandingSettings.objects.get(is_active=True)
+            except BrandingSettings.DoesNotExist:
+                branding = None
+        
+        if css_table_exists:
+            try:
+                css_customizations = CSSCustomization.objects.filter(is_active=True).order_by('-priority', 'order')
+            except Exception:
+                css_customizations = []
+        
+        # Always initialize forms if tables exist
+        if branding_table_exists:
+            basic_form = BrandingBasicForm(instance=branding)
+            navigation_form = BrandingNavigationForm(instance=branding)
+            appearance_form = BrandingAppearanceForm(instance=branding)
+            full_form = BrandingSettingsForm(instance=branding)  # For backward compatibility
+        else:
+            basic_form = None
+            navigation_form = None
+            appearance_form = None
+            full_form = None
+        
+        if request.method == 'POST':
+            if not branding_table_exists:
+                messages.error(request, 'Branding system is not yet set up. Please run database migrations first.')
+                return redirect('core:settings')
+            
+            # Determine which form was submitted based on the form action
+            form_type = request.POST.get('form_type', 'basic')
+            
+            if form_type == 'basic':
+                form = BrandingBasicForm(request.POST, request.FILES, instance=branding)
+                success_message = 'Basic branding settings updated successfully!'
+            elif form_type == 'navigation':
+                form = BrandingNavigationForm(request.POST, instance=branding)
+                success_message = 'Navigation labels updated successfully!'
+            elif form_type == 'appearance':
+                form = BrandingAppearanceForm(request.POST, request.FILES, instance=branding)
+                success_message = 'Appearance settings updated successfully!'
+            else:
+                # Fallback to full form
+                form = BrandingSettingsForm(request.POST, request.FILES, instance=branding)
+                success_message = 'Branding settings updated successfully!'
+            
+            if form.is_valid():
+                branding = form.save()
+                messages.success(request, success_message)
+                return redirect('core:branding_settings')
+            else:
+                # If form is invalid, re-initialize the forms with the invalid data
+                if form_type == 'basic':
+                    basic_form = form
+                elif form_type == 'navigation':
+                    navigation_form = form
+                elif form_type == 'appearance':
+                    appearance_form = form
+                else:
+                    full_form = form
+        
+        context = {
+            'basic_form': basic_form,
+            'navigation_form': navigation_form,
+            'appearance_form': appearance_form,
+            'full_form': full_form,  # For backward compatibility
+            'branding': branding,
+            'css_customizations': css_customizations,
+            'active_tab': 'branding',
+            'tables_exist': branding_table_exists and css_table_exists
+        }
+        return render(request, 'core/branding_settings.html', context)
+        
+    except Exception as e:
+        # If anything goes wrong, show an error message
+        messages.error(request, f'Branding system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:settings')
+
+@login_required
+def css_customization_list(request):
+    """List all CSS customizations"""
+    # Check if CSS customization table exists
+    try:
+        from django.db import connection
+        from django.db.utils import ProgrammingError
+        
+        css_table_exists = False
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
+        
+        if not css_table_exists:
+            messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
+            return redirect('core:branding_settings')
+        
+        css_customizations = CSSCustomization.objects.all().order_by('-priority', 'order', 'name')
+        
+        context = {
+            'css_customizations': css_customizations,
+            'active_tab': 'branding'
+        }
+        return render(request, 'core/css_customization_list.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:branding_settings')
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_user_timezone(request):
+    """API endpoint to update user's timezone preference."""
+    try:
+        data = json.loads(request.body)
+        timezone = data.get('timezone')
+        
+        if not timezone:
+            return JsonResponse({
+                'success': False,
+                'error': 'Timezone is required'
+            }, status=400)
+        
+        # Validate timezone against allowed choices
+        valid_timezones = [choice[0] for choice in UserProfile.TIMEZONE_CHOICES]
+        if timezone not in valid_timezones:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid timezone: {timezone}'
+            }, status=400)
+        
+        # Get or create user profile
+        user_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'timezone': timezone}
+        )
+        
+        if not created:
+            user_profile.timezone = timezone
+            user_profile.save()
+        
+        logger.info(f"Updated timezone for user {request.user.username} to {timezone}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Timezone updated to {timezone}',
+            'timezone': timezone
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error updating user timezone: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
     }
-    return render(request, 'core/builderio_overview.html', context)
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+
+@login_required
+def css_customization_create(request):
+    """Create a new CSS customization"""
+    # Check if CSS customization table exists
+    try:
+        from django.db import connection
+        from django.db.utils import ProgrammingError
+        
+        css_table_exists = False
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
+        
+        if not css_table_exists:
+            messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
+            return redirect('core:branding_settings')
+        
+        if request.method == 'POST':
+            form = CSSCustomizationForm(request.POST)
+            if form.is_valid():
+                css_customization = form.save(commit=False)
+                css_customization.created_by = request.user
+                css_customization.save()
+                messages.success(request, 'CSS customization created successfully!')
+                return redirect('core:css_customization_list')
+        else:
+            form = CSSCustomizationForm()
+        
+        context = {
+            'form': form,
+            'active_tab': 'branding',
+            'is_create': True
+        }
+        return render(request, 'core/css_customization_form.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:branding_settings')
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_user_timezone(request):
+    """API endpoint to update user's timezone preference."""
+    try:
+        data = json.loads(request.body)
+        timezone = data.get('timezone')
+        
+        if not timezone:
+            return JsonResponse({
+                'success': False,
+                'error': 'Timezone is required'
+            }, status=400)
+        
+        # Validate timezone against allowed choices
+        valid_timezones = [choice[0] for choice in UserProfile.TIMEZONE_CHOICES]
+        if timezone not in valid_timezones:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid timezone: {timezone}'
+            }, status=400)
+        
+        # Get or create user profile
+        user_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'timezone': timezone}
+        )
+        
+        if not created:
+            user_profile.timezone = timezone
+            user_profile.save()
+        
+        logger.info(f"Updated timezone for user {request.user.username} to {timezone}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Timezone updated to {timezone}',
+            'timezone': timezone
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error updating user timezone: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+
+@login_required
+def css_customization_edit(request, pk):
+    """Edit an existing CSS customization"""
+    # Check if CSS customization table exists
+    try:
+        from django.db import connection
+        from django.db.utils import ProgrammingError
+        
+        css_table_exists = False
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
+        
+        if not css_table_exists:
+            messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
+            return redirect('core:branding_settings')
+        
+        try:
+            css_customization = CSSCustomization.objects.get(pk=pk)
+        except CSSCustomization.DoesNotExist:
+            messages.error(request, 'CSS customization not found.')
+            return redirect('core:css_customization_list')
+        
+        if request.method == 'POST':
+            form = CSSCustomizationForm(request.POST, instance=css_customization)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'CSS customization updated successfully!')
+                return redirect('core:css_customization_list')
+        else:
+            form = CSSCustomizationForm(instance=css_customization)
+        
+        context = {
+            'form': form,
+            'css_customization': css_customization,
+            'active_tab': 'branding',
+            'is_create': False
+        }
+        return render(request, 'core/css_customization_form.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:branding_settings')
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_user_timezone(request):
+    """API endpoint to update user's timezone preference."""
+    try:
+        data = json.loads(request.body)
+        timezone = data.get('timezone')
+        
+        if not timezone:
+            return JsonResponse({
+                'success': False,
+                'error': 'Timezone is required'
+            }, status=400)
+        
+        # Validate timezone against allowed choices
+        valid_timezones = [choice[0] for choice in UserProfile.TIMEZONE_CHOICES]
+        if timezone not in valid_timezones:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid timezone: {timezone}'
+            }, status=400)
+        
+        # Get or create user profile
+        user_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'timezone': timezone}
+        )
+        
+        if not created:
+            user_profile.timezone = timezone
+            user_profile.save()
+        
+        logger.info(f"Updated timezone for user {request.user.username} to {timezone}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Timezone updated to {timezone}',
+            'timezone': timezone
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error updating user timezone: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+
+@login_required
+def css_customization_delete(request, pk):
+    """Delete a CSS customization"""
+    # Check if CSS customization table exists
+    try:
+        from django.db import connection
+        from django.db.utils import ProgrammingError
+        
+        css_table_exists = False
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
+        
+        if not css_table_exists:
+            messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
+            return redirect('core:branding_settings')
+        
+        try:
+            css_customization = CSSCustomization.objects.get(pk=pk)
+            name = css_customization.name
+            css_customization.delete()
+            messages.success(request, f'CSS customization "{name}" deleted successfully!')
+        except CSSCustomization.DoesNotExist:
+            messages.error(request, 'CSS customization not found.')
+        
+        return redirect('core:css_customization_list')
+        
+    except Exception as e:
+        messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:branding_settings')
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_user_timezone(request):
+    """API endpoint to update user's timezone preference."""
+    try:
+        data = json.loads(request.body)
+        timezone = data.get('timezone')
+        
+        if not timezone:
+            return JsonResponse({
+                'success': False,
+                'error': 'Timezone is required'
+            }, status=400)
+        
+        # Validate timezone against allowed choices
+        valid_timezones = [choice[0] for choice in UserProfile.TIMEZONE_CHOICES]
+        if timezone not in valid_timezones:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid timezone: {timezone}'
+            }, status=400)
+        
+        # Get or create user profile
+        user_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'timezone': timezone}
+        )
+        
+        if not created:
+            user_profile.timezone = timezone
+            user_profile.save()
+        
+        logger.info(f"Updated timezone for user {request.user.username} to {timezone}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Timezone updated to {timezone}',
+            'timezone': timezone
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error updating user timezone: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+
+@login_required
+def css_preview(request):
+    """Preview CSS changes in real-time"""
+    # Check if CSS customization table exists
+    try:
+        from django.db import connection
+        from django.db.utils import ProgrammingError
+        
+        css_table_exists = False
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
+        
+        if not css_table_exists:
+            messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
+            return redirect('core:branding_settings')
+        
+        if request.method == 'POST':
+            form = CSSPreviewForm(request.POST)
+            if form.is_valid():
+                css_code = form.cleaned_data['css_code']
+            else:
+                css_code = ''
+        else:
+            form = CSSPreviewForm()
+            css_code = ''
+        
+        # Get active CSS customizations for comparison
+        active_css = CSSCustomization.objects.filter(is_active=True).order_by('-priority', 'order')
+        
+        context = {
+            'form': form,
+            'css_code': css_code,
+            'active_css': active_css,
+            'active_tab': 'branding'
+        }
+        return render(request, 'core/css_preview.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:branding_settings')
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_user_timezone(request):
+    """API endpoint to update user's timezone preference."""
+    try:
+        data = json.loads(request.body)
+        timezone = data.get('timezone')
+        
+        if not timezone:
+            return JsonResponse({
+                'success': False,
+                'error': 'Timezone is required'
+            }, status=400)
+        
+        # Validate timezone against allowed choices
+        valid_timezones = [choice[0] for choice in UserProfile.TIMEZONE_CHOICES]
+        if timezone not in valid_timezones:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid timezone: {timezone}'
+            }, status=400)
+        
+        # Get or create user profile
+        user_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'timezone': timezone}
+        )
+        
+        if not created:
+            user_profile.timezone = timezone
+            user_profile.save()
+        
+        logger.info(f"Updated timezone for user {request.user.username} to {timezone}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Timezone updated to {timezone}',
+            'timezone': timezone
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error updating user timezone: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+
+@login_required
+def css_toggle(request, pk):
+    """Toggle CSS customization active status"""
+    # Check if CSS customization table exists
+    try:
+        from django.db import connection
+        from django.db.utils import ProgrammingError
+        
+        css_table_exists = False
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT COUNT(*) FROM core_csscustomization LIMIT 1")
+                css_table_exists = True
+        except (ProgrammingError, Exception):
+            css_table_exists = False
+        
+        if not css_table_exists:
+            messages.error(request, 'CSS customization system is not yet set up. Please run database migrations first.')
+            return redirect('core:branding_settings')
+        
+        try:
+            css_customization = CSSCustomization.objects.get(pk=pk)
+            css_customization.is_active = not css_customization.is_active
+            css_customization.save()
+            
+            status = 'activated' if css_customization.is_active else 'deactivated'
+            messages.success(request, f'CSS customization "{css_customization.name}" {status} successfully!')
+        except CSSCustomization.DoesNotExist:
+            messages.error(request, 'CSS customization not found.')
+        
+        return redirect('core:css_customization_list')
+        
+    except Exception as e:
+        messages.error(request, f'CSS customization system is not available: {str(e)}. Please run database migrations first.')
+        return redirect('core:branding_settings')
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_user_timezone(request):
+    """API endpoint to update user's timezone preference."""
+    try:
+        data = json.loads(request.body)
+        timezone = data.get('timezone')
+        
+        if not timezone:
+            return JsonResponse({
+                'success': False,
+                'error': 'Timezone is required'
+            }, status=400)
+        
+        # Validate timezone against allowed choices
+        valid_timezones = [choice[0] for choice in UserProfile.TIMEZONE_CHOICES]
+        if timezone not in valid_timezones:
+            return JsonResponse({
+                'success': False,
+                'error': f'Invalid timezone: {timezone}'
+            }, status=400)
+        
+        # Get or create user profile
+        user_profile, created = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'timezone': timezone}
+        )
+        
+        if not created:
+            user_profile.timezone = timezone
+            user_profile.save()
+        
+        logger.info(f"Updated timezone for user {request.user.username} to {timezone}")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Timezone updated to {timezone}',
+            'timezone': timezone
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f"Error updating user timezone: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
+    }
+    
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
+
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
+

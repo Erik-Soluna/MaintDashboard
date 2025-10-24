@@ -14,10 +14,15 @@ urlpatterns = [
     # Activities
     path('activities/', views.activity_list, name='activity_list'),
     path('activities/add/', views.add_activity, name='add_activity'),
+    path('activities/bulk-add/', views.bulk_add_activity, name='bulk_add_activity'),
     path('activities/<int:activity_id>/', views.activity_detail, name='activity_detail'),
     path('activities/<int:activity_id>/edit/', views.edit_activity, name='edit_activity'),
     path('activities/<int:activity_id>/complete/', views.complete_activity, name='complete_activity'),
     path('activities/<int:activity_id>/delete/', views.delete_activity, name='delete_activity'),
+    path('activities/<int:activity_id>/timeline/add/', views.add_timeline_entry, name='add_timeline_entry'),
+    path('activities/<int:activity_id>/upload-document/', views.upload_activity_document, name='upload_activity_document'),
+    path('activities/<int:activity_id>/change-status/', views.change_activity_status, name='change_activity_status'),
+    path('activities/<int:activity_id>/attach-related/', views.attach_related_activity, name='attach_related_activity'),
     
     # Schedules
     path('schedules/', views.schedule_list, name='schedule_list'),  # Fixed name to match template usage
@@ -77,6 +82,7 @@ urlpatterns = [
     # Maintenance Reports
     path('reports/list/', views.report_list, name='report_list'),
     path('reports/<int:report_id>/', views.report_detail, name='report_detail'),
+    path('reports/<int:report_id>/delete/', views.delete_report, name='delete_report'),
     path('reports/upload/', views.upload_report, name='upload_report'),
     path('reports/<int:report_id>/analyze/', views.analyze_report, name='analyze_report'),
     path('api/reports/equipment/<int:equipment_id>/', views.get_reports_for_equipment, name='get_reports_for_equipment'),

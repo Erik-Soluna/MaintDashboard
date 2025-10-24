@@ -1,0 +1,677 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}CSS Preview & Testing - Maintenance Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.css-preview-container {
+    background-color: var(--bg-secondary);
+    min-height: 100vh;
+    color: var(--text-primary);
+    padding: 20px;
+}
+
+.css-preview-header {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.css-preview-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.css-editor-panel {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.css-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.css-editor-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.css-editor-tools {
+    display: flex;
+    gap: 10px;
+}
+
+.css-editor-tools .btn {
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.css-preview-panel {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.css-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.css-preview-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.css-preview-toggle {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.css-preview-toggle:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.css-preview-content {
+    display: none;
+}
+
+.css-preview-content.show {
+    display: block;
+}
+
+.css-preview-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--bg-secondary);
+}
+
+.css-preview-section h6 {
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.css-active-customizations {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.css-active-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.css-active-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.css-active-toggle {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.css-active-content {
+    display: none;
+}
+
+.css-active-content.show {
+    display: block;
+}
+
+.css-active-item {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+
+.css-active-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.css-active-item-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.css-active-item-type {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 10px;
+}
+
+.css-active-item-description {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.css-active-item-code {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    max-height: 80px;
+    overflow-y: auto;
+}
+
+.css-help-section {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.css-help-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 15px;
+}
+
+.css-help-item {
+    margin-bottom: 15px;
+}
+
+.css-help-item h6 {
+    color: var(--primary-color);
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.css-help-item p {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+
+.css-help-item code {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.form-group label {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.form-control {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.form-control:focus {
+    background-color: var(--bg-secondary);
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+@media (max-width: 768px) {
+    .css-preview-content {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="css-preview-container">
+    <!-- Header -->
+    <div class="css-preview-header">
+        <h2><i class="fas fa-eye me-2"></i>CSS Preview & Testing</h2>
+        <p class="text-muted mb-0">Test your CSS customizations in real-time and see how they affect the interface.</p>
+    </div>
+
+    <!-- Active CSS Customizations -->
+    <div class="css-active-customizations">
+        <div class="css-active-header">
+            <h5 class="css-active-title"><i class="fas fa-code me-2"></i>Active CSS Customizations</h5>
+            <button type="button" class="css-active-toggle" id="toggleActiveCSS">
+                <i class="fas fa-chevron-down me-1"></i>Show Active CSS
+            </button>
+        </div>
+        
+        <div class="css-active-content" id="activeCSSContent">
+            {% if active_css %}
+                {% for css in active_css %}
+                    <div class="css-active-item">
+                        <div class="css-active-item-header">
+                            <span class="css-active-item-name">{{ css.name }}</span>
+                            <span class="css-active-item-type">{{ css.get_item_type_display }}</span>
+                        </div>
+                        {% if css.description %}
+                            <div class="css-active-item-description">{{ css.description }}</div>
+                        {% endif %}
+                        <div class="css-active-item-code">{{ css.css_code|truncatechars:150 }}</div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted text-center mb-0">No active CSS customizations found.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="css-preview-content">
+        <!-- CSS Editor Panel -->
+        <div class="css-editor-panel">
+            <div class="css-editor-header">
+                <h5 class="css-editor-title"><i class="fas fa-edit me-2"></i>CSS Editor</h5>
+                <div class="css-editor-tools">
+                    <button type="button" class="btn btn-outline-secondary" id="formatCss">
+                        <i class="fas fa-magic me-1"></i>Format
+                    </button>
+                    <button type="button" class="btn btn-outline-info" id="validateCss">
+                        <i class="fas fa-check me-1"></i>Validate
+                    </button>
+                    <button type="button" class="btn btn-outline-warning" id="clearCss">
+                        <i class="fas fa-eraser me-1"></i>Clear
+                    </button>
+                </div>
+            </div>
+            
+            <form method="post">
+                {% csrf_token %}
+                {{ form.css_code|as_crispy_field }}
+                
+                <div class="text-center mt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-play me-2"></i>Apply CSS
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Preview Panel -->
+        <div class="css-preview-panel">
+            <div class="css-preview-header">
+                <h5 class="css-preview-title"><i class="fas fa-eye me-2"></i>Live Preview</h5>
+                <button type="button" class="css-preview-toggle" id="togglePreview">
+                    <i class="fas fa-eye me-1"></i>Show Preview
+                </button>
+            </div>
+            
+            <div class="css-preview-content" id="previewContent">
+                <!-- Header Preview -->
+                <div class="css-preview-section">
+                    <h6>Header Elements</h6>
+                    <div class="d-flex justify-content-between align-items-center p-3" style="background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-tools fa-2x me-3" style="color: var(--primary-color);"></i>
+                            <div>
+                                <h4 class="mb-0">Sample Header</h4>
+                                <small class="text-muted">Sample tagline</small>
+                            </div>
+                        </div>
+                        <div class="version-badge">
+                            <small class="text-muted">v1.0.0</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Preview -->
+                <div class="css-preview-section">
+                    <h6>Navigation Elements</h6>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-primary">Primary Button</button>
+                        <button class="btn btn-secondary">Secondary Button</button>
+                        <button class="btn btn-outline-primary">Outline Button</button>
+                        <button class="btn btn-outline-secondary">Outline Secondary</button>
+                    </div>
+                </div>
+
+                <!-- Card Preview -->
+                <div class="css-preview-section">
+                    <h6>Card Elements</h6>
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Sample Card Header</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-0">This is a sample card body to preview your CSS customizations.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Preview -->
+                <div class="css-preview-section">
+                    <h6>Form Elements</h6>
+                    <div class="form-group">
+                        <label>Sample Input</label>
+                        <input type="text" class="form-control" placeholder="Enter text here">
+                    </div>
+                    <div class="form-group">
+                        <label>Sample Select</label>
+                        <select class="form-control">
+                            <option>Option 1</option>
+                            <option>Option 2</option>
+                            <option>Option 3</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Table Preview -->
+                <div class="css-preview-section">
+                    <h6>Table Elements</h6>
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Sample Item 1</td>
+                                    <td><span class="badge badge-success">Active</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary">Edit</button>
+                                        <button class="btn btn-sm btn-danger">Delete</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>Sample Item 2</td>
+                                    <td><span class="badge badge-warning">Pending</span></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary">Edit</button>
+                                        <button class="btn btn-sm btn-danger">Delete</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Alert Preview -->
+                <div class="css-preview-section">
+                    <h6>Alert Elements</h6>
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>This is a success alert message.
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>This is a warning alert message.
+                    </div>
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle me-2"></i>This is a danger alert message.
+                    </div>
+                </div>
+
+                <!-- Modal Preview -->
+                <div class="css-preview-section">
+                    <h6>Modal Elements</h6>
+                    <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#sampleModal">
+                        Open Sample Modal
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Section -->
+    <div class="css-help-section">
+        <h5 class="css-help-title"><i class="fas fa-question-circle me-2"></i>CSS Preview Help</h5>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="css-help-item">
+                    <h6>How to Use</h6>
+                    <p>1. Write CSS code in the editor panel</p>
+                    <p>2. Click "Apply CSS" to see changes in the preview</p>
+                    <p>3. Use the preview panel to test different elements</p>
+                    <p>4. Save your CSS as a customization when satisfied</p>
+                </div>
+                
+                <div class="css-help-item">
+                    <h6>Preview Elements</h6>
+                    <p>The preview panel includes common UI elements:</p>
+                    <ul>
+                        <li>Headers and navigation</li>
+                        <li>Buttons and forms</li>
+                        <li>Cards and tables</li>
+                        <li>Alerts and modals</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="css-help-item">
+                    <h6>CSS Examples</h6>
+                    <p>Try these CSS snippets:</p>
+                    <code>
+.btn-primary {<br>
+&nbsp;&nbsp;border-radius: 20px;<br>
+&nbsp;&nbsp;box-shadow: 0 2px 4px rgba(0,0,0,0.2);<br>
+}<br><br>
+.card {<br>
+&nbsp;&nbsp;border-radius: 12px;<br>
+&nbsp;&nbsp;transition: transform 0.2s;<br>
+}<br><br>
+.card:hover {<br>
+&nbsp;&nbsp;transform: translateY(-2px);<br>
+}
+                    </code>
+                </div>
+                
+                <div class="css-help-item">
+                    <h6>Tips</h6>
+                    <ul>
+                        <li>Use specific selectors to avoid conflicts</li>
+                        <li>Test on different screen sizes</li>
+                        <li>Keep customizations organized</li>
+                        <li>Use CSS variables when possible</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sample Modal for Preview -->
+<div class="modal fade" id="sampleModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Sample Modal</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>This is a sample modal to preview your CSS customizations.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle active CSS content
+    document.getElementById('toggleActiveCSS').addEventListener('click', function() {
+        const content = document.getElementById('activeCSSContent');
+        const button = this;
+        
+        if (content.classList.contains('show')) {
+            content.classList.remove('show');
+            button.innerHTML = '<i class="fas fa-chevron-down me-1"></i>Show Active CSS';
+        } else {
+            content.classList.add('show');
+            button.innerHTML = '<i class="fas fa-chevron-up me-1"></i>Hide Active CSS';
+        }
+    });
+    
+    // Toggle preview content
+    document.getElementById('togglePreview').addEventListener('click', function() {
+        const content = document.getElementById('previewContent');
+        const button = this;
+        
+        if (content.classList.contains('show')) {
+            content.classList.remove('show');
+            button.innerHTML = '<i class="fas fa-eye me-1"></i>Show Preview';
+        } else {
+            content.classList.add('show');
+            button.innerHTML = '<i class="fas fa-eye-slash me-1"></i>Hide Preview';
+        }
+    });
+    
+    // Format CSS button
+    document.getElementById('formatCss').addEventListener('click', function() {
+        const textarea = document.getElementById('{{ form.css_code.id_for_label }}');
+        let code = textarea.value;
+        
+        // Simple CSS formatting
+        code = code.replace(/;\s*/g, ';\n    ')
+                   .replace(/\{\s*/g, ' {\n    ')
+                   .replace(/\s*\}/g, '\n}\n');
+        
+        textarea.value = code;
+    });
+    
+    // Validate CSS button
+    document.getElementById('validateCss').addEventListener('click', function() {
+        const textarea = document.getElementById('{{ form.css_code.id_for_label }}');
+        const code = textarea.value;
+        
+        if (code.trim()) {
+            const errors = [];
+            
+            // Check for basic syntax
+            const openBraces = (code.match(/\{/g) || []).length;
+            const closeBraces = (code.match(/\}/g) || []).length;
+            
+            if (openBraces !== closeBraces) {
+                errors.push('Mismatched braces: ' + openBraces + ' opening, ' + closeBraces + ' closing');
+            }
+            
+            // Check for common issues
+            if (code.includes('<style>') || code.includes('</style>')) {
+                errors.push('Remove <style> tags from CSS code');
+            }
+            
+            if (code.toLowerCase().includes('javascript:')) {
+                errors.push('JavaScript is not allowed in CSS customizations');
+            }
+            
+            if (errors.length > 0) {
+                alert('CSS Validation Errors:\n\n' + errors.join('\n'));
+            } else {
+                alert('CSS validation passed! No syntax errors found.');
+            }
+        } else {
+            alert('Please enter some CSS code to validate.');
+        }
+    });
+    
+    // Clear CSS button
+    document.getElementById('clearCss').addEventListener('click', function() {
+        if (confirm('Are you sure you want to clear the CSS code?')) {
+            document.getElementById('{{ form.css_code.id_for_label }}').value = '';
+        }
+    });
+    
+    // Live CSS preview
+    const textarea = document.getElementById('{{ form.css_code.id_for_label }}');
+    textarea.addEventListener('input', function() {
+        const code = this.value;
+        if (code.trim()) {
+            try {
+                // Remove existing preview styles
+                const existingStyle = document.getElementById('livePreviewStyle');
+                if (existingStyle) {
+                    existingStyle.remove();
+                }
+                
+                // Add new preview styles
+                const style = document.createElement('style');
+                style.id = 'livePreviewStyle';
+                style.textContent = code;
+                document.head.appendChild(style);
+            } catch (e) {
+                console.error('Error applying CSS preview:', e);
+            }
+        }
+    });
+    
+    // Form submission handling
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Applying...';
+    });
+});
+</script>
+{% endblock %}

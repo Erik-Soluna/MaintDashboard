@@ -54,9 +54,14 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
+      args:
+        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-414}
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-11e13c5}
+        GIT_BRANCH: ${GIT_BRANCH:-latest}
+        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-2025-09-02}
     container_name: maintenance_web_prod
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
-    command: ["web"]
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
@@ -88,6 +93,25 @@ services:
       - SECURE_HSTS_PRELOAD=True
       - CSRF_TRUSTED_ORIGINS=https://maintenance.errorlog.app,https://www.maintenance.errorlog.app
       - SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https
+      # Migration Conflict Resolution
+      - MIGRATION_CONFLICT_RESOLUTION=True
+      - AUTO_MERGE_MIGRATIONS=True
+      - FORCE_MIGRATION_MERGE=False
+      # Fresh Database Initialization
+      - MAX_RETRIES=30
+      - RETRY_DELAY=5
+      - SKIP_DB_INIT=False
+      - SKIP_COLLECTSTATIC=False
+      # Branding System Configuration
+      - BRANDING_AUTO_SETUP=${BRANDING_AUTO_SETUP:-True}
+      - BRANDING_SITE_NAME=${BRANDING_SITE_NAME:-Maintenance Dashboard}
+      - BRANDING_SITE_TAGLINE=${BRANDING_SITE_TAGLINE:-Professional Maintenance Management System}
+      - BRANDING_WINDOW_TITLE_PREFIX=${BRANDING_WINDOW_TITLE_PREFIX:-Maintenance Dashboard}
+      - BRANDING_WINDOW_TITLE_SUFFIX=${BRANDING_WINDOW_TITLE_SUFFIX:-ErrorLog.app}
+      - BRANDING_HEADER_BRAND_TEXT=${BRANDING_HEADER_BRAND_TEXT:-Maintenance Dashboard}
+      - BRANDING_PRIMARY_COLOR=${BRANDING_PRIMARY_COLOR:-#4299e1}
+      - BRANDING_SECONDARY_COLOR=${BRANDING_SECONDARY_COLOR:-#2d3748}
+      - BRANDING_ACCENT_COLOR=${BRANDING_ACCENT_COLOR:-#3182ce}
     depends_on:
       db:
         condition: service_healthy
@@ -139,6 +163,11 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
+      args:
+        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-414}
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-11e13c5}
+        GIT_BRANCH: ${GIT_BRANCH:-latest}
+        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-2025-09-02}
     container_name: maintenance_celery_prod
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["celery"]
@@ -159,6 +188,11 @@ services:
       - CELERY_WORKER_CONCURRENCY=2
       - CELERY_WORKER_MAX_TASKS_PER_CHILD=1000
       - CELERY_WORKER_PREFETCH_MULTIPLIER=1
+      # Migration Conflict Resolution
+      - MIGRATION_CONFLICT_RESOLUTION=True
+      - MAX_RETRIES=30
+      - RETRY_DELAY=5
+      - SKIP_DB_INIT=False
     depends_on:
       db:
         condition: service_healthy
@@ -184,6 +218,11 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
+      args:
+        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-414}
+        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-11e13c5}
+        GIT_BRANCH: ${GIT_BRANCH:-latest}
+        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-2025-09-02}
     container_name: maintenance_celery_beat_prod
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["celery-beat"]
@@ -200,6 +239,11 @@ services:
       # Celery Beat Production Settings
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      # Migration Conflict Resolution
+      - MIGRATION_CONFLICT_RESOLUTION=True
+      - MAX_RETRIES=30
+      - RETRY_DELAY=5
+      - SKIP_DB_INIT=False
     depends_on:
       db:
         condition: service_healthy

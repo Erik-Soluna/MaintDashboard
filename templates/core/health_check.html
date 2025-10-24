@@ -1,0 +1,361 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}System Health Check - SOLUNA Maintenance Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.health-container {
+    background-color: #1a2238;
+    min-height: 100vh;
+    color: white;
+    padding: 20px;
+}
+
+.health-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.health-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.summary-card {
+    background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.summary-card:hover {
+    border-color: #4299e1;
+    transform: translateY(-2px);
+}
+
+.summary-card.excellent {
+    border-color: #48bb78;
+    background: linear-gradient(135deg, #2f855a 0%, #38a169 100%);
+}
+
+.summary-card.good {
+    border-color: #4299e1;
+    background: linear-gradient(135deg, #2b6cb0 0%, #3182ce 100%);
+}
+
+.summary-card.moderate {
+    border-color: #ed8936;
+    background: linear-gradient(135deg, #c05621 0%, #dd6b20 100%);
+}
+
+.summary-card.critical {
+    border-color: #f56565;
+    background: linear-gradient(135deg, #c53030 0%, #e53e3e 100%);
+}
+
+.summary-number {
+    font-size: 2.5em;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.summary-label {
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+.category-section {
+    background: #2d3748;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.category-header {
+    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+    padding: 15px 20px;
+    font-weight: bold;
+    font-size: 1.1em;
+    border-bottom: 1px solid #4a5568;
+}
+
+.category-content {
+    padding: 20px;
+}
+
+.check-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #4a5568;
+}
+
+.check-item:last-child {
+    border-bottom: none;
+}
+
+.check-status {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-right: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.check-status.pass {
+    background-color: #48bb78;
+    color: white;
+}
+
+.check-status.fail {
+    background-color: #f56565;
+    color: white;
+}
+
+.check-status.warning {
+    background-color: #ed8936;
+    color: white;
+}
+
+.check-status.error {
+    background-color: #e53e3e;
+    color: white;
+}
+
+.check-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.check-fix {
+    font-size: 0.9em;
+    color: #a0aec0;
+    font-style: italic;
+}
+
+.quick-fixes {
+    background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.quick-fixes h3 {
+    color: #4299e1;
+    margin-bottom: 15px;
+}
+
+.fix-item {
+    background: #1a202c;
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border-left: 4px solid #4299e1;
+}
+
+.refresh-btn {
+    background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.refresh-btn:hover {
+    background: linear-gradient(135deg, #3182ce 0%, #2b6cb0 100%);
+    transform: translateY(-1px);
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #a0aec0;
+}
+
+.loading i {
+    font-size: 2em;
+    margin-bottom: 10px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="health-container">
+    <div class="health-header">
+        <h1>🏥 System Health Check</h1>
+        <p>Comprehensive diagnostic tool for identifying and resolving system issues</p>
+        <button class="refresh-btn" onclick="runHealthCheck()">
+            <i class="fas fa-sync-alt"></i> Run Health Check
+        </button>
+    </div>
+
+    <div id="healthResults">
+        <div class="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Loading health check results...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+function runHealthCheck() {
+    const resultsDiv = document.getElementById('healthResults');
+    resultsDiv.innerHTML = `
+        <div class="loading">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Running health check...</p>
+        </div>
+    `;
+
+    fetch('{% url "core:system_health_check" %}')
+        .then(response => response.json())
+        .then(data => {
+            displayHealthResults(data);
+        })
+        .catch(error => {
+            resultsDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h4>Error running health check</h4>
+                    <p>${error.message}</p>
+                </div>
+            `;
+        });
+}
+
+function displayHealthResults(data) {
+    const resultsDiv = document.getElementById('healthResults');
+    
+    // Determine overall health status
+    let healthClass = 'critical';
+    if (data.summary.status === 'EXCELLENT') healthClass = 'excellent';
+    else if (data.summary.status === 'GOOD') healthClass = 'good';
+    else if (data.summary.status === 'MODERATE') healthClass = 'moderate';
+    
+    let html = `
+        <div class="health-summary">
+            <div class="summary-card ${healthClass}">
+                <div class="summary-number">${data.summary.health_percentage}%</div>
+                <div class="summary-label">Overall Health</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-number">${data.summary.passed}</div>
+                <div class="summary-label">Passed</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-number">${data.summary.failed}</div>
+                <div class="summary-label">Failed</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-number">${data.summary.warnings}</div>
+                <div class="summary-label">Warnings</div>
+            </div>
+        </div>
+    `;
+    
+    // Display categories
+    const categoryNames = {
+        'CORE': 'Core Application Health',
+        'SCHEMA': 'Database Schema Integrity',
+        'API': 'API Endpoints Functionality',
+        'CALENDAR': 'Calendar Specific Issues',
+        'MIGRATIONS': 'Migration Status',
+        'AUTH': 'User Authentication',
+        'DEPS': 'External Dependencies'
+    };
+    
+    for (const [category, checks] of Object.entries(data.categories)) {
+        if (checks.passed.length === 0 && checks.failed.length === 0 && checks.warnings.length === 0) {
+            continue;
+        }
+        
+        html += `
+            <div class="category-section">
+                <div class="category-header">
+                    📋 ${categoryNames[category] || category}
+                </div>
+                <div class="category-content">
+        `;
+        
+        // Display passed checks
+        checks.passed.forEach(check => {
+            html += `
+                <div class="check-item">
+                    <div class="check-status pass">✓</div>
+                    <div class="check-name">${check.name}</div>
+                </div>
+            `;
+        });
+        
+        // Display failed checks
+        checks.failed.forEach(check => {
+            html += `
+                <div class="check-item">
+                    <div class="check-status ${check.status.toLowerCase()}">✗</div>
+                    <div class="check-name">${check.name}</div>
+                    ${check.fix ? `<div class="check-fix">Fix: ${check.fix}</div>` : ''}
+                </div>
+            `;
+        });
+        
+        // Display warnings
+        checks.warnings.forEach(check => {
+            html += `
+                <div class="check-item">
+                    <div class="check-status warning">⚠</div>
+                    <div class="check-name">${check.name}</div>
+                    ${check.message ? `<div class="check-fix">Note: ${check.message}</div>` : ''}
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    // Display quick fixes
+    if (data.quick_fixes && data.quick_fixes.length > 0) {
+        html += `
+            <div class="quick-fixes">
+                <h3>🔧 Quick Fixes</h3>
+        `;
+        
+        data.quick_fixes.forEach(fix => {
+            html += `
+                <div class="fix-item">
+                    ${fix}
+                </div>
+            `;
+        });
+        
+        html += `
+            </div>
+        `;
+    }
+    
+    resultsDiv.innerHTML = html;
+}
+
+// Run health check on page load
+document.addEventListener('DOMContentLoaded', function() {
+    runHealthCheck();
+});
+</script>
+{% endblock %}

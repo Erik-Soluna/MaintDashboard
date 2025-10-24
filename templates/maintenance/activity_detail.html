@@ -16,6 +16,9 @@
             <a href="{% url 'maintenance:edit_activity' activity.id %}" class="btn btn-primary">
                 <i class="fas fa-edit me-1"></i>Edit
             </a>
+            <a href="{% url 'maintenance:change_activity_status' activity.id %}" class="btn btn-warning">
+                <i class="fas fa-exchange-alt me-1"></i>Change Status
+            </a>
             {% if activity.status != 'completed' %}
                 <a href="{% url 'maintenance:complete_activity' activity.id %}" class="btn btn-success">
                     <i class="fas fa-check me-1"></i>Complete
@@ -99,70 +102,24 @@
                 </div>
                 <div class="card-body">
                     <div class="timeline">
-                        <!-- Activity Creation -->
+                        <!-- Chronological Timeline Events -->
+                        {% for event in timeline_events %}
                         <div class="timeline-item">
-                            <div class="timeline-marker bg-primary">
-                                <i class="fas fa-plus text-white"></i>
+                            <div class="timeline-marker bg-{{ event.color }}">
+                                <i class="fas {{ event.icon }} text-white"></i>
                             </div>
                             <div class="timeline-content">
                                 <div class="d-flex justify-content-between">
-                                    <strong>Activity Created</strong>
-                                    <small class="text-muted">{{ activity.created_at|date:"M d, Y H:i" }}</small>
+                                    <strong>{{ event.title }}</strong>
+                                    <small class="text-muted">{{ event.timestamp|date:"M d, Y H:i" }}</small>
                                 </div>
-                                <p class="mb-0 text-muted">Created by {{ activity.created_by.get_full_name|default:activity.created_by.username }}</p>
-                            </div>
-                        </div>
-
-                        <!-- Timeline Entries -->
-                        {% for entry in timeline_entries %}
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-{{ entry.entry_type|timeline_color }}">
-                                <i class="fas {{ entry.entry_type|timeline_icon }} text-white"></i>
-                            </div>
-                            <div class="timeline-content">
-                                <div class="d-flex justify-content-between">
-                                    <strong>{{ entry.title }}</strong>
-                                    <small class="text-muted">{{ entry.created_at|date:"M d, Y H:i" }}</small>
-                                </div>
-                                <p class="mb-0">{{ entry.description }}</p>
-                                {% if entry.created_by %}
-                                <small class="text-muted">by {{ entry.created_by.get_full_name|default:entry.created_by.username }}</small>
+                                <p class="mb-0">{{ event.description }}</p>
+                                {% if event.created_by %}
+                                <small class="text-muted">by {{ event.created_by.get_full_name|default:event.created_by.username }}</small>
                                 {% endif %}
                             </div>
                         </div>
                         {% endfor %}
-
-                        <!-- Status Changes -->
-                        {% if activity.actual_start %}
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-warning">
-                                <i class="fas fa-play text-white"></i>
-                            </div>
-                            <div class="timeline-content">
-                                <div class="d-flex justify-content-between">
-                                    <strong>Activity Started</strong>
-                                    <small class="text-muted">{{ activity.actual_start|date:"M d, Y H:i" }}</small>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-
-                        {% if activity.actual_end %}
-                        <div class="timeline-item">
-                            <div class="timeline-marker bg-success">
-                                <i class="fas fa-check text-white"></i>
-                            </div>
-                            <div class="timeline-content">
-                                <div class="d-flex justify-content-between">
-                                    <strong>Activity Completed</strong>
-                                    <small class="text-muted">{{ activity.actual_end|date:"M d, Y H:i" }}</small>
-                                </div>
-                                {% if activity.completion_notes %}
-                                <p class="mb-0 mt-2">{{ activity.completion_notes }}</p>
-                                {% endif %}
-                            </div>
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -221,6 +178,108 @@
                             {% endif %}
                         </div>
                     </div>
+                </div>
+            </div>
+            
+            <!-- Documents Section -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>Documents & Reports</h5>
+                    <div class="btn-group">
+                        <a href="{% url 'maintenance:upload_activity_document' activity.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-upload me-1"></i>Upload Document
+                        </a>
+                        <a href="{% url 'maintenance:attach_related_activity' activity.id %}" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-link me-1"></i>Attach Related
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Maintenance Reports -->
+                    {% if maintenance_reports %}
+                    <div class="mb-4">
+                        <h6 class="mb-3"><i class="fas fa-clipboard-list me-2"></i>Maintenance Reports</h6>
+                        <div class="row">
+                            {% for report in maintenance_reports %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card border-primary">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-primary">{{ report.title }}</h6>
+                                        <p class="card-text">
+                                            <small class="text-muted">{{ report.get_report_type_display }}</small><br>
+                                            {% if report.findings_summary %}
+                                                {{ report.findings_summary|truncatechars:100 }}
+                                            {% endif %}
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">{{ report.created_at|date:"M d, Y" }}</small>
+                                            <div class="btn-group">
+                                                <a href="{{ report.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                    <i class="fas fa-download me-1"></i> View
+                                                </a>
+                                                {% if user.is_staff or user.is_superuser %}
+                                                <a href="{% url 'maintenance:delete_report' report.id %}" 
+                                                   class="btn btn-sm btn-outline-danger"
+                                                   onclick="return confirm('Are you sure you want to delete this report?')">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Equipment Documents -->
+                    {% if equipment_documents %}
+                    <div class="mb-4">
+                        <h6 class="mb-3"><i class="fas fa-folder-open me-2"></i>Equipment Documents</h6>
+                        <div class="row">
+                            {% for document in equipment_documents %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card border-secondary">
+                                    <div class="card-body">
+                                        <h6 class="card-title text-secondary">{{ document.title }}</h6>
+                                        <p class="card-text">
+                                            <small class="text-muted">{{ document.get_document_type_display }}</small><br>
+                                            {% if document.description %}
+                                                {{ document.description|truncatechars:100 }}
+                                            {% endif %}
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-muted">{{ document.created_at|date:"M d, Y" }}</small>
+                                            <div class="btn-group">
+                                                <a href="{{ document.file.url }}" class="btn btn-sm btn-outline-secondary" target="_blank">
+                                                    <i class="fas fa-download me-1"></i> View
+                                                </a>
+                                                {% if user.is_staff or user.is_superuser %}
+                                                <a href="{% url 'equipment:delete_document' activity.equipment.id document.id %}" 
+                                                   class="btn btn-sm btn-outline-danger"
+                                                   onclick="return confirm('Are you sure you want to delete this document?')">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if not maintenance_reports and not equipment_documents %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No documents or reports available for this activity</p>
+                        <p class="text-muted small">Documents will appear here when maintenance reports are uploaded or equipment documents are available</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -328,32 +387,40 @@
                 <h5 class="modal-title">Add Timeline Entry</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="post">
+            <form method="post" action="{% url 'maintenance:add_timeline_entry' activity.id %}">
                 {% csrf_token %}
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="entry_type" class="form-label">Entry Type</label>
                         <select class="form-select" id="entry_type" name="entry_type" required>
+                            <option value="">--- Select Entry Type ---</option>
                             <option value="note">Note Added</option>
                             <option value="issue">Issue Reported</option>
                             <option value="resolution">Issue Resolved</option>
                             <option value="started">Activity Started</option>
                             <option value="paused">Activity Paused</option>
                             <option value="resumed">Activity Resumed</option>
+                            <option value="assigned">Activity Assigned</option>
+                            <option value="completed">Activity Completed</option>
+                            <option value="cancelled">Activity Cancelled</option>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label for="title" class="form-label">Title</label>
-                        <input type="text" class="form-control" id="title" name="title" required>
+                        <input type="text" class="form-control" id="title" name="title" required 
+                               placeholder="Enter a brief title for this entry">
                     </div>
                     <div class="mb-3">
                         <label for="description" class="form-label">Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                        <textarea class="form-control" id="description" name="description" rows="3" required
+                                  placeholder="Provide detailed description of what happened"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add Entry</button>
+                    <button type="submit" class="btn btn-primary" id="submitTimelineEntry">
+                        <i class="fas fa-plus me-1"></i>Add Entry
+                    </button>
                 </div>
             </form>
         </div>
@@ -403,4 +470,86 @@
     padding-left: 10px;
 }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Timeline modal functionality
+    const timelineModal = document.getElementById('addTimelineEntryModal');
+    const timelineForm = timelineModal.querySelector('form');
+    const submitBtn = document.getElementById('submitTimelineEntry');
+    
+    // Reset form when modal is hidden
+    timelineModal.addEventListener('hidden.bs.modal', function() {
+        timelineForm.reset();
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-plus me-1"></i>Add Entry';
+    });
+    
+    // Form validation and submission handling
+    timelineForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const entryType = document.getElementById('entry_type').value;
+        const title = document.getElementById('title').value.trim();
+        const description = document.getElementById('description').value.trim();
+        
+        // Client-side validation
+        if (!entryType) {
+            alert('Please select an entry type.');
+            document.getElementById('entry_type').focus();
+            return;
+        }
+        
+        if (!title) {
+            alert('Please enter a title.');
+            document.getElementById('title').focus();
+            return;
+        }
+        
+        if (!description) {
+            alert('Please enter a description.');
+            document.getElementById('description').focus();
+            return;
+        }
+        
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Adding...';
+        
+        // Submit the form
+        this.submit();
+    });
+    
+    // Auto-populate title based on entry type selection
+    document.getElementById('entry_type').addEventListener('change', function() {
+        const titleField = document.getElementById('title');
+        const descriptionField = document.getElementById('description');
+        
+        if (this.value) {
+            const entryTypeLabels = {
+                'note': 'Note Added',
+                'issue': 'Issue Reported',
+                'resolution': 'Issue Resolved',
+                'started': 'Activity Started',
+                'paused': 'Activity Paused',
+                'resumed': 'Activity Resumed',
+                'assigned': 'Activity Assigned',
+                'completed': 'Activity Completed',
+                'cancelled': 'Activity Cancelled'
+            };
+            
+            titleField.value = entryTypeLabels[this.value] || '';
+            
+            // Auto-focus description field
+            descriptionField.focus();
+        }
+    });
+    
+    // Auto-resize textarea
+    document.getElementById('description').addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+});
+</script>
 {% endblock %}
