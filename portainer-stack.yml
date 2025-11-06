@@ -75,6 +75,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-SecureProdPassword2024!}
       - DB_HOST=db
       - DB_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-SecureProdPassword2024!}
       - REDIS_URL=redis://redis:6379/0
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-maintenance.errorlog.app,10.0.0.28,localhost,127.0.0.1}
@@ -179,6 +180,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-SecureProdPassword2024!}
       - DB_HOST=db
       - DB_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-SecureProdPassword2024!}
       - REDIS_URL=redis://redis:6379/0
       - C_FORCE_ROOT=1
@@ -234,6 +236,7 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-SecureProdPassword2024!}
       - DB_HOST=db
       - DB_PORT=5432
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-SecureProdPassword2024!}
       - REDIS_URL=redis://redis:6379/0
       # Celery Beat Production Settings
