@@ -806,6 +806,13 @@
         }
         
         /* Breadcrumb fixes */
+        .breadcrumb-container {
+            background-color: var(--content-bg);
+            padding: 15px 20px;
+            margin: 0;
+            border-bottom: 1px solid var(--card-border);
+        }
+        
         .breadcrumb {
             background: transparent;
             padding: 0;
@@ -992,7 +999,7 @@
     <!-- Breadcrumb -->
     {% load breadcrumb_controls %}
     {% if request.breadcrumb_control.enabled|default:breadcrumb_enabled and request.resolver_match.url_name != 'dashboard' and request.resolver_match.url_name != 'calendar_view' %}
-    <div class="container-fluid mt-3">
+    <div class="container-fluid breadcrumb-container">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">{{ request.breadcrumb_control.home_text|default:breadcrumb_home_text }}</a></li>
