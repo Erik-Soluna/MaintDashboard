@@ -1,9 +1,0 @@
-Name,Category,Manufacturer Serial,Asset Tag,Location,Status,Manufacturer,Model Number,Power Ratings,Trip Setpoints,Warranty Details,Installed Upgrades,DGA Due Date,Next Maintenance Date,Commissioning Date,Warranty Expiry Date,Is Active
-Transformer-001,Power Transformer,TX-001-2024,TX001,Dorothy 1A > POD 17 > MDC 1,active,GE,GE-5000,5000kVA,Standard,5 years,None,2025-01-15,2025-01-15,2024-01-15,2029-01-15,true
-Breaker-001,Circuit Breaker,CB-001-2024,CB001,Dorothy 1A > POD 17,active,Siemens,SI-2000,2000A,2000A,3 years,Digital relay,2025-02-20,2025-02-20,2024-02-20,2027-02-20,true
-Relay-001,Protection Relay,RL-001-2024,RL001,Dorothy 1A,active,ABB,ABB-100,Standard,Standard,2 years,None,2025-03-10,2025-03-10,2024-03-10,2026-03-10,true
-Switch-001,Disconnect Switch,DS-001-2024,DS001,Main Site > Building A,active,Schneider,SC-500,500A,Standard,1 year,None,2025-04-05,2025-04-05,2024-04-05,2025-04-05,true
-UPS-001,Uninterruptible Power Supply,UPS-001-2024,UPS001,Main Site > Building A > Server Room,active,Eaton,EAT-1000,1000VA,Standard,3 years,Extended battery,2025-05-12,2025-05-12,2024-05-12,2027-05-12,true
-Generator-001,Backup Generator,GEN-001-2024,GEN001,Main Site,active,Cummins,CUM-500,500kW,Standard,5 years,ATS system,2025-06-18,2025-06-18,2024-06-18,2029-06-18,true
-Panel-001,Electrical Panel,EP-001-2024,EP001,Secondary Site,active,Square D,SQD-200,200A,Standard,2 years,None,2025-07-25,2025-07-25,2024-07-25,2026-07-25,true
-Meter-001,Power Meter,PM-001-2024,PM001,Secondary Site > Substation,active,Honeywell,HON-100,Standard,Standard,1 year,None,2025-08-30,2025-08-30,2024-08-30,2025-08-30,true
