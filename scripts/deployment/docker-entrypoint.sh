@@ -177,15 +177,17 @@ PYTHON
     case "$db_state" in
         "READY")
             # Fast path - database already initialized
-            print_success "✅ Database ready - checking for new migrations..."
+            print_success "✅ Database ready - running migrations..."
             
             # Create migrations if model changes exist (will skip if nothing to do)
-            python manage.py makemigrations --noinput > /dev/null 2>&1 || print_warning "⚠️ Makemigrations check skipped"
+            print_status "📝 Checking for new migrations..."
+            python manage.py makemigrations --noinput || print_warning "⚠️ No new migrations to create"
             
-            # Run migrations (will skip if nothing to do)
-            python manage.py migrate --noinput > /dev/null 2>&1 || print_warning "⚠️ Migration check skipped"
+            # Always run migrations on boot (will skip if nothing to do)
+            print_status "🔄 Applying migrations..."
+            python manage.py migrate --noinput
             
-            print_success "✅ Boot complete (fast path)"
+            print_success "✅ Boot complete (migrations applied)"
             ;;
             
         "FRESH")
