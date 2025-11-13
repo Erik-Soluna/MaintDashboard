@@ -3143,6 +3143,160 @@ def generate_pods(request):
         }, status=500)
 
 
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
+def generate_mdcs(request):
+    """Generate MDCs for existing PODs."""
+    try:
+        from django.contrib.auth.models import User
+        
+        # Get parameters from the form
+        pod_id = request.POST.get('pod_id', '').strip()
+        site_id = request.POST.get('site_id', '').strip()
+        mdcs_per_pod = int(request.POST.get('mdcs_per_pod', 2))
+        force = request.POST.get('force', 'false').lower() == 'true'
+        
+        # Get or create a system user for creating locations
+        system_user, _ = User.objects.get_or_create(
+            username='system',
+            defaults={'email': 'system@maintenance.local', 'is_staff': True}
+        )
+        
+        # Determine which PODs to process
+        if pod_id:
+            # Generate for specific POD
+            try:
+                pod = Location.objects.get(id=pod_id, is_site=False, parent_location__is_site=False)
+                pods = [pod]
+            except Location.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'POD with ID {pod_id} not found'
+                }, status=404)
+        elif site_id:
+            # Generate for all PODs in a specific site
+            try:
+                site = Location.objects.get(id=site_id, is_site=True)
+                pods = Location.objects.filter(
+                    parent_location=site,
+                    is_site=False,
+                    is_active=True
+                ).order_by('name')
+            except Location.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Site with ID {site_id} not found'
+                }, status=404)
+        else:
+            # Generate for all PODs (PODs are locations that are not sites and whose parent is a site)
+            pods = Location.objects.filter(
+                is_site=False,
+                parent_location__is_site=True,
+                is_active=True
+            ).order_by('parent_location__name', 'name')
+        
+        if not pods.exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'No PODs found to generate MDCs for'
+            }, status=400)
+        
+        total_mdcs_created = 0
+        output_lines = []
+        
+        # Process each POD
+        for pod in pods:
+            site = pod.parent_location
+            pod_name = pod.name
+            
+            # Get existing MDCs for this POD to determine starting number
+            existing_mdcs = Location.objects.filter(
+                parent_location=pod,
+                is_site=False,
+                is_active=True
+            ).order_by('name')
+            
+            # Determine starting MDC number
+            if existing_mdcs.exists():
+                # Find the highest MDC number
+                max_mdc_num = 0
+                for mdc in existing_mdcs:
+                    # Extract number from name like "MDC 1", "MDC 2", etc.
+                    import re
+                    match = re.search(r'MDC\s+(\d+)', mdc.name, re.IGNORECASE)
+                    if match:
+                        max_mdc_num = max(max_mdc_num, int(match.group(1)))
+                mdc_start = max_mdc_num + 1
+            else:
+                # No existing MDCs, start from 1
+                mdc_start = 1
+            
+            mdc_end = mdc_start + mdcs_per_pod - 1
+            
+            # Generate MDCs for this POD
+            for mdc_num in range(mdc_start, mdc_end + 1):
+                mdc_name = f'MDC {mdc_num}'
+                
+                # Check if MDC already exists
+                existing_mdc = Location.objects.filter(
+                    name=mdc_name,
+                    parent_location=pod,
+                    is_site=False
+                ).first()
+                
+                if existing_mdc and not force:
+                    output_lines.append(f'MDC already exists: {site.name} > {pod_name} > {mdc_name} - skipping')
+                    continue
+                
+                # Create or update MDC
+                mdc, created = Location.objects.get_or_create(
+                    name=mdc_name,
+                    parent_location=pod,
+                    defaults={
+                        'is_site': False,
+                        'created_by': system_user,
+                        'updated_by': system_user,
+                        'is_active': True
+                    }
+                )
+                
+                if created:
+                    output_lines.append(f'Created MDC: {site.name} > {pod_name} > {mdc_name}')
+                    total_mdcs_created += 1
+                elif force:
+                    mdc.updated_by = system_user
+                    mdc.is_active = True
+                    mdc.save()
+                    output_lines.append(f'Updated existing MDC: {site.name} > {pod_name} > {mdc_name}')
+                    total_mdcs_created += 1
+        
+        # Build result message
+        if pod_id:
+            target_desc = f"POD '{pods[0].name}'"
+        elif site_id:
+            target_desc = f"site '{site.name}'"
+        else:
+            target_desc = "all PODs"
+        
+        result = '\n'.join(output_lines) if output_lines else 'No MDCs were created (all already exist)'
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'MDC generation completed successfully for {target_desc}! Generated: {total_mdcs_created} MDCs',
+            'generated_count': total_mdcs_created,
+            'output': result
+        })
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        return JsonResponse({
+            'success': False,
+            'error': f'Error generating MDCs: {str(e)}',
+            'details': error_details
+        }, status=500)
+
+
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def playwright_debug_api(request):

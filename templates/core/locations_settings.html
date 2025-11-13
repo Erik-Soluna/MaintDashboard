@@ -309,6 +309,10 @@
                 <i class="fas fa-magic me-1"></i>
                 Generate PODs
             </button>
+            <button class="btn btn-outline-success me-2" data-toggle="modal" data-target="#generateMdcsModal">
+                <i class="fas fa-magic me-1"></i>
+                Generate MDCs
+            </button>
             <button class="btn btn-outline-info" data-toggle="modal" data-target="#addCustomerModal">
                 <i class="fas fa-user-plus me-1"></i>
                 Add Customer
@@ -768,6 +772,80 @@
         </div>
     </div>
 </div>
+
+<!-- Generate MDCs Modal -->
+<div class="modal fade" id="generateMdcsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-magic me-2"></i>
+                    Generate MDCs for PODs
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="generateMdcsForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        This will generate MDCs (Main Distribution Centers) for existing PODs. 
+                        You can generate MDCs for a specific site, specific POD, or all PODs.
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="generateMdcsSiteSelect" class="form-label">Target Site (Optional)</label>
+                        <select id="generateMdcsSiteSelect" name="site_id" class="form-control">
+                            <option value="">All Sites</option>
+                            {% for site in sites %}
+                            <option value="{{ site.id }}">{{ site.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Leave empty to generate MDCs for all PODs across all sites</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="generateMdcsPodSelect" class="form-label">Target POD (Optional)</label>
+                        <select id="generateMdcsPodSelect" name="pod_id" class="form-control">
+                            <option value="">All PODs</option>
+                        </select>
+                        <small class="form-text text-muted">Leave empty to generate MDCs for all PODs. Select a POD to generate MDCs only for that POD.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="mdcsPerPodGenerate" class="form-label">MDCs per POD</label>
+                        <input type="number" id="mdcsPerPodGenerate" name="mdcs_per_pod" class="form-control" value="2" min="1" max="10">
+                        <small class="form-text text-muted">Number of MDCs to generate per POD. MDCs will be numbered sequentially starting from the next available number.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input type="checkbox" id="forceRegenerateMdcs" name="force" class="form-check-input" value="true">
+                            <label for="forceRegenerateMdcs" class="form-check-label">
+                                Force regeneration of existing MDCs
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">If checked, existing MDCs will be updated. If unchecked, existing MDCs will be skipped.</small>
+                    </div>
+                    
+                    <div id="generateMdcsOutput" class="mt-3" style="display: none;">
+                        <h6>Generation Output:</h6>
+                        <pre id="generateMdcsOutputText" class="bg-dark text-light p-3 rounded" style="max-height: 200px; overflow-y: auto; font-size: 12px;"></pre>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="generateMdcsBtn">
+                        <i class="fas fa-magic me-1"></i>
+                        Generate MDCs
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -1175,6 +1253,96 @@ $(document).ready(function() {
                 $submitBtn.prop('disabled', false).html(originalText);
             }
         });
+    });
+    
+    // Generate MDCs Form
+    $('#generateMdcsForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const $submitBtn = $('#generateMdcsBtn');
+        const originalText = $submitBtn.html();
+        const $output = $('#generateMdcsOutput');
+        const $outputText = $('#generateMdcsOutputText');
+        
+        // Show loading state
+        $submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Generating...');
+        $output.hide();
+        
+        const formData = new FormData(this);
+        
+        $.ajax({
+            url: '{% url "core:generate_mdcs" %}',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    // Show output
+                    $outputText.text(response.output || 'MDCs generated successfully!');
+                    $output.show();
+                    
+                    // Show success message
+                    $('<div class="alert alert-success alert-dismissible fade show" role="alert">' +
+                      response.message +
+                      '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                      '</div>').prependTo('.locations-header').delay(5000).fadeOut();
+                    
+                    // Reload page after a short delay to show new MDCs
+                    setTimeout(function() {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    alert('Error: ' + (response.error || 'Unknown error occurred'));
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'Error generating MDCs';
+                if (xhr.responseJSON) {
+                    errorMessage += ': ' + (xhr.responseJSON.error || xhr.responseJSON.message || 'Unknown error');
+                } else if (xhr.responseText) {
+                    errorMessage += ': ' + xhr.responseText;
+                }
+                alert(errorMessage);
+            },
+            complete: function() {
+                // Reset button state
+                $submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+    
+    // Load PODs when site is selected in Generate MDCs modal
+    $('#generateMdcsSiteSelect').on('change', function() {
+        const siteId = $(this).val();
+        const $podSelect = $('#generateMdcsPodSelect');
+        
+        // Clear existing options except "All PODs"
+        $podSelect.find('option:not(:first)').remove();
+        
+        if (siteId) {
+            // Load PODs for selected site
+            $.ajax({
+                url: '{% url "core:locations_api" %}',
+                method: 'GET',
+                data: {
+                    site_id: siteId,
+                    is_site: false
+                },
+                success: function(response) {
+                    if (response.locations) {
+                        // Filter to only PODs (locations whose parent is a site)
+                        const pods = response.locations.filter(function(loc) {
+                            return loc.parent_location && loc.parent_location.is_site;
+                        });
+                        
+                        pods.forEach(function(pod) {
+                            $podSelect.append(new Option(pod.name, pod.id));
+                        });
+                    }
+                }
+            });
+        }
     });
     
     // Collapsible/expandable logic for sites
