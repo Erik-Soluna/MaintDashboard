@@ -163,6 +163,7 @@ def initialize_default_permissions():
         ('equipment.create', 'Create Equipment', 'Create new equipment records', 'equipment'),
         ('equipment.edit', 'Edit Equipment', 'Edit existing equipment records', 'equipment'),
         ('equipment.delete', 'Delete Equipment', 'Delete equipment records', 'equipment'),
+        ('equipment.documents.delete', 'Delete Documents', 'Delete equipment documents', 'equipment'),
         
         # Legacy Maintenance permissions (for backward compatibility)
         ('maintenance.view', 'View Maintenance', 'View maintenance activities and schedules', 'maintenance'),
@@ -234,6 +235,7 @@ def initialize_default_permissions():
                 'administration.read',
                 # Legacy permissions for backward compatibility
                 'equipment.view', 'equipment.create', 'equipment.edit',
+                'equipment.documents.delete',
                 'issues.view', 'issues.create', 'issues.edit', 'issues.delete',
                 'maintenance.view', 'maintenance.create', 'maintenance.edit', 
                 'maintenance.assign', 'maintenance.complete', 'maintenance.manage_all',

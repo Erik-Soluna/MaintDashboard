@@ -422,6 +422,16 @@
                                                     <a href="{{ document.file.url }}" class="btn btn-sm btn-outline-primary" target="_blank" download title="Download Document">
                                                         <i class="fas fa-download"></i> Download
                                                     </a>
+                                                    {% load rbac_tags %}
+                                                    {% if user.is_superuser or user.is_staff or user|has_permission:'equipment.documents.delete' %}
+                                                        <button type="button" class="btn btn-sm btn-outline-danger delete-document-btn" 
+                                                                data-document-id="{{ document.id }}" 
+                                                                data-equipment-id="{{ equipment.id }}"
+                                                                data-document-title="{{ document.title }}"
+                                                                title="Delete Document">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    {% endif %}
                                                 </div>
                                             </div>
                                         </div>
@@ -1046,6 +1056,37 @@ $(document).ready(function() {
             }
         });
     }
+    
+    // Handle delete document button
+    $('.delete-document-btn').on('click', function() {
+        const documentId = $(this).data('document-id');
+        const equipmentId = $(this).data('equipment-id');
+        const documentTitle = $(this).data('document-title');
+        
+        if (confirm('Are you sure you want to delete the document "' + documentTitle + '"? This action cannot be undone.')) {
+            $.ajax({
+                url: '/equipment/' + equipmentId + '/documents/' + documentId + '/delete/',
+                type: 'POST',
+                headers: {
+                    'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        location.reload(); // Reload to remove deleted document
+                    } else {
+                        alert('Error: ' + (response.message || 'Failed to delete document'));
+                    }
+                },
+                error: function(xhr) {
+                    const errorMsg = xhr.responseJSON && xhr.responseJSON.message 
+                        ? xhr.responseJSON.message 
+                        : 'Failed to delete document';
+                    alert('Error: ' + errorMsg);
+                }
+            });
+        }
+    });
     
     // Handle delete issue button
     $('.delete-issue-btn').on('click', function() {

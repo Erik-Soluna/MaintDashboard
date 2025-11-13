@@ -665,19 +665,24 @@ def add_document(request, equipment_id):
 
 
 @login_required
+@permission_required('equipment.documents.delete')
+@require_http_methods(["POST", "DELETE"])
 def delete_document(request, equipment_id, document_id):
-    """Delete an equipment document (admin/staff only)."""
-    # Check if user is staff or superuser
-    if not (request.user.is_staff or request.user.is_superuser):
-        messages.error(request, 'You do not have permission to delete documents.')
-        return redirect('equipment:equipment_documents', equipment_id=equipment_id)
-    
+    """Delete an equipment document with RBAC permission check."""
     equipment = get_object_or_404(Equipment, id=equipment_id)
     document = get_object_or_404(EquipmentDocument, id=document_id, equipment=equipment)
     
-    if request.method == 'POST':
+    if request.method == 'POST' or request.method == 'DELETE':
         document_title = document.title
         document.delete()
+        
+        # Check if this is an AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': f'Document "{document_title}" has been deleted successfully.'
+            })
+        
         messages.success(request, f'Document "{document_title}" deleted successfully!')
         return redirect('equipment:equipment_documents', equipment_id=equipment.id)
     
