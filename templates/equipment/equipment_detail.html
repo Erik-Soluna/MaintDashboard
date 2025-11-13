@@ -22,9 +22,9 @@
                     <p class="text-muted mb-0">{{ equipment.category.name|default:"No Category" }} • {{ equipment.location.name|default:"No Location" }}</p>
                 </div>
                 <div>
-                    <a href="{% url 'equipment:log_issue' equipment.id %}" class="btn btn-warning">
+                    <button type="button" class="btn btn-warning" data-toggle="modal" data-target="#logIssueModal">
                         <i class="fas fa-exclamation-triangle me-1"></i> Log Issue
-                    </a>
+                    </button>
                     <a href="{% url 'equipment:edit_equipment' equipment.id %}" class="btn btn-primary">
                         <i class="fas fa-edit me-1"></i> Edit Equipment
                     </a>
@@ -643,9 +643,9 @@
                     <div class="tab-pane fade" id="issues" role="tabpanel">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h6 class="mb-0">Equipment Issues</h6>
-                            <a href="{% url 'equipment:log_issue' equipment.id %}" class="btn btn-sm btn-warning">
+                            <button type="button" class="btn btn-sm btn-warning" data-toggle="modal" data-target="#logIssueModal">
                                 <i class="fas fa-exclamation-triangle me-1"></i> Log New Issue
-                            </a>
+                            </button>
                         </div>
                         
                         <!-- Issue Summary Cards -->
@@ -695,6 +695,7 @@
                                             <th>Tags</th>
                                             <th>Created</th>
                                             <th>Created By</th>
+                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -737,6 +738,34 @@
                                             </td>
                                             <td>{{ issue.created_at|date:"M d, Y H:i" }}</td>
                                             <td>{{ issue.created_by.get_full_name|default:issue.created_by.username }}</td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <button type="button" class="btn btn-sm btn-primary create-maintenance-btn" 
+                                                            data-issue-id="{{ issue.id }}" 
+                                                            data-equipment-id="{{ equipment.id }}"
+                                                            title="Create Maintenance Activity">
+                                                        <i class="fas fa-wrench me-1"></i> Create Activity
+                                                    </button>
+                                                    {% load rbac_tags %}
+                                                    {% if user.is_superuser or user.is_staff or user|has_permission:'issues.edit' %}
+                                                        <button type="button" class="btn btn-sm btn-info edit-issue-btn" 
+                                                                data-issue-id="{{ issue.id }}" 
+                                                                data-equipment-id="{{ equipment.id }}"
+                                                                title="Edit Issue">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                    {% endif %}
+                                                    {% if user.is_superuser or user.is_staff or user|has_permission:'issues.delete' %}
+                                                        <button type="button" class="btn btn-sm btn-danger delete-issue-btn" 
+                                                                data-issue-id="{{ issue.id }}" 
+                                                                data-equipment-id="{{ equipment.id }}"
+                                                                data-issue-title="{{ issue.title }}"
+                                                                title="Delete Issue">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -746,9 +775,9 @@
                             <div class="text-center py-4">
                                 <i class="fas fa-exclamation-triangle fa-3x text-muted mb-3"></i>
                                 <p class="text-muted">No issues logged for this equipment</p>
-                                <a href="{% url 'equipment:log_issue' equipment.id %}" class="btn btn-warning">
+                                <button type="button" class="btn btn-warning" data-toggle="modal" data-target="#logIssueModal">
                                     <i class="fas fa-exclamation-triangle me-1"></i> Log First Issue
-                                </a>
+                                </button>
                             </div>
                         {% endif %}
                     </div>
@@ -781,6 +810,90 @@
         </div>
     </div>
 </div>
+
+<!-- Log Issue Modal -->
+<div class="modal fade" id="logIssueModal" tabindex="-1" aria-labelledby="logIssueModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logIssueModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Log Issue
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="logIssueModalBody">
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p>Loading form...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="submitLogIssue">
+                    <i class="fas fa-exclamation-triangle me-1"></i> Log Issue
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Issue Modal -->
+<div class="modal fade" id="editIssueModal" tabindex="-1" aria-labelledby="editIssueModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editIssueModalLabel">
+                    <i class="fas fa-edit me-2"></i>Edit Issue
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="editIssueModalBody">
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p>Loading form...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-info" id="submitEditIssue">
+                    <i class="fas fa-save me-1"></i> Update Issue
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Maintenance from Issue Modal -->
+<div class="modal fade" id="createMaintenanceModal" tabindex="-1" aria-labelledby="createMaintenanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createMaintenanceModalLabel">
+                    <i class="fas fa-wrench me-2"></i>Create Maintenance Activity
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" id="createMaintenanceModalBody">
+                <div class="text-center">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p>Loading form...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submitCreateMaintenance">
+                    <i class="fas fa-wrench me-1"></i> Create Activity
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -790,6 +903,250 @@ $(document).ready(function() {
     $('.btn-delete').on('click', function() {
         $('#deleteModal').modal('show');
     });
+    
+    // Load log issue form when modal is shown
+    $('#logIssueModal').on('show.bs.modal', function() {
+        const modalBody = $('#logIssueModalBody');
+        modalBody.html('<div class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Loading form...</p></div>');
+        
+        $.ajax({
+            url: '{% url "equipment:log_issue" equipment.id %}',
+            type: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                if (response.success) {
+                    modalBody.html(response.form_html);
+                } else {
+                    modalBody.html('<div class="alert alert-danger">Error loading form. Please try again.</div>');
+                }
+            },
+            error: function() {
+                modalBody.html('<div class="alert alert-danger">Error loading form. Please try again.</div>');
+            }
+        });
+    });
+    
+    // Submit log issue form
+    $(document).on('submit', '#logIssueForm', function(e) {
+        e.preventDefault();
+        submitLogIssue();
+    });
+    
+    $('#submitLogIssue').on('click', function() {
+        $('#logIssueForm').submit();
+    });
+    
+    function submitLogIssue() {
+        const form = $('#logIssueForm');
+        const submitBtn = $('#submitLogIssue');
+        const originalText = submitBtn.html();
+        
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Logging...');
+        
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#logIssueModal').modal('hide');
+                    location.reload(); // Reload to show new issue
+                } else {
+                    alert('Error: ' + (response.errors || 'Failed to log issue'));
+                    submitBtn.prop('disabled', false).html(originalText);
+                }
+            },
+            error: function(xhr) {
+                const errorMsg = xhr.responseJSON && xhr.responseJSON.errors 
+                    ? JSON.stringify(xhr.responseJSON.errors) 
+                    : 'Failed to log issue';
+                alert('Error: ' + errorMsg);
+                submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    }
+    
+    // Handle edit issue button
+    $('.edit-issue-btn').on('click', function() {
+        const issueId = $(this).data('issue-id');
+        const equipmentId = $(this).data('equipment-id');
+        const modalBody = $('#editIssueModalBody');
+        
+        $('#editIssueModal').modal('show');
+        modalBody.html('<div class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Loading form...</p></div>');
+        
+        $.ajax({
+            url: '/equipment/' + equipmentId + '/issues/' + issueId + '/edit/',
+            type: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                if (response.success) {
+                    modalBody.html(response.form_html);
+                } else {
+                    modalBody.html('<div class="alert alert-danger">Error loading form. Please try again.</div>');
+                }
+            },
+            error: function() {
+                modalBody.html('<div class="alert alert-danger">Error loading form. Please try again.</div>');
+            }
+        });
+    });
+    
+    // Submit edit issue form
+    $(document).on('submit', '#editIssueForm', function(e) {
+        e.preventDefault();
+        submitEditIssue();
+    });
+    
+    $('#submitEditIssue').on('click', function() {
+        $('#editIssueForm').submit();
+    });
+    
+    function submitEditIssue() {
+        const form = $('#editIssueForm');
+        const submitBtn = $('#submitEditIssue');
+        const originalText = submitBtn.html();
+        
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Updating...');
+        
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#editIssueModal').modal('hide');
+                    location.reload(); // Reload to show updated issue
+                } else {
+                    alert('Error: ' + (response.errors || 'Failed to update issue'));
+                    submitBtn.prop('disabled', false).html(originalText);
+                }
+            },
+            error: function(xhr) {
+                const errorMsg = xhr.responseJSON && xhr.responseJSON.errors 
+                    ? JSON.stringify(xhr.responseJSON.errors) 
+                    : 'Failed to update issue';
+                alert('Error: ' + errorMsg);
+                submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    }
+    
+    // Handle delete issue button
+    $('.delete-issue-btn').on('click', function() {
+        const issueId = $(this).data('issue-id');
+        const equipmentId = $(this).data('equipment-id');
+        const issueTitle = $(this).data('issue-title');
+        
+        if (confirm('Are you sure you want to delete the issue "' + issueTitle + '"? This action cannot be undone.')) {
+            $.ajax({
+                url: '/equipment/' + equipmentId + '/issues/' + issueId + '/delete/',
+                type: 'POST',
+                headers: {
+                    'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        location.reload(); // Reload to remove deleted issue
+                    } else {
+                        alert('Error: ' + (response.message || 'Failed to delete issue'));
+                    }
+                },
+                error: function(xhr) {
+                    const errorMsg = xhr.responseJSON && xhr.responseJSON.message 
+                        ? xhr.responseJSON.message 
+                        : 'Failed to delete issue';
+                    alert('Error: ' + errorMsg);
+                }
+            });
+        }
+    });
+    
+    // Handle create maintenance from issue button
+    $('.create-maintenance-btn').on('click', function() {
+        const issueId = $(this).data('issue-id');
+        const equipmentId = $(this).data('equipment-id');
+        const modalBody = $('#createMaintenanceModalBody');
+        
+        $('#createMaintenanceModal').modal('show');
+        modalBody.html('<div class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Loading form...</p></div>');
+        
+        $.ajax({
+            url: '/equipment/' + equipmentId + '/issues/' + issueId + '/create-maintenance/',
+            type: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                if (response.success) {
+                    modalBody.html(response.form_html);
+                } else {
+                    modalBody.html('<div class="alert alert-danger">Error loading form. Please try again.</div>');
+                }
+            },
+            error: function() {
+                modalBody.html('<div class="alert alert-danger">Error loading form. Please try again.</div>');
+            }
+        });
+    });
+    
+    // Submit create maintenance form
+    $(document).on('submit', '#createMaintenanceFromIssueForm', function(e) {
+        e.preventDefault();
+        submitCreateMaintenance();
+    });
+    
+    $('#submitCreateMaintenance').on('click', function() {
+        $('#createMaintenanceFromIssueForm').submit();
+    });
+    
+    function submitCreateMaintenance() {
+        const form = $('#createMaintenanceFromIssueForm');
+        const submitBtn = $('#submitCreateMaintenance');
+        const originalText = submitBtn.html();
+        
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Creating...');
+        
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#createMaintenanceModal').modal('hide');
+                    if (response.redirect_url) {
+                        window.location.href = response.redirect_url;
+                    } else {
+                        alert(response.message || 'Maintenance activity created successfully!');
+                    }
+                } else {
+                    alert('Error: ' + (response.errors || 'Failed to create maintenance activity'));
+                    submitBtn.prop('disabled', false).html(originalText);
+                }
+            },
+            error: function(xhr) {
+                const errorMsg = xhr.responseJSON && xhr.responseJSON.errors 
+                    ? JSON.stringify(xhr.responseJSON.errors) 
+                    : 'Failed to create maintenance activity';
+                alert('Error: ' + errorMsg);
+                submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    }
     
     // Handle delete confirmation
     $('#confirmDelete').on('click', function() {

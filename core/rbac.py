@@ -191,6 +191,12 @@ def initialize_default_permissions():
         # Legacy Reports permissions (for backward compatibility)
         ('reports.view', 'View Reports', 'View system reports', 'reports'),
         ('reports.generate', 'Generate Reports', 'Generate system reports', 'reports'),
+        
+        # Equipment Issues permissions
+        ('issues.view', 'View Issues', 'View equipment issues', 'equipment'),
+        ('issues.create', 'Create Issues', 'Create equipment issues', 'equipment'),
+        ('issues.edit', 'Edit Issues', 'Edit equipment issues', 'equipment'),
+        ('issues.delete', 'Delete Issues', 'Delete equipment issues', 'equipment'),
     ]
     
     # Create permissions
@@ -228,6 +234,7 @@ def initialize_default_permissions():
                 'administration.read',
                 # Legacy permissions for backward compatibility
                 'equipment.view', 'equipment.create', 'equipment.edit',
+                'issues.view', 'issues.create', 'issues.edit', 'issues.delete',
                 'maintenance.view', 'maintenance.create', 'maintenance.edit', 
                 'maintenance.assign', 'maintenance.complete', 'maintenance.manage_all',
                 'calendar.view', 'calendar.create', 'calendar.edit', 'calendar.delete',
@@ -246,6 +253,7 @@ def initialize_default_permissions():
                 'maintenance_calendar.read', 'maintenance_calendar.write',
                 # Legacy permissions for backward compatibility
                 'equipment.view', 'equipment.edit',
+                'issues.view', 'issues.create',
                 'maintenance.view', 'maintenance.edit', 'maintenance.complete', 'maintenance.manage',
                 'calendar.view', 'calendar.create', 'calendar.edit',
                 'reports.view'

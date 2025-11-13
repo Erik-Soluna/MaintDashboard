@@ -44,4 +44,7 @@ urlpatterns = [
     
     # Issues
     path('<int:equipment_id>/issues/log/', views.log_issue, name='log_issue'),
+    path('<int:equipment_id>/issues/<int:issue_id>/edit/', views.edit_issue, name='edit_issue'),
+    path('<int:equipment_id>/issues/<int:issue_id>/delete/', views.delete_issue, name='delete_issue'),
+    path('<int:equipment_id>/issues/<int:issue_id>/create-maintenance/', views.create_maintenance_from_issue, name='create_maintenance_from_issue'),
 ]
