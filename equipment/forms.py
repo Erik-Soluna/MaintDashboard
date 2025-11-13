@@ -322,46 +322,79 @@ class DynamicEquipmentForm(EquipmentForm):
             field_kwargs['help_text'] += conditional_note
         
         if field.field_type == 'text':
-            return forms.CharField(max_length=255, **field_kwargs)
+            return forms.CharField(
+                max_length=255,
+                widget=forms.TextInput(attrs={'class': 'form-control'}),
+                **field_kwargs
+            )
         
         elif field.field_type == 'textarea':
-            return forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), **field_kwargs)
+            return forms.CharField(
+                widget=forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+                **field_kwargs
+            )
         
         elif field.field_type == 'number':
-            return forms.IntegerField(**field_kwargs)
+            return forms.IntegerField(
+                widget=forms.NumberInput(attrs={'class': 'form-control'}),
+                **field_kwargs
+            )
         
         elif field.field_type == 'decimal':
-            return forms.DecimalField(**field_kwargs)
+            return forms.DecimalField(
+                widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+                **field_kwargs
+            )
         
         elif field.field_type == 'date':
-            return forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), **field_kwargs)
+            return forms.DateField(
+                widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+                **field_kwargs
+            )
         
         elif field.field_type == 'datetime':
-            return forms.DateTimeField(widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}), **field_kwargs)
+            return forms.DateTimeField(
+                widget=forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
+                **field_kwargs
+            )
         
         elif field.field_type == 'boolean':
             return forms.BooleanField(**field_kwargs)
         
         elif field.field_type == 'select':
             choices = field.get_choices_list()
-            return forms.ChoiceField(choices=choices, **field_kwargs)
+            return forms.ChoiceField(
+                choices=choices,
+                widget=forms.Select(attrs={'class': 'form-control'}),
+                **field_kwargs
+            )
         
         elif field.field_type == 'multiselect':
             choices = field.get_choices_list()
             return forms.MultipleChoiceField(
                 choices=choices,
-                widget=forms.CheckboxSelectMultiple,
+                widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
                 **field_kwargs
             )
         
         elif field.field_type == 'url':
-            return forms.URLField(**field_kwargs)
+            return forms.URLField(
+                widget=forms.URLInput(attrs={'class': 'form-control'}),
+                **field_kwargs
+            )
         
         elif field.field_type == 'email':
-            return forms.EmailField(**field_kwargs)
+            return forms.EmailField(
+                widget=forms.EmailInput(attrs={'class': 'form-control'}),
+                **field_kwargs
+            )
         
         elif field.field_type == 'phone':
-            return forms.CharField(max_length=20, **field_kwargs)
+            return forms.CharField(
+                max_length=20,
+                widget=forms.TextInput(attrs={'class': 'form-control', 'type': 'tel'}),
+                **field_kwargs
+            )
         
         return None
     
