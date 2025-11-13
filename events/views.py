@@ -726,12 +726,20 @@ def fetch_events(request):
 def fetch_unified_events(request):
     """API endpoint to fetch both events and maintenance activities for unified calendar display."""
     try:
+        from core.models import UserProfile
+        import pytz
+        
+        # Get user's timezone from profile (defaults to Central)
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        user_timezone_str = user_profile.get_user_timezone()  # Returns 'America/Chicago' by default
+        
         start_date = request.GET.get('start')
         end_date = request.GET.get('end')
         equipment_filter = request.GET.get('equipment')
         event_type_filter = request.GET.get('event_type')
         site_id = request.GET.get('site_id')
-        target_timezone = request.GET.get('timezone', 'UTC')  # Get timezone from request
+        # Use user's timezone instead of request parameter (but allow override)
+        target_timezone = request.GET.get('timezone', user_timezone_str)  # Default to user's timezone
         
         # Helper function to convert datetime to target timezone
         def convert_to_timezone(dt, tz_name):
