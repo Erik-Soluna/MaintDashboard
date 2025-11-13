@@ -2383,15 +2383,21 @@ def get_activity_details(request, activity_id):
         timeline_entries = activity.timeline_entries.all().order_by('-created_at')[:10]
         reports = activity.reports.all().order_by('-created_at')
         
-        # Convert datetimes to user's timezone
-        def convert_to_user_tz(dt):
+        # Convert datetimes to UTC for API response - JavaScript will format in user's timezone
+        def convert_to_utc(dt):
             if not dt:
                 return None
-            # If already timezone-aware, convert to user's timezone
+            # If already timezone-aware, convert to UTC
             if timezone.is_aware(dt):
-                return dt.astimezone(user_tz)
-            # If naive, assume UTC and convert
-            return timezone.make_aware(dt, pytz.UTC).astimezone(user_tz)
+                return dt.astimezone(pytz.UTC)
+            # If naive, assume UTC
+            return timezone.make_aware(dt, pytz.UTC)
+        
+        # Convert to UTC before formatting (JavaScript will handle timezone conversion)
+        scheduled_start_utc = convert_to_utc(activity.scheduled_start) if activity.scheduled_start else None
+        scheduled_end_utc = convert_to_utc(activity.scheduled_end) if activity.scheduled_end else None
+        actual_start_utc = convert_to_utc(activity.actual_start) if activity.actual_start else None
+        actual_end_utc = convert_to_utc(activity.actual_end) if activity.actual_end else None
         
         data = {
             'id': activity.id,
@@ -2409,34 +2415,11 @@ def get_activity_details(request, activity_id):
                 'name': activity.activity_type.name,
                 'category': activity.activity_type.category.name,
             },
-            # Convert to user timezone and format for display
-            # Note: We keep the datetime in the user's timezone but JavaScript will parse it correctly
-            scheduled_start_tz = convert_to_user_tz(activity.scheduled_start) if activity.scheduled_start else None
-            scheduled_end_tz = convert_to_user_tz(activity.scheduled_end) if activity.scheduled_end else None
-            actual_start_tz = convert_to_user_tz(activity.actual_start) if activity.actual_start else None
-            actual_end_tz = convert_to_user_tz(activity.actual_end) if activity.actual_end else None
-            
-            data = {
-                'id': activity.id,
-                'title': activity.title,
-                'description': activity.description,
-                'status': activity.get_status_display(),
-                'priority': activity.get_priority_display(),
-                'equipment': {
-                    'id': activity.equipment.id,
-                    'name': activity.equipment.name,
-                    'category': activity.equipment.category.name if activity.equipment.category else None,
-                },
-                'activity_type': {
-                    'id': activity.activity_type.id,
-                    'name': activity.activity_type.name,
-                    'category': activity.activity_type.category.name,
-                },
-                'scheduled_start': scheduled_start_tz.isoformat() if scheduled_start_tz else None,
-                'scheduled_end': scheduled_end_tz.isoformat() if scheduled_end_tz else None,
-                'actual_start': actual_start_tz.isoformat() if actual_start_tz else None,
-                'actual_end': actual_end_tz.isoformat() if actual_end_tz else None,
-                'timezone': user_timezone_str,  # Include timezone info for display
+            'scheduled_start': scheduled_start_utc.isoformat() if scheduled_start_utc else None,
+            'scheduled_end': scheduled_end_utc.isoformat() if scheduled_end_utc else None,
+            'actual_start': actual_start_utc.isoformat() if actual_start_utc else None,
+            'actual_end': actual_end_utc.isoformat() if actual_end_utc else None,
+            'timezone': user_timezone_str,  # Include timezone info for JavaScript to use for formatting
             'assigned_to': activity.assigned_to.username if activity.assigned_to else None,
             'completion_notes': activity.completion_notes,
             'checklist_items': [
