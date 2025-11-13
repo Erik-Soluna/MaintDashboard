@@ -448,6 +448,8 @@ def activity_detail(request, activity_id):
     for entry in timeline_entries:
         timeline_events.append({
             'type': 'timeline_entry',
+            'entry_id': entry.id,  # Include ID for edit/delete
+            'entry_type': entry.entry_type,
             'title': entry.title,
             'description': entry.description,
             'timestamp': entry.created_at,
@@ -2921,6 +2923,59 @@ def add_timeline_entry(request, activity_id):
             messages.error(request, 'Please fill in all required fields.')
     
     # If GET request or validation failed, redirect back to activity detail
+    return redirect('maintenance:activity_detail', activity_id=activity_id)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def edit_timeline_entry(request, activity_id, entry_id):
+    """Edit a timeline entry (admin only)."""
+    activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+    timeline_entry = get_object_or_404(MaintenanceTimelineEntry, id=entry_id, activity=activity)
+    
+    if request.method == 'POST':
+        entry_type = request.POST.get('entry_type')
+        title = request.POST.get('title')
+        description = request.POST.get('description')
+        
+        if entry_type and title and description:
+            try:
+                timeline_entry.entry_type = entry_type
+                timeline_entry.title = title
+                timeline_entry.description = description
+                # updated_by is handled by TimeStampedModel if it exists
+                if hasattr(timeline_entry, 'updated_by'):
+                    timeline_entry.updated_by = request.user
+                timeline_entry.save()
+                
+                messages.success(request, 'Timeline entry updated successfully!')
+                return redirect('maintenance:activity_detail', activity_id=activity_id)
+                
+            except Exception as e:
+                logger.error(f"Error updating timeline entry: {str(e)}")
+                messages.error(request, f'Error updating timeline entry: {str(e)}')
+        else:
+            messages.error(request, 'Please fill in all required fields.')
+    
+    # If GET request or validation failed, redirect back to activity detail
+    return redirect('maintenance:activity_detail', activity_id=activity_id)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+@require_http_methods(["POST"])
+def delete_timeline_entry(request, activity_id, entry_id):
+    """Delete a timeline entry (admin only)."""
+    activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+    timeline_entry = get_object_or_404(MaintenanceTimelineEntry, id=entry_id, activity=activity)
+    
+    try:
+        timeline_entry.delete()
+        messages.success(request, 'Timeline entry deleted successfully!')
+    except Exception as e:
+        logger.error(f"Error deleting timeline entry: {str(e)}")
+        messages.error(request, f'Error deleting timeline entry: {str(e)}')
+    
     return redirect('maintenance:activity_detail', activity_id=activity_id)
 
 @receiver(post_save, sender=MaintenanceReport)
