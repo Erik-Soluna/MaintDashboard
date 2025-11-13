@@ -60,6 +60,25 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(add_table_hover_fields_if_not_exists, reverse_migration),
+        # Use SeparateDatabaseAndState to handle existing columns
+        migrations.SeparateDatabaseAndState(
+            # Database operations: safely add columns if they don't exist
+            database_operations=[
+                migrations.RunPython(add_table_hover_fields_if_not_exists, reverse_migration),
+            ],
+            # State operations: tell Django these fields exist in the model
+            state_operations=[
+                migrations.AddField(
+                    model_name='brandingsettings',
+                    name='table_hover_background_color',
+                    field=models.CharField(default='#374151', help_text='Table row hover background color in hex format (#RRGGBB)', max_length=7),
+                ),
+                migrations.AddField(
+                    model_name='brandingsettings',
+                    name='table_hover_text_color',
+                    field=models.CharField(default='#ffffff', help_text='Table row hover text color in hex format (#RRGGBB)', max_length=7),
+                ),
+            ],
+        ),
     ]
 
