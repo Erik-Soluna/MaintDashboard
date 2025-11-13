@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% load breadcrumb_controls %}
+
+{% breadcrumb_control 'hide' %}
+
+{% block title %}Dashboard Settings - Maintenance Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-header mb-4">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">
+                            <i class="fas fa-cog me-2"></i>
+                            Dashboard Settings
+                        </h1>
+                        <p class="text-muted mb-0">Configure the Overview/Dashboard page display options</p>
+                    </div>
+                    <div>
+                        <a href="{% url 'core:settings' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i> Back to Settings
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Dashboard Configuration</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        {% crispy form %}
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Help & Information</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Visibility Settings</h6>
+                    <p class="small text-muted">
+                        Control which sections are displayed on the dashboard. Uncheck sections you don't want to show.
+                    </p>
+                    
+                    <h6 class="mt-3">Grouping Settings</h6>
+                    <p class="small text-muted">
+                        When enabled, urgent and upcoming items will be grouped by site, making it easier to see which site has the most items.
+                    </p>
+                    
+                    <h6 class="mt-3">Display Limits</h6>
+                    <p class="small text-muted">
+                        Control how many items are shown per site and in total. This helps manage performance and screen space.
+                    </p>
+                    
+                    <h6 class="mt-3">Time Range Settings</h6>
+                    <p class="small text-muted">
+                        Configure how many days ahead items are considered "urgent" or "upcoming". Overdue items are always shown regardless of these settings.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.site-group {
+    margin-bottom: 1.5rem;
+    border-left: 3px solid var(--primary-color, #4299e1);
+    padding-left: 1rem;
+}
+
+.site-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+    color: var(--primary-color, #4299e1);
+}
+</style>
+{% endblock %}
+

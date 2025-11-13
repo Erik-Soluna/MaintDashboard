@@ -56,6 +56,9 @@ urlpatterns = [
     path('locations/<int:location_id>/edit/', views.edit_location, name='edit_location'),
     path('locations/add/', views.add_location, name='add_location'),
     
+    # Dashboard Settings
+    path('dashboard/settings/', views.dashboard_settings, name='dashboard_settings'),
+    
     # Customer management URLs
     path('customers/settings/', views.customers_settings, name='customers_settings'),
     path('customers/add/', views.add_customer, name='add_customer'),

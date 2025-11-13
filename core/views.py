@@ -10,8 +10,8 @@ from django.contrib.auth.models import User
 from equipment.models import Equipment
 from maintenance.models import MaintenanceActivity
 from events.models import CalendarEvent
-from core.models import Location, EquipmentCategory, Role, Permission, UserProfile, Customer, BrandingSettings, CSSCustomization
-from core.forms import LocationForm, EquipmentCategoryForm, CustomerForm, UserForm, BrandingSettingsForm, BrandingBasicForm, BrandingNavigationForm, BrandingAppearanceForm, CSSCustomizationForm, CSSPreviewForm
+from core.models import Location, EquipmentCategory, Role, Permission, UserProfile, Customer, BrandingSettings, DashboardSettings, CSSCustomization
+from core.forms import LocationForm, EquipmentCategoryForm, CustomerForm, UserForm, BrandingSettingsForm, BrandingBasicForm, BrandingNavigationForm, BrandingAppearanceForm, CSSCustomizationForm, CSSPreviewForm, DashboardSettingsForm
 from django.utils import timezone
 from django.db.models import Q, Count
 from datetime import datetime, timedelta, date
@@ -172,37 +172,99 @@ def dashboard(request):
     
     # ===== BULK STATISTICS CALCULATION =====
     
+    # Get dashboard settings
+    from core.models import DashboardSettings
+    dashboard_settings = DashboardSettings.get_active()
+    
+    # Use settings for cutoff days if available
+    urgent_days = dashboard_settings.urgent_days_ahead if dashboard_settings else 7
+    upcoming_days = dashboard_settings.upcoming_days_ahead if dashboard_settings else 30
+    urgent_cutoff = today + timedelta(days=urgent_days)
+    upcoming_cutoff = today + timedelta(days=upcoming_days)
+    
     # Calculate urgent items with single queries - only show maintenance activities to avoid duplication
-    # Include overdue items (scheduled_end < now) and pending/in_progress items due within 7 days
+    # Include overdue items (scheduled_end < now) and pending/in_progress items due within configured days
     now = timezone.now()
-    urgent_maintenance = list(maintenance_query.filter(
+    urgent_maintenance_all = list(maintenance_query.filter(
         Q(status='overdue') |  # Items explicitly marked as overdue
         (Q(scheduled_end__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past due date (overdue)
         (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['pending', 'in_progress']))  # Urgent pending/in_progress items
-    ).order_by('scheduled_end')[:15])
+    ).order_by('scheduled_end'))
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
-    urgent_calendar = list(calendar_query.filter(
+    urgent_calendar_all = list(calendar_query.filter(
         event_date__lte=urgent_cutoff,
         event_date__gte=today,
         is_completed=False,
         maintenance_activity__isnull=True  # Only show calendar events NOT synced with maintenance
-    ).order_by('event_date')[:10])
+    ).order_by('event_date'))
     
     # Calculate upcoming items with single queries - only show maintenance activities to avoid duplication
-    upcoming_maintenance = list(maintenance_query.filter(
+    upcoming_maintenance_all = list(maintenance_query.filter(
         scheduled_end__gt=urgent_cutoff,
         scheduled_end__lte=upcoming_cutoff,
         status__in=['pending', 'scheduled']
-    ).order_by('scheduled_end')[:15])
+    ).order_by('scheduled_end'))
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
-    upcoming_calendar = list(calendar_query.filter(
+    upcoming_calendar_all = list(calendar_query.filter(
         event_date__gt=urgent_cutoff,
         event_date__lte=upcoming_cutoff,
         is_completed=False,
         maintenance_activity__isnull=True  # Only show calendar events NOT synced with maintenance
-    ).order_by('event_date')[:10])
+    ).order_by('event_date'))
+    
+    # Group items by site if enabled
+    group_by_site = dashboard_settings.group_urgent_by_site if dashboard_settings else True
+    urgent_maintenance_by_site = {}
+    urgent_calendar_by_site = {}
+    upcoming_maintenance_by_site = {}
+    upcoming_calendar_by_site = {}
+    
+    if group_by_site and is_all_sites:
+        # Group urgent maintenance by site
+        for item in urgent_maintenance_all:
+            site = item.equipment.location.get_site_location() if item.equipment.location else None
+            site_name = site.name if site else "Unknown Site"
+            if site_name not in urgent_maintenance_by_site:
+                urgent_maintenance_by_site[site_name] = []
+            if len(urgent_maintenance_by_site[site_name]) < (dashboard_settings.max_urgent_items_per_site if dashboard_settings else 15):
+                urgent_maintenance_by_site[site_name].append(item)
+        
+        # Group urgent calendar by site
+        for event in urgent_calendar_all:
+            site = event.equipment.location.get_site_location() if event.equipment.location else None
+            site_name = site.name if site else "Unknown Site"
+            if site_name not in urgent_calendar_by_site:
+                urgent_calendar_by_site[site_name] = []
+            if len(urgent_calendar_by_site[site_name]) < (dashboard_settings.max_urgent_items_per_site if dashboard_settings else 15):
+                urgent_calendar_by_site[site_name].append(event)
+        
+        # Group upcoming maintenance by site
+        group_upcoming = dashboard_settings.group_upcoming_by_site if dashboard_settings else True
+        if group_upcoming:
+            for item in upcoming_maintenance_all:
+                site = item.equipment.location.get_site_location() if item.equipment.location else None
+                site_name = site.name if site else "Unknown Site"
+                if site_name not in upcoming_maintenance_by_site:
+                    upcoming_maintenance_by_site[site_name] = []
+                if len(upcoming_maintenance_by_site[site_name]) < (dashboard_settings.max_upcoming_items_per_site if dashboard_settings else 15):
+                    upcoming_maintenance_by_site[site_name].append(item)
+            
+            # Group upcoming calendar by site
+            for event in upcoming_calendar_all:
+                site = event.equipment.location.get_site_location() if event.equipment.location else None
+                site_name = site.name if site else "Unknown Site"
+                if site_name not in upcoming_calendar_by_site:
+                    upcoming_calendar_by_site[site_name] = []
+                if len(upcoming_calendar_by_site[site_name]) < (dashboard_settings.max_upcoming_items_per_site if dashboard_settings else 15):
+                    upcoming_calendar_by_site[site_name].append(event)
+    
+    # For backwards compatibility, keep flat lists
+    urgent_maintenance = urgent_maintenance_all[:dashboard_settings.max_urgent_items_total if dashboard_settings else 50]
+    urgent_calendar = urgent_calendar_all[:10]
+    upcoming_maintenance = upcoming_maintenance_all[:dashboard_settings.max_upcoming_items_total if dashboard_settings else 50]
+    upcoming_calendar = upcoming_calendar_all[:10]
     
     # ===== OPTIMIZED OVERVIEW DATA CALCULATION =====
     
@@ -486,6 +548,15 @@ def dashboard(request):
         'urgent_calendar': urgent_calendar,
         'upcoming_maintenance': upcoming_maintenance,
         'upcoming_calendar': upcoming_calendar,
+        
+        # Grouped by site (if enabled)
+        'urgent_maintenance_by_site': urgent_maintenance_by_site,
+        'urgent_calendar_by_site': urgent_calendar_by_site,
+        'upcoming_maintenance_by_site': upcoming_maintenance_by_site,
+        'upcoming_calendar_by_site': upcoming_calendar_by_site,
+        
+        # Dashboard settings
+        'dashboard_settings': dashboard_settings,
         
         # Overview data (either pods or sites based on selection)
         'overview_data': overview_data,
@@ -2079,6 +2150,32 @@ def import_locations_csv(request):
         messages.error(request, f'Error reading CSV file: {str(e)}')
     
     return redirect('core:locations_settings')
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def dashboard_settings(request):
+    """Dashboard/Overview page settings management view."""
+    dashboard_settings_obj = DashboardSettings.get_active()
+    
+    if request.method == 'POST':
+        form = DashboardSettingsForm(request.POST, instance=dashboard_settings_obj)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Dashboard settings updated successfully!')
+            # Invalidate dashboard cache to ensure changes take effect immediately
+            from django.core.cache import cache
+            cache.clear()  # Clear all cache to ensure dashboard updates
+            return redirect('core:dashboard_settings')
+    else:
+        form = DashboardSettingsForm(instance=dashboard_settings_obj)
+    
+    context = {
+        'form': form,
+        'dashboard_settings': dashboard_settings_obj,
+    }
+    
+    return render(request, 'core/dashboard_settings.html', context)
 
 
 @login_required

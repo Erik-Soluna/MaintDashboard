@@ -5,7 +5,7 @@ Forms for core app - managing locations and equipment categories.
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Row, Column, Submit
-from .models import Location, EquipmentCategory, Customer, BrandingSettings, CSSCustomization, Role, UserProfile
+from .models import Location, EquipmentCategory, Customer, BrandingSettings, DashboardSettings, CSSCustomization, Role, UserProfile
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q
@@ -361,6 +361,82 @@ class BrandingSettingsForm(forms.ModelForm):
         if not color.startswith('#'):
             color = '#' + color
         return color
+
+
+class DashboardSettingsForm(forms.ModelForm):
+    """Form for editing dashboard/overview page settings"""
+    
+    class Meta:
+        model = DashboardSettings
+        fields = [
+            'show_urgent_items', 'show_upcoming_items', 'show_site_status', 
+            'show_kpi_cards', 'show_overview_data',
+            'group_urgent_by_site', 'group_upcoming_by_site',
+            'max_urgent_items_per_site', 'max_upcoming_items_per_site',
+            'max_urgent_items_total', 'max_upcoming_items_total',
+            'urgent_days_ahead', 'upcoming_days_ahead'
+        ]
+        widgets = {
+            'show_urgent_items': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'show_upcoming_items': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'show_site_status': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'show_kpi_cards': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'show_overview_data': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'group_urgent_by_site': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'group_upcoming_by_site': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'max_urgent_items_per_site': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
+            'max_upcoming_items_per_site': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
+            'max_urgent_items_total': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 500}),
+            'max_upcoming_items_total': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 500}),
+            'urgent_days_ahead': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 90}),
+            'upcoming_days_ahead': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 365}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                'Visibility Settings',
+                Row(
+                    Column('show_urgent_items', css_class='form-group col-md-6 mb-0'),
+                    Column('show_upcoming_items', css_class='form-group col-md-6 mb-0'),
+                ),
+                Row(
+                    Column('show_site_status', css_class='form-group col-md-6 mb-0'),
+                    Column('show_kpi_cards', css_class='form-group col-md-6 mb-0'),
+                ),
+                Row(
+                    Column('show_overview_data', css_class='form-group col-md-6 mb-0'),
+                ),
+            ),
+            Fieldset(
+                'Grouping Settings',
+                Row(
+                    Column('group_urgent_by_site', css_class='form-group col-md-6 mb-0'),
+                    Column('group_upcoming_by_site', css_class='form-group col-md-6 mb-0'),
+                ),
+            ),
+            Fieldset(
+                'Display Limits',
+                Row(
+                    Column('max_urgent_items_per_site', css_class='form-group col-md-6 mb-0'),
+                    Column('max_upcoming_items_per_site', css_class='form-group col-md-6 mb-0'),
+                ),
+                Row(
+                    Column('max_urgent_items_total', css_class='form-group col-md-6 mb-0'),
+                    Column('max_upcoming_items_total', css_class='form-group col-md-6 mb-0'),
+                ),
+            ),
+            Fieldset(
+                'Time Range Settings',
+                Row(
+                    Column('urgent_days_ahead', css_class='form-group col-md-6 mb-0'),
+                    Column('upcoming_days_ahead', css_class='form-group col-md-6 mb-0'),
+                ),
+            ),
+            Submit('submit', 'Save Dashboard Settings', css_class='btn btn-primary')
+        )
 
 
 class BrandingBasicForm(forms.ModelForm):
