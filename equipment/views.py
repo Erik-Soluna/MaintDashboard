@@ -408,15 +408,10 @@ def edit_equipment(request, equipment_id):
     if request.method == 'POST':
         form = DynamicEquipmentForm(request.POST, request.FILES, instance=equipment, request=request)
         if form.is_valid():
-            equipment = form.save(commit=False)
+            # form.save() handles custom fields automatically via DynamicEquipmentForm.save()
+            equipment = form.save()
             equipment.updated_by = request.user
             equipment.save()
-            
-            # Save custom field values
-            for field_name, value in form.cleaned_data.items():
-                if field_name.startswith('custom_'):
-                    custom_field_name = field_name[7:]  # Remove 'custom_' prefix
-                    equipment.set_custom_value(custom_field_name, value)
             
             messages.success(request, f'Equipment "{equipment.name}" updated successfully!')
             return redirect('equipment:equipment_detail', equipment_id=equipment.id)

@@ -59,3 +59,17 @@ def get_equipment_location_path(location):
         except AttributeError:
             return location.name
     return "Not specified"
+
+@register.filter
+def get_field(form, field_name):
+    """Get a form field by name."""
+    if hasattr(form, field_name):
+        return form[field_name]
+    return None
+
+@register.filter
+def get_field_errors(form, field_name):
+    """Get errors for a form field by name."""
+    if hasattr(form, field_name):
+        return form[field_name].errors
+    return []
