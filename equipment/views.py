@@ -2010,48 +2010,45 @@ def field_configuration_settings(request):
         # Handle bulk update
         with transaction.atomic():
             # Process field configurations
+            # Group updates by field name to handle all attributes together
+            field_updates = {}
+            
             for key, value in request.POST.items():
-                if key.startswith('field_') and key.endswith('_group'):
-                    # Extract field name (handles fields with underscores like power_ratings)
-                    field_name = key.replace('field_', '').replace('_group', '')
-                    
-                    config, created = EquipmentFieldConfiguration.objects.get_or_create(
-                        field_name=field_name,
-                        defaults={'is_custom_field': field_name.startswith('custom_')}
-                    )
-                    config.field_group = value
-                    config.save()
-                
-                elif key.startswith('field_') and key.endswith('_order'):
-                    field_name = key.replace('field_', '').replace('_order', '')
-                    try:
-                        order = int(value)
-                        config, created = EquipmentFieldConfiguration.objects.get_or_create(
-                            field_name=field_name,
-                            defaults={'is_custom_field': field_name.startswith('custom_')}
-                        )
-                        config.sort_order = order
-                        config.save()
-                    except ValueError:
-                        pass
-                
-                elif key.startswith('field_') and key.endswith('_visible'):
-                    field_name = key.replace('field_', '').replace('_visible', '')
-                    config, created = EquipmentFieldConfiguration.objects.get_or_create(
-                        field_name=field_name,
-                        defaults={'is_custom_field': field_name.startswith('custom_')}
-                    )
-                    config.is_visible = (value == 'on' or value == 'true')
-                    config.save()
-                
-                elif key.startswith('field_') and key.endswith('_label'):
-                    field_name = key.replace('field_', '').replace('_label', '')
-                    config, created = EquipmentFieldConfiguration.objects.get_or_create(
-                        field_name=field_name,
-                        defaults={'is_custom_field': field_name.startswith('custom_')}
-                    )
-                    config.display_label = value
-                    config.save()
+                if key.startswith('field_'):
+                    # Parse: field_<field_name>_<attribute>
+                    # Handle fields with underscores like power_ratings_group
+                    parts = key.split('_')
+                    if len(parts) >= 3:
+                        # Find where the attribute starts (last part)
+                        # Everything between 'field' and the last part is the field name
+                        attr = parts[-1]  # Last part is the attribute (group, order, visible, label)
+                        field_name_parts = parts[1:-1]  # Everything between 'field' and attribute
+                        field_name = '_'.join(field_name_parts)
+                        
+                        if field_name not in field_updates:
+                            field_updates[field_name] = {}
+                        
+                        if attr == 'group':
+                            field_updates[field_name]['field_group'] = value
+                        elif attr == 'order':
+                            try:
+                                field_updates[field_name]['sort_order'] = int(value)
+                            except ValueError:
+                                pass
+                        elif attr == 'visible':
+                            field_updates[field_name]['is_visible'] = (value == 'on' or value == 'true')
+                        elif attr == 'label':
+                            field_updates[field_name]['display_label'] = value
+            
+            # Apply all updates
+            for field_name, updates in field_updates.items():
+                config, created = EquipmentFieldConfiguration.objects.get_or_create(
+                    field_name=field_name,
+                    defaults={'is_custom_field': field_name.startswith('custom_')}
+                )
+                for attr, val in updates.items():
+                    setattr(config, attr, val)
+                config.save()
             
             messages.success(request, 'Field configuration updated successfully!')
             return redirect('equipment:field_configuration_settings')
