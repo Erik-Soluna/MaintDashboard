@@ -11,7 +11,7 @@ from equipment.models import Equipment
 from maintenance.models import MaintenanceActivity
 from events.models import CalendarEvent
 from core.models import Location, EquipmentCategory, Role, Permission, UserProfile, Customer, BrandingSettings, CSSCustomization
-from core.forms import LocationForm, EquipmentCategoryForm, CustomerForm, BrandingSettingsForm, BrandingBasicForm, BrandingNavigationForm, BrandingAppearanceForm, CSSCustomizationForm, CSSPreviewForm
+from core.forms import LocationForm, EquipmentCategoryForm, CustomerForm, UserForm, BrandingSettingsForm, BrandingBasicForm, BrandingNavigationForm, BrandingAppearanceForm, CSSCustomizationForm, CSSPreviewForm
 from django.utils import timezone
 from django.db.models import Q, Count
 from datetime import datetime, timedelta, date
@@ -1108,6 +1108,58 @@ def user_management(request):
         'superusers': superusers,
     }
     return render(request, 'core/user_management.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def add_user(request):
+    """Add new user."""
+    if request.method == 'POST':
+        form = UserForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f'User "{user.username}" has been created successfully.')
+            return redirect('core:user_management')
+    else:
+        form = UserForm()
+    
+    context = {
+        'form': form,
+        'title': 'Add User',
+        'action': 'Add'
+    }
+    return render(request, 'core/user_form.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def edit_user(request, user_id):
+    """Edit existing user."""
+    user = get_object_or_404(User, id=user_id)
+    profile, created = UserProfile.objects.get_or_create(user=user)
+    
+    if request.method == 'POST':
+        form = UserForm(request.POST, instance=user)
+        if form.is_valid():
+            user = form.save()
+            messages.success(request, f'User "{user.username}" has been updated successfully.')
+            return redirect('core:user_management')
+    else:
+        # Initialize form with user and profile data
+        form = UserForm(instance=user, initial={
+            'role': profile.role,
+            'employee_id': profile.employee_id,
+            'department': profile.department,
+            'phone_number': profile.phone_number,
+        })
+    
+    context = {
+        'form': form,
+        'user': user,
+        'title': 'Edit User',
+        'action': 'Edit'
+    }
+    return render(request, 'core/user_form.html', context)
 
 
 # API endpoints for settings management

@@ -5,7 +5,9 @@ Forms for core app - managing locations and equipment categories.
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Row, Column, Submit
-from .models import Location, EquipmentCategory, Customer, BrandingSettings, CSSCustomization
+from .models import Location, EquipmentCategory, Customer, BrandingSettings, CSSCustomization, Role, UserProfile
+from django.contrib.auth.models import User
+from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q
 
 
@@ -171,6 +173,131 @@ class CustomerForm(forms.ModelForm):
                 raise forms.ValidationError("Customer code cannot be empty.")
         
         return code
+
+
+class UserForm(UserCreationForm):
+    """Form for creating and editing users."""
+    email = forms.EmailField(required=True)
+    first_name = forms.CharField(max_length=30, required=False)
+    last_name = forms.CharField(max_length=30, required=False)
+    is_staff = forms.BooleanField(required=False, initial=False)
+    is_active = forms.BooleanField(required=False, initial=True)
+    role = forms.ModelChoiceField(
+        queryset=Role.objects.filter(is_active=True),
+        required=False,
+        empty_label="No Role"
+    )
+    employee_id = forms.CharField(max_length=50, required=False)
+    department = forms.CharField(max_length=100, required=False)
+    phone_number = forms.CharField(max_length=20, required=False)
+    
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'first_name', 'last_name', 
+                  'password1', 'password2', 'is_staff', 'is_active']
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['email'].widget.attrs.update({'class': 'form-control'})
+        self.fields['username'].widget.attrs.update({'class': 'form-control'})
+        self.fields['first_name'].widget.attrs.update({'class': 'form-control'})
+        self.fields['last_name'].widget.attrs.update({'class': 'form-control'})
+        self.fields['password1'].widget.attrs.update({'class': 'form-control'})
+        self.fields['password2'].widget.attrs.update({'class': 'form-control'})
+        self.fields['is_staff'].widget.attrs.update({'class': 'form-check-input'})
+        self.fields['is_active'].widget.attrs.update({'class': 'form-check-input'})
+        self.fields['role'].widget.attrs.update({'class': 'form-control'})
+        self.fields['employee_id'].widget.attrs.update({'class': 'form-control'})
+        self.fields['department'].widget.attrs.update({'class': 'form-control'})
+        self.fields['phone_number'].widget.attrs.update({'class': 'form-control'})
+        
+        # If editing an existing user, make passwords optional
+        if self.instance and self.instance.pk:
+            self.fields['password1'].required = False
+            self.fields['password2'].required = False
+            self.fields['password1'].widget.attrs['placeholder'] = 'Leave blank to keep current password'
+            self.fields['password2'].widget.attrs['placeholder'] = 'Leave blank to keep current password'
+            self.fields['password1'].help_text = 'Leave blank to keep current password'
+            self.fields['password2'].help_text = 'Leave blank to keep current password'
+        
+        # Setup crispy forms helper
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                'User Information',
+                Row(
+                    Column('username', css_class='form-group col-md-6 mb-0'),
+                    Column('email', css_class='form-group col-md-6 mb-0'),
+                ),
+                Row(
+                    Column('first_name', css_class='form-group col-md-6 mb-0'),
+                    Column('last_name', css_class='form-group col-md-6 mb-0'),
+                ),
+                Row(
+                    Column('password1', css_class='form-group col-md-6 mb-0'),
+                    Column('password2', css_class='form-group col-md-6 mb-0'),
+                ),
+            ),
+            Fieldset(
+                'Profile Information',
+                Row(
+                    Column('role', css_class='form-group col-md-6 mb-0'),
+                    Column('employee_id', css_class='form-group col-md-6 mb-0'),
+                ),
+                Row(
+                    Column('department', css_class='form-group col-md-6 mb-0'),
+                    Column('phone_number', css_class='form-group col-md-6 mb-0'),
+                ),
+            ),
+            Fieldset(
+                'Permissions',
+                'is_staff',
+                'is_active',
+            ),
+            Submit('submit', 'Save User', css_class='btn btn-primary')
+        )
+    
+    def clean_password2(self):
+        """Override to handle optional passwords when editing."""
+        password1 = self.cleaned_data.get("password1")
+        password2 = self.cleaned_data.get("password2")
+        
+        # If editing and both passwords are empty, skip validation
+        if self.instance and self.instance.pk:
+            if not password1 and not password2:
+                return password2
+        
+        # Otherwise, use parent validation
+        return super().clean_password2()
+    
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data['email']
+        user.first_name = self.cleaned_data['first_name']
+        user.last_name = self.cleaned_data['last_name']
+        user.is_staff = self.cleaned_data.get('is_staff', False)
+        user.is_active = self.cleaned_data.get('is_active', True)
+        
+        # Only set password if provided (for editing existing users)
+        password = self.cleaned_data.get('password1')
+        if password:
+            user.set_password(password)
+        elif not user.pk:
+            # New user must have a password
+            user.set_password(self.cleaned_data.get('password1', ''))
+        
+        if commit:
+            user.save()
+            # Create or update user profile
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            profile.role = self.cleaned_data.get('role')
+            profile.employee_id = self.cleaned_data.get('employee_id', '') or None
+            profile.department = self.cleaned_data.get('department', '')
+            profile.phone_number = self.cleaned_data.get('phone_number', '')
+            profile.save()
+        
+        return user
+
 
 class BrandingSettingsForm(forms.ModelForm):
     """Form for editing branding settings"""
