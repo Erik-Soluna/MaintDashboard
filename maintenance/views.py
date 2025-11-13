@@ -1302,7 +1302,7 @@ def import_maintenance_csv(request):
                 
                 # Default scheduled dates if not provided (in user's timezone)
                 if not scheduled_start:
-                    scheduled_start = timezone.now().astimezone(user_tz)
+                    scheduled_start = django_timezone.now().astimezone(user_tz)
                 if not scheduled_end:
                     scheduled_end = scheduled_start + timedelta(hours=activity_type.estimated_duration_hours)
                 
