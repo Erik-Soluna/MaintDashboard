@@ -147,7 +147,7 @@
                     <!-- Details Tab -->
                     <div class="tab-pane fade show active" id="details" role="tabpanel">
                         <div class="row">
-                            {% if configured_fields.basic %}
+                            {% if configured_fields and configured_fields.basic %}
                             <div class="col-md-6">
                                 <h6 class="mb-3">Basic Information</h6>
                                 <table class="table table-sm">
@@ -167,8 +167,39 @@
                                     {% endfor %}
                                 </table>
                             </div>
+                            {% else %}
+                            <!-- Fallback to default layout if configurations not available -->
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Basic Information</h6>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <td><strong>Name:</strong></td>
+                                        <td>{{ equipment.name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Category:</strong></td>
+                                        <td>{{ equipment.category.name|default:"Not specified" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Location:</strong></td>
+                                        <td>{{ equipment.location.get_full_path|default:"Not specified" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Manufacturer:</strong></td>
+                                        <td>{{ equipment.manufacturer|default:"Not specified" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Model Number:</strong></td>
+                                        <td>{{ equipment.model_number|default:"Not specified" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Serial Number:</strong></td>
+                                        <td>{{ equipment.manufacturer_serial|default:"Not specified" }}</td>
+                                    </tr>
+                                </table>
+                            </div>
                             {% endif %}
-                            {% if configured_fields.technical %}
+                            {% if configured_fields and configured_fields.technical %}
                             <div class="col-md-6">
                                 <h6 class="mb-3">Technical Specifications</h6>
                                 <table class="table table-sm">
@@ -186,6 +217,37 @@
                                         </td>
                                     </tr>
                                     {% endfor %}
+                                </table>
+                            </div>
+                            {% else %}
+                            <!-- Fallback to default layout if configurations not available -->
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Technical Specifications</h6>
+                                <table class="table table-sm">
+                                    <tr>
+                                        <td><strong>Power Ratings:</strong></td>
+                                        <td>{{ equipment.power_ratings|default:"Not specified" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Trip Setpoints:</strong></td>
+                                        <td>{{ equipment.trip_setpoints|default:"Not specified" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Commissioning Date:</strong></td>
+                                        <td>{{ equipment.commissioning_date|date:"M d, Y"|default:"Not specified" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Warranty Expiry:</strong></td>
+                                        <td>{{ equipment.warranty_expiry_date|date:"M d, Y"|default:"Not specified" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Created:</strong></td>
+                                        <td>{{ equipment.created_at|date:"M d, Y H:i" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Last Updated:</strong></td>
+                                        <td>{{ equipment.updated_at|date:"M d, Y H:i" }}</td>
+                                    </tr>
                                 </table>
                             </div>
                             {% endif %}

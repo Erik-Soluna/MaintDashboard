@@ -1351,8 +1351,12 @@ class EquipmentFieldConfiguration(TimeStampedModel):
 def get_field_configurations():
     """Get all field configurations as a dictionary."""
     configs = {}
-    for config in EquipmentFieldConfiguration.objects.filter(is_visible=True):
-        configs[config.field_name] = config
+    try:
+        for config in EquipmentFieldConfiguration.objects.filter(is_visible=True):
+            configs[config.field_name] = config
+    except Exception:
+        # Table doesn't exist yet - return empty dict
+        pass
     return configs
 
 
@@ -1360,7 +1364,11 @@ def get_configured_fields_for_equipment(equipment):
     """Get fields organized by group for an equipment instance."""
     from django.db.models import Q
     
-    configs = get_field_configurations()
+    try:
+        configs = get_field_configurations()
+    except Exception:
+        # Table doesn't exist yet - use defaults
+        configs = {}
     
     # Standard field mappings
     standard_field_map = {

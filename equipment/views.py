@@ -319,8 +319,17 @@ def equipment_detail(request, equipment_id):
     custom_fields_by_group = equipment.get_custom_fields_by_group()
     
     # Get configured fields organized by group
-    from equipment.models import get_configured_fields_for_equipment
-    configured_fields = get_configured_fields_for_equipment(equipment)
+    configured_fields = None
+    try:
+        from equipment.models import get_configured_fields_for_equipment
+        configured_fields = get_configured_fields_for_equipment(equipment)
+    except Exception:
+        # Table doesn't exist yet - use default structure
+        configured_fields = {
+            'basic': [],
+            'technical': [],
+            'hidden': [],
+        }
     
     # Get maintenance activities for the maintenance tab
     maintenance_activities = equipment.maintenance_activities.all().order_by('-scheduled_start')[:10]
@@ -2054,7 +2063,11 @@ def field_configuration_settings(request):
             return redirect('equipment:field_configuration_settings')
     
     # Get all configurations
-    configurations = {cfg.field_name: cfg for cfg in EquipmentFieldConfiguration.objects.all()}
+    try:
+        configurations = {cfg.field_name: cfg for cfg in EquipmentFieldConfiguration.objects.all()}
+    except Exception:
+        # Table doesn't exist yet - use empty dict
+        configurations = {}
     
     # Build field list with configurations
     fields = []
