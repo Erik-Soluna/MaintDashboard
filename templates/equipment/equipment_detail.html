@@ -1109,22 +1109,115 @@ $(document).ready(function() {
         const fileExtension = documentUrl.split('.').pop().toLowerCase();
         const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
         const isImage = imageExtensions.includes(fileExtension);
+        const isPdf = fileExtension === 'pdf';
         
         // Clear and load content
         if (isImage) {
             // Display image directly
             modalBody.html(`
                 <div class="text-center p-3" style="background-color: #f8f9fa;">
-                    <img src="${documentUrl}" class="img-fluid" alt="${documentTitle}" style="max-height: 70vh; max-width: 100%;">
+                    <img src="${documentUrl}" class="img-fluid" alt="${documentTitle}" style="max-height: 70vh; max-width: 100%;" onerror="this.parentElement.innerHTML='<div class=\\'alert alert-warning\\'><i class=\\'fas fa-exclamation-triangle\\'></i> Failed to load image. <a href=\\'${documentUrl}\\' target=\\'_blank\\'>Open in new tab</a></div>'">
                 </div>
             `);
-        } else {
-            // Display document in iframe (for PDFs, etc.)
+        } else if (isPdf) {
+            // For PDFs, try multiple methods
             modalBody.html(`
-                <iframe src="${documentUrl}" style="width: 100%; height: 70vh; border: none;" frameborder="0"></iframe>
+                <div style="width: 100%; height: 70vh; position: relative;">
+                    <iframe src="${documentUrl}" style="width: 100%; height: 100%; border: none;" frameborder="0" onerror="handleDocumentError(this, '${documentUrl}', '${documentTitle}')"></iframe>
+                    <div id="pdf-fallback" style="display: none; text-align: center; padding: 50px;">
+                        <i class="fas fa-file-pdf fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Unable to display PDF in browser.</p>
+                        <a href="${documentUrl}" target="_blank" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt me-1"></i> Open in New Tab
+                        </a>
+                    </div>
+                </div>
             `);
+            
+            // Check if iframe loaded successfully after a short delay
+            setTimeout(function() {
+                const iframe = modalBody.find('iframe');
+                if (iframe.length) {
+                    try {
+                        // Try to access iframe content - if blocked, show fallback
+                        iframe.on('load', function() {
+                            try {
+                                // If we can access this, the iframe loaded
+                                if (this.contentWindow) {
+                                    // Success
+                                }
+                            } catch (e) {
+                                // Cross-origin or blocked - show fallback
+                                iframe.hide();
+                                $('#pdf-fallback').show();
+                            }
+                        });
+                        
+                        // Also handle error case
+                        iframe.on('error', function() {
+                            $(this).hide();
+                            $('#pdf-fallback').show();
+                        });
+                    } catch (e) {
+                        // Iframe blocked - show fallback
+                        iframe.hide();
+                        $('#pdf-fallback').show();
+                    }
+                }
+            }, 1000);
+        } else {
+            // For other documents, try iframe with fallback
+            modalBody.html(`
+                <div style="width: 100%; height: 70vh; position: relative;">
+                    <iframe src="${documentUrl}" style="width: 100%; height: 100%; border: none;" frameborder="0"></iframe>
+                    <div id="doc-fallback" style="display: none; text-align: center; padding: 50px;">
+                        <i class="fas fa-file fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">Unable to display document in browser.</p>
+                        <a href="${documentUrl}" target="_blank" class="btn btn-primary">
+                            <i class="fas fa-external-link-alt me-1"></i> Open in New Tab
+                        </a>
+                    </div>
+                </div>
+            `);
+            
+            // Check if iframe loaded after delay
+            setTimeout(function() {
+                const iframe = modalBody.find('iframe');
+                if (iframe.length) {
+                    iframe.on('load', function() {
+                        try {
+                            if (this.contentWindow) {
+                                // Success
+                            }
+                        } catch (e) {
+                            // Blocked - show fallback
+                            $(this).hide();
+                            $('#doc-fallback').show();
+                        }
+                    });
+                }
+            }, 1000);
         }
     });
+    
+    // Function to handle document loading errors
+    function handleDocumentError(element, url, title) {
+        $(element).hide();
+        const fallback = element.next('#pdf-fallback, #doc-fallback');
+        if (fallback.length) {
+            fallback.show();
+        } else {
+            $(element).parent().html(`
+                <div class="text-center p-5">
+                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                    <p class="text-muted">Unable to display document in browser.</p>
+                    <a href="${url}" target="_blank" class="btn btn-primary">
+                        <i class="fas fa-external-link-alt me-1"></i> Open in New Tab
+                    </a>
+                </div>
+            `);
+        }
+    }
     
     // Clear modal content when closed
     $('#viewDocumentModal').on('hidden.bs.modal', function() {
