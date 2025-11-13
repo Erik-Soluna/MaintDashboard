@@ -247,9 +247,15 @@ def bulk_add_activity(request):
     from equipment.models import Equipment
     from core.models import Location
     from datetime import datetime
+    import pytz
     
     try:
         connection.ensure_connection()
+        
+        # Get user's timezone from profile (defaults to Central)
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        user_timezone_str = user_profile.get_user_timezone()  # Returns 'America/Chicago' by default
+        user_tz = pytz.timezone(user_timezone_str)
         
         # Get site filtering
         selected_site_id = request.GET.get('site_id')
@@ -305,9 +311,17 @@ def bulk_add_activity(request):
                     activity_type = MaintenanceActivityType.objects.get(id=activity_type_id)
                     assigned_to = User.objects.get(id=assigned_to_id) if assigned_to_id else None
                     
-                    # Convert date strings to datetime objects
-                    scheduled_start_dt = datetime.strptime(scheduled_start, '%Y-%m-%dT%H:%M') if scheduled_start else None
-                    scheduled_end_dt = datetime.strptime(scheduled_end, '%Y-%m-%dT%H:%M') if scheduled_end else None
+                    # Convert date strings to timezone-aware datetime objects in user's timezone
+                    scheduled_start_dt = None
+                    scheduled_end_dt = None
+                    if scheduled_start:
+                        # Parse as naive datetime, then localize to user's timezone
+                        naive_dt = datetime.strptime(scheduled_start, '%Y-%m-%dT%H:%M')
+                        scheduled_start_dt = user_tz.localize(naive_dt)
+                    if scheduled_end:
+                        # Parse as naive datetime, then localize to user's timezone
+                        naive_dt = datetime.strptime(scheduled_end, '%Y-%m-%dT%H:%M')
+                        scheduled_end_dt = user_tz.localize(naive_dt)
                     
                     created_activities = []
                     created_schedules = []
@@ -1207,7 +1221,13 @@ def import_maintenance_csv(request):
                 if priority not in valid_priorities:
                     priority = 'medium'
                 
-                # Parse dates
+                # Get user's timezone from profile (defaults to Central)
+                user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+                user_timezone_str = user_profile.get_user_timezone()  # Returns 'America/Chicago' by default
+                import pytz
+                user_tz = pytz.timezone(user_timezone_str)
+                
+                # Parse dates - interpret naive datetimes as being in user's timezone
                 scheduled_start = None
                 scheduled_end = None
                 actual_start = None
@@ -1218,7 +1238,11 @@ def import_maintenance_csv(request):
                     if len(row) > 5 and row[5].strip():
                         scheduled_start = datetime.fromisoformat(row[5].strip())
                         if scheduled_start.tzinfo is None:
-                            scheduled_start = django_timezone.make_aware(scheduled_start)
+                            # Interpret naive datetime as being in user's timezone
+                            scheduled_start = user_tz.localize(scheduled_start)
+                        else:
+                            # Already timezone-aware, convert to user's timezone for consistency
+                            scheduled_start = scheduled_start.astimezone(user_tz)
                 except ValueError:
                     pass
                 
@@ -1226,7 +1250,11 @@ def import_maintenance_csv(request):
                     if len(row) > 6 and row[6].strip():
                         scheduled_end = datetime.fromisoformat(row[6].strip())
                         if scheduled_end.tzinfo is None:
-                            scheduled_end = django_timezone.make_aware(scheduled_end)
+                            # Interpret naive datetime as being in user's timezone
+                            scheduled_end = user_tz.localize(scheduled_end)
+                        else:
+                            # Already timezone-aware, convert to user's timezone for consistency
+                            scheduled_end = scheduled_end.astimezone(user_tz)
                 except ValueError:
                     pass
                 
@@ -1234,7 +1262,11 @@ def import_maintenance_csv(request):
                     if len(row) > 7 and row[7].strip():
                         actual_start = datetime.fromisoformat(row[7].strip())
                         if actual_start.tzinfo is None:
-                            actual_start = django_timezone.make_aware(actual_start)
+                            # Interpret naive datetime as being in user's timezone
+                            actual_start = user_tz.localize(actual_start)
+                        else:
+                            # Already timezone-aware, convert to user's timezone for consistency
+                            actual_start = actual_start.astimezone(user_tz)
                 except ValueError:
                     pass
                 
@@ -1242,7 +1274,11 @@ def import_maintenance_csv(request):
                     if len(row) > 8 and row[8].strip():
                         actual_end = datetime.fromisoformat(row[8].strip())
                         if actual_end.tzinfo is None:
-                            actual_end = django_timezone.make_aware(actual_end)
+                            # Interpret naive datetime as being in user's timezone
+                            actual_end = user_tz.localize(actual_end)
+                        else:
+                            # Already timezone-aware, convert to user's timezone for consistency
+                            actual_end = actual_end.astimezone(user_tz)
                 except ValueError:
                     pass
                 
@@ -1264,11 +1300,11 @@ def import_maintenance_csv(request):
                     if users.exists():
                         assigned_to = users.first()
                 
-                # Default scheduled dates if not provided
+                # Default scheduled dates if not provided (in user's timezone)
                 if not scheduled_start:
-                    scheduled_start = django_timezone.now()
+                    scheduled_start = timezone.now().astimezone(user_tz)
                 if not scheduled_end:
-                    scheduled_end = scheduled_start + django_timezone.timedelta(hours=activity_type.estimated_duration_hours)
+                    scheduled_end = scheduled_start + timedelta(hours=activity_type.estimated_duration_hours)
                 
                 # Create maintenance activity
                 activity_data = {
