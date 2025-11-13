@@ -1,0 +1,66 @@
+{% load crispy_forms_tags %}
+
+<form id="logIssueForm" method="post" action="{% url 'equipment:log_issue' equipment.id %}">
+    {% csrf_token %}
+    
+    <div class="row">
+        <div class="col-12">
+            {{ form.title|as_crispy_field }}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            {{ form.description|as_crispy_field }}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            {{ form.severity|as_crispy_field }}
+        </div>
+        <div class="col-md-6">
+            {{ form.status|as_crispy_field }}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <label for="{{ form.tags.id_for_label }}" class="form-label">
+                {{ form.tags.label }}
+                <small class="text-muted">({{ form.tags.help_text }})</small>
+            </label>
+            {{ form.tags }}
+            {% if form.tags.errors %}
+                <div class="text-danger">{{ form.tags.errors }}</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row mt-3">
+        <div class="col-12">
+            <label for="{{ form.new_tag.id_for_label }}" class="form-label">
+                {{ form.new_tag.label }}
+                <small class="text-muted">({{ form.new_tag.help_text }})</small>
+            </label>
+            {{ form.new_tag }}
+            {% if form.new_tag.errors %}
+                <div class="text-danger">{{ form.new_tag.errors }}</div>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+<script>
+$(document).ready(function() {
+    // Auto-lowercase new tag input
+    $('#{{ form.new_tag.id_for_label }}').on('input', function() {
+        const cursorPos = this.selectionStart;
+        const originalLength = this.value.length;
+        this.value = this.value.toLowerCase();
+        const newLength = this.value.length;
+        this.setSelectionRange(cursorPos - (originalLength - newLength), cursorPos - (originalLength - newLength));
+    });
+});
+</script>
+
