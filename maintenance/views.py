@@ -28,7 +28,7 @@ from .models import (
     MaintenanceTimelineEntry
 )
 from equipment.models import Equipment
-from core.models import EquipmentCategory
+from core.models import EquipmentCategory, UserProfile
 from equipment.models import Equipment, EquipmentDocument
 from .forms import (
     MaintenanceActivityForm, MaintenanceScheduleForm, 
@@ -1470,6 +1470,12 @@ def maintenance_reports(request):
     """Maintenance reports and analytics with timeline and export."""
     from equipment.models import EquipmentCategory
     from core.models import Location
+    import pytz
+    
+    # Get user's timezone from profile (defaults to Central)
+    user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    user_timezone_str = user_profile.get_user_timezone()  # Returns 'America/Chicago' by default
+    user_tz = pytz.timezone(user_timezone_str)
     
     # Get filter parameters
     category_id = request.GET.get('category')
@@ -1493,15 +1499,23 @@ def maintenance_reports(request):
     if date_from:
         try:
             from datetime import datetime
-            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
-            activities_queryset = activities_queryset.filter(scheduled_start__gte=date_from_obj)
+            # Parse date string and convert to timezone-aware datetime at start of day in user's timezone
+            date_from_naive = datetime.strptime(date_from, '%Y-%m-%d').date()
+            date_from_dt = user_tz.localize(datetime.combine(date_from_naive, datetime.min.time()))
+            # Convert to UTC for database query (Django stores datetimes in UTC)
+            date_from_utc = date_from_dt.astimezone(pytz.UTC)
+            activities_queryset = activities_queryset.filter(scheduled_start__gte=date_from_utc)
         except ValueError:
             pass
     if date_to:
         try:
             from datetime import datetime
-            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
-            activities_queryset = activities_queryset.filter(scheduled_start__lte=date_to_obj)
+            # Parse date string and convert to timezone-aware datetime at end of day in user's timezone
+            date_to_naive = datetime.strptime(date_to, '%Y-%m-%d').date()
+            date_to_dt = user_tz.localize(datetime.combine(date_to_naive, datetime.max.time()))
+            # Convert to UTC for database query
+            date_to_utc = date_to_dt.astimezone(pytz.UTC)
+            activities_queryset = activities_queryset.filter(scheduled_start__lte=date_to_utc)
         except ValueError:
             pass
     
@@ -1538,23 +1552,25 @@ def maintenance_reports(request):
     ).order_by('actual_end')
     
     # Get date range (default to last 30 days, or use filter dates)
+    # Use user's timezone for date calculations
+    now_in_user_tz = timezone.now().astimezone(user_tz)
     if date_from:
         try:
             from datetime import datetime
             start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
         except ValueError:
-            start_date = timezone.now().date() - timedelta(days=30)
+            start_date = (now_in_user_tz - timedelta(days=30)).date()
     else:
-        start_date = timezone.now().date() - timedelta(days=30)
+        start_date = (now_in_user_tz - timedelta(days=30)).date()
     
     if date_to:
         try:
             from datetime import datetime
             end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
         except ValueError:
-            end_date = timezone.now().date()
+            end_date = now_in_user_tz.date()
     else:
-        end_date = timezone.now().date()
+        end_date = now_in_user_tz.date()
     
     # Initialize all dates in range with 0
     current_date = start_date
@@ -1563,10 +1579,17 @@ def maintenance_reports(request):
         current_date += timedelta(days=1)
     
     # Count completions per day - Use database aggregation instead of Python loop
+    # Convert dates to timezone-aware datetimes for database queries
     from django.db.models.functions import TruncDate
+    from datetime import datetime
+    start_dt = user_tz.localize(datetime.combine(start_date, datetime.min.time()))
+    start_utc = start_dt.astimezone(pytz.UTC)
+    end_dt = user_tz.localize(datetime.combine(end_date, datetime.max.time()))
+    end_utc = end_dt.astimezone(pytz.UTC)
+    
     daily_completions_queryset = completed_activities.filter(
-        actual_end__gte=start_date,
-        actual_end__lte=end_date
+        actual_end__gte=start_utc,
+        actual_end__lte=end_utc
     ).annotate(
         date=TruncDate('actual_end')
     ).values('date').annotate(
@@ -1583,14 +1606,17 @@ def maintenance_reports(request):
     
     # Generate maintenance trends (monthly view for all equipment)
     # Use the same date range or default to last 12 months for trends
-    trends_start_date = start_date
-    trends_end_date = end_date
+    # Convert dates to timezone-aware datetimes for database queries
+    trends_start_dt = user_tz.localize(datetime.combine(start_date, datetime.min.time()))
+    trends_start_utc = trends_start_dt.astimezone(pytz.UTC)
+    trends_end_dt = user_tz.localize(datetime.combine(end_date, datetime.max.time()))
+    trends_end_utc = trends_end_dt.astimezone(pytz.UTC)
     
     # For trends, group by month - Use database aggregation instead of Python loop
     from django.db.models.functions import TruncMonth
     monthly_trends_queryset = activities_queryset.filter(
-        scheduled_start__gte=trends_start_date, 
-        scheduled_start__lte=trends_end_date
+        scheduled_start__gte=trends_start_utc, 
+        scheduled_start__lte=trends_end_utc
     ).annotate(
         month=TruncMonth('scheduled_start')
     ).values('month').annotate(
