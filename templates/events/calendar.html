@@ -1886,24 +1886,24 @@ function displayMaintenanceDetails(activity) {
                         <h6 class="text-white">Schedule</h6>
                         <div class="mb-2">
                             <small class="text-muted">Start:</small><br>
-                            <span class="text-white">${formatDateTime(activity.scheduled_start)}</span>
+                            <span class="text-white">${formatDateTime(activity.scheduled_start, activity.timezone)}</span>
                             ${activity.timezone ? `<br><small class="text-info">(${getTimezoneDisplayName(activity.timezone)})</small>` : ''}
                         </div>
                         <div class="mb-2">
                             <small class="text-muted">End:</small><br>
-                            <span class="text-white">${formatDateTime(activity.scheduled_end)}</span>
+                            <span class="text-white">${formatDateTime(activity.scheduled_end, activity.timezone)}</span>
                             ${activity.timezone ? `<br><small class="text-info">(${getTimezoneDisplayName(activity.timezone)})</small>` : ''}
                         </div>
                         ${activity.actual_start ? `
                         <div class="mb-2">
                             <small class="text-muted">Actual Start:</small><br>
-                            <span class="text-white">${formatDateTime(activity.actual_start)}</span>
+                            <span class="text-white">${formatDateTime(activity.actual_start, activity.timezone)}</span>
                         </div>
                         ` : ''}
                         ${activity.actual_end ? `
                         <div class="mb-2">
                             <small class="text-muted">Actual End:</small><br>
-                            <span class="text-white">${formatDateTime(activity.actual_end)}</span>
+                            <span class="text-white">${formatDateTime(activity.actual_end, activity.timezone)}</span>
                         </div>
                         ` : ''}
                     </div>
@@ -1965,9 +1965,28 @@ function getPriorityBadge(priority) {
     return badges[priority] || { class: 'badge-secondary', text: priority };
 }
 
-function formatDateTime(dateTimeStr) {
+function formatDateTime(dateTimeStr, timezoneStr) {
     if (!dateTimeStr) return 'N/A';
     const date = new Date(dateTimeStr);
+    
+    // If timezone is provided, format using that timezone; otherwise use browser's timezone
+    if (timezoneStr) {
+        try {
+            return date.toLocaleString('en-US', {
+                timeZone: timezoneStr,
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: 'numeric',
+                second: 'numeric',
+                hour12: true
+            });
+        } catch (e) {
+            // Fallback to default if timezone is invalid
+            return date.toLocaleString();
+        }
+    }
     return date.toLocaleString();
 }
 
