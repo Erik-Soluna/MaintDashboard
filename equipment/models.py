@@ -1123,3 +1123,142 @@ class EquipmentCategoryConditionalField(TimeStampedModel):
     def get_effective_field_group(self):
         """Get the effective field group (original or override)."""
         return self.override_field_group or self.field.field_group or 'General'
+
+
+class IssueTag(TimeStampedModel):
+    """
+    Tags for equipment issues.
+    Tags are lowercase and unique to prevent duplicates.
+    First instance creates the tag, then it's selectable for all equipment.
+    """
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text="Issue tag name (stored in lowercase)"
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Optional description of the tag"
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Whether this tag is active and available for use"
+    )
+
+    class Meta:
+        verbose_name = "Issue Tag"
+        verbose_name_plural = "Issue Tags"
+        ordering = ['name']
+        indexes = [
+            models.Index(fields=['name']),
+            models.Index(fields=['is_active']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        """Ensure tag name is always lowercase."""
+        if self.name:
+            self.name = self.name.lower().strip()
+        super().save(*args, **kwargs)
+
+    def clean(self):
+        """Validate tag name."""
+        if self.name:
+            self.name = self.name.lower().strip()
+            if not self.name:
+                raise ValidationError({'name': 'Tag name cannot be empty.'})
+
+
+class EquipmentIssue(TimeStampedModel):
+    """
+    Issues logged for equipment.
+    Each issue can have one or more tags for categorization.
+    """
+    SEVERITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    ]
+
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('in_progress', 'In Progress'),
+        ('resolved', 'Resolved'),
+        ('closed', 'Closed'),
+    ]
+
+    equipment = models.ForeignKey(
+        Equipment,
+        on_delete=models.CASCADE,
+        related_name='issues',
+        help_text="Equipment this issue is associated with"
+    )
+    title = models.CharField(
+        max_length=200,
+        help_text="Brief title describing the issue"
+    )
+    description = models.TextField(
+        help_text="Detailed description of the issue"
+    )
+    severity = models.CharField(
+        max_length=20,
+        choices=SEVERITY_CHOICES,
+        default='medium',
+        help_text="Severity level of the issue"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='open',
+        help_text="Current status of the issue"
+    )
+    tags = models.ManyToManyField(
+        IssueTag,
+        related_name='issues',
+        blank=True,
+        help_text="Tags associated with this issue"
+    )
+    resolved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the issue was resolved"
+    )
+    resolved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='resolved_equipment_issues',
+        help_text="User who resolved the issue"
+    )
+    resolution_notes = models.TextField(
+        blank=True,
+        help_text="Notes about how the issue was resolved"
+    )
+
+    class Meta:
+        verbose_name = "Equipment Issue"
+        verbose_name_plural = "Equipment Issues"
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['equipment', '-created_at']),
+            models.Index(fields=['status']),
+            models.Index(fields=['severity']),
+        ]
+
+    def __str__(self):
+        return f"{self.equipment.name} - {self.title}"
+
+    def mark_resolved(self, user=None, notes=''):
+        """Mark the issue as resolved."""
+        from django.utils import timezone
+        self.status = 'resolved'
+        self.resolved_at = timezone.now()
+        if user:
+            self.resolved_by = user
+        if notes:
+            self.resolution_notes = notes
+        self.save()

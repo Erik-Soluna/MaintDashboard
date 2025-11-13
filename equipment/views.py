@@ -9,7 +9,9 @@ import csv
 import io
 import os
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required
+from core.rbac import permission_required, user_has_permission
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
@@ -17,6 +19,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.clickjacking import xframe_options_exempt
 from django.core.exceptions import ValidationError
 
 import re
@@ -29,11 +32,11 @@ except ImportError:
     PyPDF2 = None
     PYPDF2_AVAILABLE = False
 
-from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField
+from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentIssue
 from core.models import EquipmentCategory, Location
 from core.logging_utils import log_error, log_view_access, log_api_call
 from maintenance.models import MaintenanceReport
-from .forms import EquipmentForm, DynamicEquipmentForm, EquipmentComponentForm, EquipmentDocumentForm
+from .forms import EquipmentForm, DynamicEquipmentForm, EquipmentComponentForm, EquipmentDocumentForm, IssueLogForm
 
 logger = logging.getLogger(__name__)
 
@@ -329,6 +332,12 @@ def equipment_detail(request, equipment_id):
     # Get documents for the documents tab
     documents = equipment.documents.all().order_by('-created_at')
     
+    # Get issues for the issues tab
+    issues = equipment.issues.all().order_by('-created_at')
+    open_issues_count = issues.filter(status='open').count()
+    in_progress_issues_count = issues.filter(status='in_progress').count()
+    resolved_issues_count = issues.filter(status='resolved').count()
+    
     context = {
         'equipment': equipment,
         'maintenance_status': maintenance_status,
@@ -345,6 +354,10 @@ def equipment_detail(request, equipment_id):
         'maintenance_reports': maintenance_reports,
         'components': components,
         'documents': documents,
+        'issues': issues,
+        'open_issues_count': open_issues_count,
+        'in_progress_issues_count': in_progress_issues_count,
+        'resolved_issues_count': resolved_issues_count,
     }
     
     return render(request, 'equipment/equipment_detail.html', context)
@@ -606,6 +619,28 @@ def add_component(request, equipment_id):
 
 
 @login_required
+@xframe_options_exempt
+def view_document(request, equipment_id, document_id):
+    """Serve document with iframe-friendly headers for viewing in modal."""
+    from django.http import FileResponse
+    import mimetypes
+    
+    equipment = get_object_or_404(Equipment, id=equipment_id)
+    document = get_object_or_404(EquipmentDocument, id=document_id, equipment=equipment)
+    
+    # Serve file with headers that allow iframe embedding
+    file = document.file.open()
+    content_type, _ = mimetypes.guess_type(document.file.name)
+    if not content_type:
+        content_type = 'application/octet-stream'
+    
+    response = FileResponse(file, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{document.file.name}"'
+    
+    return response
+
+
+@login_required
 def equipment_documents(request, equipment_id):
     """View and manage equipment documents."""
     equipment = get_object_or_404(Equipment, id=equipment_id)
@@ -653,19 +688,24 @@ def add_document(request, equipment_id):
 
 
 @login_required
+@permission_required('equipment.documents.delete')
+@require_http_methods(["POST", "DELETE"])
 def delete_document(request, equipment_id, document_id):
-    """Delete an equipment document (admin/staff only)."""
-    # Check if user is staff or superuser
-    if not (request.user.is_staff or request.user.is_superuser):
-        messages.error(request, 'You do not have permission to delete documents.')
-        return redirect('equipment:equipment_documents', equipment_id=equipment_id)
-    
+    """Delete an equipment document with RBAC permission check."""
     equipment = get_object_or_404(Equipment, id=equipment_id)
     document = get_object_or_404(EquipmentDocument, id=document_id, equipment=equipment)
     
-    if request.method == 'POST':
+    if request.method == 'POST' or request.method == 'DELETE':
         document_title = document.title
         document.delete()
+        
+        # Check if this is an AJAX request
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': f'Document "{document_title}" has been deleted successfully.'
+            })
+        
         messages.success(request, f'Document "{document_title}" deleted successfully!')
         return redirect('equipment:equipment_documents', equipment_id=equipment.id)
     
@@ -1920,3 +1960,276 @@ def delete_connection(request, connection_id):
             'status': 'error',
             'message': f'Error deleting connection: {str(e)}'
         }, status=500)
+
+
+@login_required
+def log_issue(request, equipment_id):
+    """Log a new issue for equipment. Supports both regular POST and AJAX."""
+    equipment = get_object_or_404(Equipment, id=equipment_id)
+    
+    if request.method == 'POST':
+        form = IssueLogForm(request.POST)
+        if form.is_valid():
+            issue = form.save(commit=False)
+            issue.equipment = equipment
+            issue.created_by = request.user
+            issue.updated_by = request.user
+            issue.save()
+            
+            # The form's save method handles tags, but we need to ensure created_by is set for new tags
+            # Handle new tag if provided
+            new_tag_name = form.cleaned_data.get('new_tag', '').strip().lower()
+            if new_tag_name:
+                from .models import IssueTag
+                tag, created = IssueTag.objects.get_or_create(
+                    name=new_tag_name,
+                    defaults={'is_active': True, 'created_by': request.user}
+                )
+                if created:
+                    tag.created_by = request.user
+                    tag.save()
+                issue.tags.add(tag)
+            
+            # Add selected existing tags
+            if form.cleaned_data.get('tags'):
+                issue.tags.add(*form.cleaned_data['tags'])
+            
+            # Check if this is an AJAX request
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Issue "{issue.title}" has been logged successfully.',
+                    'issue_id': issue.id
+                })
+            
+            messages.success(request, f'Issue "{issue.title}" has been logged successfully.')
+            return redirect('equipment:equipment_detail', equipment_id=equipment_id)
+        else:
+            # Form validation failed
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                }, status=400)
+    else:
+        form = IssueLogForm()
+    
+    # For AJAX GET requests, return form HTML
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        from django.template.loader import render_to_string
+        form_html = render_to_string('equipment/log_issue_modal.html', {
+            'form': form,
+            'equipment': equipment
+        }, request=request)
+        return JsonResponse({
+            'success': True,
+            'form_html': form_html
+        })
+    
+    context = {
+        'form': form,
+        'equipment': equipment,
+        'title': 'Log Issue'
+    }
+    
+    return render(request, 'equipment/log_issue.html', context)
+
+
+@login_required
+@permission_required('issues.edit')
+def edit_issue(request, equipment_id, issue_id):
+    """Edit an equipment issue. Supports both regular POST and AJAX."""
+    equipment = get_object_or_404(Equipment, id=equipment_id)
+    issue = get_object_or_404(EquipmentIssue, id=issue_id, equipment=equipment)
+    
+    if request.method == 'POST':
+        form = IssueLogForm(request.POST, instance=issue)
+        if form.is_valid():
+            issue = form.save(commit=False)
+            issue.updated_by = request.user
+            issue.save()
+            
+            # Clear existing tags and add new ones
+            issue.tags.clear()
+            
+            # Handle new tag if provided
+            new_tag_name = form.cleaned_data.get('new_tag', '').strip().lower()
+            if new_tag_name:
+                from .models import IssueTag
+                tag, created = IssueTag.objects.get_or_create(
+                    name=new_tag_name,
+                    defaults={'is_active': True, 'created_by': request.user}
+                )
+                if created:
+                    tag.created_by = request.user
+                    tag.save()
+                issue.tags.add(tag)
+            
+            # Add selected existing tags
+            if form.cleaned_data.get('tags'):
+                issue.tags.add(*form.cleaned_data['tags'])
+            
+            # Check if this is an AJAX request
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Issue "{issue.title}" has been updated successfully.',
+                    'issue_id': issue.id
+                })
+            
+            messages.success(request, f'Issue "{issue.title}" has been updated successfully.')
+            return redirect('equipment:equipment_detail', equipment_id=equipment_id)
+        else:
+            # Form validation failed
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                }, status=400)
+    else:
+        # Pre-populate form with existing issue data
+        form = IssueLogForm(instance=issue, initial={
+            'tags': issue.tags.all()
+        })
+    
+    # For AJAX GET requests, return form HTML
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        from django.template.loader import render_to_string
+        form_html = render_to_string('equipment/edit_issue_modal.html', {
+            'form': form,
+            'equipment': equipment,
+            'issue': issue
+        }, request=request)
+        return JsonResponse({
+            'success': True,
+            'form_html': form_html
+        })
+    
+    context = {
+        'form': form,
+        'equipment': equipment,
+        'issue': issue,
+        'title': 'Edit Issue'
+    }
+    
+    return render(request, 'equipment/edit_issue.html', context)
+
+
+@login_required
+@permission_required('issues.delete')
+@require_http_methods(["POST", "DELETE"])
+def delete_issue(request, equipment_id, issue_id):
+    """Delete an equipment issue."""
+    equipment = get_object_or_404(Equipment, id=equipment_id)
+    issue = get_object_or_404(EquipmentIssue, id=issue_id, equipment=equipment)
+    
+    issue_title = issue.title
+    issue.delete()
+    
+    # Check if this is an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'message': f'Issue "{issue_title}" has been deleted successfully.'
+        })
+    
+    messages.success(request, f'Issue "{issue_title}" has been deleted successfully.')
+    return redirect('equipment:equipment_detail', equipment_id=equipment_id)
+
+
+@login_required
+def create_maintenance_from_issue(request, equipment_id, issue_id):
+    """Create a corrective maintenance activity from an equipment issue."""
+    from maintenance.models import MaintenanceActivityType, ActivityTypeCategory
+    from maintenance.forms import MaintenanceActivityForm
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    equipment = get_object_or_404(Equipment, id=equipment_id)
+    issue = get_object_or_404(EquipmentIssue, id=issue_id, equipment=equipment)
+    
+    if request.method == 'GET':
+        # Get or create a "Corrective Maintenance" activity type
+        corrective_category, _ = ActivityTypeCategory.objects.get_or_create(
+            name='Corrective',
+            defaults={
+                'description': 'Corrective maintenance activities',
+                'color': '#dc3545',  # Red color for corrective
+                'is_active': True
+            }
+        )
+        
+        corrective_type, created = MaintenanceActivityType.objects.get_or_create(
+            name='Corrective Maintenance',
+            defaults={
+                'category': corrective_category,
+                'description': 'Corrective maintenance to address equipment issues',
+                'estimated_duration_hours': 2,
+                'frequency_days': 0,  # Not recurring
+                'is_mandatory': False,
+                'is_active': True,
+            }
+        )
+        
+        # If category wasn't set, set it now
+        if not corrective_type.category_id:
+            corrective_type.category = corrective_category
+            corrective_type.save()
+        
+        # Prepare initial data from issue
+        initial_data = {
+            'equipment': equipment,
+            'activity_type': corrective_type,
+            'title': f'Corrective: {issue.title}',
+            'description': f'Corrective maintenance to address issue: {issue.title}\n\nIssue Description:\n{issue.description}\n\nIssue Tags: {", ".join([tag.name for tag in issue.tags.all()])}',
+            'priority': issue.severity,  # Map severity to priority
+            'status': 'pending',
+            'scheduled_start': timezone.now(),
+            'scheduled_end': timezone.now() + timedelta(hours=2),
+        }
+        
+        form = MaintenanceActivityForm(initial=initial_data, request=request)
+        
+        # For AJAX requests, return form HTML
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            from django.template.loader import render_to_string
+            form_html = render_to_string('equipment/create_maintenance_from_issue_modal.html', {
+                'form': form,
+                'equipment': equipment,
+                'issue': issue
+            }, request=request)
+            return JsonResponse({
+                'success': True,
+                'form_html': form_html
+            })
+        
+        # Regular GET request - redirect to add activity page with pre-filled data
+        return redirect(f"{reverse('maintenance:add_activity')}?equipment={equipment.id}&title={issue.title}&description={issue.description}")
+    
+    # Handle POST submission
+    if request.method == 'POST':
+        form = MaintenanceActivityForm(request.POST, request=request)
+        if form.is_valid():
+            activity = form.save(commit=False)
+            activity.created_by = request.user
+            activity.save()
+            
+            # Link the issue to the activity (we could add a relationship field later)
+            # For now, we'll add a note in the description
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Maintenance activity "{activity.title}" created successfully!',
+                    'activity_id': activity.id,
+                    'redirect_url': reverse('maintenance:activity_detail', args=[activity.id])
+                })
+            
+            messages.success(request, f'Maintenance activity "{activity.title}" created successfully!')
+            return redirect('maintenance:activity_detail', activity_id=activity.id)
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                }, status=400)

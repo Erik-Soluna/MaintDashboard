@@ -1,0 +1,53 @@
+{% load crispy_forms_tags %}
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>
+    <strong>Creating corrective maintenance from issue:</strong> {{ issue.title }}
+</div>
+
+<form id="createMaintenanceFromIssueForm" method="post" action="{% url 'equipment:create_maintenance_from_issue' equipment.id issue.id %}">
+    {% csrf_token %}
+    
+    <div class="row">
+        <div class="col-md-6">
+            {{ form.equipment|as_crispy_field }}
+        </div>
+        <div class="col-md-6">
+            {{ form.activity_type|as_crispy_field }}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            {{ form.title|as_crispy_field }}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            {{ form.description|as_crispy_field }}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-4">
+            {{ form.priority|as_crispy_field }}
+        </div>
+        <div class="col-md-4">
+            {{ form.status|as_crispy_field }}
+        </div>
+        <div class="col-md-4">
+            {{ form.assigned_to|as_crispy_field }}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            {{ form.scheduled_start|as_crispy_field }}
+        </div>
+        <div class="col-md-6">
+            {{ form.scheduled_end|as_crispy_field }}
+        </div>
+    </div>
+</form>
+

@@ -29,6 +29,7 @@ urlpatterns = [
     # Documents
     path('<int:equipment_id>/documents/', views.equipment_documents, name='equipment_documents'),
     path('<int:equipment_id>/documents/add/', views.add_document, name='add_document'),
+    path('<int:equipment_id>/documents/<int:document_id>/view/', views.view_document, name='view_document'),
     path('<int:equipment_id>/documents/<int:document_id>/delete/', views.delete_document, name='delete_document'),
     path('<int:equipment_id>/scan-reports/', views.scan_reports, name='scan_reports'),
     path('<int:equipment_id>/analyze-reports/', views.analyze_reports, name='analyze_reports'),
@@ -41,4 +42,10 @@ urlpatterns = [
     
     # Custom Field Management
     path('categories/<int:category_id>/fields/', views.category_fields_management, name='category_fields_management'),
+    
+    # Issues
+    path('<int:equipment_id>/issues/log/', views.log_issue, name='log_issue'),
+    path('<int:equipment_id>/issues/<int:issue_id>/edit/', views.edit_issue, name='edit_issue'),
+    path('<int:equipment_id>/issues/<int:issue_id>/delete/', views.delete_issue, name='delete_issue'),
+    path('<int:equipment_id>/issues/<int:issue_id>/create-maintenance/', views.create_maintenance_from_issue, name='create_maintenance_from_issue'),
 ]

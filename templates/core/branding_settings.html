@@ -742,6 +742,22 @@
                     </div>
                 </div>
 
+                <div class="branding-form-section">
+                    <h4><i class="fas fa-table me-2"></i>Table Hover Colors</h4>
+                    <p class="text-muted">Customize the colors when hovering over table rows (e.g., Maintenance History, Issues).</p>
+                    
+                    <div class="color-picker-group">
+                        <div class="color-picker-item">
+                            <label>Table Hover Background</label>
+                            {{ appearance_form.table_hover_background_color }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Table Hover Text</label>
+                            {{ appearance_form.table_hover_text_color }}
+                        </div>
+                    </div>
+                </div>
+
                 <div class="text-center">
                     <button type="button" class="btn btn-outline-secondary btn-lg me-3" onclick="resetToDefaults('appearance')">
                         <i class="fas fa-undo me-2"></i>Reset to Defaults

@@ -7,7 +7,7 @@ import logging
 import csv
 import io
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_http_methods
@@ -448,6 +448,8 @@ def activity_detail(request, activity_id):
     for entry in timeline_entries:
         timeline_events.append({
             'type': 'timeline_entry',
+            'entry_id': entry.id,  # Include ID for edit/delete
+            'entry_type': entry.entry_type,
             'title': entry.title,
             'description': entry.description,
             'timestamp': entry.created_at,
@@ -2923,6 +2925,59 @@ def add_timeline_entry(request, activity_id):
     # If GET request or validation failed, redirect back to activity detail
     return redirect('maintenance:activity_detail', activity_id=activity_id)
 
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+def edit_timeline_entry(request, activity_id, entry_id):
+    """Edit a timeline entry (admin only)."""
+    activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+    timeline_entry = get_object_or_404(MaintenanceTimelineEntry, id=entry_id, activity=activity)
+    
+    if request.method == 'POST':
+        entry_type = request.POST.get('entry_type')
+        title = request.POST.get('title')
+        description = request.POST.get('description')
+        
+        if entry_type and title and description:
+            try:
+                timeline_entry.entry_type = entry_type
+                timeline_entry.title = title
+                timeline_entry.description = description
+                # updated_by is handled by TimeStampedModel if it exists
+                if hasattr(timeline_entry, 'updated_by'):
+                    timeline_entry.updated_by = request.user
+                timeline_entry.save()
+                
+                messages.success(request, 'Timeline entry updated successfully!')
+                return redirect('maintenance:activity_detail', activity_id=activity_id)
+                
+            except Exception as e:
+                logger.error(f"Error updating timeline entry: {str(e)}")
+                messages.error(request, f'Error updating timeline entry: {str(e)}')
+        else:
+            messages.error(request, 'Please fill in all required fields.')
+    
+    # If GET request or validation failed, redirect back to activity detail
+    return redirect('maintenance:activity_detail', activity_id=activity_id)
+
+
+@login_required
+@user_passes_test(lambda u: u.is_staff)
+@require_http_methods(["POST"])
+def delete_timeline_entry(request, activity_id, entry_id):
+    """Delete a timeline entry (admin only)."""
+    activity = get_object_or_404(MaintenanceActivity, id=activity_id)
+    timeline_entry = get_object_or_404(MaintenanceTimelineEntry, id=entry_id, activity=activity)
+    
+    try:
+        timeline_entry.delete()
+        messages.success(request, 'Timeline entry deleted successfully!')
+    except Exception as e:
+        logger.error(f"Error deleting timeline entry: {str(e)}")
+        messages.error(request, f'Error deleting timeline entry: {str(e)}')
+    
+    return redirect('maintenance:activity_detail', activity_id=activity_id)
+
 @receiver(post_save, sender=MaintenanceReport)
 def maintenance_report_post_save(sender, instance, created, **kwargs):
     """Create timeline entry when maintenance report is uploaded."""
@@ -3022,24 +3077,53 @@ def change_activity_status(request, activity_id):
             activity.status = new_status
             activity.updated_by = request.user
             
-            # Handle start/end times based on status
-            if new_status == 'in_progress' and not activity.actual_start:
-                activity.actual_start = timezone.now()
-            elif new_status == 'completed' and not activity.actual_end:
-                activity.actual_end = timezone.now()
+            # Handle start/end times based on status and user input
+            actual_start_str = request.POST.get('actual_start', '').strip()
+            actual_end_str = request.POST.get('actual_end', '').strip()
+            
+            if new_status == 'in_progress' or new_status == 'completed':
+                # Use custom start time if provided, otherwise use current time or existing value
+                if actual_start_str:
+                    try:
+                        from django.utils.dateparse import parse_datetime
+                        activity.actual_start = parse_datetime(actual_start_str)
+                        if not activity.actual_start:
+                            # Try parsing as local datetime
+                            from datetime import datetime
+                            activity.actual_start = datetime.strptime(actual_start_str, '%Y-%m-%dT%H:%M')
+                            activity.actual_start = timezone.make_aware(activity.actual_start)
+                    except (ValueError, TypeError):
+                        # If parsing fails, use current time
+                        if not activity.actual_start:
+                            activity.actual_start = timezone.now()
+                elif not activity.actual_start:
+                    activity.actual_start = timezone.now()
+            
+            if new_status == 'completed':
+                # Use custom end time if provided, otherwise use current time or existing value
+                if actual_end_str:
+                    try:
+                        from django.utils.dateparse import parse_datetime
+                        activity.actual_end = parse_datetime(actual_end_str)
+                        if not activity.actual_end:
+                            # Try parsing as local datetime
+                            from datetime import datetime
+                            activity.actual_end = datetime.strptime(actual_end_str, '%Y-%m-%dT%H:%M')
+                            activity.actual_end = timezone.make_aware(activity.actual_end)
+                    except (ValueError, TypeError):
+                        # If parsing fails, use current time
+                        if not activity.actual_end:
+                            activity.actual_end = timezone.now()
+                elif not activity.actual_end:
+                    activity.actual_end = timezone.now()
+                
+                # Ensure start time is set if completing
                 if not activity.actual_start:
                     activity.actual_start = activity.scheduled_start
             
             activity.save()
-            
-            # Create timeline entry for status change
-            MaintenanceTimelineEntry.objects.create(
-                activity=activity,
-                entry_type='status_change',
-                title=f'Status Changed to {activity.get_status_display()}',
-                description=f'Status changed from {dict(MaintenanceActivity.STATUS_CHOICES).get(old_status, old_status)} to {activity.get_status_display()}' + (f'. Notes: {notes}' if notes else ''),
-                created_by=request.user
-            )
+            # Note: Timeline entry is automatically created by the signal in maintenance/signals.py
+            # No need to manually create it here to avoid duplicates
             
             messages.success(request, f'Activity status changed to {activity.get_status_display()}')
             return redirect('maintenance:activity_detail', activity_id=activity_id)

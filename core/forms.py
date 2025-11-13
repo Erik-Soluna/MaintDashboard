@@ -503,7 +503,8 @@ class BrandingAppearanceForm(forms.ModelForm):
             'success_color', 'warning_color', 'danger_color', 'info_color',
             'dropdown_background_color', 'dropdown_background_opacity', 'dropdown_text_color', 'dropdown_border_color',
             'dropdown_hover_background_color', 'dropdown_hover_text_color',
-            'breadcrumb_link_color', 'breadcrumb_text_color', 'breadcrumb_separator_color'
+            'breadcrumb_link_color', 'breadcrumb_text_color', 'breadcrumb_separator_color',
+            'table_hover_background_color', 'table_hover_text_color'
         ]
         widgets = {
             'primary_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
@@ -539,6 +540,8 @@ class BrandingAppearanceForm(forms.ModelForm):
             'breadcrumb_link_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
             'breadcrumb_text_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
             'breadcrumb_separator_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'table_hover_background_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
+            'table_hover_text_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
         }
     
     def clean_primary_color(self):

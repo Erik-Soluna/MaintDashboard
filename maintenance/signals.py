@@ -117,54 +117,69 @@ def maintenance_activity_post_save(sender, instance, created, **kwargs):
             status_display = instance.get_status_display()
             old_status_display = dict(MaintenanceActivity.STATUS_CHOICES).get(old_status, old_status)
             
-            MaintenanceTimelineEntry.objects.create(
+            # Use get_or_create to prevent duplicates if the same status change happens multiple times
+            MaintenanceTimelineEntry.objects.get_or_create(
                 activity=instance,
                 entry_type='status_change',
                 title=f'Status Changed to {status_display}',
-                description=f'Activity status changed from {old_status_display} to {status_display}',
-                created_by=instance.updated_by or instance.created_by
+                defaults={
+                    'description': f'Activity status changed from {old_status_display} to {status_display}',
+                    'created_by': instance.updated_by or instance.created_by
+                }
             )
         
         # Check for actual start changes
         old_actual_start = getattr(instance, '_old_actual_start', None)
         if old_actual_start is None and instance.actual_start:
-            MaintenanceTimelineEntry.objects.create(
+            # Use get_or_create to prevent duplicates
+            MaintenanceTimelineEntry.objects.get_or_create(
                 activity=instance,
                 entry_type='started',
-                title='Activity Started',
-                description=f'Maintenance activity started at {instance.actual_start.strftime("%Y-%m-%d %H:%M")}',
-                created_by=instance.updated_by or instance.created_by
+                defaults={
+                    'title': 'Activity Started',
+                    'description': f'Maintenance activity started at {instance.actual_start.strftime("%Y-%m-%d %H:%M")}',
+                    'created_by': instance.updated_by or instance.created_by
+                }
             )
         
         # Check for actual end changes
         old_actual_end = getattr(instance, '_old_actual_end', None)
         if old_actual_end is None and instance.actual_end:
-            MaintenanceTimelineEntry.objects.create(
+            # Use get_or_create to prevent duplicates
+            MaintenanceTimelineEntry.objects.get_or_create(
                 activity=instance,
                 entry_type='completed',
-                title='Activity Completed',
-                description=f'Maintenance activity completed at {instance.actual_end.strftime("%Y-%m-%d %H:%M")}',
-                created_by=instance.updated_by or instance.created_by
+                defaults={
+                    'title': 'Activity Completed',
+                    'description': f'Maintenance activity completed at {instance.actual_end.strftime("%Y-%m-%d %H:%M")}',
+                    'created_by': instance.updated_by or instance.created_by
+                }
             )
         
         # Check for assignment changes
         old_assigned_to = getattr(instance, '_old_assigned_to', None)
         if old_assigned_to != instance.assigned_to:
             if instance.assigned_to:
-                MaintenanceTimelineEntry.objects.create(
+                # Use get_or_create to prevent duplicates
+                MaintenanceTimelineEntry.objects.get_or_create(
                     activity=instance,
                     entry_type='assigned',
-                    title='Activity Assigned',
-                    description=f'Activity assigned to {instance.assigned_to.get_full_name() or instance.assigned_to.username}',
-                    created_by=instance.updated_by or instance.created_by
+                    defaults={
+                        'title': 'Activity Assigned',
+                        'description': f'Activity assigned to {instance.assigned_to.get_full_name() or instance.assigned_to.username}',
+                        'created_by': instance.updated_by or instance.created_by
+                    }
                 )
             else:
-                MaintenanceTimelineEntry.objects.create(
+                # Use get_or_create to prevent duplicates
+                MaintenanceTimelineEntry.objects.get_or_create(
                     activity=instance,
                     entry_type='unassigned',
-                    title='Activity Unassigned',
-                    description='Activity assignment was removed',
-                    created_by=instance.updated_by or instance.created_by
+                    defaults={
+                        'title': 'Activity Unassigned',
+                        'description': 'Activity assignment was removed',
+                        'created_by': instance.updated_by or instance.created_by
+                    }
                 )
 
 
