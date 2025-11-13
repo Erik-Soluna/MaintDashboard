@@ -1319,6 +1319,12 @@ def export_maintenance_activities_csv(request):
     """Export all maintenance activities to CSV."""
     from equipment.models import EquipmentCategory
     from core.models import Location
+    import pytz
+    
+    # Get user's timezone from profile (defaults to Central)
+    user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    user_timezone_str = user_profile.get_user_timezone()  # Returns 'America/Chicago' by default
+    user_tz = pytz.timezone(user_timezone_str)
     
     # Get filter parameters (same as reports page)
     category_id = request.GET.get('category')
@@ -1342,15 +1348,23 @@ def export_maintenance_activities_csv(request):
     if date_from:
         try:
             from datetime import datetime
-            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
-            activities_queryset = activities_queryset.filter(scheduled_start__gte=date_from_obj)
+            # Parse date string and convert to timezone-aware datetime at start of day in user's timezone
+            date_from_naive = datetime.strptime(date_from, '%Y-%m-%d').date()
+            date_from_dt = user_tz.localize(datetime.combine(date_from_naive, datetime.min.time()))
+            # Convert to UTC for database query (Django stores datetimes in UTC)
+            date_from_utc = date_from_dt.astimezone(pytz.UTC)
+            activities_queryset = activities_queryset.filter(scheduled_start__gte=date_from_utc)
         except ValueError:
             pass
     if date_to:
         try:
             from datetime import datetime
-            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
-            activities_queryset = activities_queryset.filter(scheduled_start__lte=date_to_obj)
+            # Parse date string and convert to timezone-aware datetime at end of day in user's timezone
+            date_to_naive = datetime.strptime(date_to, '%Y-%m-%d').date()
+            date_to_dt = user_tz.localize(datetime.combine(date_to_naive, datetime.max.time()))
+            # Convert to UTC for database query
+            date_to_utc = date_to_dt.astimezone(pytz.UTC)
+            activities_queryset = activities_queryset.filter(scheduled_start__lte=date_to_utc)
         except ValueError:
             pass
     
