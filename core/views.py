@@ -173,10 +173,12 @@ def dashboard(request):
     # ===== BULK STATISTICS CALCULATION =====
     
     # Calculate urgent items with single queries - only show maintenance activities to avoid duplication
-    # Include overdue items regardless of date, and pending/in_progress items due within 7 days
+    # Include overdue items (scheduled_end < now) and pending/in_progress items due within 7 days
+    now = timezone.now()
     urgent_maintenance = list(maintenance_query.filter(
-        Q(status='overdue') |  # Always include overdue items
-        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['pending', 'in_progress']))
+        Q(status='overdue') |  # Items explicitly marked as overdue
+        (Q(scheduled_end__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past due date (overdue)
+        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['pending', 'in_progress']))  # Urgent pending/in_progress items
     ).order_by('scheduled_end')[:15])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
