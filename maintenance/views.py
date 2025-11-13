@@ -2368,12 +2368,30 @@ def fetch_activities(request):
 def get_activity_details(request, activity_id):
     """Get detailed information about a maintenance activity for AJAX requests."""
     try:
+        from core.models import UserProfile
+        import pytz
+        
+        # Get user's timezone from profile (defaults to Central)
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        user_timezone_str = user_profile.get_user_timezone()  # Returns 'America/Chicago' by default
+        user_tz = pytz.timezone(user_timezone_str)
+        
         activity = get_object_or_404(MaintenanceActivity, id=activity_id)
         
         # Get related data
         checklist_items = activity.checklist_items.all().order_by('order')
         timeline_entries = activity.timeline_entries.all().order_by('-created_at')[:10]
         reports = activity.reports.all().order_by('-created_at')
+        
+        # Convert datetimes to user's timezone
+        def convert_to_user_tz(dt):
+            if not dt:
+                return None
+            # If already timezone-aware, convert to user's timezone
+            if timezone.is_aware(dt):
+                return dt.astimezone(user_tz)
+            # If naive, assume UTC and convert
+            return timezone.make_aware(dt, pytz.UTC).astimezone(user_tz)
         
         data = {
             'id': activity.id,
@@ -2391,10 +2409,11 @@ def get_activity_details(request, activity_id):
                 'name': activity.activity_type.name,
                 'category': activity.activity_type.category.name,
             },
-            'scheduled_start': activity.scheduled_start.isoformat() if activity.scheduled_start else None,
-            'scheduled_end': activity.scheduled_end.isoformat() if activity.scheduled_end else None,
-            'actual_start': activity.actual_start.isoformat() if activity.actual_start else None,
-            'actual_end': activity.actual_end.isoformat() if activity.actual_end else None,
+            'scheduled_start': convert_to_user_tz(activity.scheduled_start).isoformat() if activity.scheduled_start else None,
+            'scheduled_end': convert_to_user_tz(activity.scheduled_end).isoformat() if activity.scheduled_end else None,
+            'actual_start': convert_to_user_tz(activity.actual_start).isoformat() if activity.actual_start else None,
+            'actual_end': convert_to_user_tz(activity.actual_end).isoformat() if activity.actual_end else None,
+            'timezone': user_timezone_str,  # Include timezone info for display
             'assigned_to': activity.assigned_to.username if activity.assigned_to else None,
             'completion_notes': activity.completion_notes,
             'checklist_items': [
