@@ -1345,3 +1345,109 @@ class EquipmentFieldConfiguration(TimeStampedModel):
             return self.display_label
         # Try to get a human-readable label from the field name
         return self.field_name.replace('_', ' ').title()
+
+
+# Helper function to get field configurations
+def get_field_configurations():
+    """Get all field configurations as a dictionary."""
+    configs = {}
+    for config in EquipmentFieldConfiguration.objects.filter(is_visible=True):
+        configs[config.field_name] = config
+    return configs
+
+
+def get_configured_fields_for_equipment(equipment):
+    """Get fields organized by group for an equipment instance."""
+    from django.db.models import Q
+    
+    configs = get_field_configurations()
+    
+    # Standard field mappings
+    standard_field_map = {
+        'name': ('name', equipment.name),
+        'category': ('category', equipment.category.name if equipment.category else None),
+        'location': ('location', equipment.location.get_full_path() if equipment.location else None),
+        'manufacturer': ('manufacturer', equipment.manufacturer),
+        'model_number': ('model_number', equipment.model_number),
+        'manufacturer_serial': ('manufacturer_serial', equipment.manufacturer_serial),
+        'asset_tag': ('asset_tag', equipment.asset_tag),
+        'status': ('status', equipment.get_status_display()),
+        'power_ratings': ('power_ratings', equipment.power_ratings),
+        'trip_setpoints': ('trip_setpoints', equipment.trip_setpoints),
+        'commissioning_date': ('commissioning_date', equipment.commissioning_date),
+        'warranty_expiry_date': ('warranty_expiry_date', equipment.warranty_expiry_date),
+        'dga_due_date': ('dga_due_date', equipment.dga_due_date),
+        'next_maintenance_date': ('next_maintenance_date', equipment.next_maintenance_date),
+        'created_at': ('created_at', equipment.created_at),
+        'updated_at': ('updated_at', equipment.updated_at),
+    }
+    
+    # Build fields by group
+    fields_by_group = {
+        'basic': [],
+        'technical': [],
+        'hidden': [],
+    }
+    
+    # Add standard fields
+    for field_name, (attr, value) in standard_field_map.items():
+        config = configs.get(field_name)
+        if config:
+            group = config.field_group
+            label = config.get_display_label()
+            sort_order = config.sort_order
+        else:
+            # Default grouping
+            if field_name in ['name', 'category', 'location', 'manufacturer', 'model_number', 'manufacturer_serial', 'asset_tag', 'status']:
+                group = 'basic'
+            elif field_name in ['power_ratings', 'trip_setpoints', 'commissioning_date', 'warranty_expiry_date', 'dga_due_date', 'next_maintenance_date']:
+                group = 'technical'
+            else:
+                group = 'hidden'
+            label = field_name.replace('_', ' ').title()
+            sort_order = 0
+        
+        fields_by_group[group].append({
+            'name': field_name,
+            'label': label,
+            'value': value,
+            'sort_order': sort_order,
+            'is_custom': False,
+        })
+    
+    # Add custom fields
+    if equipment.category:
+        custom_fields_by_group = equipment.get_all_custom_fields_by_group()
+        for group_name, fields in custom_fields_by_group.items():
+            for field_info in fields:
+                field = field_info['field']
+                field_name = f'custom_{field.name}'
+                value = equipment.get_custom_value(field.name) if not field_info.get('is_conditional') else equipment.get_conditional_value(field.name)
+                
+                config = configs.get(field_name)
+                if config:
+                    display_group = config.field_group
+                    label = config.get_display_label()
+                    sort_order = config.sort_order
+                    is_visible = config.is_visible
+                else:
+                    display_group = 'technical'  # Default for custom fields
+                    label = field_info['effective_label']
+                    sort_order = field_info['effective_sort_order']
+                    is_visible = True
+                
+                if is_visible:
+                    fields_by_group[display_group].append({
+                        'name': field_name,
+                        'label': label,
+                        'value': value,
+                        'sort_order': sort_order,
+                        'is_custom': True,
+                        'field': field,
+                    })
+    
+    # Sort each group by sort_order
+    for group in fields_by_group:
+        fields_by_group[group].sort(key=lambda x: (x['sort_order'], x['label']))
+    
+    return fields_by_group

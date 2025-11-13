@@ -1,0 +1,92 @@
+--- a/scripts/deployment/docker-entrypoint.sh
++++ b/scripts/deployment/docker-entrypoint.sh
+@@ -1,5 +1,5 @@
+ #!/bin/bash
+ 
+-# Fast Docker Entrypoint Script for Maintenance Dashboard
+-# Version: 2025-10-09-OPTIMIZED
+-# Purpose: Fast, efficient database initialization with smart caching
++# Fast Docker Entrypoint Script for Maintenance Dashboard
++# Version: 2025-10-24-DATABASE-USER-FIX
++# Purpose: Fast, efficient database initialization with robust user creation
+ 
+ set -e
+@@ -30,6 +30,50 @@ ADMIN_PASSWORD="${ADMIN_PASSWORD:-temppass123}"
+ 
++# Wait for PostgreSQL to be ready (as postgres user)
++wait_for_postgres() {
++    local attempt=1
++    local max_attempts=30
++    
++    print_status "⏳ Waiting for PostgreSQL to be ready..."
++    
++    while [ $attempt -le $max_attempts ]; do
++        if PGPASSWORD="${POSTGRES_PASSWORD:-SecureProdPassword2024!}" psql -h "$DB_HOST" -p "$DB_PORT" -U "postgres" -d "postgres" -c "SELECT 1;" > /dev/null 2>&1; then
++            print_success "✅ PostgreSQL ready (attempt $attempt)"
++            return 0
++        fi
++        
++        local sleep_time=$(awk "BEGIN {print ($attempt * 0.5 > 3) ? 3 : $attempt * 0.5}")
++        sleep $sleep_time
++        attempt=$((attempt + 1))
++    done
++    
++    print_error "❌ PostgreSQL timeout after $max_attempts attempts"
++    exit 1
++}
++
++# Create maintenance_user if it doesn't exist
++ensure_database_user() {
++    print_status "🔧 Ensuring database user '$DB_USER' exists..."
++    
++    # Check if user exists
++    local user_exists=$(PGPASSWORD="${POSTGRES_PASSWORD:-SecureProdPassword2024!}" psql -h "$DB_HOST" -p "$DB_PORT" -U "postgres" -d "postgres" -t -c "SELECT 1 FROM pg_roles WHERE rolname='$DB_USER';" 2>/dev/null | xargs)
++    
++    if [ "$user_exists" = "1" ]; then
++        print_success "✅ User '$DB_USER' already exists"
++    else
++        print_status "👤 Creating user '$DB_USER'..."
++        
++        # Create user
++        PGPASSWORD="${POSTGRES_PASSWORD:-SecureProdPassword2024!}" psql -h "$DB_HOST" -p "$DB_PORT" -U "postgres" -d "postgres" -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" > /dev/null 2>&1
++        
++        # Grant privileges
++        PGPASSWORD="${POSTGRES_PASSWORD:-SecureProdPassword2024!}" psql -h "$DB_HOST" -p "$DB_PORT" -U "postgres" -d "postgres" -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;" > /dev/null 2>&1
++        PGPASSWORD="${POSTGRES_PASSWORD:-SecureProdPassword2024!}" psql -h "$DB_HOST" -p "$DB_PORT" -U "postgres" -d "$DB_NAME" -c "GRANT ALL PRIVILEGES ON SCHEMA public TO $DB_USER;" > /dev/null 2>&1
++        PGPASSWORD="${POSTGRES_PASSWORD:-SecureProdPassword2024!}" psql -h "$DB_HOST" -p "$DB_PORT" -U "postgres" -d "$DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO $DB_USER;" > /dev/null 2>&1
++        PGPASSWORD="${POSTGRES_PASSWORD:-SecureProdPassword2024!}" psql -h "$DB_HOST" -p "$DB_PORT" -U "postgres" -d "$DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO $DB_USER;" > /dev/null 2>&1
++        
++        print_success "✅ User '$DB_USER' created successfully"
++    fi
++}
++
+ # Fast database wait (optimized)
+ wait_for_database() {
+     local attempt=1
+     local max_attempts=20
+     
+     while [ $attempt -le $max_attempts ]; do
+-        if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" > /dev/null 2>&1; then
++        if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1;" > /dev/null 2>&1; then
+             [ $attempt -gt 1 ] && print_success "✅ Database ready (attempt $attempt)"
+             return 0
+         fi
+@@ -118,7 +162,11 @@ main() {
+ main() {
+     print_status "🚀 Starting Maintenance Dashboard..."
+     
+-    # Quick startup
+-    wait_for_database
++    # Step 1: Wait for PostgreSQL to be ready
++    wait_for_postgres
++    
++    # Step 2: Ensure maintenance_user exists
++    ensure_database_user
++    
++    # Step 3: Wait for database to be accessible with maintenance_user
++    wait_for_database
++    
++    # Step 4: Initialize database
+     initialize_database_smart
+     
+     print_success "✅ Ready to serve"

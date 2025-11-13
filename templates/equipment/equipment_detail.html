@@ -147,64 +147,48 @@
                     <!-- Details Tab -->
                     <div class="tab-pane fade show active" id="details" role="tabpanel">
                         <div class="row">
+                            {% if configured_fields.basic %}
                             <div class="col-md-6">
                                 <h6 class="mb-3">Basic Information</h6>
                                 <table class="table table-sm">
+                                    {% for field in configured_fields.basic %}
                                     <tr>
-                                        <td><strong>Name:</strong></td>
-                                        <td>{{ equipment.name }}</td>
+                                        <td><strong>{{ field.label }}:</strong></td>
+                                        <td>
+                                            {% if field.name == 'commissioning_date' or field.name == 'warranty_expiry_date' or field.name == 'dga_due_date' or field.name == 'next_maintenance_date' %}
+                                                {{ field.value|date:"M d, Y"|default:"Not specified" }}
+                                            {% elif field.name == 'created_at' or field.name == 'updated_at' %}
+                                                {{ field.value|date:"M d, Y H:i"|default:"Not specified" }}
+                                            {% else %}
+                                                {{ field.value|default:"Not specified" }}
+                                            {% endif %}
+                                        </td>
                                     </tr>
-                                    <tr>
-                                        <td><strong>Category:</strong></td>
-                                        <td>{{ equipment.category.name|default:"Not specified" }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Location:</strong></td>
-                                        <td>{{ equipment.location.get_full_path|default:"Not specified" }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Manufacturer:</strong></td>
-                                        <td>{{ equipment.manufacturer|default:"Not specified" }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Model Number:</strong></td>
-                                        <td>{{ equipment.model_number|default:"Not specified" }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Serial Number:</strong></td>
-                                        <td>{{ equipment.manufacturer_serial|default:"Not specified" }}</td>
-                                    </tr>
+                                    {% endfor %}
                                 </table>
                             </div>
+                            {% endif %}
+                            {% if configured_fields.technical %}
                             <div class="col-md-6">
                                 <h6 class="mb-3">Technical Specifications</h6>
                                 <table class="table table-sm">
+                                    {% for field in configured_fields.technical %}
                                     <tr>
-                                        <td><strong>Power Ratings:</strong></td>
-                                        <td>{{ equipment.power_ratings|default:"Not specified" }}</td>
+                                        <td><strong>{{ field.label }}:</strong></td>
+                                        <td>
+                                            {% if field.name == 'commissioning_date' or field.name == 'warranty_expiry_date' or field.name == 'dga_due_date' or field.name == 'next_maintenance_date' %}
+                                                {{ field.value|date:"M d, Y"|default:"Not specified" }}
+                                            {% elif field.name == 'created_at' or field.name == 'updated_at' %}
+                                                {{ field.value|date:"M d, Y H:i"|default:"Not specified" }}
+                                            {% else %}
+                                                {{ field.value|default:"Not specified" }}
+                                            {% endif %}
+                                        </td>
                                     </tr>
-                                    <tr>
-                                        <td><strong>Trip Setpoints:</strong></td>
-                                        <td>{{ equipment.trip_setpoints|default:"Not specified" }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Commissioning Date:</strong></td>
-                                        <td>{{ equipment.commissioning_date|date:"M d, Y"|default:"Not specified" }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Warranty Expiry:</strong></td>
-                                        <td>{{ equipment.warranty_expiry_date|date:"M d, Y"|default:"Not specified" }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Created:</strong></td>
-                                        <td>{{ equipment.created_at|date:"M d, Y H:i" }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Last Updated:</strong></td>
-                                        <td>{{ equipment.updated_at|date:"M d, Y H:i" }}</td>
-                                    </tr>
+                                    {% endfor %}
                                 </table>
                             </div>
+                            {% endif %}
                         </div>
                         
                         {% if equipment.installed_upgrades %}

@@ -7,7 +7,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('equipment', '0005_rename_equipment_e_source__a0b8c8_idx_equipment_e_source__76e455_idx_and_more'),
+        ('equipment', '0006_equipmentconnection'),
         ('core', '0019_add_dashboard_settings'),
     ]
 

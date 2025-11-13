@@ -318,6 +318,10 @@ def equipment_detail(request, equipment_id):
     # Get custom fields grouped by field group
     custom_fields_by_group = equipment.get_custom_fields_by_group()
     
+    # Get configured fields organized by group
+    from equipment.models import get_configured_fields_for_equipment
+    configured_fields = get_configured_fields_for_equipment(equipment)
+    
     # Get maintenance activities for the maintenance tab
     maintenance_activities = equipment.maintenance_activities.all().order_by('-scheduled_start')[:10]
     
@@ -350,6 +354,7 @@ def equipment_detail(request, equipment_id):
         'cancelled_count': cancelled_count,
         'maintenance_docs_count': maintenance_docs_count,
         'custom_fields_by_group': custom_fields_by_group,
+        'configured_fields': configured_fields,
         'maintenance_activities': maintenance_activities,
         'maintenance_reports': maintenance_reports,
         'components': components,
