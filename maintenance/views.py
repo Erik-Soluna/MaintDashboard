@@ -3031,15 +3031,8 @@ def change_activity_status(request, activity_id):
                     activity.actual_start = activity.scheduled_start
             
             activity.save()
-            
-            # Create timeline entry for status change
-            MaintenanceTimelineEntry.objects.create(
-                activity=activity,
-                entry_type='status_change',
-                title=f'Status Changed to {activity.get_status_display()}',
-                description=f'Status changed from {dict(MaintenanceActivity.STATUS_CHOICES).get(old_status, old_status)} to {activity.get_status_display()}' + (f'. Notes: {notes}' if notes else ''),
-                created_by=request.user
-            )
+            # Note: Timeline entry is automatically created by the signal in maintenance/signals.py
+            # No need to manually create it here to avoid duplicates
             
             messages.success(request, f'Activity status changed to {activity.get_status_display()}')
             return redirect('maintenance:activity_detail', activity_id=activity_id)
