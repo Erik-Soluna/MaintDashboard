@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Maintenance Reports{% endblock %}
 
@@ -8,13 +9,154 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1 class="h3 mb-0">Maintenance Reports</h1>
-                <a href="{% url 'maintenance:overdue_maintenance' %}" class="btn btn-warning">
-                    <i class="fas fa-exclamation-triangle"></i> Overdue Maintenance
-                </a>
+                <div>
+                    <a href="{% url 'maintenance:overdue_maintenance' %}" class="btn btn-warning me-2">
+                        <i class="fas fa-exclamation-triangle"></i> Overdue Maintenance
+                    </a>
+                    <a href="{% url 'maintenance:export_maintenance_activities_csv' %}?{% for key, value in request.GET.items %}{{ key }}={{ value }}&{% endfor %}" class="btn btn-success">
+                        <i class="fas fa-download"></i> Export to CSV
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-filter me-2"></i>
+                        Filters
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{% url 'maintenance:maintenance_reports' %}" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="category" class="form-label">Equipment Category</label>
+                            <select name="category" id="category" class="form-select">
+                                <option value="">All Categories</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="location" class="form-label">Location</label>
+                            <select name="location" id="location" class="form-select">
+                                <option value="">All Locations</option>
+                                {% for location in locations %}
+                                <option value="{{ location.id }}" {% if selected_location == location.id %}selected{% endif %}>
+                                    {{ location.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="status" class="form-label">Status</label>
+                            <select name="status" id="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                <option value="scheduled" {% if selected_status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                                <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="in_progress" {% if selected_status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                                <option value="completed" {% if selected_status == 'completed' %}selected{% endif %}>Completed</option>
+                                <option value="overdue" {% if selected_status == 'overdue' %}selected{% endif %}>Overdue</option>
+                                <option value="cancelled" {% if selected_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_from" class="form-label">Date From</label>
+                            <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_to" class="form-label">Date To</label>
+                            <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i> Apply Filters
+                            </button>
+                            <a href="{% url 'maintenance:maintenance_reports' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i> Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Maintenance Timeline
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% for event in timeline_events %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-{% if event.status == 'completed' %}success{% elif event.status == 'in_progress' %}warning{% elif event.status == 'overdue' %}danger{% else %}secondary{% endif %}">
+                                <i class="fas fa-wrench"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">
+                                            {{ event.title }}
+                                            <span class="badge badge-sm ms-2 bg-{% if event.status == 'completed' %}success{% elif event.status == 'in_progress' %}warning{% elif event.status == 'overdue' %}danger{% else %}secondary{% endif %}">
+                                                {{ event.status|title }}
+                                            </span>
+                                            {% if event.priority == 'critical' %}
+                                            <span class="badge badge-sm ms-1 bg-danger">Critical</span>
+                                            {% elif event.priority == 'high' %}
+                                            <span class="badge badge-sm ms-1 bg-warning">High</span>
+                                            {% endif %}
+                                        </h6>
+                                        <p class="text-muted mb-1 small">
+                                            <i class="fas fa-cog me-1"></i>{{ event.equipment }}
+                                            <span class="ms-2"><i class="fas fa-tag me-1"></i>{{ event.category }}</span>
+                                            <span class="ms-2"><i class="fas fa-map-marker-alt me-1"></i>{{ event.location }}</span>
+                                        </p>
+                                        <p class="text-muted mb-1 small">
+                                            <i class="fas fa-clock me-1"></i>
+                                            Scheduled: {{ event.timestamp|date:"M d, Y H:i" }}
+                                            {% if event.actual_end %}
+                                            <span class="ms-2">Completed: {{ event.actual_end|date:"M d, Y H:i" }}</span>
+                                            {% endif %}
+                                        </p>
+                                        {% if event.description %}
+                                        <p class="mb-0 small">{{ event.description|truncatewords:20 }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <a href="{% url 'maintenance:activity_detail' event.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No maintenance activities found with current filters.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
     <div class="row">
         <div class="col-md-6">
             <div class="card">
@@ -114,47 +256,64 @@
             </div>
         </div>
     </div>
-
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Quick Actions</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="d-grid">
-                                <a href="{% url 'maintenance:activity_list' %}" class="btn btn-outline-primary">
-                                    <i class="fas fa-list"></i> All Activities
-                                </a>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="d-grid">
-                                <a href="{% url 'maintenance:schedule_list' %}" class="btn btn-outline-info">
-                                    <i class="fas fa-calendar-alt"></i> Schedules
-                                </a>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="d-grid">
-                                <a href="{% url 'maintenance:activity_type_list' %}" class="btn btn-outline-success">
-                                    <i class="fas fa-cog"></i> Activity Types
-                                </a>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="d-grid">
-                                <a href="{% url 'maintenance:overdue_maintenance' %}" class="btn btn-outline-warning">
-                                    <i class="fas fa-exclamation-triangle"></i> Overdue
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+    margin: 20px 0;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+    padding-left: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -25px;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 3px solid #dee2e6;
+}
+
+.timeline-item:hover .timeline-content {
+    background: #e9ecef;
+    border-left-color: #007bff;
+}
+
+.badge-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+</style>
 {% endblock %}

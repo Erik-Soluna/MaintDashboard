@@ -70,6 +70,7 @@ urlpatterns = [
     
     # Reports (existing views)
     path('reports/', views.maintenance_reports, name='maintenance_reports'),
+    path('reports/export/csv/', views.export_maintenance_activities_csv, name='export_maintenance_activities_csv'),
     path('overdue/', views.overdue_maintenance, name='overdue_maintenance'),
     
     # Legacy aliases for backwards compatibility

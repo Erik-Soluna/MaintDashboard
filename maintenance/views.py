@@ -1315,6 +1315,104 @@ def import_maintenance_csv(request):
 
 
 @login_required
+def export_maintenance_activities_csv(request):
+    """Export all maintenance activities to CSV."""
+    from equipment.models import EquipmentCategory
+    from core.models import Location
+    
+    # Get filter parameters (same as reports page)
+    category_id = request.GET.get('category')
+    location_id = request.GET.get('location')
+    status_filter = request.GET.get('status')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    
+    # Base queryset
+    activities_queryset = MaintenanceActivity.objects.select_related(
+        'equipment', 'equipment__category', 'equipment__location', 'activity_type', 'assigned_to'
+    ).all()
+    
+    # Apply filters
+    if category_id:
+        activities_queryset = activities_queryset.filter(equipment__category_id=category_id)
+    if location_id:
+        activities_queryset = activities_queryset.filter(equipment__location_id=location_id)
+    if status_filter:
+        activities_queryset = activities_queryset.filter(status=status_filter)
+    if date_from:
+        try:
+            from datetime import datetime
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            activities_queryset = activities_queryset.filter(scheduled_start__gte=date_from_obj)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            from datetime import datetime
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            activities_queryset = activities_queryset.filter(scheduled_start__lte=date_to_obj)
+        except ValueError:
+            pass
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="maintenance_activities_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header
+    writer.writerow([
+        'ID',
+        'Title',
+        'Equipment',
+        'Category',
+        'Location',
+        'Activity Type',
+        'Status',
+        'Priority',
+        'Scheduled Start',
+        'Scheduled End',
+        'Actual Start',
+        'Actual End',
+        'Duration (Hours)',
+        'Assigned To',
+        'Description',
+        'Completion Notes',
+        'Created At',
+        'Updated At'
+    ])
+    
+    # Write data
+    for activity in activities_queryset.order_by('-scheduled_start'):
+        duration = None
+        if activity.actual_start and activity.actual_end:
+            duration = (activity.actual_end - activity.actual_start).total_seconds() / 3600
+        
+        writer.writerow([
+            activity.id,
+            activity.title or '',
+            activity.equipment.name if activity.equipment else '',
+            activity.equipment.category.name if activity.equipment and activity.equipment.category else '',
+            activity.equipment.location.name if activity.equipment and activity.equipment.location else '',
+            activity.activity_type.name if activity.activity_type else '',
+            activity.get_status_display(),
+            activity.get_priority_display(),
+            activity.scheduled_start.strftime('%Y-%m-%d %H:%M:%S') if activity.scheduled_start else '',
+            activity.scheduled_end.strftime('%Y-%m-%d %H:%M:%S') if activity.scheduled_end else '',
+            activity.actual_start.strftime('%Y-%m-%d %H:%M:%S') if activity.actual_start else '',
+            activity.actual_end.strftime('%Y-%m-%d %H:%M:%S') if activity.actual_end else '',
+            round(duration, 2) if duration else '',
+            activity.assigned_to.get_full_name() if activity.assigned_to else '',
+            (activity.description or '').replace('\n', ' ').replace('\r', ''),
+            (activity.completion_notes or '').replace('\n', ' ').replace('\r', ''),
+            activity.created_at.strftime('%Y-%m-%d %H:%M:%S') if activity.created_at else '',
+            activity.updated_at.strftime('%Y-%m-%d %H:%M:%S') if activity.updated_at else '',
+        ])
+    
+    return response
+
+
+@login_required
 def export_maintenance_schedules_csv(request):
     """Export maintenance schedules to CSV file."""
     response = HttpResponse(content_type='text/csv')
@@ -1369,21 +1467,61 @@ def export_maintenance_schedules_csv(request):
 
 @login_required
 def maintenance_reports(request):
-    """Maintenance reports and analytics."""
+    """Maintenance reports and analytics with timeline and export."""
+    from equipment.models import EquipmentCategory
+    from core.models import Location
+    
+    # Get filter parameters
+    category_id = request.GET.get('category')
+    location_id = request.GET.get('location')
+    status_filter = request.GET.get('status')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    
+    # Base queryset for activities
+    activities_queryset = MaintenanceActivity.objects.select_related(
+        'equipment', 'equipment__category', 'equipment__location', 'activity_type', 'assigned_to'
+    ).all()
+    
+    # Apply filters
+    if category_id:
+        activities_queryset = activities_queryset.filter(equipment__category_id=category_id)
+    if location_id:
+        activities_queryset = activities_queryset.filter(equipment__location_id=location_id)
+    if status_filter:
+        activities_queryset = activities_queryset.filter(status=status_filter)
+    if date_from:
+        try:
+            from datetime import datetime
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            activities_queryset = activities_queryset.filter(scheduled_start__gte=date_from_obj)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            from datetime import datetime
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            activities_queryset = activities_queryset.filter(scheduled_start__lte=date_to_obj)
+        except ValueError:
+            pass
+    
+    # Get all activities for timeline (sorted by scheduled_start)
+    all_activities = activities_queryset.order_by('-scheduled_start')
+    
     # Activity status distribution
-    status_stats = MaintenanceActivity.objects.values('status').annotate(
+    status_stats = activities_queryset.values('status').annotate(
         count=Count('id')
     ).order_by('status')
     
     # Equipment with most maintenance
-    equipment_stats = MaintenanceActivity.objects.values(
+    equipment_stats = activities_queryset.values(
         'equipment__name'
     ).annotate(
         count=Count('id')
     ).order_by('-count')[:10]
     
     # Monthly completion stats
-    monthly_stats = MaintenanceActivity.objects.filter(
+    monthly_stats = activities_queryset.filter(
         status='completed',
         actual_end__gte=timezone.now() - timedelta(days=365)
     ).extra(
@@ -1392,10 +1530,42 @@ def maintenance_reports(request):
         count=Count('id')
     ).order_by('month')
     
+    # Build timeline events
+    timeline_events = []
+    for activity in all_activities[:100]:  # Limit to 100 most recent for performance
+        timeline_events.append({
+            'type': 'maintenance',
+            'title': activity.title or (activity.activity_type.name if activity.activity_type else 'Maintenance'),
+            'description': activity.description or '',
+            'timestamp': activity.scheduled_start,
+            'status': activity.status,
+            'priority': activity.priority,
+            'equipment': activity.equipment.name if activity.equipment else 'Unknown',
+            'category': activity.equipment.category.name if activity.equipment and activity.equipment.category else 'N/A',
+            'location': activity.equipment.location.name if activity.equipment and activity.equipment.location else 'N/A',
+            'scheduled_end': activity.scheduled_end,
+            'actual_start': activity.actual_start,
+            'actual_end': activity.actual_end,
+            'id': activity.id,
+        })
+    
+    # Get filter options
+    categories = EquipmentCategory.objects.filter(is_active=True).order_by('name')
+    locations = Location.objects.filter(is_active=True).order_by('name')
+    
     context = {
         'status_stats': status_stats,
         'equipment_stats': equipment_stats,
         'monthly_stats': monthly_stats,
+        'timeline_events': timeline_events,
+        'all_activities': all_activities,
+        'categories': categories,
+        'locations': locations,
+        'selected_category': int(category_id) if category_id else None,
+        'selected_location': int(location_id) if location_id else None,
+        'selected_status': status_filter,
+        'date_from': date_from,
+        'date_to': date_to,
     }
     
     return render(request, 'maintenance/reports.html', context)
