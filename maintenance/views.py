@@ -606,12 +606,13 @@ def add_activity(request):
             if equipment_id:
                 try:
                     equipment = Equipment.objects.get(id=equipment_id, is_active=True)
-                    initial_data['equipment'] = equipment
-                    logger.info(f"Pre-populating equipment: {equipment.name}")
+                    # Use equipment.id instead of equipment object for ModelChoiceField
+                    initial_data['equipment'] = equipment.id
+                    logger.info(f"Pre-populating equipment: {equipment.name} (ID: {equipment.id})")
                 except (Equipment.DoesNotExist, ValueError):
                     logger.warning(f"Invalid equipment ID in GET parameter: {equipment_id}")
             
-            form = MaintenanceActivityForm(initial=initial_data, request=request)
+            form = MaintenanceActivityForm(initial=initial_data, request=request, equipment_id=equipment_id)
         
         # Debug: Check equipment queryset in form with better error handling
         try:
