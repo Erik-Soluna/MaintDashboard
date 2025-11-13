@@ -92,7 +92,7 @@ services:
       - POSTGRES_USER=${DB_USER:-maintenance_user_dev}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-DevPassword2024!}
       - REDIS_URL=redis://redis-dev:6379/0
-      - ALLOWED_HOSTS=dev.maintenance.errorlog.app,localhost,127.0.0.1
+      - ALLOWED_HOSTS=dev.maintenance.errorlog.app,localhost,127.0.0.1,45.79.215.182
       - ADMIN_USERNAME=admin
       - ADMIN_EMAIL=admin@dev.maintenance.errorlog.app
       - ADMIN_PASSWORD=DevAdminPassword2024!
