@@ -436,6 +436,19 @@ def edit_equipment(request, equipment_id):
     sites = Location.objects.filter(is_site=True, is_active=True).prefetch_related('child_locations__child_locations').order_by('name')
     locations = Location.objects.filter(is_active=True).order_by('name')
     
+    # Get configured fields organized by group
+    configured_fields = None
+    try:
+        from equipment.models import get_configured_fields_for_equipment
+        configured_fields = get_configured_fields_for_equipment(equipment)
+    except Exception:
+        # Table doesn't exist yet - use default structure
+        configured_fields = {
+            'basic': [],
+            'technical': [],
+            'hidden': [],
+        }
+    
     context = {
         'form': form,
         'equipment': equipment,
@@ -443,6 +456,7 @@ def edit_equipment(request, equipment_id):
         'locations': locations,
         'sites': sites,
         'selected_location': equipment.location.id if equipment.location else None,
+        'configured_fields': configured_fields,
     }
     
     return render(request, 'equipment/edit_equipment.html', context)
