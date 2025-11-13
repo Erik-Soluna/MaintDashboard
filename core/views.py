@@ -271,6 +271,27 @@ def dashboard(request):
     upcoming_maintenance = upcoming_maintenance_all[:dashboard_settings.max_upcoming_items_total if dashboard_settings else 50]
     upcoming_calendar = upcoming_calendar_all[:10]
     
+    # Calculate total counts for grouped items
+    urgent_total_count = 0
+    upcoming_total_count = 0
+    
+    if group_by_site and is_all_sites:
+        # Count from grouped data
+        for site_items in urgent_maintenance_by_site.values():
+            urgent_total_count += len(site_items)
+        for site_events in urgent_calendar_by_site.values():
+            urgent_total_count += len(site_events)
+        
+        if group_upcoming:
+            for site_items in upcoming_maintenance_by_site.values():
+                upcoming_total_count += len(site_items)
+            for site_events in upcoming_calendar_by_site.values():
+                upcoming_total_count += len(site_events)
+    else:
+        # Count from flat lists
+        urgent_total_count = len(urgent_maintenance) + len(urgent_calendar)
+        upcoming_total_count = len(upcoming_maintenance) + len(upcoming_calendar)
+    
     # ===== OPTIMIZED OVERVIEW DATA CALCULATION =====
     
     if selected_site:
@@ -559,6 +580,10 @@ def dashboard(request):
         'urgent_calendar_by_site': urgent_calendar_by_site,
         'upcoming_maintenance_by_site': upcoming_maintenance_by_site,
         'upcoming_calendar_by_site': upcoming_calendar_by_site,
+        
+        # Total counts (for display)
+        'urgent_total_count': urgent_total_count,
+        'upcoming_total_count': upcoming_total_count,
         
         # Dashboard settings
         'dashboard_settings': dashboard_settings,

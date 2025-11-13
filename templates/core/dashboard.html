@@ -413,7 +413,7 @@
     <div class="urgent-section">
         <div class="section-header">
             <span><i class="fas fa-exclamation-triangle"></i>Urgent Items</span>
-            <span class="section-count">{{ urgent_maintenance|length|add:urgent_calendar|length }}</span>
+            <span class="section-count">{% if urgent_total_count %}{{ urgent_total_count }}{% else %}{{ urgent_maintenance|length|add:urgent_calendar|length }}{% endif %}</span>
         </div>
         
         {% if dashboard_settings.group_urgent_by_site and is_all_sites and urgent_maintenance_by_site %}
@@ -500,7 +500,7 @@
     <div class="upcoming-section">
         <div class="section-header">
             <span><i class="fas fa-calendar-alt"></i>Upcoming Items</span>
-            <span class="section-count">{{ upcoming_maintenance|length|add:upcoming_calendar|length }}</span>
+            <span class="section-count">{% if upcoming_total_count %}{{ upcoming_total_count }}{% else %}{{ upcoming_maintenance|length|add:upcoming_calendar|length }}{% endif %}</span>
         </div>
         
         {% if dashboard_settings.group_upcoming_by_site and is_all_sites and upcoming_maintenance_by_site %}
