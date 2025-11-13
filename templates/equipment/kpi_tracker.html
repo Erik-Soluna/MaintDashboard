@@ -1,0 +1,365 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}KPI Tracker - {{ equipment.name }}{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_list' %}">Equipment</a></li>
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_detail' equipment.id %}">{{ equipment.name }}</a></li>
+<li class="breadcrumb-item active">KPI Tracker</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">
+                <i class="fas fa-chart-line me-2"></i>
+                KPI Tracker
+            </h1>
+            <p class="text-muted mb-0">{{ equipment.name }} • {{ equipment.category.name|default:"No Category" }} • {{ equipment.location.name|default:"No Location" }}</p>
+        </div>
+        <div>
+            <a href="{% url 'equipment:equipment_detail' equipment.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Equipment
+            </a>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Completion Rate</h6>
+                    <h2 class="mb-0 {% if kpis.completion_rate >= 90 %}text-success{% elif kpis.completion_rate >= 70 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ kpis.completion_rate }}%
+                    </h2>
+                    <small class="text-muted">{{ kpis.completed_count }} of {{ kpis.total_activities }} completed</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">On-Time Rate</h6>
+                    <h2 class="mb-0 {% if kpis.on_time_rate >= 80 %}text-success{% elif kpis.on_time_rate >= 60 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ kpis.on_time_rate }}%
+                    </h2>
+                    <small class="text-muted">Completed on schedule</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Uptime</h6>
+                    <h2 class="mb-0 {% if kpis.uptime_percentage >= 95 %}text-success{% elif kpis.uptime_percentage >= 90 %}text-warning{% else %}text-danger{% endif %}">
+                        {% if kpis.uptime_percentage %}{{ kpis.uptime_percentage }}%{% else %}N/A{% endif %}
+                    </h2>
+                    <small class="text-muted">{% if kpis.total_downtime_hours %}{{ kpis.total_downtime_hours }}h downtime{% else %}No downtime{% endif %}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Open Issues</h6>
+                    <h2 class="mb-0 {% if kpis.open_issues == 0 %}text-success{% elif kpis.critical_issues > 0 %}text-danger{% else %}text-warning{% endif %}">
+                        {{ kpis.open_issues }}
+                    </h2>
+                    <small class="text-muted">{% if kpis.critical_issues %}{{ kpis.critical_issues }} critical{% else %}No critical issues{% endif %}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secondary KPI Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Avg Duration</h6>
+                    <h4 class="mb-0">
+                        {% if kpis.avg_duration_hours %}{{ kpis.avg_duration_hours }}h{% else %}N/A{% endif %}
+                    </h4>
+                    <small class="text-muted">Per maintenance</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Avg Time Between</h6>
+                    <h4 class="mb-0">
+                        {% if kpis.avg_time_between_days %}{{ kpis.avg_time_between_days }} days{% else %}N/A{% endif %}
+                    </h4>
+                    <small class="text-muted">Between maintenance</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Recent Completion</h6>
+                    <h4 class="mb-0 {% if kpis.recent_completion_rate >= 90 %}text-success{% elif kpis.recent_completion_rate >= 70 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ kpis.recent_completion_rate }}%
+                    </h4>
+                    <small class="text-muted">Last 12 months</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Overdue</h6>
+                    <h4 class="mb-0 {% if kpis.overdue_count == 0 %}text-success{% else %}text-danger{% endif %}">
+                        {{ kpis.overdue_count }}
+                    </h4>
+                    <small class="text-muted">Activities overdue</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Maintenance Timeline
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% for event in timeline_events %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-{% if event.type == 'maintenance' %}{% if event.status == 'completed' %}success{% elif event.status == 'in_progress' %}warning{% elif event.status == 'overdue' %}danger{% else %}secondary{% endif %}{% else %}{% if event.severity == 'critical' %}danger{% elif event.severity == 'high' %}warning{% else %}info{% endif %}{% endif %}">
+                                <i class="fas {% if event.type == 'maintenance' %}fa-wrench{% else %}fa-exclamation-triangle{% endif %}"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">
+                                            {{ event.title }}
+                                            <span class="badge badge-sm ms-2 bg-{% if event.type == 'maintenance' %}{% if event.status == 'completed' %}success{% elif event.status == 'in_progress' %}warning{% elif event.status == 'overdue' %}danger{% else %}secondary{% endif %}{% else %}{% if event.severity == 'critical' %}danger{% elif event.severity == 'high' %}warning{% else %}info{% endif %}{% endif %}">
+                                                {% if event.type == 'maintenance' %}{{ event.status|title }}{% else %}{{ event.severity|title }}{% endif %}
+                                            </span>
+                                        </h6>
+                                        <p class="text-muted mb-1 small">
+                                            <i class="fas fa-clock me-1"></i>
+                                            {{ event.timestamp|date:"M d, Y H:i" }}
+                                        </p>
+                                        {% if event.description %}
+                                        <p class="mb-0 small">{{ event.description|truncatewords:20 }}</p>
+                                        {% endif %}
+                                        {% if event.type == 'maintenance' and event.actual_end %}
+                                        <p class="mb-0 small text-muted">
+                                            Duration: 
+                                            {% if event.actual_start %}
+                                                {% with duration=event.actual_end|timeuntil:event.actual_start %}
+                                                    {{ duration }}
+                                                {% endwith %}
+                                            {% else %}
+                                                Completed
+                                            {% endif %}
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        {% if event.type == 'maintenance' %}
+                                        <a href="{% url 'maintenance:activity_detail' event.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        {% else %}
+                                        <a href="{% url 'equipment:equipment_detail' equipment.id %}#issues" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-eye"></i> View
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No maintenance activities or issues recorded yet.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Monthly Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Status Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="statusChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+    margin: 20px 0;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+    padding-left: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -25px;
+    top: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 12px;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 3px solid #dee2e6;
+}
+
+.timeline-item:hover .timeline-content {
+    background: #e9ecef;
+    border-left-color: #007bff;
+}
+
+.badge-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Monthly Activity Chart
+    const monthlyCtx = document.getElementById('monthlyChart');
+    if (monthlyCtx) {
+                    const monthlyData = {{ monthly_data }};
+        const labels = Object.keys(monthlyData).sort();
+        const data = labels.map(key => monthlyData[key]);
+        
+        new Chart(monthlyCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Completed Activities',
+                    data: data,
+                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Status Distribution Chart
+    const statusCtx = document.getElementById('statusChart');
+    if (statusCtx) {
+        const statusData = {{ status_distribution }};
+        const labels = Object.keys(statusData);
+        const data = Object.values(statusData);
+        const colors = {
+            'completed': 'rgba(40, 167, 69, 0.8)',
+            'in_progress': 'rgba(255, 193, 7, 0.8)',
+            'scheduled': 'rgba(0, 123, 255, 0.8)',
+            'pending': 'rgba(108, 117, 125, 0.8)',
+            'overdue': 'rgba(220, 53, 69, 0.8)',
+            'cancelled': 'rgba(108, 117, 125, 0.8)'
+        };
+        
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
+                datasets: [{
+                    data: data,
+                    backgroundColor: labels.map(l => colors[l] || 'rgba(108, 117, 125, 0.8)')
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+

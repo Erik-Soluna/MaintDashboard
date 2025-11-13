@@ -378,6 +378,166 @@ def equipment_detail(request, equipment_id):
 
 
 @login_required
+def equipment_kpi_tracker(request, equipment_id):
+    """KPI tracker for a specific equipment with timeline visualization."""
+    from maintenance.models import MaintenanceActivity
+    from equipment.models import EquipmentIssue
+    from django.utils import timezone
+    from django.db.models import Avg, Sum, Count, Q
+    from datetime import timedelta
+    
+    equipment = get_object_or_404(
+        Equipment.objects.select_related('category', 'location'),
+        id=equipment_id
+    )
+    
+    # Get all maintenance activities for this equipment
+    all_activities = equipment.maintenance_activities.all().order_by('scheduled_start')
+    completed_activities = all_activities.filter(status='completed')
+    
+    # Calculate KPIs
+    total_activities = all_activities.count()
+    completed_count = completed_activities.count()
+    completion_rate = (completed_count / total_activities * 100) if total_activities > 0 else 0
+    
+    # On-time completion rate (completed within scheduled window)
+    on_time_count = 0
+    for activity in completed_activities:
+        if activity.actual_end and activity.scheduled_end:
+            # Consider on-time if completed within 24 hours of scheduled end
+            if activity.actual_end <= activity.scheduled_end + timedelta(hours=24):
+                on_time_count += 1
+    on_time_rate = (on_time_count / completed_count * 100) if completed_count > 0 else 0
+    
+    # Average maintenance duration
+    avg_duration = None
+    durations = []
+    for activity in completed_activities:
+        if activity.actual_start and activity.actual_end:
+            duration = (activity.actual_end - activity.actual_start).total_seconds() / 3600  # hours
+            durations.append(duration)
+    if durations:
+        avg_duration = sum(durations) / len(durations)
+    
+    # Average time between maintenance (MTBF - Mean Time Between Failures/Maintenance)
+    avg_time_between = None
+    if completed_activities.count() >= 2:
+        activities_sorted = list(completed_activities.order_by('actual_end'))
+        intervals = []
+        for i in range(1, len(activities_sorted)):
+            if activities_sorted[i].actual_end and activities_sorted[i-1].actual_end:
+                interval = (activities_sorted[i].actual_end - activities_sorted[i-1].actual_end).days
+                intervals.append(interval)
+        if intervals:
+            avg_time_between = sum(intervals) / len(intervals)
+    
+    # Total downtime (sum of all maintenance durations)
+    total_downtime_hours = sum(durations) if durations else 0
+    
+    # Uptime calculation (if equipment has commissioning date)
+    uptime_percentage = None
+    if equipment.commissioning_date:
+        total_days = (timezone.now().date() - equipment.commissioning_date).days
+        if total_days > 0:
+            downtime_days = total_downtime_hours / 24
+            uptime_days = total_days - downtime_days
+            uptime_percentage = (uptime_days / total_days * 100) if total_days > 0 else 100
+    
+    # Issue statistics
+    all_issues = equipment.issues.all()
+    open_issues = all_issues.filter(status='open').count()
+    resolved_issues = all_issues.filter(status='resolved').count()
+    critical_issues = all_issues.filter(severity='critical', status__in=['open', 'in_progress']).count()
+    
+    # Recent activity (last 12 months)
+    twelve_months_ago = timezone.now() - timedelta(days=365)
+    recent_activities = all_activities.filter(scheduled_start__gte=twelve_months_ago)
+    recent_completed = recent_activities.filter(status='completed').count()
+    recent_completion_rate = (recent_completed / recent_activities.count() * 100) if recent_activities.count() > 0 else 0
+    
+    # Overdue activities
+    overdue_count = all_activities.filter(
+        status__in=['scheduled', 'pending', 'in_progress'],
+        scheduled_end__lt=timezone.now()
+    ).count()
+    
+    # Build timeline data for visualization
+    timeline_events = []
+    
+    # Add maintenance activities to timeline
+    for activity in all_activities.order_by('scheduled_start'):
+        timeline_events.append({
+            'type': 'maintenance',
+            'title': activity.title or activity.activity_type.name if activity.activity_type else 'Maintenance',
+            'description': activity.description or '',
+            'timestamp': activity.scheduled_start,
+            'status': activity.status,
+            'priority': activity.priority,
+            'scheduled_end': activity.scheduled_end,
+            'actual_start': activity.actual_start,
+            'actual_end': activity.actual_end,
+            'id': activity.id,
+        })
+    
+    # Add issues to timeline
+    for issue in all_issues.order_by('created_at'):
+        timeline_events.append({
+            'type': 'issue',
+            'title': issue.title,
+            'description': issue.description or '',
+            'timestamp': issue.created_at,
+            'status': issue.status,
+            'severity': issue.severity,
+            'resolved_at': issue.resolved_at,
+            'id': issue.id,
+        })
+    
+    # Sort timeline by timestamp
+    timeline_events.sort(key=lambda x: x['timestamp'], reverse=True)
+    
+    # Monthly activity count for chart
+    monthly_data = {}
+    for activity in completed_activities:
+        if activity.actual_end:
+            month_key = activity.actual_end.strftime('%Y-%m')
+            monthly_data[month_key] = monthly_data.get(month_key, 0) + 1
+    
+    # Status distribution
+    status_distribution = {}
+    for activity in all_activities:
+        status_distribution[activity.status] = status_distribution.get(activity.status, 0) + 1
+    
+    # Convert to JSON for template
+    import json
+    monthly_data_json = json.dumps(monthly_data)
+    status_distribution_json = json.dumps(status_distribution)
+    
+    context = {
+        'equipment': equipment,
+        'kpis': {
+            'total_activities': total_activities,
+            'completed_count': completed_count,
+            'completion_rate': round(completion_rate, 1),
+            'on_time_rate': round(on_time_rate, 1),
+            'avg_duration_hours': round(avg_duration, 2) if avg_duration else None,
+            'avg_time_between_days': round(avg_time_between, 1) if avg_time_between else None,
+            'total_downtime_hours': round(total_downtime_hours, 2),
+            'uptime_percentage': round(uptime_percentage, 2) if uptime_percentage else None,
+            'open_issues': open_issues,
+            'resolved_issues': resolved_issues,
+            'critical_issues': critical_issues,
+            'recent_completion_rate': round(recent_completion_rate, 1),
+            'overdue_count': overdue_count,
+        },
+        'timeline_events': timeline_events,
+        'monthly_data': monthly_data_json,
+        'status_distribution': status_distribution_json,
+    }
+    
+    return render(request, 'equipment/kpi_tracker.html', context)
+
+
+@login_required
 def add_equipment(request):
     """Add new equipment (improved from original web2py version)."""
     if request.method == 'POST':
