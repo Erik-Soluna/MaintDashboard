@@ -1262,3 +1262,86 @@ class EquipmentIssue(TimeStampedModel):
         if notes:
             self.resolution_notes = notes
         self.save()
+
+
+class EquipmentFieldConfiguration(TimeStampedModel):
+    """
+    Configuration for equipment field display, ordering, and grouping.
+    Allows admins to customize which fields appear in Basic Information vs Technical Specifications.
+    """
+    
+    FIELD_GROUP_CHOICES = [
+        ('basic', 'Basic Information'),
+        ('technical', 'Technical Specifications'),
+        ('hidden', 'Hidden'),
+    ]
+    
+    # Field identifier (e.g., 'name', 'manufacturer', 'power_ratings', 'custom_oil_type')
+    field_name = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text="Field identifier (e.g., 'name', 'manufacturer', 'power_ratings', or 'custom_oil_type')"
+    )
+    
+    # Display label (can override default)
+    display_label = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Custom display label (leave blank to use default)"
+    )
+    
+    # Which section to display in
+    field_group = models.CharField(
+        max_length=20,
+        choices=FIELD_GROUP_CHOICES,
+        default='basic',
+        help_text="Which section to display this field in"
+    )
+    
+    # Display order within the group
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        help_text="Order within the group (lower numbers appear first)"
+    )
+    
+    # Visibility
+    is_visible = models.BooleanField(
+        default=True,
+        help_text="Whether this field should be displayed"
+    )
+    
+    # Is this a custom field?
+    is_custom_field = models.BooleanField(
+        default=False,
+        help_text="Whether this is a custom category field"
+    )
+    
+    # Category (for custom fields only)
+    category = models.ForeignKey(
+        EquipmentCategory,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='field_configurations',
+        help_text="Category this field belongs to (for custom fields only)"
+    )
+    
+    class Meta:
+        verbose_name = "Equipment Field Configuration"
+        verbose_name_plural = "Equipment Field Configurations"
+        ordering = ['field_group', 'sort_order', 'field_name']
+        indexes = [
+            models.Index(fields=['field_group', 'sort_order']),
+            models.Index(fields=['is_visible', 'field_group']),
+        ]
+    
+    def __str__(self):
+        label = self.display_label or self.field_name
+        return f"{label} ({self.get_field_group_display()})"
+    
+    def get_display_label(self):
+        """Get the display label, using custom if set, otherwise field name."""
+        if self.display_label:
+            return self.display_label
+        # Try to get a human-readable label from the field name
+        return self.field_name.replace('_', ' ').title()

@@ -46,6 +46,9 @@ urlpatterns = [
     path('fields/assign/', views.assign_field_to_categories, name='assign_field_to_categories'),
     path('fields/unassign/', views.unassign_field_from_category, name='unassign_field_from_category'),
     
+    # Field Configuration Settings
+    path('settings/field-configuration/', views.field_configuration_settings, name='field_configuration_settings'),
+    
     # Issues
     path('<int:equipment_id>/issues/log/', views.log_issue, name='log_issue'),
     path('<int:equipment_id>/issues/<int:issue_id>/edit/', views.edit_issue, name='edit_issue'),

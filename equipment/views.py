@@ -32,7 +32,7 @@ except ImportError:
     PyPDF2 = None
     PYPDF2_AVAILABLE = False
 
-from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentIssue
+from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentIssue, EquipmentFieldConfiguration
 from core.models import EquipmentCategory, Location
 from core.logging_utils import log_error, log_view_access, log_api_call
 from maintenance.models import MaintenanceReport
@@ -1971,6 +1971,135 @@ def unassign_field_from_category(request):
             'success': False,
             'message': f'Error unassigning field: {str(e)}'
         })
+
+
+@login_required
+@staff_member_required
+def field_configuration_settings(request):
+    """Settings page for configuring equipment field display, ordering, and grouping."""
+    from django.db import transaction
+    
+    # Standard equipment fields
+    STANDARD_FIELDS = [
+        {'name': 'name', 'label': 'Name', 'default_group': 'basic'},
+        {'name': 'category', 'label': 'Category', 'default_group': 'basic'},
+        {'name': 'location', 'label': 'Location', 'default_group': 'basic'},
+        {'name': 'manufacturer', 'label': 'Manufacturer', 'default_group': 'basic'},
+        {'name': 'model_number', 'label': 'Model Number', 'default_group': 'basic'},
+        {'name': 'manufacturer_serial', 'label': 'Serial Number', 'default_group': 'basic'},
+        {'name': 'asset_tag', 'label': 'Asset Tag', 'default_group': 'basic'},
+        {'name': 'status', 'label': 'Status', 'default_group': 'basic'},
+        {'name': 'power_ratings', 'label': 'Power Ratings', 'default_group': 'technical'},
+        {'name': 'trip_setpoints', 'label': 'Trip Setpoints', 'default_group': 'technical'},
+        {'name': 'commissioning_date', 'label': 'Commissioning Date', 'default_group': 'technical'},
+        {'name': 'warranty_expiry_date', 'label': 'Warranty Expiry', 'default_group': 'technical'},
+        {'name': 'dga_due_date', 'label': 'DGA Due Date', 'default_group': 'technical'},
+        {'name': 'next_maintenance_date', 'label': 'Next Maintenance Date', 'default_group': 'technical'},
+        {'name': 'installed_upgrades', 'label': 'Installed Upgrades', 'default_group': 'hidden'},
+        {'name': 'warranty_details', 'label': 'Warranty Details', 'default_group': 'hidden'},
+        {'name': 'datasheet', 'label': 'Datasheet', 'default_group': 'hidden'},
+        {'name': 'schematics', 'label': 'Schematics', 'default_group': 'hidden'},
+    ]
+    
+    if request.method == 'POST':
+        # Handle bulk update
+        with transaction.atomic():
+            # Process field configurations
+            for key, value in request.POST.items():
+                if key.startswith('field_') and key.endswith('_group'):
+                    # Extract field name (handles fields with underscores like power_ratings)
+                    field_name = key.replace('field_', '').replace('_group', '')
+                    
+                    config, created = EquipmentFieldConfiguration.objects.get_or_create(
+                        field_name=field_name,
+                        defaults={'is_custom_field': field_name.startswith('custom_')}
+                    )
+                    config.field_group = value
+                    config.save()
+                
+                elif key.startswith('field_') and key.endswith('_order'):
+                    field_name = key.replace('field_', '').replace('_order', '')
+                    try:
+                        order = int(value)
+                        config, created = EquipmentFieldConfiguration.objects.get_or_create(
+                            field_name=field_name,
+                            defaults={'is_custom_field': field_name.startswith('custom_')}
+                        )
+                        config.sort_order = order
+                        config.save()
+                    except ValueError:
+                        pass
+                
+                elif key.startswith('field_') and key.endswith('_visible'):
+                    field_name = key.replace('field_', '').replace('_visible', '')
+                    config, created = EquipmentFieldConfiguration.objects.get_or_create(
+                        field_name=field_name,
+                        defaults={'is_custom_field': field_name.startswith('custom_')}
+                    )
+                    config.is_visible = (value == 'on' or value == 'true')
+                    config.save()
+                
+                elif key.startswith('field_') and key.endswith('_label'):
+                    field_name = key.replace('field_', '').replace('_label', '')
+                    config, created = EquipmentFieldConfiguration.objects.get_or_create(
+                        field_name=field_name,
+                        defaults={'is_custom_field': field_name.startswith('custom_')}
+                    )
+                    config.display_label = value
+                    config.save()
+            
+            messages.success(request, 'Field configuration updated successfully!')
+            return redirect('equipment:field_configuration_settings')
+    
+    # Get all configurations
+    configurations = {cfg.field_name: cfg for cfg in EquipmentFieldConfiguration.objects.all()}
+    
+    # Build field list with configurations
+    fields = []
+    for field_info in STANDARD_FIELDS:
+        field_name = field_info['name']
+        config = configurations.get(field_name)
+        fields.append({
+            'name': field_name,
+            'label': config.display_label if config and config.display_label else field_info['label'],
+            'group': config.field_group if config else field_info['default_group'],
+            'sort_order': config.sort_order if config else 0,
+            'is_visible': config.is_visible if config else True,
+            'is_custom_field': False,
+        })
+    
+    # Add custom fields
+    custom_fields = EquipmentCategoryField.objects.filter(is_active=True).select_related('category')
+    for custom_field in custom_fields:
+        field_name = f'custom_{custom_field.name}'
+        config = configurations.get(field_name)
+        fields.append({
+            'name': field_name,
+            'label': config.display_label if config and config.display_label else custom_field.label,
+            'group': config.field_group if config else 'technical',
+            'sort_order': config.sort_order if config else 0,
+            'is_visible': config.is_visible if config else True,
+            'is_custom_field': True,
+            'category': custom_field.category,
+        })
+    
+    # Sort by group and order
+    fields.sort(key=lambda x: (x['group'], x['sort_order'], x['name']))
+    
+    # Group fields by section
+    fields_by_group = {
+        'basic': [f for f in fields if f['group'] == 'basic' and f['is_visible']],
+        'technical': [f for f in fields if f['group'] == 'technical' and f['is_visible']],
+        'hidden': [f for f in fields if f['group'] == 'hidden' or not f['is_visible']],
+    }
+    
+    context = {
+        'fields': fields,
+        'fields_by_group': fields_by_group,
+        'field_groups': EquipmentFieldConfiguration.FIELD_GROUP_CHOICES,
+    }
+    
+    return render(request, 'equipment/field_configuration_settings.html', context)
 
 
 @login_required
