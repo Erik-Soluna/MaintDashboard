@@ -1854,6 +1854,126 @@ def reorder_fields(request, category):
 
 
 @login_required
+@staff_member_required
+def get_field_data(request, field_id):
+    """Get field data for modal editing."""
+    from equipment.models import EquipmentCategoryConditionalField
+    
+    field = get_object_or_404(EquipmentCategoryField, id=field_id)
+    
+    # Get all categories this field is assigned to (via conditional fields)
+    assigned_categories = EquipmentCategoryConditionalField.objects.filter(
+        field=field,
+        is_active=True
+    ).values_list('target_category_id', 'target_category__name')
+    
+    return JsonResponse({
+        'success': True,
+        'field': {
+            'id': field.id,
+            'name': field.name,
+            'label': field.label,
+            'field_type': field.field_type,
+            'field_type_display': field.get_field_type_display(),
+            'required': field.required,
+            'help_text': field.help_text,
+            'choices': field.choices,
+            'field_group': field.field_group or 'General',
+            'category_id': field.category.id,
+            'category_name': field.category.name,
+            'assigned_categories': [{'id': cat_id, 'name': cat_name} for cat_id, cat_name in assigned_categories],
+        }
+    })
+
+
+@login_required
+@staff_member_required
+@require_http_methods(["POST"])
+def assign_field_to_categories(request):
+    """Assign a field to multiple categories."""
+    from equipment.models import EquipmentCategoryConditionalField, EquipmentCategory
+    from django.db import transaction
+    
+    try:
+        with transaction.atomic():
+            field_id = request.POST.get('field_id')
+            category_ids = request.POST.getlist('category_ids')  # List of category IDs
+            
+            field = get_object_or_404(EquipmentCategoryField, id=field_id)
+            source_category = field.category
+            
+            # Get all categories
+            categories = EquipmentCategory.objects.filter(id__in=category_ids, is_active=True)
+            
+            assigned = []
+            for category in categories:
+                if category.id == source_category.id:
+                    continue  # Skip source category
+                
+                # Create or update conditional field assignment
+                conditional, created = EquipmentCategoryConditionalField.objects.get_or_create(
+                    field=field,
+                    source_category=source_category,
+                    target_category=category,
+                    defaults={'is_active': True}
+                )
+                if not created:
+                    conditional.is_active = True
+                    conditional.save()
+                
+                assigned.append({
+                    'id': category.id,
+                    'name': category.name
+                })
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Field "{field.label}" assigned to {len(assigned)} category(ies)',
+                'assigned_categories': assigned
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error assigning field: {str(e)}'
+        })
+
+
+@login_required
+@staff_member_required
+@require_http_methods(["POST"])
+def unassign_field_from_category(request):
+    """Unassign a field from a category."""
+    from equipment.models import EquipmentCategoryConditionalField
+    from django.db import transaction
+    
+    try:
+        with transaction.atomic():
+            field_id = request.POST.get('field_id')
+            category_id = request.POST.get('category_id')
+            
+            conditional = get_object_or_404(
+                EquipmentCategoryConditionalField,
+                field_id=field_id,
+                target_category_id=category_id
+            )
+            
+            category_name = conditional.target_category.name
+            conditional.delete()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Field unassigned from "{category_name}"'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error unassigning field: {str(e)}'
+        })
+
+
+@login_required
 @require_http_methods(["POST"])
 def create_connection(request):
     """Create a new equipment connection."""
