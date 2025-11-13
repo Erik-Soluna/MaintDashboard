@@ -1120,13 +1120,14 @@ $(document).ready(function() {
                 </div>
             `);
         } else if (isPdf) {
-            // For PDFs, try multiple methods
+            // For PDFs, try iframe with immediate fallback option
             modalBody.html(`
                 <div style="width: 100%; height: 70vh; position: relative;">
-                    <iframe src="${documentUrl}" style="width: 100%; height: 100%; border: none;" frameborder="0" onerror="handleDocumentError(this, '${documentUrl}', '${documentTitle}')"></iframe>
-                    <div id="pdf-fallback" style="display: none; text-align: center; padding: 50px;">
+                    <iframe id="pdf-iframe" src="${documentUrl}" style="width: 100%; height: 100%; border: none;" frameborder="0"></iframe>
+                    <div id="pdf-fallback" style="display: none; text-align: center; padding: 50px; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: white;">
                         <i class="fas fa-file-pdf fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">Unable to display PDF in browser.</p>
+                        <p class="text-muted mb-3">Unable to display PDF in browser.</p>
+                        <p class="text-muted small mb-3">The document may be blocked from embedding for security reasons.</p>
                         <a href="${documentUrl}" target="_blank" class="btn btn-primary">
                             <i class="fas fa-external-link-alt me-1"></i> Open in New Tab
                         </a>
@@ -1136,43 +1137,42 @@ $(document).ready(function() {
             
             // Check if iframe loaded successfully after a short delay
             setTimeout(function() {
-                const iframe = modalBody.find('iframe');
+                const iframe = $('#pdf-iframe');
                 if (iframe.length) {
                     try {
-                        // Try to access iframe content - if blocked, show fallback
+                        // Try to access iframe - if it throws, it's blocked
+                        iframe[0].contentWindow;
+                        // If we get here, we can access it (might still be loading)
+                        // Set up load handler
                         iframe.on('load', function() {
-                            try {
-                                // If we can access this, the iframe loaded
-                                if (this.contentWindow) {
-                                    // Success
+                            // Iframe loaded - check if it's actually showing content
+                            setTimeout(function() {
+                                try {
+                                    // Try accessing again to see if still accessible
+                                    iframe[0].contentWindow;
+                                } catch (e) {
+                                    // Now blocked - show fallback
+                                    iframe.hide();
+                                    $('#pdf-fallback').show();
                                 }
-                            } catch (e) {
-                                // Cross-origin or blocked - show fallback
-                                iframe.hide();
-                                $('#pdf-fallback').show();
-                            }
-                        });
-                        
-                        // Also handle error case
-                        iframe.on('error', function() {
-                            $(this).hide();
-                            $('#pdf-fallback').show();
+                            }, 500);
                         });
                     } catch (e) {
-                        // Iframe blocked - show fallback
+                        // Immediately blocked - show fallback
                         iframe.hide();
                         $('#pdf-fallback').show();
                     }
                 }
-            }, 1000);
+            }, 500);
         } else {
             // For other documents, try iframe with fallback
             modalBody.html(`
                 <div style="width: 100%; height: 70vh; position: relative;">
-                    <iframe src="${documentUrl}" style="width: 100%; height: 100%; border: none;" frameborder="0"></iframe>
-                    <div id="doc-fallback" style="display: none; text-align: center; padding: 50px;">
+                    <iframe id="doc-iframe" src="${documentUrl}" style="width: 100%; height: 100%; border: none;" frameborder="0"></iframe>
+                    <div id="doc-fallback" style="display: none; text-align: center; padding: 50px; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: white;">
                         <i class="fas fa-file fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">Unable to display document in browser.</p>
+                        <p class="text-muted mb-3">Unable to display document in browser.</p>
+                        <p class="text-muted small mb-3">The document may be blocked from embedding for security reasons.</p>
                         <a href="${documentUrl}" target="_blank" class="btn btn-primary">
                             <i class="fas fa-external-link-alt me-1"></i> Open in New Tab
                         </a>
@@ -1182,21 +1182,26 @@ $(document).ready(function() {
             
             // Check if iframe loaded after delay
             setTimeout(function() {
-                const iframe = modalBody.find('iframe');
+                const iframe = $('#doc-iframe');
                 if (iframe.length) {
-                    iframe.on('load', function() {
-                        try {
-                            if (this.contentWindow) {
-                                // Success
-                            }
-                        } catch (e) {
-                            // Blocked - show fallback
-                            $(this).hide();
-                            $('#doc-fallback').show();
-                        }
-                    });
+                    try {
+                        iframe[0].contentWindow;
+                        iframe.on('load', function() {
+                            setTimeout(function() {
+                                try {
+                                    iframe[0].contentWindow;
+                                } catch (e) {
+                                    $(iframe).hide();
+                                    $('#doc-fallback').show();
+                                }
+                            }, 500);
+                        });
+                    } catch (e) {
+                        iframe.hide();
+                        $('#doc-fallback').show();
+                    }
                 }
-            }, 1000);
+            }, 500);
         }
     });
     
