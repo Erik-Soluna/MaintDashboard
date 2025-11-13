@@ -29,6 +29,7 @@ urlpatterns = [
     # Documents
     path('<int:equipment_id>/documents/', views.equipment_documents, name='equipment_documents'),
     path('<int:equipment_id>/documents/add/', views.add_document, name='add_document'),
+    path('<int:equipment_id>/documents/<int:document_id>/view/', views.view_document, name='view_document'),
     path('<int:equipment_id>/documents/<int:document_id>/delete/', views.delete_document, name='delete_document'),
     path('<int:equipment_id>/scan-reports/', views.scan_reports, name='scan_reports'),
     path('<int:equipment_id>/analyze-reports/', views.analyze_reports, name='analyze_reports'),

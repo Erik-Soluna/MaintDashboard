@@ -417,6 +417,8 @@
                                                 <small class="text-muted">{{ document.created_at|date:"M d, Y" }}</small>
                                                 <div class="btn-group">
                                                     <button type="button" class="btn btn-sm btn-outline-info view-document-btn" 
+                                                            data-document-id="{{ document.id }}"
+                                                            data-equipment-id="{{ equipment.id }}"
                                                             data-document-url="{{ document.file.url }}" 
                                                             data-document-title="{{ document.title }}"
                                                             data-document-type="{{ document.document_type }}"
@@ -1091,6 +1093,8 @@ $(document).ready(function() {
     
     // Handle view document button
     $('.view-document-btn').on('click', function() {
+        const documentId = $(this).data('document-id');
+        const equipmentId = $(this).data('equipment-id');
         const documentUrl = $(this).data('document-url');
         const documentTitle = $(this).data('document-title');
         const documentType = $(this).data('document-type');
@@ -1105,28 +1109,29 @@ $(document).ready(function() {
         // Show modal
         $('#viewDocumentModal').modal('show');
         
+        // Use view_document URL which has iframe-friendly headers
+        const viewUrl = '/equipment/' + equipmentId + '/documents/' + documentId + '/view/';
+        
         // Determine if it's an image or document
         const fileExtension = documentUrl.split('.').pop().toLowerCase();
         const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
         const isImage = imageExtensions.includes(fileExtension);
-        const isPdf = fileExtension === 'pdf';
         
         // Clear and load content
         if (isImage) {
-            // Display image directly
+            // Display image directly using view URL
             modalBody.html(`
                 <div class="text-center p-3" style="background-color: #f8f9fa;">
-                    <img src="${documentUrl}" class="img-fluid" alt="${documentTitle}" style="max-height: 70vh; max-width: 100%;" onerror="this.parentElement.innerHTML='<div class=\\'alert alert-warning\\'><i class=\\'fas fa-exclamation-triangle\\'></i> Failed to load image. <a href=\\'${documentUrl}\\' target=\\'_blank\\'>Open in new tab</a></div>'">
+                    <img src="${viewUrl}" class="img-fluid" alt="${documentTitle}" style="max-height: 70vh; max-width: 100%;" onerror="this.parentElement.innerHTML='<div class=\\'alert alert-warning\\'><i class=\\'fas fa-exclamation-triangle\\'></i> Failed to load image. <a href=\\'${documentUrl}\\' target=\\'_blank\\'>Open in new tab</a></div>'">
                 </div>
             `);
         } else {
-            // For PDFs and other documents, try iframe but show fallback immediately
-            // Since server may block iframe embedding, we'll try but have fallback ready
+            // For PDFs and other documents, use view URL in iframe
             modalBody.html(`
                 <div style="width: 100%; height: 70vh; position: relative;">
-                    <iframe id="doc-iframe" src="${documentUrl}" style="width: 100%; height: 100%; border: none;" frameborder="0" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
+                    <iframe src="${viewUrl}" style="width: 100%; height: 100%; border: none;" frameborder="0"></iframe>
                     <div id="doc-fallback" style="display: none; text-align: center; padding: 50px; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: white; z-index: 10;">
-                        <i class="fas fa-file${isPdf ? '-pdf' : ''} fa-3x text-muted mb-3"></i>
+                        <i class="fas fa-file-pdf fa-3x text-muted mb-3"></i>
                         <p class="text-muted mb-2"><strong>Unable to display document in browser.</strong></p>
                         <p class="text-muted small mb-4">The document may be blocked from embedding for security reasons.</p>
                         <div class="btn-group">
@@ -1143,52 +1148,45 @@ $(document).ready(function() {
             
             // Check if iframe is blocked after a short delay
             setTimeout(function() {
-                const iframe = $('#doc-iframe');
+                const iframe = modalBody.find('iframe');
                 const fallback = $('#doc-fallback');
                 
                 if (iframe.length) {
                     // Try to detect if iframe is blocked
-                    try {
-                        // Accessing contentWindow will throw if blocked by X-Frame-Options
-                        const test = iframe[0].contentWindow;
-                        // If we get here, iframe might be accessible
-                        // Set up a load handler to check again
-                        iframe.on('load', function() {
-                            // After load, check if we can still access it
-                            setTimeout(function() {
-                                try {
-                                    iframe[0].contentWindow;
-                                    // Still accessible - might be working
-                                } catch (e) {
-                                    // Now blocked - show fallback
-                                    iframe.hide();
-                                    fallback.show();
-                                }
-                            }, 1000);
-                        });
-                        
-                        // Also check after 2 seconds if iframe seems empty/blocked
+                    iframe.on('load', function() {
+                        // Iframe loaded - check if it's actually showing content
                         setTimeout(function() {
                             try {
-                                // Try to check if iframe has content
+                                // Try accessing iframe content
                                 if (iframe[0].contentWindow && iframe[0].contentWindow.document) {
-                                    // Has content - might be working
+                                    // Has content - working
                                 } else {
                                     throw new Error('No content');
                                 }
                             } catch (e) {
-                                // Likely blocked - show fallback
+                                // Blocked or error - show fallback
                                 iframe.hide();
                                 fallback.show();
                             }
-                        }, 2000);
-                    } catch (e) {
-                        // Immediately blocked - show fallback
-                        iframe.hide();
-                        fallback.show();
-                    }
+                        }, 1000);
+                    });
+                    
+                    // Also check after 2 seconds if iframe seems empty/blocked
+                    setTimeout(function() {
+                        try {
+                            if (iframe[0].contentWindow && iframe[0].contentWindow.document) {
+                                // Has content
+                            } else {
+                                throw new Error('No content');
+                            }
+                        } catch (e) {
+                            // Likely blocked - show fallback
+                            iframe.hide();
+                            fallback.show();
+                        }
+                    }, 2000);
                 }
-            }, 300);
+            }, 500);
         }
     });
     

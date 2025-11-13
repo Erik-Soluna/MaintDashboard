@@ -19,6 +19,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Count
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.clickjacking import xframe_options_exempt
 from django.core.exceptions import ValidationError
 
 import re
@@ -615,6 +616,28 @@ def add_component(request, equipment_id):
     }
     
     return render(request, 'equipment/add_component.html', context)
+
+
+@login_required
+@xframe_options_exempt
+def view_document(request, equipment_id, document_id):
+    """Serve document with iframe-friendly headers for viewing in modal."""
+    from django.http import FileResponse
+    import mimetypes
+    
+    equipment = get_object_or_404(Equipment, id=equipment_id)
+    document = get_object_or_404(EquipmentDocument, id=document_id, equipment=equipment)
+    
+    # Serve file with headers that allow iframe embedding
+    file = document.file.open()
+    content_type, _ = mimetypes.guess_type(document.file.name)
+    if not content_type:
+        content_type = 'application/octet-stream'
+    
+    response = FileResponse(file, content_type=content_type)
+    response['Content-Disposition'] = f'inline; filename="{document.file.name}"'
+    
+    return response
 
 
 @login_required
