@@ -749,19 +749,20 @@ function showComingSoon(feature) {
     alert(feature + ' functionality coming soon!');
 }
 
-// Auto-refresh dashboard every 5 minutes
-setTimeout(function() {
-    location.reload();
-}, 300000);
+// Auto-refresh dashboard every 5 minutes - DISABLED to reduce CPU usage
+// Users can manually refresh if needed
+// setTimeout(function() {
+//     location.reload();
+// }, 300000);
 
-// Add real-time clock
+// Add real-time clock - Update every 30 seconds instead of every second to reduce CPU usage
 function updateClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString();
     document.title = 'Overview - ' + timeString + ' - SOLUNA';
 }
 
-setInterval(updateClock, 1000);
+setInterval(updateClock, 30000); // Update every 30 seconds instead of every second
 updateClock();
 
 // Add click handlers for enhanced interactivity

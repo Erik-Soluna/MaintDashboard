@@ -311,10 +311,11 @@
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    // Auto-refresh every 5 minutes
-    setTimeout(function() {
-        location.reload();
-    }, 300000);
+    // Auto-refresh every 5 minutes - DISABLED to reduce CPU usage
+    // Users can manually refresh if needed
+    // setTimeout(function() {
+    //     location.reload();
+    // }, 300000);
 });
 </script>
 {% endblock %}

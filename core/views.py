@@ -189,12 +189,14 @@ def dashboard(request):
     
     # Calculate urgent items with single queries - only show maintenance activities to avoid duplication
     # Include overdue items (scheduled_end < now) and pending/in_progress items due within configured days
+    # Limit queries to prevent loading too much data
+    max_items = 200  # Reasonable limit to prevent excessive memory usage
     now = timezone.now()
     urgent_maintenance_all = list(maintenance_query.filter(
         Q(status='overdue') |  # Items explicitly marked as overdue
         (Q(scheduled_end__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past due date (overdue)
         (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['pending', 'in_progress']))  # Urgent pending/in_progress items
-    ).order_by('scheduled_end'))
+    ).order_by('scheduled_end')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
     urgent_calendar_all = list(calendar_query.filter(
@@ -202,14 +204,14 @@ def dashboard(request):
         event_date__gte=today,
         is_completed=False,
         maintenance_activity__isnull=True  # Only show calendar events NOT synced with maintenance
-    ).order_by('event_date'))
+    ).order_by('event_date')[:max_items])
     
     # Calculate upcoming items with single queries - only show maintenance activities to avoid duplication
     upcoming_maintenance_all = list(maintenance_query.filter(
         scheduled_end__gt=urgent_cutoff,
         scheduled_end__lte=upcoming_cutoff,
         status__in=['pending', 'scheduled']
-    ).order_by('scheduled_end'))
+    ).order_by('scheduled_end')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
     upcoming_calendar_all = list(calendar_query.filter(
@@ -217,7 +219,7 @@ def dashboard(request):
         event_date__lte=upcoming_cutoff,
         is_completed=False,
         maintenance_activity__isnull=True  # Only show calendar events NOT synced with maintenance
-    ).order_by('event_date'))
+    ).order_by('event_date')[:max_items])
     
     # Group items by site if enabled
     group_by_site = dashboard_settings.group_urgent_by_site if dashboard_settings else True
@@ -303,19 +305,19 @@ def dashboard(request):
         pod_maintenance = {loc.id: [] for loc in locations}
         pod_calendar = {loc.id: [] for loc in locations}
         
-        # Organize equipment by location
-        for equipment in equipment_query:
-            if equipment.location.id in pod_equipment:
+        # Organize equipment by location - Limit to prevent excessive memory usage
+        for equipment in equipment_query[:1000]:  # Limit to 1000 items
+            if equipment.location and equipment.location.id in pod_equipment:
                 pod_equipment[equipment.location.id].append(equipment)
         
-        # Organize maintenance by location
-        for maintenance in maintenance_query:
-            if maintenance.equipment.location.id in pod_maintenance:
+        # Organize maintenance by location - Limit to prevent excessive memory usage
+        for maintenance in maintenance_query[:1000]:  # Limit to 1000 items
+            if maintenance.equipment and maintenance.equipment.location and maintenance.equipment.location.id in pod_maintenance:
                 pod_maintenance[maintenance.equipment.location.id].append(maintenance)
         
-        # Organize calendar by location
-        for calendar_event in calendar_query:
-            if calendar_event.equipment.location.id in pod_calendar:
+        # Organize calendar by location - Limit to prevent excessive memory usage
+        for calendar_event in calendar_query[:1000]:  # Limit to 1000 items
+            if calendar_event.equipment and calendar_event.equipment.location and calendar_event.equipment.location.id in pod_calendar:
                 pod_calendar[calendar_event.equipment.location.id].append(calendar_event)
         
         # Process each location with bulk data

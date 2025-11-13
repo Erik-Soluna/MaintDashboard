@@ -1562,13 +1562,20 @@ def maintenance_reports(request):
         daily_completions[current_date.strftime('%Y-%m-%d')] = 0
         current_date += timedelta(days=1)
     
-    # Count completions per day
-    for activity in completed_activities:
-        if activity.actual_end:
-            activity_date = activity.actual_end.date()
-            if start_date <= activity_date <= end_date:
-                date_key = activity_date.strftime('%Y-%m-%d')
-                daily_completions[date_key] = daily_completions.get(date_key, 0) + 1
+    # Count completions per day - Use database aggregation instead of Python loop
+    from django.db.models.functions import TruncDate
+    daily_completions_queryset = completed_activities.filter(
+        actual_end__gte=start_date,
+        actual_end__lte=end_date
+    ).annotate(
+        date=TruncDate('actual_end')
+    ).values('date').annotate(
+        count=Count('id')
+    ).order_by('date')
+    
+    for item in daily_completions_queryset:
+        date_key = item['date'].strftime('%Y-%m-%d')
+        daily_completions[date_key] = item['count']
     
     # Convert to JSON for chart
     import json
@@ -1579,11 +1586,21 @@ def maintenance_reports(request):
     trends_start_date = start_date
     trends_end_date = end_date
     
-    # For trends, group by month
+    # For trends, group by month - Use database aggregation instead of Python loop
+    from django.db.models.functions import TruncMonth
+    monthly_trends_queryset = activities_queryset.filter(
+        scheduled_start__gte=trends_start_date, 
+        scheduled_start__lte=trends_end_date
+    ).annotate(
+        month=TruncMonth('scheduled_start')
+    ).values('month').annotate(
+        count=Count('id')
+    ).order_by('month')
+    
     monthly_trends = {}
-    for activity in activities_queryset.filter(scheduled_start__gte=trends_start_date, scheduled_start__lte=trends_end_date):
-        month_key = activity.scheduled_start.strftime('%Y-%m')
-        monthly_trends[month_key] = monthly_trends.get(month_key, 0) + 1
+    for item in monthly_trends_queryset:
+        month_key = item['month'].strftime('%Y-%m')
+        monthly_trends[month_key] = item['count']
     
     # Create labels and data for trends chart
     trends_labels = []
