@@ -1537,15 +1537,15 @@ def maintenance_reports(request):
         actual_end__isnull=False
     ).order_by('actual_end')
     
-    # Get date range (default to last 90 days, or use filter dates)
+    # Get date range (default to last 30 days, or use filter dates)
     if date_from:
         try:
             from datetime import datetime
             start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
         except ValueError:
-            start_date = timezone.now().date() - timedelta(days=90)
+            start_date = timezone.now().date() - timedelta(days=30)
     else:
-        start_date = timezone.now().date() - timedelta(days=90)
+        start_date = timezone.now().date() - timedelta(days=30)
     
     if date_to:
         try:
