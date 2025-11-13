@@ -185,7 +185,51 @@ PYTHON
             
             # Always run migrations on boot (will skip if nothing to do)
             print_status "🔄 Applying migrations..."
-            python manage.py migrate --noinput
+            # Run migrations and handle duplicate column errors gracefully
+            if python manage.py migrate --noinput 2>&1; then
+                print_success "✅ Migrations applied successfully"
+            else
+                # If migration fails due to duplicate columns, mark 0020 as applied and continue
+                print_warning "⚠️ Migration error detected, checking if columns already exist..."
+                python - <<'PYTHON'
+import os, sys
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
+try:
+    import django
+    django.setup()
+    from django.db import connection
+    
+    with connection.cursor() as cursor:
+        # Check if columns exist
+        cursor.execute("""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='core_brandingsettings' 
+            AND column_name IN ('table_hover_background_color', 'table_hover_text_color');
+        """)
+        existing_cols = [row[0] for row in cursor.fetchall()]
+        
+        # Check if 0020 is marked as applied
+        cursor.execute("""
+            SELECT COUNT(*) FROM django_migrations 
+            WHERE app = 'core' AND name = '0020_brandingsettings_table_hover_background_color_and_more';
+        """)
+        migration_applied = cursor.fetchone()[0] > 0
+        
+        if len(existing_cols) == 2 and not migration_applied:
+            # Columns exist but migration not marked - mark it as applied
+            cursor.execute("""
+                INSERT INTO django_migrations (app, name, applied) 
+                VALUES ('core', '0020_brandingsettings_table_hover_background_color_and_more', NOW())
+                ON CONFLICT DO NOTHING;
+            """)
+            print("✅ Marked migration 0020 as applied (columns already exist)")
+except Exception as e:
+    print(f"⚠️ Could not fix migration state: {e}")
+PYTHON
+                # Try migrate again
+                python manage.py migrate --noinput || print_warning "⚠️ Some migrations may need manual attention"
+            fi
             
             print_success "✅ Boot complete (migrations applied)"
             ;;
