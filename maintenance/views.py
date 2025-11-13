@@ -1530,6 +1530,50 @@ def maintenance_reports(request):
         count=Count('id')
     ).order_by('month')
     
+    # Daily completion stats for timeline chart (last 90 days)
+    daily_completions = {}
+    completed_activities = activities_queryset.filter(
+        status='completed',
+        actual_end__isnull=False
+    ).order_by('actual_end')
+    
+    # Get date range (default to last 90 days, or use filter dates)
+    if date_from:
+        try:
+            from datetime import datetime
+            start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+        except ValueError:
+            start_date = timezone.now().date() - timedelta(days=90)
+    else:
+        start_date = timezone.now().date() - timedelta(days=90)
+    
+    if date_to:
+        try:
+            from datetime import datetime
+            end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+        except ValueError:
+            end_date = timezone.now().date()
+    else:
+        end_date = timezone.now().date()
+    
+    # Initialize all dates in range with 0
+    current_date = start_date
+    while current_date <= end_date:
+        daily_completions[current_date.strftime('%Y-%m-%d')] = 0
+        current_date += timedelta(days=1)
+    
+    # Count completions per day
+    for activity in completed_activities:
+        if activity.actual_end:
+            activity_date = activity.actual_end.date()
+            if start_date <= activity_date <= end_date:
+                date_key = activity_date.strftime('%Y-%m-%d')
+                daily_completions[date_key] = daily_completions.get(date_key, 0) + 1
+    
+    # Convert to JSON for chart
+    import json
+    daily_completions_json = json.dumps(daily_completions)
+    
     # Build timeline events
     timeline_events = []
     for activity in all_activities[:100]:  # Limit to 100 most recent for performance
@@ -1559,6 +1603,7 @@ def maintenance_reports(request):
         'monthly_stats': monthly_stats,
         'timeline_events': timeline_events,
         'all_activities': all_activities,
+        'daily_completions': daily_completions_json,
         'categories': categories,
         'locations': locations,
         'selected_category': int(category_id) if category_id else None,

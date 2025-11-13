@@ -89,6 +89,23 @@
         </div>
     </div>
 
+    <!-- Daily Completion Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Activities Completed Per Day
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="dailyCompletionsChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Timeline Section -->
     <div class="row mb-4">
         <div class="col-12">
@@ -257,6 +274,84 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Daily Completions Chart
+    const dailyCtx = document.getElementById('dailyCompletionsChart');
+    if (dailyCtx) {
+        const dailyData = {{ daily_completions }};
+        const labels = Object.keys(dailyData).sort();
+        const data = labels.map(key => dailyData[key]);
+        
+        // Format labels for better readability (show every Nth label to avoid crowding)
+        const formattedLabels = labels.map((label, index) => {
+            if (labels.length > 30) {
+                // Show every 7th label if more than 30 days
+                return (index % 7 === 0) ? label : '';
+            } else if (labels.length > 14) {
+                // Show every 3rd label if more than 14 days
+                return (index % 3 === 0) ? label : '';
+            } else {
+                return label;
+            }
+        });
+        
+        new Chart(dailyCtx, {
+            type: 'line',
+            data: {
+                labels: formattedLabels,
+                datasets: [{
+                    label: 'Activities Completed',
+                    data: data,
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        },
+                        title: {
+                            display: true,
+                            text: 'Number of Activities'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
 
 {% block extra_css %}
