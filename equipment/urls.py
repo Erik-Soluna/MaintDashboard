@@ -41,4 +41,7 @@ urlpatterns = [
     
     # Custom Field Management
     path('categories/<int:category_id>/fields/', views.category_fields_management, name='category_fields_management'),
+    
+    # Issues
+    path('<int:equipment_id>/issues/log/', views.log_issue, name='log_issue'),
 ]

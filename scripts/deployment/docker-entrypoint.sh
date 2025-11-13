@@ -179,6 +179,9 @@ PYTHON
             # Fast path - database already initialized
             print_success "✅ Database ready - checking for new migrations..."
             
+            # Create migrations if model changes exist (will skip if nothing to do)
+            python manage.py makemigrations --noinput > /dev/null 2>&1 || print_warning "⚠️ Makemigrations check skipped"
+            
             # Run migrations (will skip if nothing to do)
             python manage.py migrate --noinput > /dev/null 2>&1 || print_warning "⚠️ Migration check skipped"
             
@@ -188,6 +191,11 @@ PYTHON
         "FRESH")
             # Fresh database - full initialization needed
             print_status "🆕 Fresh database - initializing..."
+            
+            # Create migrations first
+            python manage.py makemigrations --noinput || print_warning "⚠️ Makemigrations skipped"
+            
+            # Run migrations
             python manage.py migrate --noinput
             python manage.py init_database --admin-username "$ADMIN_USERNAME" --admin-email "$ADMIN_EMAIL" --admin-password "$ADMIN_PASSWORD" --force
             print_success "✅ Fresh database initialized"
@@ -196,6 +204,11 @@ PYTHON
         "PARTIAL"|"ERROR")
             # Partial state - run full migrations
             print_status "🔄 Running migrations..."
+            
+            # Create migrations first
+            python manage.py makemigrations --noinput || print_warning "⚠️ Makemigrations skipped"
+            
+            # Run migrations
             python manage.py migrate --noinput || python manage.py migrate --fake-initial
             python manage.py init_database --admin-username "$ADMIN_USERNAME" --admin-email "$ADMIN_EMAIL" --admin-password "$ADMIN_PASSWORD" --force > /dev/null 2>&1 || true
             print_success "✅ Migrations complete"

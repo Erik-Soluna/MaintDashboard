@@ -22,6 +22,9 @@
                     <p class="text-muted mb-0">{{ equipment.category.name|default:"No Category" }} • {{ equipment.location.name|default:"No Location" }}</p>
                 </div>
                 <div>
+                    <a href="{% url 'equipment:log_issue' equipment.id %}" class="btn btn-warning">
+                        <i class="fas fa-exclamation-triangle me-1"></i> Log Issue
+                    </a>
                     <a href="{% url 'equipment:edit_equipment' equipment.id %}" class="btn btn-primary">
                         <i class="fas fa-edit me-1"></i> Edit Equipment
                     </a>
@@ -127,6 +130,14 @@
                     <li class="nav-item">
                         <a class="nav-link" id="reports-tab" data-toggle="tab" href="#reports" role="tab">
                             <i class="fas fa-chart-line me-1"></i> Maintenance Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="issues-tab" data-toggle="tab" href="#issues" role="tab">
+                            <i class="fas fa-exclamation-triangle me-1"></i> Issues
+                            {% if open_issues_count > 0 %}
+                                <span class="badge badge-danger">{{ open_issues_count }}</span>
+                            {% endif %}
                         </a>
                     </li>
                 </ul>
@@ -625,6 +636,120 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Issues Tab -->
+                    <div class="tab-pane fade" id="issues" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">Equipment Issues</h6>
+                            <a href="{% url 'equipment:log_issue' equipment.id %}" class="btn btn-sm btn-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i> Log New Issue
+                            </a>
+                        </div>
+                        
+                        <!-- Issue Summary Cards -->
+                        <div class="row mb-4">
+                            <div class="col-md-3">
+                                <div class="card bg-danger text-white">
+                                    <div class="card-body text-center">
+                                        <h4 class="mb-0">{{ open_issues_count }}</h4>
+                                        <small>Open</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-warning text-white">
+                                    <div class="card-body text-center">
+                                        <h4 class="mb-0">{{ in_progress_issues_count }}</h4>
+                                        <small>In Progress</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body text-center">
+                                        <h4 class="mb-0">{{ resolved_issues_count }}</h4>
+                                        <small>Resolved</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card bg-info text-white">
+                                    <div class="card-body text-center">
+                                        <h4 class="mb-0">{{ issues|length }}</h4>
+                                        <small>Total</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if issues %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Severity</th>
+                                            <th>Status</th>
+                                            <th>Tags</th>
+                                            <th>Created</th>
+                                            <th>Created By</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for issue in issues %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ issue.title }}</strong>
+                                                {% if issue.description %}
+                                                    <br><small class="text-muted">{{ issue.description|truncatechars:100 }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if issue.severity == 'critical' %}
+                                                    <span class="badge badge-danger">Critical</span>
+                                                {% elif issue.severity == 'high' %}
+                                                    <span class="badge badge-warning">High</span>
+                                                {% elif issue.severity == 'medium' %}
+                                                    <span class="badge badge-info">Medium</span>
+                                                {% else %}
+                                                    <span class="badge badge-secondary">Low</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if issue.status == 'open' %}
+                                                    <span class="badge badge-danger">Open</span>
+                                                {% elif issue.status == 'in_progress' %}
+                                                    <span class="badge badge-warning">In Progress</span>
+                                                {% elif issue.status == 'resolved' %}
+                                                    <span class="badge badge-success">Resolved</span>
+                                                {% else %}
+                                                    <span class="badge badge-secondary">Closed</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% for tag in issue.tags.all %}
+                                                    <span class="badge badge-light">{{ tag.name }}</span>
+                                                {% empty %}
+                                                    <span class="text-muted">No tags</span>
+                                                {% endfor %}
+                                            </td>
+                                            <td>{{ issue.created_at|date:"M d, Y H:i" }}</td>
+                                            <td>{{ issue.created_by.get_full_name|default:issue.created_by.username }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-exclamation-triangle fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No issues logged for this equipment</p>
+                                <a href="{% url 'equipment:log_issue' equipment.id %}" class="btn btn-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i> Log First Issue
+                                </a>
+                            </div>
                         {% endif %}
                     </div>
                 </div>

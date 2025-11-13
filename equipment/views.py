@@ -29,11 +29,11 @@ except ImportError:
     PyPDF2 = None
     PYPDF2_AVAILABLE = False
 
-from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField
+from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentIssue
 from core.models import EquipmentCategory, Location
 from core.logging_utils import log_error, log_view_access, log_api_call
 from maintenance.models import MaintenanceReport
-from .forms import EquipmentForm, DynamicEquipmentForm, EquipmentComponentForm, EquipmentDocumentForm
+from .forms import EquipmentForm, DynamicEquipmentForm, EquipmentComponentForm, EquipmentDocumentForm, IssueLogForm
 
 logger = logging.getLogger(__name__)
 
@@ -329,6 +329,12 @@ def equipment_detail(request, equipment_id):
     # Get documents for the documents tab
     documents = equipment.documents.all().order_by('-created_at')
     
+    # Get issues for the issues tab
+    issues = equipment.issues.all().order_by('-created_at')
+    open_issues_count = issues.filter(status='open').count()
+    in_progress_issues_count = issues.filter(status='in_progress').count()
+    resolved_issues_count = issues.filter(status='resolved').count()
+    
     context = {
         'equipment': equipment,
         'maintenance_status': maintenance_status,
@@ -345,6 +351,10 @@ def equipment_detail(request, equipment_id):
         'maintenance_reports': maintenance_reports,
         'components': components,
         'documents': documents,
+        'issues': issues,
+        'open_issues_count': open_issues_count,
+        'in_progress_issues_count': in_progress_issues_count,
+        'resolved_issues_count': resolved_issues_count,
     }
     
     return render(request, 'equipment/equipment_detail.html', context)
@@ -1920,3 +1930,49 @@ def delete_connection(request, connection_id):
             'status': 'error',
             'message': f'Error deleting connection: {str(e)}'
         }, status=500)
+
+
+@login_required
+def log_issue(request, equipment_id):
+    """Log a new issue for equipment."""
+    equipment = get_object_or_404(Equipment, id=equipment_id)
+    
+    if request.method == 'POST':
+        form = IssueLogForm(request.POST)
+        if form.is_valid():
+            issue = form.save(commit=False)
+            issue.equipment = equipment
+            issue.created_by = request.user
+            issue.updated_by = request.user
+            issue.save()
+            
+            # The form's save method handles tags, but we need to ensure created_by is set for new tags
+            # Handle new tag if provided
+            new_tag_name = form.cleaned_data.get('new_tag', '').strip().lower()
+            if new_tag_name:
+                from .models import IssueTag
+                tag, created = IssueTag.objects.get_or_create(
+                    name=new_tag_name,
+                    defaults={'is_active': True, 'created_by': request.user}
+                )
+                if created:
+                    tag.created_by = request.user
+                    tag.save()
+                issue.tags.add(tag)
+            
+            # Add selected existing tags
+            if form.cleaned_data.get('tags'):
+                issue.tags.add(*form.cleaned_data['tags'])
+            
+            messages.success(request, f'Issue "{issue.title}" has been logged successfully.')
+            return redirect('equipment:equipment_detail', equipment_id=equipment_id)
+    else:
+        form = IssueLogForm()
+    
+    context = {
+        'form': form,
+        'equipment': equipment,
+        'title': 'Log Issue'
+    }
+    
+    return render(request, 'equipment/log_issue.html', context)

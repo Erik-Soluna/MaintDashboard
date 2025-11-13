@@ -5,7 +5,7 @@ Forms for equipment management.
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Row, Column, Submit
-from .models import Equipment, EquipmentComponent, EquipmentDocument, EquipmentCategoryField, EquipmentCustomValue, EquipmentCategoryConditionalField
+from .models import Equipment, EquipmentComponent, EquipmentDocument, EquipmentCategoryField, EquipmentCustomValue, EquipmentCategoryConditionalField, EquipmentIssue, IssueTag
 from core.models import EquipmentCategory, Location
 
 
@@ -427,3 +427,75 @@ class EquipmentDocumentForm(forms.ModelForm):
             'file',
             Submit('submit', 'Save Document', css_class='btn btn-primary')
         )
+
+
+class IssueLogForm(forms.ModelForm):
+    """Form for logging equipment issues with tag support."""
+    
+    new_tag = forms.CharField(
+        max_length=100,
+        required=False,
+        help_text="Create a new tag (will be converted to lowercase)",
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter new tag name'
+        })
+    )
+    
+    class Meta:
+        model = EquipmentIssue
+        fields = ['title', 'description', 'severity', 'status', 'tags']
+        widgets = {
+            'title': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 5}),
+            'severity': forms.Select(attrs={'class': 'form-control'}),
+            'status': forms.Select(attrs={'class': 'form-control'}),
+            'tags': forms.SelectMultiple(attrs={'class': 'form-control', 'size': '10'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Only show active tags
+        self.fields['tags'].queryset = IssueTag.objects.filter(is_active=True).order_by('name')
+        self.fields['tags'].required = False
+        self.fields['tags'].help_text = "Select existing tags or create a new one below"
+        
+        # Set default severity
+        self.fields['severity'].initial = 'medium'
+        self.fields['status'].initial = 'open'
+        
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Fieldset(
+                'Issue Information',
+                'title',
+                'description',
+                Row(
+                    Column('severity', css_class='form-group col-md-6 mb-0'),
+                    Column('status', css_class='form-group col-md-6 mb-0'),
+                ),
+            ),
+            Fieldset(
+                'Tags',
+                'tags',
+                'new_tag',
+            ),
+            Submit('submit', 'Log Issue', css_class='btn btn-primary')
+        )
+    
+    def clean_new_tag(self):
+        """Clean and validate new tag name."""
+        new_tag = self.cleaned_data.get('new_tag', '').strip()
+        if new_tag:
+            # Convert to lowercase
+            new_tag = new_tag.lower()
+            # Check if tag already exists
+            if IssueTag.objects.filter(name=new_tag).exists():
+                raise forms.ValidationError(f'Tag "{new_tag}" already exists. Please select it from the list above.')
+        return new_tag
+    
+    def save(self, commit=True):
+        """Save the issue. Tags are handled in the view."""
+        issue = super().save(commit=commit)
+        return issue
