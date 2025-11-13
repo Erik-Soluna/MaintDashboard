@@ -708,6 +708,10 @@ class BrandingSettings(models.Model):
     breadcrumb_text_color = models.CharField(max_length=7, default="#a0aec0", help_text="Breadcrumb text color in hex format (#RRGGBB)")
     breadcrumb_separator_color = models.CharField(max_length=7, default="#a0aec0", help_text="Breadcrumb separator color in hex format (#RRGGBB)")
     
+    # Table hover colors
+    table_hover_background_color = models.CharField(max_length=7, default="#374151", help_text="Table row hover background color in hex format (#RRGGBB)")
+    table_hover_text_color = models.CharField(max_length=7, default="#ffffff", help_text="Table row hover text color in hex format (#RRGGBB)")
+    
     # Logo and favicon
     logo = models.ForeignKey(Logo, on_delete=models.SET_NULL, null=True, blank=True, help_text="Main site logo")
     favicon = models.ImageField(upload_to='favicons/', blank=True, help_text="Website favicon (16x16, 32x32, or 48x48 recommended)")

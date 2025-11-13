@@ -711,6 +711,7 @@
                                     <thead>
                                         <tr>
                                             <th>Title</th>
+                                            <th>Description</th>
                                             <th>Severity</th>
                                             <th>Status</th>
                                             <th>Tags</th>
@@ -724,8 +725,12 @@
                                         <tr>
                                             <td>
                                                 <strong>{{ issue.title }}</strong>
+                                            </td>
+                                            <td>
                                                 {% if issue.description %}
-                                                    <br><small class="text-muted">{{ issue.description|truncatechars:100 }}</small>
+                                                    <span class="text-muted">{{ issue.description|truncatechars:150 }}</span>
+                                                {% else %}
+                                                    <span class="text-muted"><em>No description</em></span>
                                                 {% endif %}
                                             </td>
                                             <td>

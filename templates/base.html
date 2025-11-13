@@ -84,6 +84,10 @@
               --breadcrumb-link: {{ breadcrumb_link_color }};
               --breadcrumb-text: {{ breadcrumb_text_color }};
               --breadcrumb-separator: {{ breadcrumb_separator_color }};
+              
+              /* Table hover colors */
+              --table-hover-bg: {{ table_hover_background_color }};
+              --table-hover-text: {{ table_hover_text_color }};
          }
         
         body {
@@ -436,7 +440,18 @@
         }
         
         .table-hover tbody tr:hover {
-            background-color: var(--content-bg);
+            background-color: var(--table-hover-bg);
+            color: var(--table-hover-text);
+        }
+        
+        .table-hover tbody tr:hover td,
+        .table-hover tbody tr:hover th {
+            color: var(--table-hover-text);
+        }
+        
+        .table-hover tbody tr:hover .text-muted {
+            color: var(--table-hover-text) !important;
+            opacity: 0.8;
         }
         
         .breadcrumb {
