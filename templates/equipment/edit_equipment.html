@@ -408,7 +408,13 @@
                                                                         <span class="text-danger">*</span>
                                                                     {% endif %}
                                                                 </label>
-                                                                {{ form|get_field:field_name }}
+                                                                {% with field_widget=form|get_field:field_name %}
+                                                                    {% if field_widget %}
+                                                                        {{ field_widget }}
+                                                                    {% else %}
+                                                                        <input type="text" name="{{ field_name }}" id="id_{{ field_name }}" class="form-control" value="{{ equipment|get_custom_value:field_obj.name|default:'' }}">
+                                                                    {% endif %}
+                                                                {% endwith %}
                                                                 {% if field_info.effective_help_text %}
                                                                     <small class="form-text text-muted">{{ field_info.effective_help_text|safe }}</small>
                                                                 {% endif %}
