@@ -60,6 +60,20 @@
                             </select>
                         </div>
                         
+                        <div id="startTimeFields" class="mb-3" style="display: none;">
+                            <label for="actual_start" class="form-label">Actual Start Time</label>
+                            <input type="datetime-local" class="form-control" id="actual_start" name="actual_start"
+                                   value="{% if activity.actual_start %}{{ activity.actual_start|date:'Y-m-d\TH:i' }}{% endif %}">
+                            <small class="form-text text-muted">Leave blank to use current time, or select a specific date/time</small>
+                        </div>
+                        
+                        <div id="endTimeFields" class="mb-3" style="display: none;">
+                            <label for="actual_end" class="form-label">Actual End Time</label>
+                            <input type="datetime-local" class="form-control" id="actual_end" name="actual_end"
+                                   value="{% if activity.actual_end %}{{ activity.actual_end|date:'Y-m-d\TH:i' }}{% endif %}">
+                            <small class="form-text text-muted">Leave blank to use current time, or select a specific date/time (useful for backdating)</small>
+                        </div>
+                        
                         <div class="mb-3">
                             <label for="notes" class="form-label">Notes (Optional)</label>
                             <textarea class="form-control" id="notes" name="notes" rows="3"
@@ -68,8 +82,7 @@
                         
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
-                            <strong>Note:</strong> Changing status to "In Progress" will automatically set the start time if not already set. 
-                            Changing to "Completed" will set the end time and start time if needed.
+                            <strong>Note:</strong> You can specify custom start/end times when changing status. This is especially useful when completing activities that were done earlier.
                         </div>
                         
                         <div class="d-flex justify-content-between">
@@ -86,4 +99,37 @@
         </div>
     </div>
 </div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const statusSelect = document.getElementById('status');
+    const startTimeFields = document.getElementById('startTimeFields');
+    const endTimeFields = document.getElementById('endTimeFields');
+    
+    function toggleTimeFields() {
+        const selectedStatus = statusSelect.value;
+        
+        // Show start time field for in_progress or completed
+        if (selectedStatus === 'in_progress' || selectedStatus === 'completed') {
+            startTimeFields.style.display = 'block';
+        } else {
+            startTimeFields.style.display = 'none';
+        }
+        
+        // Show end time field for completed
+        if (selectedStatus === 'completed') {
+            endTimeFields.style.display = 'block';
+        } else {
+            endTimeFields.style.display = 'none';
+        }
+    }
+    
+    // Initial state
+    toggleTimeFields();
+    
+    // Update on change
+    statusSelect.addEventListener('change', toggleTimeFields);
+});
+</script>
 {% endblock %}

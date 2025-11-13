@@ -3022,11 +3022,47 @@ def change_activity_status(request, activity_id):
             activity.status = new_status
             activity.updated_by = request.user
             
-            # Handle start/end times based on status
-            if new_status == 'in_progress' and not activity.actual_start:
-                activity.actual_start = timezone.now()
-            elif new_status == 'completed' and not activity.actual_end:
-                activity.actual_end = timezone.now()
+            # Handle start/end times based on status and user input
+            actual_start_str = request.POST.get('actual_start', '').strip()
+            actual_end_str = request.POST.get('actual_end', '').strip()
+            
+            if new_status == 'in_progress' or new_status == 'completed':
+                # Use custom start time if provided, otherwise use current time or existing value
+                if actual_start_str:
+                    try:
+                        from django.utils.dateparse import parse_datetime
+                        activity.actual_start = parse_datetime(actual_start_str)
+                        if not activity.actual_start:
+                            # Try parsing as local datetime
+                            from datetime import datetime
+                            activity.actual_start = datetime.strptime(actual_start_str, '%Y-%m-%dT%H:%M')
+                            activity.actual_start = timezone.make_aware(activity.actual_start)
+                    except (ValueError, TypeError):
+                        # If parsing fails, use current time
+                        if not activity.actual_start:
+                            activity.actual_start = timezone.now()
+                elif not activity.actual_start:
+                    activity.actual_start = timezone.now()
+            
+            if new_status == 'completed':
+                # Use custom end time if provided, otherwise use current time or existing value
+                if actual_end_str:
+                    try:
+                        from django.utils.dateparse import parse_datetime
+                        activity.actual_end = parse_datetime(actual_end_str)
+                        if not activity.actual_end:
+                            # Try parsing as local datetime
+                            from datetime import datetime
+                            activity.actual_end = datetime.strptime(actual_end_str, '%Y-%m-%dT%H:%M')
+                            activity.actual_end = timezone.make_aware(activity.actual_end)
+                    except (ValueError, TypeError):
+                        # If parsing fails, use current time
+                        if not activity.actual_end:
+                            activity.actual_end = timezone.now()
+                elif not activity.actual_end:
+                    activity.actual_end = timezone.now()
+                
+                # Ensure start time is set if completing
                 if not activity.actual_start:
                     activity.actual_start = activity.scheduled_start
             

@@ -393,8 +393,7 @@
                     <div class="mb-3">
                         <label for="entry_type" class="form-label">Entry Type</label>
                         <select class="form-select" id="entry_type" name="entry_type" required>
-                            <option value="">--- Select Entry Type ---</option>
-                            <option value="note">Note Added</option>
+                            <option value="note" selected>Note (Findings/Observations)</option>
                             <option value="issue">Issue Reported</option>
                             <option value="resolution">Issue Resolved</option>
                             <option value="started">Activity Started</option>
@@ -408,12 +407,13 @@
                     <div class="mb-3">
                         <label for="title" class="form-label">Title</label>
                         <input type="text" class="form-control" id="title" name="title" required 
-                               placeholder="Enter a brief title for this entry">
+                               placeholder="Brief summary (e.g., 'Visual Inspection Findings')">
                     </div>
                     <div class="mb-3">
-                        <label for="description" class="form-label">Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="3" required
-                                  placeholder="Provide detailed description of what happened"></textarea>
+                        <label for="description" class="form-label">Findings / Notes</label>
+                        <textarea class="form-control" id="description" name="description" rows="5" required
+                                  placeholder="Document your findings, observations, measurements, or any relevant notes about this maintenance activity"></textarea>
+                        <small class="form-text text-muted">This note will be added to the activity timeline for future reference.</small>
                     </div>
                 </div>
                 <div class="modal-footer">
