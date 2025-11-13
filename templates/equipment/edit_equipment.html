@@ -392,43 +392,39 @@
                                     Category-Specific Information
                                 </h5>
                                 {% for group_name, fields in custom_fields_by_group.items %}
-                                    <div class="card mb-3">
-                                        <div class="card-header bg-light">
-                                            <h6 class="mb-0">{{ group_name }}</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row">
-                                                {% for field_info in fields %}
-                                                    {% with field_obj=field_info.field %}
-                                                        {% with field_name="custom_"|add:field_obj.name %}
-                                                            {% if field_name in form.fields %}
-                                                                <div class="col-md-6 mb-3">
-                                                                    <div class="form-group">
-                                                                        <label for="id_{{ field_name }}" class="form-label">
-                                                                            {{ field_info.effective_label }}
-                                                                            {% if field_info.effective_required %}
-                                                                                <span class="text-danger">*</span>
-                                                                            {% endif %}
-                                                                        </label>
-                                                                        {{ form|get_field:field_name }}
-                                                                        {% if field_info.effective_help_text %}
-                                                                            <small class="form-text text-muted">{{ field_info.effective_help_text|safe }}</small>
-                                                                        {% endif %}
-                                                                        {% if form|get_field_errors:field_name %}
-                                                                            <div class="invalid-feedback d-block">
-                                                                                {% for error in form|get_field_errors:field_name %}
-                                                                                    {{ error }}
-                                                                                {% endfor %}
-                                                                            </div>
-                                                                        {% endif %}
+                                    {% if group_name != 'General' or custom_fields_by_group|length > 1 %}
+                                        <h6 class="mb-3 mt-4">{{ group_name }}</h6>
+                                    {% endif %}
+                                    <div class="row">
+                                        {% for field_info in fields %}
+                                            {% with field_obj=field_info.field %}
+                                                {% with field_name="custom_"|add:field_obj.name %}
+                                                    {% if field_name in form.fields %}
+                                                        <div class="col-md-6">
+                                                            <div class="form-group">
+                                                                <label for="id_{{ field_name }}" class="form-label">
+                                                                    {{ field_info.effective_label }}
+                                                                    {% if field_info.effective_required %}
+                                                                        <span class="text-danger">*</span>
+                                                                    {% endif %}
+                                                                </label>
+                                                                {{ form|get_field:field_name }}
+                                                                {% if field_info.effective_help_text %}
+                                                                    <small class="form-text text-muted">{{ field_info.effective_help_text|safe }}</small>
+                                                                {% endif %}
+                                                                {% if form|get_field_errors:field_name %}
+                                                                    <div class="invalid-feedback d-block">
+                                                                        {% for error in form|get_field_errors:field_name %}
+                                                                            {{ error }}
+                                                                        {% endfor %}
                                                                     </div>
-                                                                </div>
-                                                            {% endif %}
-                                                        {% endwith %}
-                                                    {% endwith %}
-                                                {% endfor %}
-                                            </div>
-                                        </div>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% endwith %}
+                                        {% endfor %}
                                     </div>
                                 {% endfor %}
                             {% endif %}
