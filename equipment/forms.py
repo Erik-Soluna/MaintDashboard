@@ -220,7 +220,39 @@ class DynamicEquipmentForm(EquipmentForm):
                             initial_value = self.instance.get_conditional_value(field.name)
                         else:
                             initial_value = self.instance.get_custom_value(field.name)
-                        if initial_value:
+                        
+                        # Get raw value from database for proper form field binding
+                        try:
+                            value_obj = self.instance.custom_values.filter(field=field).first()
+                            if value_obj:
+                                if field.field_type == 'multiselect':
+                                    # Get list of values for multiselect
+                                    if value_obj.values_json:
+                                        import json
+                                        try:
+                                            initial_value = json.loads(value_obj.values_json)
+                                        except:
+                                            initial_value = [value_obj.value] if value_obj.value else []
+                                    else:
+                                        initial_value = [value_obj.value] if value_obj.value else []
+                                elif field.field_type == 'boolean':
+                                    # Boolean fields need True/False, not "Yes"/"No"
+                                    initial_value = value_obj.value.lower() in ['true', '1', 'yes', 'on']
+                                elif field.field_type == 'select':
+                                    # Select fields need the raw value, not the display label
+                                    initial_value = value_obj.value
+                                else:
+                                    # For other field types, use the raw value
+                                    initial_value = value_obj.value
+                            else:
+                                # No value object, use default or None
+                                initial_value = field_info.get('effective_default_value') or None
+                        except Exception as e:
+                            # If error getting value, use the display value as fallback
+                            pass
+                        
+                        # Set initial value
+                        if initial_value is not None:
                             self.fields[field_name].initial = initial_value
     
     def create_form_field(self, field):
