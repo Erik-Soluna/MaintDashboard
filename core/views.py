@@ -172,9 +172,14 @@ def dashboard(request):
     
     # ===== BULK STATISTICS CALCULATION =====
     
-    # Get dashboard settings
-    from core.models import DashboardSettings
-    dashboard_settings = DashboardSettings.get_active()
+    # Get dashboard settings (handle case where table doesn't exist yet)
+    dashboard_settings = None
+    try:
+        from core.models import DashboardSettings
+        dashboard_settings = DashboardSettings.get_active()
+    except Exception:
+        # Table doesn't exist yet or other error - use defaults
+        pass
     
     # Use settings for cutoff days if available
     urgent_days = dashboard_settings.urgent_days_ahead if dashboard_settings else 7
