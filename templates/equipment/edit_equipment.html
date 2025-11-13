@@ -399,7 +399,7 @@
                                         <div class="card-body">
                                             <div class="row">
                                                 {% for field_info in fields %}
-                                                    {% with field=field_info.field field_name="custom_"|add:field.name %}
+                                                    {% with field_obj=field_info.field field_name="custom_"|add:field_obj.name %}
                                                         {% if field_name in form.fields %}
                                                             <div class="col-md-6 mb-3">
                                                                 <div class="form-group">
