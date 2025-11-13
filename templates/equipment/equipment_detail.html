@@ -1089,6 +1089,48 @@ $(document).ready(function() {
         });
     }
     
+    // Handle view document button
+    $('.view-document-btn').on('click', function() {
+        const documentUrl = $(this).data('document-url');
+        const documentTitle = $(this).data('document-title');
+        const documentType = $(this).data('document-type');
+        const modalBody = $('#viewDocumentModalBody');
+        const modalTitle = $('#viewDocumentTitle');
+        const downloadLink = $('#viewDocumentDownloadLink');
+        
+        // Set title and download link
+        modalTitle.text(documentTitle);
+        downloadLink.attr('href', documentUrl);
+        
+        // Show modal
+        $('#viewDocumentModal').modal('show');
+        
+        // Determine if it's an image or document
+        const fileExtension = documentUrl.split('.').pop().toLowerCase();
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+        const isImage = imageExtensions.includes(fileExtension);
+        
+        // Clear and load content
+        if (isImage) {
+            // Display image directly
+            modalBody.html(`
+                <div class="text-center p-3" style="background-color: #f8f9fa;">
+                    <img src="${documentUrl}" class="img-fluid" alt="${documentTitle}" style="max-height: 70vh; max-width: 100%;">
+                </div>
+            `);
+        } else {
+            // Display document in iframe (for PDFs, etc.)
+            modalBody.html(`
+                <iframe src="${documentUrl}" style="width: 100%; height: 70vh; border: none;" frameborder="0"></iframe>
+            `);
+        }
+    });
+    
+    // Clear modal content when closed
+    $('#viewDocumentModal').on('hidden.bs.modal', function() {
+        $('#viewDocumentModalBody').html('<div class="text-center p-5"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Loading document...</p></div>');
+    });
+    
     // Handle delete document button
     $('.delete-document-btn').on('click', function() {
         const documentId = $(this).data('document-id');
