@@ -106,6 +106,23 @@
         </div>
     </div>
 
+    <!-- Maintenance Trends Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-area me-2"></i>
+                        Maintenance Trends
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="maintenanceTrendsChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Statistics Cards -->
     <div class="row">
@@ -311,6 +328,96 @@ document.addEventListener('DOMContentLoaded', function() {
                         title: {
                             display: true,
                             text: 'Date',
+                            color: textColor
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Maintenance Trends Chart
+    const trendsCtx = document.getElementById('maintenanceTrendsChart');
+    if (trendsCtx) {
+        const trendsData = {{ maintenance_trends }};
+        const labels = trendsData.labels || [];
+        const data = trendsData.data || [];
+        
+        // Detect dark mode
+        const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ||
+                          document.body.classList.contains('dark-mode') ||
+                          document.documentElement.classList.contains('dark');
+        
+        // Dark mode friendly colors
+        const lineColor = isDarkMode ? 'rgba(75, 192, 192, 1)' : 'rgba(75, 192, 192, 1)';
+        const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+        const textColor = isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)';
+        
+        new Chart(trendsCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Maintenance Activities',
+                    data: data,
+                    borderColor: lineColor,
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: lineColor,
+                    pointBorderColor: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : '#fff',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            color: textColor
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
+                        titleColor: textColor,
+                        bodyColor: textColor,
+                        borderColor: lineColor,
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            color: textColor
+                        },
+                        grid: {
+                            color: gridColor
+                        },
+                        title: {
+                            display: true,
+                            text: 'Number of Activities',
+                            color: textColor
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: textColor
+                        },
+                        grid: {
+                            color: gridColor
+                        },
+                        title: {
+                            display: true,
+                            text: 'Month',
                             color: textColor
                         }
                     }

@@ -1574,6 +1574,38 @@ def maintenance_reports(request):
     import json
     daily_completions_json = json.dumps(daily_completions)
     
+    # Generate maintenance trends (monthly view for all equipment)
+    # Use the same date range or default to last 12 months for trends
+    trends_start_date = start_date
+    trends_end_date = end_date
+    
+    # For trends, group by month
+    monthly_trends = {}
+    for activity in activities_queryset.filter(scheduled_start__gte=trends_start_date, scheduled_start__lte=trends_end_date):
+        month_key = activity.scheduled_start.strftime('%Y-%m')
+        monthly_trends[month_key] = monthly_trends.get(month_key, 0) + 1
+    
+    # Create labels and data for trends chart
+    trends_labels = []
+    trends_data = []
+    
+    # Generate all months in range
+    current_date = trends_start_date.replace(day=1)
+    while current_date <= trends_end_date:
+        month_key = current_date.strftime('%Y-%m')
+        trends_labels.append(current_date.strftime('%b %Y'))
+        trends_data.append(monthly_trends.get(month_key, 0))
+        # Move to next month
+        if current_date.month == 12:
+            current_date = current_date.replace(year=current_date.year + 1, month=1)
+        else:
+            current_date = current_date.replace(month=current_date.month + 1)
+    
+    trends_json = json.dumps({
+        'labels': trends_labels,
+        'data': trends_data
+    })
+    
     # Build timeline events
     timeline_events = []
     for activity in all_activities[:100]:  # Limit to 100 most recent for performance
@@ -1604,6 +1636,7 @@ def maintenance_reports(request):
         'timeline_events': timeline_events,
         'all_activities': all_activities,
         'daily_completions': daily_completions_json,
+        'maintenance_trends': trends_json,
         'categories': categories,
         'locations': locations,
         'selected_category': int(category_id) if category_id else None,
