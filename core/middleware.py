@@ -68,10 +68,17 @@ class DatabaseConnectionMiddleware(MiddlewareMixin):
 class SystemMonitoringMiddleware(MiddlewareMixin):
     """
     Middleware to monitor system resources and endpoint performance.
+    Optimized to reduce CPU overhead by sampling requests and caching metrics.
     """
     def __init__(self, get_response):
         super().__init__(get_response)
         self.monitoring_enabled = getattr(settings, 'MONITORING_ENABLED', True) and PSUTIL_AVAILABLE
+        # Cache metrics to avoid expensive CPU measurement on every request
+        self._metrics_cache = {}
+        self._cache_timeout = 5.0  # Cache metrics for 5 seconds
+        self._sample_rate = 0.1  # Only measure on 10% of requests to reduce overhead
+        import random
+        self._random = random
     
     def process_request(self, request):
         """Record request start time and system metrics."""
@@ -80,12 +87,15 @@ class SystemMonitoringMiddleware(MiddlewareMixin):
         
         request.start_time = time.time()
         
-        # Record system metrics
-        try:
-            system_metrics = self._get_system_metrics()
-            request.system_metrics_start = system_metrics
-        except Exception as e:
-            logger.error(f"Error collecting system metrics: {str(e)}")
+        # Only collect metrics on a sample of requests to reduce overhead
+        # Skip metrics collection for most requests to reduce CPU usage
+        if self._random.random() < self._sample_rate:
+            # Record system metrics (cached to avoid expensive calls)
+            try:
+                system_metrics = self._get_system_metrics_cached()
+                request.system_metrics_start = system_metrics
+            except Exception as e:
+                logger.error(f"Error collecting system metrics: {str(e)}")
         
         return None
     
@@ -110,21 +120,40 @@ class SystemMonitoringMiddleware(MiddlewareMixin):
         
         return response
     
-    def _get_system_metrics(self):
-        """Get current system metrics."""
+    def _get_system_metrics_cached(self):
+        """Get current system metrics with caching to reduce CPU overhead."""
         if not PSUTIL_AVAILABLE:
             return {}
-            
+        
+        current_time = time.time()
+        cache_key = 'system_metrics'
+        
+        # Check cache first
+        if cache_key in self._metrics_cache:
+            cached_metrics, cached_time = self._metrics_cache[cache_key]
+            if current_time - cached_time < self._cache_timeout:
+                return cached_metrics
+        
+        # Cache expired or doesn't exist - get fresh metrics
         try:
-            return {
-                'cpu_percent': psutil.cpu_percent(interval=0.1),
+            # Use interval=0 to get non-blocking CPU measurement (uses last measurement)
+            # This is much faster than interval=0.1 which blocks for 100ms
+            metrics = {
+                'cpu_percent': psutil.cpu_percent(interval=0),  # Non-blocking
                 'memory_percent': psutil.virtual_memory().percent,
                 'disk_usage': psutil.disk_usage('/').percent,
                 'timestamp': timezone.now().isoformat()
             }
+            # Cache the metrics
+            self._metrics_cache[cache_key] = (metrics, current_time)
+            return metrics
         except Exception as e:
             logger.error(f"Error getting system metrics: {str(e)}")
             return {}
+    
+    def _get_system_metrics(self):
+        """Get current system metrics (legacy method, uses cached version)."""
+        return self._get_system_metrics_cached()
     
     def _record_endpoint_metrics(self, request, response, response_time):
         """Record endpoint performance metrics."""
@@ -167,26 +196,29 @@ class SystemMonitoringMiddleware(MiddlewareMixin):
             return
             
         try:
-            # Check system resource thresholds
-            if hasattr(request, 'system_metrics_start'):
-                current_metrics = self._get_system_metrics()
-                
-                # Get thresholds from settings
-                cpu_threshold = getattr(settings, 'MONITORING_CPU_THRESHOLD', 80.0)
-                memory_threshold = getattr(settings, 'MONITORING_MEMORY_THRESHOLD', 80.0)
-                disk_threshold = getattr(settings, 'MONITORING_DISK_THRESHOLD', 90.0)
-                
-                # High CPU usage
-                if current_metrics.get('cpu_percent', 0) > cpu_threshold:
-                    logger.warning(f"High CPU usage detected: {current_metrics['cpu_percent']:.1f}%")
-                
-                # High memory usage
-                if current_metrics.get('memory_percent', 0) > memory_threshold:
-                    logger.warning(f"High memory usage detected: {current_metrics['memory_percent']:.1f}%")
-                
-                # High disk usage
-                if current_metrics.get('disk_usage', 0) > disk_threshold:
-                    logger.warning(f"High disk usage detected: {current_metrics['disk_usage']:.1f}%")
+            # Only check thresholds on sampled requests to reduce overhead
+            if not hasattr(request, 'system_metrics_start'):
+                return
+            
+            # Use cached metrics instead of fetching new ones
+            current_metrics = request.system_metrics_start if hasattr(request, 'system_metrics_start') else self._get_system_metrics_cached()
+            
+            # Get thresholds from settings
+            cpu_threshold = getattr(settings, 'MONITORING_CPU_THRESHOLD', 80.0)
+            memory_threshold = getattr(settings, 'MONITORING_MEMORY_THRESHOLD', 80.0)
+            disk_threshold = getattr(settings, 'MONITORING_DISK_THRESHOLD', 90.0)
+            
+            # High CPU usage (only log if significantly high to reduce log spam)
+            if current_metrics.get('cpu_percent', 0) > cpu_threshold:
+                logger.warning(f"High CPU usage detected: {current_metrics['cpu_percent']:.1f}%")
+            
+            # High memory usage
+            if current_metrics.get('memory_percent', 0) > memory_threshold:
+                logger.warning(f"High memory usage detected: {current_metrics['memory_percent']:.1f}%")
+            
+            # High disk usage
+            if current_metrics.get('disk_usage', 0) > disk_threshold:
+                logger.warning(f"High disk usage detected: {current_metrics['disk_usage']:.1f}%")
             
             # Check response time thresholds
             very_slow_threshold = getattr(settings, 'MONITORING_VERY_SLOW_REQUEST_THRESHOLD', 10.0)
