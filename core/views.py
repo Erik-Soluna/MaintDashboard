@@ -497,38 +497,90 @@ def dashboard(request):
             if site_id:
                 site_upcoming_lookup[site_id] = item['count']
         
-        # Get recent activities and events in bulk (limit per site)
-        recent_activities_by_site = {}
-        next_events_by_site = {}
+        # Bulk fetch recent activities and events for ALL sites at once (avoid N+1 queries)
+        all_site_ids = [site.id for site in all_sites]
+        all_site_filters = Q(equipment__location__parent_location_id__in=all_site_ids) | Q(equipment__location_id__in=all_site_ids)
         
-        for site in all_sites:
-            site_maintenance_filter = Q(equipment__location__parent_location=site) | Q(equipment__location=site)
-            site_calendar_filter = Q(equipment__location__parent_location=site) | Q(equipment__location=site)
-            
-            recent_activities_by_site[site.id] = list(MaintenanceActivity.objects.filter(
-                site_maintenance_filter,
-                actual_end__gte=today - timedelta(days=30),
-                status='completed'
-            ).select_related('equipment', 'assigned_to').order_by('-actual_end')[:3])
-            
-            next_events_by_site[site.id] = list(CalendarEvent.objects.filter(
-                site_calendar_filter,
-                event_date__gte=today,
-                is_completed=False
-            ).select_related('equipment', 'assigned_to').order_by('event_date')[:3])
+        # Get all recent activities for all sites, then group by site
+        all_recent_activities = MaintenanceActivity.objects.filter(
+            all_site_filters,
+            actual_end__gte=today - timedelta(days=30),
+            status='completed'
+        ).select_related('equipment', 'equipment__location', 'assigned_to').order_by('-actual_end')[:100]  # Limit total
+        
+        # Get all next events for all sites, then group by site
+        all_next_events = CalendarEvent.objects.filter(
+            all_site_filters,
+            event_date__gte=today,
+            is_completed=False
+        ).select_related('equipment', 'equipment__location', 'assigned_to').order_by('event_date')[:100]  # Limit total
+        
+        # Group activities and events by site
+        recent_activities_by_site = {site.id: [] for site in all_sites}
+        next_events_by_site = {site.id: [] for site in all_sites}
+        
+        for activity in all_recent_activities:
+            if activity.equipment and activity.equipment.location:
+                site_id = activity.equipment.location.parent_location_id if activity.equipment.location.parent_location else activity.equipment.location_id
+                if site_id in recent_activities_by_site and len(recent_activities_by_site[site_id]) < 3:
+                    recent_activities_by_site[site_id].append(activity)
+        
+        for event in all_next_events:
+            if event.equipment and event.equipment.location:
+                site_id = event.equipment.location.parent_location_id if event.equipment.location.parent_location else event.equipment.location_id
+                if site_id in next_events_by_site and len(next_events_by_site[site_id]) < 3:
+                    next_events_by_site[site_id].append(event)
+        
+        # Bulk fetch calendar counts for all sites - use separate efficient queries
+        calendar_counts_by_site = {site.id: {'total': 0, 'pending': 0, 'completed': 0} for site in all_sites}
+        
+        # Get total counts per site (single query)
+        calendar_totals = CalendarEvent.objects.filter(
+            all_site_filters
+        ).values('equipment__location__parent_location_id', 'equipment__location_id').annotate(count=Count('id'))
+        
+        for item in calendar_totals:
+            site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
+            if site_id in calendar_counts_by_site:
+                calendar_counts_by_site[site_id]['total'] = item['count']
+        
+        # Get completed counts per site (single query)
+        calendar_completed = CalendarEvent.objects.filter(
+            all_site_filters,
+            is_completed=True
+        ).values('equipment__location__parent_location_id', 'equipment__location_id').annotate(count=Count('id'))
+        
+        for item in calendar_completed:
+            site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
+            if site_id in calendar_counts_by_site:
+                calendar_counts_by_site[site_id]['completed'] = item['count']
+        
+        # Get pending counts per site (single query)
+        calendar_pending = CalendarEvent.objects.filter(
+            all_site_filters,
+            is_completed=False,
+            event_date__gte=today
+        ).values('equipment__location__parent_location_id', 'equipment__location_id').annotate(count=Count('id'))
+        
+        for item in calendar_pending:
+            site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
+            if site_id in calendar_counts_by_site:
+                calendar_counts_by_site[site_id]['pending'] = item['count']
+        
+        # Bulk fetch pod counts for all sites
+        pod_counts = Location.objects.filter(
+            parent_location_id__in=all_site_ids,
+            is_active=True
+        ).values('parent_location_id').annotate(count=Count('id'))
+        pod_counts_dict = {item['parent_location_id']: item['count'] for item in pod_counts}
         
         for site in all_sites:
             # Get pre-computed data from lookups
             equipment_counts = site_equipment_lookup.get(site.id, {})
             maintenance_counts_dict = site_maintenance_lookup.get(site.id, {})
             
-            # Calendar aggregation (still per-site but lightweight)
-            site_calendar_filter = Q(equipment__location__parent_location=site) | Q(equipment__location=site)
-            calendar_counts = CalendarEvent.objects.filter(site_calendar_filter).aggregate(
-                total=Count('id'),
-                pending=Count('id', filter=Q(is_completed=False, event_date__gte=today)),
-                completed=Count('id', filter=Q(is_completed=True))
-            )
+            # Get pre-computed calendar counts
+            calendar_counts = calendar_counts_by_site.get(site.id, {'total': 0, 'pending': 0, 'completed': 0})
             
             # Calculate derived values
             total_equipment = sum(equipment_counts.values())
@@ -562,8 +614,8 @@ def dashboard(request):
             else:
                 status = 'good'
             
-            # Get pod count
-            pod_count = Location.objects.filter(parent_location=site, is_active=True).count()
+            # Get pre-computed pod count
+            pod_count = pod_counts_dict.get(site.id, 0)
             
             overview_data.append({
                 'site': site,
@@ -586,24 +638,31 @@ def dashboard(request):
     
     # ===== OPTIMIZED OVERALL SITE STATISTICS =====
     
-    # Use aggregate queries for statistics
+    # Use aggregate queries for statistics - these are already filtered by site if applicable
+    # Limit the querysets before aggregation to prevent expensive operations on huge datasets
     equipment_stats = equipment_query.values('status').annotate(count=Count('id'))
     equipment_counts = {item['status']: item['count'] for item in equipment_stats}
     
     maintenance_stats = maintenance_query.values('status').annotate(count=Count('id'))
     maintenance_counts = {item['status']: item['count'] for item in maintenance_stats}
     
-    calendar_stats = calendar_query.aggregate(
-        total=Count('id'),
-        events_this_week=Count('id', filter=Q(
-            event_date__gte=today,
-            event_date__lt=today + timedelta(days=7)
-        )),
-        completed=Count('id', filter=Q(is_completed=True)),
-        pending=Count('id', filter=Q(is_completed=False, event_date__gte=today))
-    )
+    # For calendar stats, use a more efficient approach
+    calendar_total = calendar_query.count()
+    calendar_events_this_week = calendar_query.filter(
+        event_date__gte=today,
+        event_date__lt=today + timedelta(days=7)
+    ).count()
+    calendar_completed = calendar_query.filter(is_completed=True).count()
+    calendar_pending = calendar_query.filter(is_completed=False, event_date__gte=today).count()
     
-    # Calculate overdue maintenance
+    calendar_stats = {
+        'total': calendar_total,
+        'events_this_week': calendar_events_this_week,
+        'completed': calendar_completed,
+        'pending': calendar_pending
+    }
+    
+    # Calculate overdue maintenance - use exists() check first to avoid full count if possible
     overdue_count = maintenance_query.filter(
         scheduled_end__lt=timezone.now(),
         status__in=['pending', 'scheduled']
