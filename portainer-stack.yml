@@ -216,57 +216,7 @@ services:
         reservations:
           memory: 512M
 
-  celery-beat:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-      args:
-        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-414}
-        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-11e13c5}
-        GIT_BRANCH: ${GIT_BRANCH:-latest}
-        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-2025-09-02}
-    container_name: maintenance_celery_beat_prod
-    entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
-    command: ["celery-beat"]
-    environment:
-      - DEBUG=${DEBUG:-False}
-      - SECRET_KEY=${SECRET_KEY:-django-production-secret-key-change-this-immediately-2024}
-      - DB_NAME=${DB_NAME:-maintenance_dashboard_prod}
-      - DB_USER=${DB_USER:-maintenance_user}
-      - DB_PASSWORD=${DB_PASSWORD:-SecureProdPassword2024!}
-      - DB_HOST=db
-      - DB_PORT=5432
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-SecureProdPassword2024!}
-      - REDIS_URL=redis://redis:6379/0
-      # Celery Beat Production Settings
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      # Migration Conflict Resolution
-      - MIGRATION_CONFLICT_RESOLUTION=True
-      - MAX_RETRIES=30
-      - RETRY_DELAY=5
-      - SKIP_DB_INIT=False
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - maintenance_network
-    healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'celery.*beat' || exit 1"]
-      interval: 30s
-      timeout: 15s
-      retries: 5
-      start_period: 90s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
+  # celery-beat removed - now runs in the same container as celery worker using --beat flag
 
 networks:
   maintenance_network:

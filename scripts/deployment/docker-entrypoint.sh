@@ -390,10 +390,12 @@ main() {
     # Start application
     if [ "$1" = "web" ] || [ "$1" = "gunicorn" ]; then
         exec gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 maintenance_dashboard.wsgi:application
-    elif [ "$1" = "celery" ]; then
-        exec celery -A maintenance_dashboard worker --loglevel=info
-    elif [ "$1" = "celery-beat" ]; then
-        exec celery -A maintenance_dashboard beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+elif [ "$1" = "celery" ]; then
+    # Run both worker and beat in the same process to reduce container count
+    exec celery -A maintenance_dashboard worker --beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+elif [ "$1" = "celery-beat" ]; then
+    # Legacy support - but celery command now handles both
+    exec celery -A maintenance_dashboard beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     else
         exec "$@"
     fi

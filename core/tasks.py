@@ -32,10 +32,10 @@ def celery_beat_heartbeat():
 #         log.started_at = timezone.now()
 #         log.save(update_fields=['status', 'started_at'])
         
-        # Run the natural language test using our new orchestrator
-        # We need to run this in an event loop since it's async
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+#         # Run the natural language test using our new orchestrator
+#         # We need to run this in an event loop since it's async
+#         loop = asyncio.new_event_loop()
+#         asyncio.set_event_loop(loop)
         
         try:
             result = loop.run_until_complete(
