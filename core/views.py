@@ -127,41 +127,42 @@ def dashboard(request):
     
     # Build optimized base queries with proper joins
     if selected_site:
-        # Site-specific queries with optimized joins
+        # Site-specific queries with optimized joins and limits
         site_filter = Q(location__parent_location=selected_site) | Q(location=selected_site)
-        equipment_query = Equipment.objects.filter(site_filter).select_related('location', 'category')
+        equipment_query = Equipment.objects.filter(site_filter).select_related('location', 'category')[:500]  # Limit equipment
         
         maintenance_site_filter = Q(equipment__location__parent_location=selected_site) | Q(equipment__location=selected_site)
         maintenance_query = MaintenanceActivity.objects.filter(maintenance_site_filter).select_related(
             'equipment', 'equipment__location', 'equipment__category', 'assigned_to'
-        )
+        )[:1000]  # Limit maintenance activities
         
         calendar_site_filter = Q(equipment__location__parent_location=selected_site) | Q(equipment__location=selected_site)
         calendar_query = CalendarEvent.objects.filter(calendar_site_filter).select_related(
             'equipment', 'equipment__location', 'assigned_to'
-        )
+        )[:500]  # Limit calendar events
         
         # Get locations (pods) with natural sorting and prefetch related data
+        # Limit prefetch to avoid loading excessive data
         locations_queryset = Location.objects.filter(
             parent_location=selected_site,
             is_active=True
         ).select_related('parent_location', 'customer').prefetch_related(
-            Prefetch('equipment', queryset=Equipment.objects.select_related('category')),
+            Prefetch('equipment', queryset=Equipment.objects.select_related('category')[:50]),  # Limit equipment per location
             Prefetch('equipment__maintenance_activities', 
-                    queryset=MaintenanceActivity.objects.select_related('assigned_to'))
+                    queryset=MaintenanceActivity.objects.select_related('assigned_to').order_by('-scheduled_start')[:10])  # Limit activities per equipment
         )
-        locations = list(locations_queryset)
+        locations = list(locations_queryset[:100])  # Limit total locations
         locations.sort(key=lambda loc: natural_sort_key(loc.name))
         
     else:
-        # Global queries
-        equipment_query = Equipment.objects.select_related('location', 'category')
+        # Global queries - add limits to prevent loading all data
+        equipment_query = Equipment.objects.select_related('location', 'category')[:500]  # Limit equipment
         maintenance_query = MaintenanceActivity.objects.select_related(
             'equipment', 'equipment__location', 'equipment__category', 'assigned_to'
-        )
+        )[:1000]  # Limit maintenance activities
         calendar_query = CalendarEvent.objects.select_related(
             'equipment', 'equipment__location', 'assigned_to'
-        )
+        )[:500]  # Limit calendar events
         
         # Show top-level locations if no site selected
         locations_queryset = Location.objects.filter(
