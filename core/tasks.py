@@ -31,52 +31,52 @@ def celery_beat_heartbeat():
 #         log.status = 'running'
 #         log.started_at = timezone.now()
 #         log.save(update_fields=['status', 'started_at'])
-        
+#         
 #         # Run the natural language test using our new orchestrator
 #         # We need to run this in an event loop since it's async
 #         loop = asyncio.new_event_loop()
 #         asyncio.set_event_loop(loop)
-        
-        try:
-            result = loop.run_until_complete(
-                run_natural_language_test(
-                    prompt=log.prompt,
-                    user_role='admin',  # Default to admin for now
-                    username='admin',
-                    password='temppass123'
-                )
-            )
-            
-            # Store results
-            log.output = json.dumps(result, indent=2)
-            log.result_json = result
-            
-            if result.get('success', False):
-                log.status = 'done'
-            else:
-                log.status = 'error'
-                log.error_message = result.get('error', 'Test failed')
-                
-        finally:
-            loop.close()
-            
-    except PlaywrightDebugLog.DoesNotExist:
-        logger.error(f"PlaywrightDebugLog with id {log_id} not found")
-        return
-    except Exception as e:
-        logger.error(f"Playwright debug task failed: {e}")
-        try:
-            log.status = 'error'
-            log.error_message = str(e)
-        except Exception as save_error:
-            logger.error(f"Failed to update log status: {save_error}")
-    
-    finally:
-        try:
-            log.finished_at = timezone.now()
-            log.save()
-        except Exception as save_error:
-            logger.error(f"Failed to save log finished time: {save_error}")
+#         
+#         try:
+#             result = loop.run_until_complete(
+#                 run_natural_language_test(
+#                     prompt=log.prompt,
+#                     user_role='admin',  # Default to admin for now
+#                     username='admin',
+#                     password='temppass123'
+#                 )
+#             )
+#             
+#             # Store results
+#             log.output = json.dumps(result, indent=2)
+#             log.result_json = result
+#             
+#             if result.get('success', False):
+#                 log.status = 'done'
+#             else:
+#                 log.status = 'error'
+#                 log.error_message = result.get('error', 'Test failed')
+#                 
+#         finally:
+#             loop.close()
+#             
+#     except PlaywrightDebugLog.DoesNotExist:
+#         logger.error(f"PlaywrightDebugLog with id {log_id} not found")
+#         return
+#     except Exception as e:
+#         logger.error(f"Playwright debug task failed: {e}")
+#         try:
+#             log.status = 'error'
+#             log.error_message = str(e)
+#         except Exception as save_error:
+#             logger.error(f"Failed to update log status: {save_error}")
+#     
+#     finally:
+#         try:
+#             log.finished_at = timezone.now()
+#             log.save()
+#         except Exception as save_error:
+#             logger.error(f"Failed to save log finished time: {save_error}")
 
 # DEPRECATED - Playwright RBAC test suite removed
 # @shared_task
