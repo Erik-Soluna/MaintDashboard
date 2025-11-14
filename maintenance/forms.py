@@ -302,12 +302,21 @@ class MaintenanceActivityForm(forms.ModelForm):
         timezone_str = cleaned_data.get('timezone')
         
         # Handle timezone conversion for datetime-local inputs
-        if scheduled_start and timezone_str:
-            scheduled_start = self._convert_to_timezone(scheduled_start, timezone_str)
+        # Always make datetimes timezone-aware to avoid naive datetime warnings
+        if scheduled_start:
+            if timezone_str:
+                scheduled_start = self._convert_to_timezone(scheduled_start, timezone_str)
+            elif timezone.is_naive(scheduled_start):
+                # If no timezone provided, assume UTC
+                scheduled_start = timezone.make_aware(scheduled_start, timezone.utc)
             cleaned_data['scheduled_start'] = scheduled_start
             
-        if scheduled_end and timezone_str:
-            scheduled_end = self._convert_to_timezone(scheduled_end, timezone_str)
+        if scheduled_end:
+            if timezone_str:
+                scheduled_end = self._convert_to_timezone(scheduled_end, timezone_str)
+            elif timezone.is_naive(scheduled_end):
+                # If no timezone provided, assume UTC
+                scheduled_end = timezone.make_aware(scheduled_end, timezone.utc)
             cleaned_data['scheduled_end'] = scheduled_end
         
         if scheduled_start and scheduled_end:
