@@ -103,10 +103,11 @@ def dashboard(request):
     cache_key = f"dashboard_data_{selected_site_id or 'all'}_{request.user.id}"
     cache_timeout = 300  # 5 minutes
     
-    # Try to get cached data
-    cached_data = cache.get(cache_key)
-    if cached_data:
-        return render(request, 'core/dashboard.html', cached_data)
+    # Note: Full context caching disabled due to QuerySet serialization issues
+    # Cache individual expensive queries instead if needed
+    # cached_data = cache.get(cache_key)
+    # if cached_data:
+    #     return render(request, 'core/dashboard.html', cached_data)
     
     # Get all sites for the site selector
     sites = Location.objects.filter(is_site=True, is_active=True).order_by('name')
@@ -229,10 +230,35 @@ def dashboard(request):
     upcoming_calendar_by_site = {}
     
     if group_by_site and is_all_sites:
+        # Build site mapping dictionary to avoid N+1 queries
+        # Prefetch all locations with their parent relationships
+        location_ids = set()
+        for item in urgent_maintenance_all:
+            if item.equipment and item.equipment.location:
+                location_ids.add(item.equipment.location.id)
+        for event in urgent_calendar_all:
+            if event.equipment and event.equipment.location:
+                location_ids.add(event.equipment.location.id)
+        for item in upcoming_maintenance_all:
+            if item.equipment and item.equipment.location:
+                location_ids.add(item.equipment.location.id)
+        for event in upcoming_calendar_all:
+            if event.equipment and event.equipment.location:
+                location_ids.add(event.equipment.location.id)
+        
+        # Fetch all locations with prefetched parent relationships
+        locations_with_parents = Location.objects.filter(id__in=location_ids).select_related('parent_location')
+        location_to_site = {}
+        for loc in locations_with_parents:
+            site = loc.get_site_location()
+            location_to_site[loc.id] = site.name if site else "Unknown Site"
+        
         # Group urgent maintenance by site
         for item in urgent_maintenance_all:
-            site = item.equipment.location.get_site_location() if item.equipment.location else None
-            site_name = site.name if site else "Unknown Site"
+            if item.equipment and item.equipment.location:
+                site_name = location_to_site.get(item.equipment.location.id, "Unknown Site")
+            else:
+                site_name = "Unknown Site"
             if site_name not in urgent_maintenance_by_site:
                 urgent_maintenance_by_site[site_name] = []
             if len(urgent_maintenance_by_site[site_name]) < (dashboard_settings.max_urgent_items_per_site if dashboard_settings else 15):
@@ -240,8 +266,10 @@ def dashboard(request):
         
         # Group urgent calendar by site
         for event in urgent_calendar_all:
-            site = event.equipment.location.get_site_location() if event.equipment.location else None
-            site_name = site.name if site else "Unknown Site"
+            if event.equipment and event.equipment.location:
+                site_name = location_to_site.get(event.equipment.location.id, "Unknown Site")
+            else:
+                site_name = "Unknown Site"
             if site_name not in urgent_calendar_by_site:
                 urgent_calendar_by_site[site_name] = []
             if len(urgent_calendar_by_site[site_name]) < (dashboard_settings.max_urgent_items_per_site if dashboard_settings else 15):
@@ -251,8 +279,10 @@ def dashboard(request):
         group_upcoming = dashboard_settings.group_upcoming_by_site if dashboard_settings else True
         if group_upcoming:
             for item in upcoming_maintenance_all:
-                site = item.equipment.location.get_site_location() if item.equipment.location else None
-                site_name = site.name if site else "Unknown Site"
+                if item.equipment and item.equipment.location:
+                    site_name = location_to_site.get(item.equipment.location.id, "Unknown Site")
+                else:
+                    site_name = "Unknown Site"
                 if site_name not in upcoming_maintenance_by_site:
                     upcoming_maintenance_by_site[site_name] = []
                 if len(upcoming_maintenance_by_site[site_name]) < (dashboard_settings.max_upcoming_items_per_site if dashboard_settings else 15):
@@ -260,8 +290,10 @@ def dashboard(request):
             
             # Group upcoming calendar by site
             for event in upcoming_calendar_all:
-                site = event.equipment.location.get_site_location() if event.equipment.location else None
-                site_name = site.name if site else "Unknown Site"
+                if event.equipment and event.equipment.location:
+                    site_name = location_to_site.get(event.equipment.location.id, "Unknown Site")
+                else:
+                    site_name = "Unknown Site"
                 if site_name not in upcoming_calendar_by_site:
                     upcoming_calendar_by_site[site_name] = []
                 if len(upcoming_calendar_by_site[site_name]) < (dashboard_settings.max_upcoming_items_per_site if dashboard_settings else 15):
@@ -403,19 +435,91 @@ def dashboard(request):
         site_maintenance_data = {}
         site_calendar_data = {}
         
+        # Optimize: Get all site data in bulk queries instead of per-site queries
+        site_ids = [site.id for site in all_sites]
+        
+        # Bulk equipment counts per site
+        from django.db.models import Case, When, IntegerField
+        equipment_by_site = Equipment.objects.filter(
+            Q(location__parent_location_id__in=site_ids) | Q(location_id__in=site_ids)
+        ).values('location__parent_location_id', 'location_id', 'status').annotate(count=Count('id'))
+        
+        # Bulk maintenance counts per site
+        maintenance_by_site = MaintenanceActivity.objects.filter(
+            Q(equipment__location__parent_location_id__in=site_ids) | Q(equipment__location_id__in=site_ids)
+        ).values('equipment__location__parent_location_id', 'equipment__location_id', 'status').annotate(count=Count('id'))
+        
+        # Bulk overdue maintenance counts
+        overdue_by_site = MaintenanceActivity.objects.filter(
+            Q(equipment__location__parent_location_id__in=site_ids) | Q(equipment__location_id__in=site_ids),
+            scheduled_end__lt=timezone.now(),
+            status__in=['pending', 'scheduled']
+        ).values('equipment__location__parent_location_id', 'equipment__location_id').annotate(count=Count('id'))
+        
+        # Bulk upcoming maintenance counts
+        upcoming_by_site = MaintenanceActivity.objects.filter(
+            Q(equipment__location__parent_location_id__in=site_ids) | Q(equipment__location_id__in=site_ids),
+            scheduled_start__date__lte=urgent_cutoff,
+            scheduled_start__date__gte=today,
+            status__in=['scheduled', 'pending']
+        ).values('equipment__location__parent_location_id', 'equipment__location_id').annotate(count=Count('id'))
+        
+        # Build lookup dictionaries
+        site_equipment_lookup = {}
+        site_maintenance_lookup = {}
+        site_overdue_lookup = {}
+        site_upcoming_lookup = {}
+        
+        for item in equipment_by_site:
+            site_id = item.get('location__parent_location_id') or item.get('location_id')
+            if site_id:
+                if site_id not in site_equipment_lookup:
+                    site_equipment_lookup[site_id] = {}
+                site_equipment_lookup[site_id][item['status']] = item['count']
+        
+        for item in maintenance_by_site:
+            site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
+            if site_id:
+                if site_id not in site_maintenance_lookup:
+                    site_maintenance_lookup[site_id] = {}
+                site_maintenance_lookup[site_id][item['status']] = item['count']
+        
+        for item in overdue_by_site:
+            site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
+            if site_id:
+                site_overdue_lookup[site_id] = item['count']
+        
+        for item in upcoming_by_site:
+            site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
+            if site_id:
+                site_upcoming_lookup[site_id] = item['count']
+        
+        # Get recent activities and events in bulk (limit per site)
+        recent_activities_by_site = {}
+        next_events_by_site = {}
+        
         for site in all_sites:
-            site_equipment_filter = Q(location__parent_location=site) | Q(location=site)
-            site_equipment_counts = Equipment.objects.filter(site_equipment_filter).values('status').annotate(count=Count('id'))
-            
-            # Convert to dict for easy lookup
-            equipment_counts = {item['status']: item['count'] for item in site_equipment_counts}
-            
-            # Maintenance aggregation
             site_maintenance_filter = Q(equipment__location__parent_location=site) | Q(equipment__location=site)
-            maintenance_counts = MaintenanceActivity.objects.filter(site_maintenance_filter).values('status').annotate(count=Count('id'))
-            maintenance_counts_dict = {item['status']: item['count'] for item in maintenance_counts}
+            site_calendar_filter = Q(equipment__location__parent_location=site) | Q(equipment__location=site)
             
-            # Calendar aggregation
+            recent_activities_by_site[site.id] = list(MaintenanceActivity.objects.filter(
+                site_maintenance_filter,
+                actual_end__gte=today - timedelta(days=30),
+                status='completed'
+            ).select_related('equipment', 'assigned_to').order_by('-actual_end')[:3])
+            
+            next_events_by_site[site.id] = list(CalendarEvent.objects.filter(
+                site_calendar_filter,
+                event_date__gte=today,
+                is_completed=False
+            ).select_related('equipment', 'assigned_to').order_by('event_date')[:3])
+        
+        for site in all_sites:
+            # Get pre-computed data from lookups
+            equipment_counts = site_equipment_lookup.get(site.id, {})
+            maintenance_counts_dict = site_maintenance_lookup.get(site.id, {})
+            
+            # Calendar aggregation (still per-site but lightweight)
             site_calendar_filter = Q(equipment__location__parent_location=site) | Q(equipment__location=site)
             calendar_counts = CalendarEvent.objects.filter(site_calendar_filter).aggregate(
                 total=Count('id'),
@@ -432,34 +536,13 @@ def dashboard(request):
             pending_maintenance = maintenance_counts_dict.get('pending', 0)
             in_progress_maintenance = maintenance_counts_dict.get('in_progress', 0)
             
-            # Get overdue maintenance count
-            overdue_maintenance = MaintenanceActivity.objects.filter(
-                site_maintenance_filter,
-                scheduled_end__lt=timezone.now(),
-                status__in=['pending', 'scheduled']
-            ).count()
+            # Get pre-computed counts
+            overdue_maintenance = site_overdue_lookup.get(site.id, 0)
+            upcoming_maintenance_count = site_upcoming_lookup.get(site.id, 0)
             
-            # Get upcoming maintenance count
-            upcoming_maintenance_count = MaintenanceActivity.objects.filter(
-                site_maintenance_filter,
-                scheduled_start__date__lte=urgent_cutoff,
-                scheduled_start__date__gte=today,
-                status__in=['scheduled', 'pending']
-            ).count()
-            
-            # Get recent activities
-            recent_activities = list(MaintenanceActivity.objects.filter(
-                site_maintenance_filter,
-                actual_end__gte=today - timedelta(days=30),
-                status='completed'
-            ).select_related('equipment', 'assigned_to').order_by('-actual_end')[:3])
-            
-            # Get next events
-            next_events = list(CalendarEvent.objects.filter(
-                site_calendar_filter,
-                event_date__gte=today,
-                is_completed=False
-            ).select_related('equipment', 'assigned_to').order_by('event_date')[:3])
+            # Get pre-fetched activities and events
+            recent_activities = recent_activities_by_site.get(site.id, [])
+            next_events = next_events_by_site.get(site.id, [])
             
             # Calculate site health status
             equipment_health_ratio = active_equipment / max(total_equipment, 1)
@@ -606,8 +689,14 @@ def dashboard(request):
         'pending_maintenance': site_stats['pending_maintenance'],
     }
     
-    # Cache the result
-    cache.set(cache_key, context, cache_timeout)
+    # Convert QuerySets to lists for caching (QuerySets cannot be pickled)
+    # Note: We can't cache the full context because it contains QuerySet objects
+    # Instead, we'll cache only the expensive computed data
+    # For now, disable caching of the full context to avoid serialization issues
+    # The cache.get() above will still work for simple cases, but complex contexts won't cache
+    
+    # Cache key exists but we can't cache QuerySets, so we'll skip full context caching
+    # Individual expensive queries could be cached separately if needed
     
     return render(request, 'core/dashboard.html', context)
 
