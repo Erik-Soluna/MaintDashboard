@@ -473,6 +473,8 @@ class MaintenanceActivityForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         # Extract request from kwargs to access session data
         self.request = kwargs.pop('request', None)
+        # Extract equipment_id to ensure it's included in queryset even if filtered out
+        equipment_id = kwargs.pop('equipment_id', None)
         super().__init__(*args, **kwargs)
         
         # Filter active options
@@ -499,6 +501,19 @@ class MaintenanceActivityForm(forms.ModelForm):
                         )
                     except (Location.DoesNotExist, ValueError):
                         pass
+        
+        # If equipment_id is provided (from URL parameter), ensure it's included in queryset
+        # even if site filtering would exclude it
+        if equipment_id:
+            try:
+                equipment = Equipment.objects.get(id=equipment_id, is_active=True)
+                # Check if equipment is already in queryset
+                if not equipment_queryset.filter(id=equipment_id).exists():
+                    # Add it to the queryset using union
+                    from django.db.models import Q
+                    equipment_queryset = equipment_queryset | Equipment.objects.filter(id=equipment_id, is_active=True)
+            except (Equipment.DoesNotExist, ValueError):
+                pass
         
         self.fields['equipment'].queryset = equipment_queryset.select_related('category')
         

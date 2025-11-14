@@ -47,6 +47,7 @@ urlpatterns = [
     path('debug/clear-database/', views.clear_database, name='clear_database'),
     path('debug/populate-demo/', views.populate_demo_data, name='populate_demo_data'),
     path('debug/generate-pods/', views.generate_pods, name='generate_pods'),
+    path('debug/generate-mdcs/', views.generate_mdcs, name='generate_mdcs'),
     path('docker/containers/', views.get_docker_containers_api, name='get_docker_containers'),
     path('docker/logs/', views.get_docker_logs_api, name='get_docker_logs'),
     path('docker/aggregated-logs/', views.get_aggregated_logs_api, name='get_aggregated_logs'),
@@ -55,6 +56,9 @@ urlpatterns = [
     path('locations/<int:location_id>/delete/', views.delete_location, name='delete_location'),
     path('locations/<int:location_id>/edit/', views.edit_location, name='edit_location'),
     path('locations/add/', views.add_location, name='add_location'),
+    
+    # Dashboard Settings
+    path('dashboard/settings/', views.dashboard_settings, name='dashboard_settings'),
     
     # Customer management URLs
     path('customers/settings/', views.customers_settings, name='customers_settings'),

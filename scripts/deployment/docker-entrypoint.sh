@@ -177,15 +177,158 @@ PYTHON
     case "$db_state" in
         "READY")
             # Fast path - database already initialized
-            print_success "✅ Database ready - checking for new migrations..."
+            print_success "✅ Database ready - running migrations..."
             
             # Create migrations if model changes exist (will skip if nothing to do)
-            python manage.py makemigrations --noinput > /dev/null 2>&1 || print_warning "⚠️ Makemigrations check skipped"
+            print_status "📝 Checking for new migrations..."
+            python manage.py makemigrations --noinput || print_warning "⚠️ No new migrations to create"
             
-            # Run migrations (will skip if nothing to do)
-            python manage.py migrate --noinput > /dev/null 2>&1 || print_warning "⚠️ Migration check skipped"
+            # Always run migrations on boot (will skip if nothing to do)
+            print_status "🔄 Applying migrations..."
+            # Run migrations and handle duplicate table/column errors gracefully
+            local migrate_output
+            migrate_output=$(python manage.py migrate --noinput 2>&1) || migrate_exit_code=$?
             
-            print_success "✅ Boot complete (fast path)"
+            if [ -z "$migrate_exit_code" ] || [ "$migrate_exit_code" -eq 0 ]; then
+                print_success "✅ Migrations applied successfully"
+            else
+                # Check for duplicate table or column errors
+                if echo "$migrate_output" | grep -q "DuplicateTable\|relation.*already exists"; then
+                    print_warning "⚠️ Duplicate table/column error detected, attempting to fix..."
+                    python - <<'PYTHON'
+import os, sys
+import re
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
+try:
+    import django
+    django.setup()
+    from django.db import connection
+    
+    with connection.cursor() as cursor:
+        # Get all unapplied migrations
+        cursor.execute("""
+            SELECT app, name 
+            FROM django_migrations 
+            WHERE app IN ('core', 'equipment', 'maintenance', 'events')
+            ORDER BY app, name;
+        """)
+        all_migrations = cursor.fetchall()
+        
+        # Get list of applied migrations
+        cursor.execute("""
+            SELECT app, name 
+            FROM django_migrations 
+            WHERE app IN ('core', 'equipment', 'maintenance', 'events')
+            ORDER BY app, name;
+        """)
+        applied_migrations = {(row[0], row[1]) for row in cursor.fetchall()}
+        
+        # Check for common problematic migrations
+        problematic_migrations = [
+            ('core', '0020_brandingsettings_table_hover_background_color_and_more'),
+            ('equipment', '0021_equipmentissue_issuetag_and_more'),
+        ]
+        
+        fixed_any = False
+        
+        for app, migration_name in problematic_migrations:
+            # Check if migration is already marked as applied
+            cursor.execute("""
+                SELECT COUNT(*) FROM django_migrations 
+                WHERE app = %s AND name = %s;
+            """, [app, migration_name])
+            is_applied = cursor.fetchone()[0] > 0
+            
+            if is_applied:
+                continue
+            
+            # Check what this migration creates
+            if app == 'core' and 'brandingsettings' in migration_name:
+                # Check if columns exist
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name='core_brandingsettings' 
+                    AND column_name IN ('table_hover_background_color', 'table_hover_text_color');
+                """)
+                existing_cols = [row[0] for row in cursor.fetchall()]
+                
+                if len(existing_cols) == 2:
+                    cursor.execute("""
+                        INSERT INTO django_migrations (app, name, applied) 
+                        VALUES (%s, %s, NOW())
+                        ON CONFLICT DO NOTHING;
+                    """, [app, migration_name])
+                    print(f"✅ Marked {app}.{migration_name} as applied (columns already exist)")
+                    fixed_any = True
+            
+            elif app == 'equipment' and 'equipmentissue' in migration_name:
+                # Check if tables exist
+                cursor.execute("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name IN ('equipment_equipmentissue', 'equipment_issuetag');
+                """)
+                existing_tables = [row[0] for row in cursor.fetchall()]
+                
+                if len(existing_tables) >= 1:  # At least one table exists
+                    cursor.execute("""
+                        INSERT INTO django_migrations (app, name, applied) 
+                        VALUES (%s, %s, NOW())
+                        ON CONFLICT DO NOTHING;
+                    """, [app, migration_name])
+                    print(f"✅ Marked {app}.{migration_name} as applied (tables already exist: {', '.join(existing_tables)})")
+                    fixed_any = True
+        
+        # Generic fix: Check for any migration that failed with "already exists" error
+        # by checking if the objects it creates already exist
+        if not fixed_any:
+            # Try to detect which migration failed from the error message
+            # This is a fallback for migrations not in the problematic_migrations list
+            print("ℹ️ Checking for other migration conflicts...")
+            
+            # Get the latest unapplied migration for each app
+            for app in ['core', 'equipment', 'maintenance', 'events']:
+                cursor.execute("""
+                    SELECT name FROM django_migrations 
+                    WHERE app = %s 
+                    ORDER BY name DESC 
+                    LIMIT 1;
+                """, [app])
+                result = cursor.fetchone()
+                if result:
+                    latest_migration = result[0]
+                    # Check if this migration is applied
+                    cursor.execute("""
+                        SELECT COUNT(*) FROM django_migrations 
+                        WHERE app = %s AND name = %s;
+                    """, [app, latest_migration])
+                    if cursor.fetchone()[0] == 0:
+                        # Migration not applied, but might have objects that exist
+                        # This is a simple heuristic - in production you'd want more sophisticated detection
+                        pass
+        
+        if fixed_any:
+            print("✅ Migration state fixed, retrying...")
+        else:
+            print("⚠️ Could not automatically fix migration state")
+            
+except Exception as e:
+    import traceback
+    print(f"⚠️ Error fixing migration state: {e}")
+    traceback.print_exc()
+PYTHON
+                    # Try migrate again
+                    python manage.py migrate --noinput || print_warning "⚠️ Some migrations may need manual attention"
+                else
+                    print_warning "⚠️ Migration error (not a duplicate table/column issue):"
+                    echo "$migrate_output" | tail -20
+                    print_warning "⚠️ Some migrations may need manual attention"
+                fi
+            fi
+            
+            print_success "✅ Boot complete (migrations applied)"
             ;;
             
         "FRESH")

@@ -32,7 +32,7 @@ except ImportError:
     PyPDF2 = None
     PYPDF2_AVAILABLE = False
 
-from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentIssue
+from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentIssue, EquipmentFieldConfiguration
 from core.models import EquipmentCategory, Location
 from core.logging_utils import log_error, log_view_access, log_api_call
 from maintenance.models import MaintenanceReport
@@ -318,6 +318,19 @@ def equipment_detail(request, equipment_id):
     # Get custom fields grouped by field group
     custom_fields_by_group = equipment.get_custom_fields_by_group()
     
+    # Get configured fields organized by group
+    configured_fields = None
+    try:
+        from equipment.models import get_configured_fields_for_equipment
+        configured_fields = get_configured_fields_for_equipment(equipment)
+    except Exception:
+        # Table doesn't exist yet - use default structure
+        configured_fields = {
+            'basic': [],
+            'technical': [],
+            'hidden': [],
+        }
+    
     # Get maintenance activities for the maintenance tab
     maintenance_activities = equipment.maintenance_activities.all().order_by('-scheduled_start')[:10]
     
@@ -350,6 +363,7 @@ def equipment_detail(request, equipment_id):
         'cancelled_count': cancelled_count,
         'maintenance_docs_count': maintenance_docs_count,
         'custom_fields_by_group': custom_fields_by_group,
+        'configured_fields': configured_fields,
         'maintenance_activities': maintenance_activities,
         'maintenance_reports': maintenance_reports,
         'components': components,
@@ -361,6 +375,166 @@ def equipment_detail(request, equipment_id):
     }
     
     return render(request, 'equipment/equipment_detail.html', context)
+
+
+@login_required
+def equipment_kpi_tracker(request, equipment_id):
+    """KPI tracker for a specific equipment with timeline visualization."""
+    from maintenance.models import MaintenanceActivity
+    from equipment.models import EquipmentIssue
+    from django.utils import timezone
+    from django.db.models import Avg, Sum, Count, Q
+    from datetime import timedelta
+    
+    equipment = get_object_or_404(
+        Equipment.objects.select_related('category', 'location'),
+        id=equipment_id
+    )
+    
+    # Get all maintenance activities for this equipment
+    all_activities = equipment.maintenance_activities.all().order_by('scheduled_start')
+    completed_activities = all_activities.filter(status='completed')
+    
+    # Calculate KPIs
+    total_activities = all_activities.count()
+    completed_count = completed_activities.count()
+    completion_rate = (completed_count / total_activities * 100) if total_activities > 0 else 0
+    
+    # On-time completion rate (completed within scheduled window)
+    on_time_count = 0
+    for activity in completed_activities:
+        if activity.actual_end and activity.scheduled_end:
+            # Consider on-time if completed within 24 hours of scheduled end
+            if activity.actual_end <= activity.scheduled_end + timedelta(hours=24):
+                on_time_count += 1
+    on_time_rate = (on_time_count / completed_count * 100) if completed_count > 0 else 0
+    
+    # Average maintenance duration
+    avg_duration = None
+    durations = []
+    for activity in completed_activities:
+        if activity.actual_start and activity.actual_end:
+            duration = (activity.actual_end - activity.actual_start).total_seconds() / 3600  # hours
+            durations.append(duration)
+    if durations:
+        avg_duration = sum(durations) / len(durations)
+    
+    # Average time between maintenance (MTBF - Mean Time Between Failures/Maintenance)
+    avg_time_between = None
+    if completed_activities.count() >= 2:
+        activities_sorted = list(completed_activities.order_by('actual_end'))
+        intervals = []
+        for i in range(1, len(activities_sorted)):
+            if activities_sorted[i].actual_end and activities_sorted[i-1].actual_end:
+                interval = (activities_sorted[i].actual_end - activities_sorted[i-1].actual_end).days
+                intervals.append(interval)
+        if intervals:
+            avg_time_between = sum(intervals) / len(intervals)
+    
+    # Total downtime (sum of all maintenance durations)
+    total_downtime_hours = sum(durations) if durations else 0
+    
+    # Uptime calculation (if equipment has commissioning date)
+    uptime_percentage = None
+    if equipment.commissioning_date:
+        total_days = (timezone.now().date() - equipment.commissioning_date).days
+        if total_days > 0:
+            downtime_days = total_downtime_hours / 24
+            uptime_days = total_days - downtime_days
+            uptime_percentage = (uptime_days / total_days * 100) if total_days > 0 else 100
+    
+    # Issue statistics
+    all_issues = equipment.issues.all()
+    open_issues = all_issues.filter(status='open').count()
+    resolved_issues = all_issues.filter(status='resolved').count()
+    critical_issues = all_issues.filter(severity='critical', status__in=['open', 'in_progress']).count()
+    
+    # Recent activity (last 12 months)
+    twelve_months_ago = timezone.now() - timedelta(days=365)
+    recent_activities = all_activities.filter(scheduled_start__gte=twelve_months_ago)
+    recent_completed = recent_activities.filter(status='completed').count()
+    recent_completion_rate = (recent_completed / recent_activities.count() * 100) if recent_activities.count() > 0 else 0
+    
+    # Overdue activities
+    overdue_count = all_activities.filter(
+        status__in=['scheduled', 'pending', 'in_progress'],
+        scheduled_end__lt=timezone.now()
+    ).count()
+    
+    # Build timeline data for visualization
+    timeline_events = []
+    
+    # Add maintenance activities to timeline
+    for activity in all_activities.order_by('scheduled_start'):
+        timeline_events.append({
+            'type': 'maintenance',
+            'title': activity.title or activity.activity_type.name if activity.activity_type else 'Maintenance',
+            'description': activity.description or '',
+            'timestamp': activity.scheduled_start,
+            'status': activity.status,
+            'priority': activity.priority,
+            'scheduled_end': activity.scheduled_end,
+            'actual_start': activity.actual_start,
+            'actual_end': activity.actual_end,
+            'id': activity.id,
+        })
+    
+    # Add issues to timeline
+    for issue in all_issues.order_by('created_at'):
+        timeline_events.append({
+            'type': 'issue',
+            'title': issue.title,
+            'description': issue.description or '',
+            'timestamp': issue.created_at,
+            'status': issue.status,
+            'severity': issue.severity,
+            'resolved_at': issue.resolved_at,
+            'id': issue.id,
+        })
+    
+    # Sort timeline by timestamp
+    timeline_events.sort(key=lambda x: x['timestamp'], reverse=True)
+    
+    # Monthly activity count for chart
+    monthly_data = {}
+    for activity in completed_activities:
+        if activity.actual_end:
+            month_key = activity.actual_end.strftime('%Y-%m')
+            monthly_data[month_key] = monthly_data.get(month_key, 0) + 1
+    
+    # Status distribution
+    status_distribution = {}
+    for activity in all_activities:
+        status_distribution[activity.status] = status_distribution.get(activity.status, 0) + 1
+    
+    # Convert to JSON for template
+    import json
+    monthly_data_json = json.dumps(monthly_data)
+    status_distribution_json = json.dumps(status_distribution)
+    
+    context = {
+        'equipment': equipment,
+        'kpis': {
+            'total_activities': total_activities,
+            'completed_count': completed_count,
+            'completion_rate': round(completion_rate, 1),
+            'on_time_rate': round(on_time_rate, 1),
+            'avg_duration_hours': round(avg_duration, 2) if avg_duration else None,
+            'avg_time_between_days': round(avg_time_between, 1) if avg_time_between else None,
+            'total_downtime_hours': round(total_downtime_hours, 2),
+            'uptime_percentage': round(uptime_percentage, 2) if uptime_percentage else None,
+            'open_issues': open_issues,
+            'resolved_issues': resolved_issues,
+            'critical_issues': critical_issues,
+            'recent_completion_rate': round(recent_completion_rate, 1),
+            'overdue_count': overdue_count,
+        },
+        'timeline_events': timeline_events,
+        'monthly_data': monthly_data_json,
+        'status_distribution': status_distribution_json,
+    }
+    
+    return render(request, 'equipment/kpi_tracker.html', context)
 
 
 @login_required
@@ -408,15 +582,10 @@ def edit_equipment(request, equipment_id):
     if request.method == 'POST':
         form = DynamicEquipmentForm(request.POST, request.FILES, instance=equipment, request=request)
         if form.is_valid():
-            equipment = form.save(commit=False)
+            # form.save() handles custom fields automatically via DynamicEquipmentForm.save()
+            equipment = form.save()
             equipment.updated_by = request.user
             equipment.save()
-            
-            # Save custom field values
-            for field_name, value in form.cleaned_data.items():
-                if field_name.startswith('custom_'):
-                    custom_field_name = field_name[7:]  # Remove 'custom_' prefix
-                    equipment.set_custom_value(custom_field_name, value)
             
             messages.success(request, f'Equipment "{equipment.name}" updated successfully!')
             return redirect('equipment:equipment_detail', equipment_id=equipment.id)
@@ -427,6 +596,19 @@ def edit_equipment(request, equipment_id):
     sites = Location.objects.filter(is_site=True, is_active=True).prefetch_related('child_locations__child_locations').order_by('name')
     locations = Location.objects.filter(is_active=True).order_by('name')
     
+    # Get configured fields organized by group
+    configured_fields = None
+    try:
+        from equipment.models import get_configured_fields_for_equipment
+        configured_fields = get_configured_fields_for_equipment(equipment)
+    except Exception:
+        # Table doesn't exist yet - use default structure
+        configured_fields = {
+            'basic': [],
+            'technical': [],
+            'hidden': [],
+        }
+    
     context = {
         'form': form,
         'equipment': equipment,
@@ -434,6 +616,7 @@ def edit_equipment(request, equipment_id):
         'locations': locations,
         'sites': sites,
         'selected_location': equipment.location.id if equipment.location else None,
+        'configured_fields': configured_fields,
     }
     
     return render(request, 'equipment/edit_equipment.html', context)
@@ -1856,6 +2039,256 @@ def reorder_fields(request, category):
             'success': False,
             'message': f'Error reordering fields: {str(e)}'
         })
+
+
+@login_required
+@staff_member_required
+def get_field_data(request, field_id):
+    """Get field data for modal editing."""
+    from equipment.models import EquipmentCategoryConditionalField
+    
+    field = get_object_or_404(EquipmentCategoryField, id=field_id)
+    
+    # Get all categories this field is assigned to (via conditional fields)
+    assigned_categories = EquipmentCategoryConditionalField.objects.filter(
+        field=field,
+        is_active=True
+    ).values_list('target_category_id', 'target_category__name')
+    
+    return JsonResponse({
+        'success': True,
+        'field': {
+            'id': field.id,
+            'name': field.name,
+            'label': field.label,
+            'field_type': field.field_type,
+            'field_type_display': field.get_field_type_display(),
+            'required': field.required,
+            'help_text': field.help_text,
+            'choices': field.choices,
+            'field_group': field.field_group or 'General',
+            'category_id': field.category.id,
+            'category_name': field.category.name,
+            'assigned_categories': [{'id': cat_id, 'name': cat_name} for cat_id, cat_name in assigned_categories],
+        }
+    })
+
+
+@login_required
+@staff_member_required
+@require_http_methods(["POST"])
+def assign_field_to_categories(request):
+    """Assign a field to multiple categories."""
+    from equipment.models import EquipmentCategoryConditionalField, EquipmentCategory
+    from django.db import transaction
+    
+    try:
+        with transaction.atomic():
+            field_id = request.POST.get('field_id')
+            category_ids = request.POST.getlist('category_ids')  # List of category IDs
+            
+            field = get_object_or_404(EquipmentCategoryField, id=field_id)
+            source_category = field.category
+            
+            # Get all categories
+            categories = EquipmentCategory.objects.filter(id__in=category_ids, is_active=True)
+            
+            assigned = []
+            for category in categories:
+                if category.id == source_category.id:
+                    continue  # Skip source category
+                
+                # Create or update conditional field assignment
+                conditional, created = EquipmentCategoryConditionalField.objects.get_or_create(
+                    field=field,
+                    source_category=source_category,
+                    target_category=category,
+                    defaults={'is_active': True}
+                )
+                if not created:
+                    conditional.is_active = True
+                    conditional.save()
+                
+                assigned.append({
+                    'id': category.id,
+                    'name': category.name
+                })
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Field "{field.label}" assigned to {len(assigned)} category(ies)',
+                'assigned_categories': assigned
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error assigning field: {str(e)}'
+        })
+
+
+@login_required
+@staff_member_required
+@require_http_methods(["POST"])
+def unassign_field_from_category(request):
+    """Unassign a field from a category."""
+    from equipment.models import EquipmentCategoryConditionalField
+    from django.db import transaction
+    
+    try:
+        with transaction.atomic():
+            field_id = request.POST.get('field_id')
+            category_id = request.POST.get('category_id')
+            
+            conditional = get_object_or_404(
+                EquipmentCategoryConditionalField,
+                field_id=field_id,
+                target_category_id=category_id
+            )
+            
+            category_name = conditional.target_category.name
+            conditional.delete()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Field unassigned from "{category_name}"'
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error unassigning field: {str(e)}'
+        })
+
+
+@login_required
+@staff_member_required
+def field_configuration_settings(request):
+    """Settings page for configuring equipment field display, ordering, and grouping."""
+    from django.db import transaction
+    
+    # Standard equipment fields
+    STANDARD_FIELDS = [
+        {'name': 'name', 'label': 'Name', 'default_group': 'basic'},
+        {'name': 'category', 'label': 'Category', 'default_group': 'basic'},
+        {'name': 'location', 'label': 'Location', 'default_group': 'basic'},
+        {'name': 'manufacturer', 'label': 'Manufacturer', 'default_group': 'basic'},
+        {'name': 'model_number', 'label': 'Model Number', 'default_group': 'basic'},
+        {'name': 'manufacturer_serial', 'label': 'Serial Number', 'default_group': 'basic'},
+        {'name': 'asset_tag', 'label': 'Asset Tag', 'default_group': 'basic'},
+        {'name': 'status', 'label': 'Status', 'default_group': 'basic'},
+        {'name': 'power_ratings', 'label': 'Power Ratings', 'default_group': 'technical'},
+        {'name': 'trip_setpoints', 'label': 'Trip Setpoints', 'default_group': 'technical'},
+        {'name': 'commissioning_date', 'label': 'Commissioning Date', 'default_group': 'technical'},
+        {'name': 'warranty_expiry_date', 'label': 'Warranty Expiry', 'default_group': 'technical'},
+        {'name': 'dga_due_date', 'label': 'DGA Due Date', 'default_group': 'technical'},
+        {'name': 'next_maintenance_date', 'label': 'Next Maintenance Date', 'default_group': 'technical'},
+        {'name': 'installed_upgrades', 'label': 'Installed Upgrades', 'default_group': 'hidden'},
+        {'name': 'warranty_details', 'label': 'Warranty Details', 'default_group': 'hidden'},
+        {'name': 'datasheet', 'label': 'Datasheet', 'default_group': 'hidden'},
+        {'name': 'schematics', 'label': 'Schematics', 'default_group': 'hidden'},
+    ]
+    
+    if request.method == 'POST':
+        # Handle bulk update
+        with transaction.atomic():
+            # Process field configurations
+            # Group updates by field name to handle all attributes together
+            field_updates = {}
+            
+            for key, value in request.POST.items():
+                if key.startswith('field_'):
+                    # Parse: field_<field_name>_<attribute>
+                    # Handle fields with underscores like power_ratings_group
+                    parts = key.split('_')
+                    if len(parts) >= 3:
+                        # Find where the attribute starts (last part)
+                        # Everything between 'field' and the last part is the field name
+                        attr = parts[-1]  # Last part is the attribute (group, order, visible, label)
+                        field_name_parts = parts[1:-1]  # Everything between 'field' and attribute
+                        field_name = '_'.join(field_name_parts)
+                        
+                        if field_name not in field_updates:
+                            field_updates[field_name] = {}
+                        
+                        if attr == 'group':
+                            field_updates[field_name]['field_group'] = value
+                        elif attr == 'order':
+                            try:
+                                field_updates[field_name]['sort_order'] = int(value)
+                            except ValueError:
+                                pass
+                        elif attr == 'visible':
+                            field_updates[field_name]['is_visible'] = (value == 'on' or value == 'true')
+                        elif attr == 'label':
+                            field_updates[field_name]['display_label'] = value
+            
+            # Apply all updates
+            for field_name, updates in field_updates.items():
+                config, created = EquipmentFieldConfiguration.objects.get_or_create(
+                    field_name=field_name,
+                    defaults={'is_custom_field': field_name.startswith('custom_')}
+                )
+                for attr, val in updates.items():
+                    setattr(config, attr, val)
+                config.save()
+            
+            messages.success(request, 'Field configuration updated successfully!')
+            return redirect('equipment:field_configuration_settings')
+    
+    # Get all configurations
+    try:
+        configurations = {cfg.field_name: cfg for cfg in EquipmentFieldConfiguration.objects.all()}
+    except Exception:
+        # Table doesn't exist yet - use empty dict
+        configurations = {}
+    
+    # Build field list with configurations
+    fields = []
+    for field_info in STANDARD_FIELDS:
+        field_name = field_info['name']
+        config = configurations.get(field_name)
+        fields.append({
+            'name': field_name,
+            'label': config.display_label if config and config.display_label else field_info['label'],
+            'group': config.field_group if config else field_info['default_group'],
+            'sort_order': config.sort_order if config else 0,
+            'is_visible': config.is_visible if config else True,
+            'is_custom_field': False,
+        })
+    
+    # Add custom fields
+    custom_fields = EquipmentCategoryField.objects.filter(is_active=True).select_related('category')
+    for custom_field in custom_fields:
+        field_name = f'custom_{custom_field.name}'
+        config = configurations.get(field_name)
+        fields.append({
+            'name': field_name,
+            'label': config.display_label if config and config.display_label else custom_field.label,
+            'group': config.field_group if config else 'technical',
+            'sort_order': config.sort_order if config else 0,
+            'is_visible': config.is_visible if config else True,
+            'is_custom_field': True,
+            'category': custom_field.category,
+        })
+    
+    # Sort by group and order
+    fields.sort(key=lambda x: (x['group'], x['sort_order'], x['name']))
+    
+    # Group fields by section
+    fields_by_group = {
+        'basic': [f for f in fields if f['group'] == 'basic' and f['is_visible']],
+        'technical': [f for f in fields if f['group'] == 'technical' and f['is_visible']],
+        'hidden': [f for f in fields if f['group'] == 'hidden' or not f['is_visible']],
+    }
+    
+    context = {
+        'fields': fields,
+        'fields_by_group': fields_by_group,
+        'field_groups': EquipmentFieldConfiguration.FIELD_GROUP_CHOICES,
+    }
+    
+    return render(request, 'equipment/field_configuration_settings.html', context)
 
 
 @login_required

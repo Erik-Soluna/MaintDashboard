@@ -96,6 +96,26 @@
     margin-right: 8px;
 }
 
+.site-group {
+    margin-bottom: 1.5rem;
+    border-left: 3px solid #4299e1;
+    padding-left: 1rem;
+    margin-left: 0.5rem;
+}
+
+.site-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #4299e1;
+    border-bottom: 1px solid #4a5568;
+    padding-bottom: 0.5rem;
+}
+
 .section-count {
     background-color: #4299e1;
     color: white;
@@ -389,37 +409,82 @@
 <!-- Dashboard Content -->
 <div class="dashboard-content">
     <!-- Urgent Items Section -->
+    {% if dashboard_settings.show_urgent_items %}
     <div class="urgent-section">
         <div class="section-header">
             <span><i class="fas fa-exclamation-triangle"></i>Urgent Items</span>
-            <span class="section-count">{{ urgent_maintenance|length|add:urgent_calendar|length }}</span>
+            <span class="section-count">{% if urgent_total_count %}{{ urgent_total_count }}{% else %}{{ urgent_maintenance|length|add:urgent_calendar|length }}{% endif %}</span>
         </div>
         
-        <!-- Urgent Maintenance -->
-        {% for item in urgent_maintenance %}
-        <div class="maintenance-item urgent" onclick="viewMaintenanceItem({{ item.id }})">
-            <div class="item-title">{{ item.title|truncatechars:35 }}</div>
-            <div class="item-meta">
-                <span class="status-dot {{ item.status }}"></span>
-                {{ item.scheduled_end|date:"M d, H:i" }}
+        {% if dashboard_settings.group_urgent_by_site and is_all_sites and urgent_maintenance_by_site %}
+            <!-- Grouped by Site -->
+            {% for site_name, items in urgent_maintenance_by_site.items %}
+            <div class="site-group">
+                <div class="site-group-header">
+                    <strong>{{ site_name }}</strong>
+                    <span class="badge badge-secondary">{{ items|length }}</span>
+                </div>
+                {% for item in items %}
+                <div class="maintenance-item urgent" onclick="viewMaintenanceItem({{ item.id }})">
+                    <div class="item-title">{{ item.title|truncatechars:35 }}</div>
+                    <div class="item-meta">
+                        <span class="status-dot {{ item.status }}"></span>
+                        {{ item.scheduled_end|date:"M d, H:i" }}
+                    </div>
+                    <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
+                    <div class="item-type-badge">MAINT</div>
+                </div>
+                {% endfor %}
             </div>
-            <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
-            <div class="item-type-badge">MAINT</div>
-        </div>
-        {% endfor %}
-        
-        <!-- Urgent Calendar Events (only non-maintenance events) -->
-        {% for event in urgent_calendar %}
-        <div class="calendar-item urgent" onclick="viewCalendarEvent({{ event.id }})">
-            <div class="item-title">{{ event.title|truncatechars:35 }}</div>
-            <div class="item-meta">
-                <span class="status-dot calendar"></span>
-                {{ event.event_date|date:"M d" }}{% if event.start_time %}, {{ event.start_time }}{% endif %}
+            {% endfor %}
+            
+            {% for site_name, events in urgent_calendar_by_site.items %}
+            <div class="site-group">
+                <div class="site-group-header">
+                    <strong>{{ site_name }}</strong>
+                    <span class="badge badge-secondary">{{ events|length }}</span>
+                </div>
+                {% for event in events %}
+                <div class="calendar-item urgent" onclick="viewCalendarEvent({{ event.id }})">
+                    <div class="item-title">{{ event.title|truncatechars:35 }}</div>
+                    <div class="item-meta">
+                        <span class="status-dot calendar"></span>
+                        {{ event.event_date|date:"M d" }}{% if event.start_time %}, {{ event.start_time }}{% endif %}
+                    </div>
+                    <div class="item-equipment">{{ event.equipment.name|truncatechars:25 }}</div>
+                    <div class="item-type-badge">CAL</div>
+                </div>
+                {% endfor %}
             </div>
-            <div class="item-equipment">{{ event.equipment.name|truncatechars:25 }}</div>
-            <div class="item-type-badge">CAL</div>
-        </div>
-        {% endfor %}
+            {% endfor %}
+        {% else %}
+            <!-- Not Grouped - Show Flat List -->
+            <!-- Urgent Maintenance -->
+            {% for item in urgent_maintenance %}
+            <div class="maintenance-item urgent" onclick="viewMaintenanceItem({{ item.id }})">
+                <div class="item-title">{{ item.title|truncatechars:35 }}</div>
+                <div class="item-meta">
+                    <span class="status-dot {{ item.status }}"></span>
+                    {{ item.scheduled_end|date:"M d, H:i" }}
+                </div>
+                <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
+                <div class="item-type-badge">MAINT</div>
+            </div>
+            {% endfor %}
+            
+            <!-- Urgent Calendar Events (only non-maintenance events) -->
+            {% for event in urgent_calendar %}
+            <div class="calendar-item urgent" onclick="viewCalendarEvent({{ event.id }})">
+                <div class="item-title">{{ event.title|truncatechars:35 }}</div>
+                <div class="item-meta">
+                    <span class="status-dot calendar"></span>
+                    {{ event.event_date|date:"M d" }}{% if event.start_time %}, {{ event.start_time }}{% endif %}
+                </div>
+                <div class="item-equipment">{{ event.equipment.name|truncatechars:25 }}</div>
+                <div class="item-type-badge">CAL</div>
+            </div>
+            {% endfor %}
+        {% endif %}
         
         {% if not urgent_maintenance and not urgent_calendar %}
         <div class="empty-state">
@@ -428,39 +493,85 @@
         </div>
         {% endif %}
     </div>
+    {% endif %}
 
     <!-- Upcoming Items Section -->
+    {% if dashboard_settings.show_upcoming_items %}
     <div class="upcoming-section">
         <div class="section-header">
             <span><i class="fas fa-calendar-alt"></i>Upcoming Items</span>
-            <span class="section-count">{{ upcoming_maintenance|length|add:upcoming_calendar|length }}</span>
+            <span class="section-count">{% if upcoming_total_count %}{{ upcoming_total_count }}{% else %}{{ upcoming_maintenance|length|add:upcoming_calendar|length }}{% endif %}</span>
         </div>
         
-        <!-- Upcoming Maintenance -->
-        {% for item in upcoming_maintenance %}
-        <div class="maintenance-item scheduled" onclick="viewMaintenanceItem({{ item.id }})">
-            <div class="item-title">{{ item.title|truncatechars:35 }}</div>
-            <div class="item-meta">
-                <span class="status-dot {{ item.status }}"></span>
-                {{ item.scheduled_end|date:"M d, H:i" }}
+        {% if dashboard_settings.group_upcoming_by_site and is_all_sites and upcoming_maintenance_by_site %}
+            <!-- Grouped by Site -->
+            {% for site_name, items in upcoming_maintenance_by_site.items %}
+            <div class="site-group">
+                <div class="site-group-header">
+                    <strong>{{ site_name }}</strong>
+                    <span class="badge badge-secondary">{{ items|length }}</span>
+                </div>
+                {% for item in items %}
+                <div class="maintenance-item scheduled" onclick="viewMaintenanceItem({{ item.id }})">
+                    <div class="item-title">{{ item.title|truncatechars:35 }}</div>
+                    <div class="item-meta">
+                        <span class="status-dot {{ item.status }}"></span>
+                        {{ item.scheduled_end|date:"M d, H:i" }}
+                    </div>
+                    <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
+                    <div class="item-type-badge">MAINT</div>
+                </div>
+                {% endfor %}
             </div>
-            <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
-            <div class="item-type-badge">MAINT</div>
-        </div>
-        {% endfor %}
-        
-        <!-- Upcoming Calendar Events (only non-maintenance events) -->
-        {% for event in upcoming_calendar %}
-        <div class="calendar-item scheduled" onclick="viewCalendarEvent({{ event.id }})">
-            <div class="item-title">{{ event.title|truncatechars:35 }}</div>
-            <div class="item-meta">
-                <span class="status-dot calendar"></span>
-                {{ event.event_date|date:"M d" }}{% if event.start_time %}, {{ event.start_time }}{% endif %}
+            {% endfor %}
+            
+            {% for site_name, events in upcoming_calendar_by_site.items %}
+            <div class="site-group">
+                <div class="site-group-header">
+                    <strong>{{ site_name }}</strong>
+                    <span class="badge badge-secondary">{{ events|length }}</span>
+                </div>
+                {% for event in events %}
+                <div class="calendar-item scheduled" onclick="viewCalendarEvent({{ event.id }})">
+                    <div class="item-title">{{ event.title|truncatechars:35 }}</div>
+                    <div class="item-meta">
+                        <span class="status-dot calendar"></span>
+                        {{ event.event_date|date:"M d" }}{% if event.start_time %}, {{ event.start_time }}{% endif %}
+                    </div>
+                    <div class="item-equipment">{{ event.equipment.name|truncatechars:25 }}</div>
+                    <div class="item-type-badge">CAL</div>
+                </div>
+                {% endfor %}
             </div>
-            <div class="item-equipment">{{ event.equipment.name|truncatechars:25 }}</div>
-            <div class="item-type-badge">CAL</div>
-        </div>
-        {% endfor %}
+            {% endfor %}
+        {% else %}
+            <!-- Not Grouped - Show Flat List -->
+            <!-- Upcoming Maintenance -->
+            {% for item in upcoming_maintenance %}
+            <div class="maintenance-item scheduled" onclick="viewMaintenanceItem({{ item.id }})">
+                <div class="item-title">{{ item.title|truncatechars:35 }}</div>
+                <div class="item-meta">
+                    <span class="status-dot {{ item.status }}"></span>
+                    {{ item.scheduled_end|date:"M d, H:i" }}
+                </div>
+                <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
+                <div class="item-type-badge">MAINT</div>
+            </div>
+            {% endfor %}
+            
+            <!-- Upcoming Calendar Events (only non-maintenance events) -->
+            {% for event in upcoming_calendar %}
+            <div class="calendar-item scheduled" onclick="viewCalendarEvent({{ event.id }})">
+                <div class="item-title">{{ event.title|truncatechars:35 }}</div>
+                <div class="item-meta">
+                    <span class="status-dot calendar"></span>
+                    {{ event.event_date|date:"M d" }}{% if event.start_time %}, {{ event.start_time }}{% endif %}
+                </div>
+                <div class="item-equipment">{{ event.equipment.name|truncatechars:25 }}</div>
+                <div class="item-type-badge">CAL</div>
+            </div>
+            {% endfor %}
+        {% endif %}
         
         {% if not upcoming_maintenance and not upcoming_calendar %}
         <div class="empty-state">
@@ -469,6 +580,7 @@
         </div>
         {% endif %}
     </div>
+    {% endif %}
 
     <!-- Overview Section (Pod Status or Site Status) -->
     <div class="pod-overview-section">
@@ -637,19 +749,20 @@ function showComingSoon(feature) {
     alert(feature + ' functionality coming soon!');
 }
 
-// Auto-refresh dashboard every 5 minutes
-setTimeout(function() {
-    location.reload();
-}, 300000);
+// Auto-refresh dashboard every 5 minutes - DISABLED to reduce CPU usage
+// Users can manually refresh if needed
+// setTimeout(function() {
+//     location.reload();
+// }, 300000);
 
-// Add real-time clock
+// Add real-time clock - Update every 30 seconds instead of every second to reduce CPU usage
 function updateClock() {
     const now = new Date();
     const timeString = now.toLocaleTimeString();
     document.title = 'Overview - ' + timeString + ' - SOLUNA';
 }
 
-setInterval(updateClock, 1000);
+setInterval(updateClock, 30000); // Update every 30 seconds instead of every second
 updateClock();
 
 // Add click handlers for enhanced interactivity

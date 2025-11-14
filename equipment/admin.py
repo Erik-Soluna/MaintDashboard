@@ -8,7 +8,7 @@ from django.urls import path, reverse
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
-from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentCustomValue, EquipmentCategoryConditionalField, EquipmentCategory, EquipmentConnection
+from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentCustomValue, EquipmentCategoryConditionalField, EquipmentCategory, EquipmentConnection, EquipmentFieldConfiguration
 
 
 class EquipmentDocumentInline(admin.TabularInline):
@@ -296,6 +296,23 @@ class EquipmentCategoryConditionalFieldAdmin(admin.ModelAdmin):
             obj.created_by = request.user
         obj.updated_by = request.user
         super().save_model(request, obj, form, change)
+
+
+@admin.register(EquipmentFieldConfiguration)
+class EquipmentFieldConfigurationAdmin(admin.ModelAdmin):
+    list_display = ['field_name', 'get_display_label', 'field_group', 'sort_order', 'is_visible', 'is_custom_field', 'category']
+    list_filter = ['field_group', 'is_visible', 'is_custom_field', 'category']
+    search_fields = ['field_name', 'display_label']
+    ordering = ['field_group', 'sort_order', 'field_name']
+    list_editable = ['field_group', 'sort_order', 'is_visible']
+    fieldsets = (
+        ('Field Information', {
+            'fields': ('field_name', 'display_label', 'is_custom_field', 'category')
+        }),
+        ('Display Settings', {
+            'fields': ('field_group', 'sort_order', 'is_visible')
+        }),
+    )
 
 
 @admin.register(EquipmentConnection)

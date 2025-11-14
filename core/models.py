@@ -734,6 +734,57 @@ class BrandingSettings(models.Model):
             BrandingSettings.objects.exclude(pk=self.pk).update(is_active=False)
         super().save(*args, **kwargs)
 
+
+class DashboardSettings(models.Model):
+    """Dashboard/Overview page configuration settings"""
+    
+    # Visibility settings
+    show_urgent_items = models.BooleanField(default=True, help_text="Show urgent items section")
+    show_upcoming_items = models.BooleanField(default=True, help_text="Show upcoming items section")
+    show_site_status = models.BooleanField(default=True, help_text="Show site status cards")
+    show_kpi_cards = models.BooleanField(default=True, help_text="Show KPI cards at top")
+    show_overview_data = models.BooleanField(default=True, help_text="Show overview data (pods/sites)")
+    
+    # Grouping settings
+    group_urgent_by_site = models.BooleanField(default=True, help_text="Group urgent items by site")
+    group_upcoming_by_site = models.BooleanField(default=True, help_text="Group upcoming items by site")
+    
+    # Display limits
+    max_urgent_items_per_site = models.IntegerField(default=15, help_text="Maximum urgent items to show per site")
+    max_upcoming_items_per_site = models.IntegerField(default=15, help_text="Maximum upcoming items to show per site")
+    max_urgent_items_total = models.IntegerField(default=50, help_text="Maximum total urgent items across all sites")
+    max_upcoming_items_total = models.IntegerField(default=50, help_text="Maximum total upcoming items across all sites")
+    
+    # Urgent items configuration
+    urgent_days_ahead = models.IntegerField(default=7, help_text="Number of days ahead to consider items as urgent")
+    upcoming_days_ahead = models.IntegerField(default=30, help_text="Number of days ahead to consider items as upcoming")
+    
+    # Meta settings
+    is_active = models.BooleanField(default=True, help_text="Whether these dashboard settings are currently active")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Dashboard Settings"
+        verbose_name_plural = "Dashboard Settings"
+    
+    def __str__(self):
+        return "Dashboard Settings"
+    
+    def save(self, *args, **kwargs):
+        # Ensure only one active dashboard settings instance
+        if self.is_active:
+            DashboardSettings.objects.exclude(pk=self.pk).update(is_active=False)
+        super().save(*args, **kwargs)
+    
+    @classmethod
+    def get_active(cls):
+        """Get the active dashboard settings, or create default if none exists"""
+        settings = cls.objects.filter(is_active=True).first()
+        if not settings:
+            settings = cls.objects.create(is_active=True)
+        return settings
+
 class CSSCustomization(models.Model):
     """CSS customizations for different item types and components"""
     ITEM_TYPE_CHOICES = [

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Maintenance Reports{% endblock %}
 
@@ -8,13 +9,122 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1 class="h3 mb-0">Maintenance Reports</h1>
-                <a href="{% url 'maintenance:overdue_maintenance' %}" class="btn btn-warning">
-                    <i class="fas fa-exclamation-triangle"></i> Overdue Maintenance
-                </a>
+                <div>
+                    <a href="{% url 'maintenance:overdue_maintenance' %}" class="btn btn-warning me-2">
+                        <i class="fas fa-exclamation-triangle"></i> Overdue Maintenance
+                    </a>
+                    <a href="{% url 'maintenance:export_maintenance_activities_csv' %}?{% for key, value in request.GET.items %}{{ key }}={{ value }}&{% endfor %}" class="btn btn-success">
+                        <i class="fas fa-download"></i> Export to CSV
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-filter me-2"></i>
+                        Filters
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{% url 'maintenance:maintenance_reports' %}" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="category" class="form-label">Equipment Category</label>
+                            <select name="category" id="category" class="form-select">
+                                <option value="">All Categories</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="location" class="form-label">Location</label>
+                            <select name="location" id="location" class="form-select">
+                                <option value="">All Locations</option>
+                                {% for location in locations %}
+                                <option value="{{ location.id }}" {% if selected_location == location.id %}selected{% endif %}>
+                                    {{ location.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="status" class="form-label">Status</label>
+                            <select name="status" id="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                <option value="scheduled" {% if selected_status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                                <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="in_progress" {% if selected_status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                                <option value="completed" {% if selected_status == 'completed' %}selected{% endif %}>Completed</option>
+                                <option value="overdue" {% if selected_status == 'overdue' %}selected{% endif %}>Overdue</option>
+                                <option value="cancelled" {% if selected_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_from" class="form-label">Date From</label>
+                            <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_to" class="form-label">Date To</label>
+                            <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i> Apply Filters
+                            </button>
+                            <a href="{% url 'maintenance:maintenance_reports' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i> Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Completion Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Activities Completed Per Day
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="dailyCompletionsChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Maintenance Trends Chart -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-area me-2"></i>
+                        Maintenance Trends
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="maintenanceTrendsChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Statistics Cards -->
     <div class="row">
         <div class="col-md-6">
             <div class="card">
@@ -114,47 +224,215 @@
             </div>
         </div>
     </div>
-
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Quick Actions</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="d-grid">
-                                <a href="{% url 'maintenance:activity_list' %}" class="btn btn-outline-primary">
-                                    <i class="fas fa-list"></i> All Activities
-                                </a>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="d-grid">
-                                <a href="{% url 'maintenance:schedule_list' %}" class="btn btn-outline-info">
-                                    <i class="fas fa-calendar-alt"></i> Schedules
-                                </a>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="d-grid">
-                                <a href="{% url 'maintenance:activity_type_list' %}" class="btn btn-outline-success">
-                                    <i class="fas fa-cog"></i> Activity Types
-                                </a>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="d-grid">
-                                <a href="{% url 'maintenance:overdue_maintenance' %}" class="btn btn-outline-warning">
-                                    <i class="fas fa-exclamation-triangle"></i> Overdue
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Daily Completions Chart
+    const dailyCtx = document.getElementById('dailyCompletionsChart');
+    if (dailyCtx) {
+        const dailyData = {{ daily_completions }};
+        const labels = Object.keys(dailyData).sort();
+        const data = labels.map(key => dailyData[key]);
+        
+        // Format labels for better readability (show every Nth label to avoid crowding)
+        const formattedLabels = labels.map((label, index) => {
+            if (labels.length > 30) {
+                // Show every 7th label if more than 30 days
+                return (index % 7 === 0) ? label : '';
+            } else if (labels.length > 14) {
+                // Show every 3rd label if more than 14 days
+                return (index % 3 === 0) ? label : '';
+            } else {
+                return label;
+            }
+        });
+        
+        // Detect dark mode
+        const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ||
+                          document.body.classList.contains('dark-mode') ||
+                          document.documentElement.classList.contains('dark');
+        
+        // Dark mode friendly colors
+        const lineColor = isDarkMode ? 'rgba(100, 200, 100, 1)' : 'rgba(40, 167, 69, 1)';
+        const fillColor = isDarkMode ? 'rgba(100, 200, 100, 0.2)' : 'rgba(40, 167, 69, 0.1)';
+        const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+        const textColor = isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)';
+        
+        new Chart(dailyCtx, {
+            type: 'line',
+            data: {
+                labels: formattedLabels,
+                datasets: [{
+                    label: 'Activities Completed',
+                    data: data,
+                    borderColor: lineColor,
+                    backgroundColor: fillColor,
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: lineColor,
+                    pointBorderColor: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : '#fff',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            color: textColor
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
+                        titleColor: textColor,
+                        bodyColor: textColor,
+                        borderColor: lineColor,
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            color: textColor
+                        },
+                        grid: {
+                            color: gridColor
+                        },
+                        title: {
+                            display: true,
+                            text: 'Number of Activities',
+                            color: textColor
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: textColor
+                        },
+                        grid: {
+                            color: gridColor
+                        },
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: textColor
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Maintenance Trends Chart
+    const trendsCtx = document.getElementById('maintenanceTrendsChart');
+    if (trendsCtx) {
+        const trendsData = {{ maintenance_trends }};
+        const labels = trendsData.labels || [];
+        const data = trendsData.data || [];
+        
+        // Detect dark mode
+        const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ||
+                          document.body.classList.contains('dark-mode') ||
+                          document.documentElement.classList.contains('dark');
+        
+        // Dark mode friendly colors
+        const lineColor = isDarkMode ? 'rgba(75, 192, 192, 1)' : 'rgba(75, 192, 192, 1)';
+        const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+        const textColor = isDarkMode ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.8)';
+        
+        new Chart(trendsCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Maintenance Activities',
+                    data: data,
+                    borderColor: lineColor,
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: lineColor,
+                    pointBorderColor: isDarkMode ? 'rgba(255, 255, 255, 0.8)' : '#fff',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            color: textColor
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.9)',
+                        titleColor: textColor,
+                        bodyColor: textColor,
+                        borderColor: lineColor,
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            color: textColor
+                        },
+                        grid: {
+                            color: gridColor
+                        },
+                        title: {
+                            display: true,
+                            text: 'Number of Activities',
+                            color: textColor
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: textColor
+                        },
+                        grid: {
+                            color: gridColor
+                        },
+                        title: {
+                            display: true,
+                            text: 'Month',
+                            color: textColor
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+#dailyCompletionsChart {
+    background-color: transparent;
+}
+</style>
 {% endblock %}

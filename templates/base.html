@@ -965,8 +965,7 @@
                  </a>
                 <div class="dropdown-menu">
                     <a class="dropdown-item" href="{% url 'maintenance:maintenance_list' %}">Activities</a>
-                    <a class="dropdown-item" href="{% url 'maintenance:schedule_list' %}">Schedules</a>
-                    <a class="dropdown-item" href="{% url 'maintenance:schedule_override_list' %}">Schedule Overrides</a>
+                    <a class="dropdown-item" href="{% url 'maintenance:maintenance_reports' %}">Reports</a>
                 </div>
             </li>
             <li class="nav-item">
@@ -986,6 +985,12 @@
                                  <div class="dropdown-menu">
                      <a class="dropdown-item" href="{% url 'core:branding_settings' %}">
                          <i class="fas fa-palette me-1"></i> Branding
+                     </a>
+                     <a class="dropdown-item" href="{% url 'core:dashboard_settings' %}">
+                         <i class="fas fa-tachometer-alt me-1"></i> Dashboard Settings
+                     </a>
+                     <a class="dropdown-item" href="{% url 'equipment:field_configuration_settings' %}">
+                         <i class="fas fa-list-alt me-1"></i> Equipment Field Configuration
                      </a>
                      <a class="dropdown-item" href="{% url 'core:settings' %}">General Settings</a>
                      <a class="dropdown-item" href="{% url 'core:locations_settings' %}">Locations</a>

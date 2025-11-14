@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Equipment Field Configuration - Maintenance Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'equipment:equipment_list' %}">Equipment</a></li>
+<li class="breadcrumb-item active">Field Configuration</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-cog me-2"></i>
+                    Equipment Field Configuration
+                </h1>
+                <a href="{% url 'equipment:equipment_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Equipment
+                </a>
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Configure how equipment fields are displayed, ordered, and grouped in the equipment detail and edit pages.
+            </div>
+        </div>
+    </div>
+
+    <form method="post" id="fieldConfigForm">
+        {% csrf_token %}
+        
+        <!-- Basic Information Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Basic Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">Order</th>
+                                <th style="width: 25%;">Field Name</th>
+                                <th style="width: 25%;">Display Label</th>
+                                <th style="width: 20%;">Section</th>
+                                <th style="width: 10%;">Visible</th>
+                                <th style="width: 15%;">Type</th>
+                            </tr>
+                        </thead>
+                        <tbody id="basicFieldsList">
+                            {% for field in fields %}
+                                {% if field.group == 'basic' %}
+                                <tr>
+                                    <td>
+                                        <input type="number" name="field_{{ field.name }}_order" 
+                                               value="{{ field.sort_order }}" 
+                                               class="form-control form-control-sm" min="0" style="width: 60px;">
+                                    </td>
+                                    <td>
+                                        <code>{{ field.name }}</code>
+                                        {% if field.is_custom_field %}
+                                            <br><small class="text-muted">Category: {{ field.category.name }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <input type="text" name="field_{{ field.name }}_label" 
+                                               value="{{ field.label }}" 
+                                               class="form-control form-control-sm">
+                                    </td>
+                                    <td>
+                                        <select name="field_{{ field.name }}_group" class="form-control form-control-sm">
+                                            {% for value, label in field_groups %}
+                                                <option value="{{ value }}" {% if field.group == value %}selected{% endif %}>
+                                                    {{ label }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="text-center">
+                                        <input type="checkbox" name="field_{{ field.name }}_visible" 
+                                               {% if field.is_visible %}checked{% endif %}
+                                               class="form-check-input">
+                                    </td>
+                                    <td>
+                                        {% if field.is_custom_field %}
+                                            <span class="badge badge-info">Custom</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary">Standard</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Technical Specifications Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs me-2"></i>
+                    Technical Specifications
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">Order</th>
+                                <th style="width: 25%;">Field Name</th>
+                                <th style="width: 25%;">Display Label</th>
+                                <th style="width: 20%;">Section</th>
+                                <th style="width: 10%;">Visible</th>
+                                <th style="width: 15%;">Type</th>
+                            </tr>
+                        </thead>
+                        <tbody id="technicalFieldsList">
+                            {% for field in fields %}
+                                {% if field.group == 'technical' %}
+                                <tr>
+                                    <td>
+                                        <input type="number" name="field_{{ field.name }}_order" 
+                                               value="{{ field.sort_order }}" 
+                                               class="form-control form-control-sm" min="0" style="width: 60px;">
+                                    </td>
+                                    <td>
+                                        <code>{{ field.name }}</code>
+                                        {% if field.is_custom_field %}
+                                            <br><small class="text-muted">Category: {{ field.category.name }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <input type="text" name="field_{{ field.name }}_label" 
+                                               value="{{ field.label }}" 
+                                               class="form-control form-control-sm">
+                                    </td>
+                                    <td>
+                                        <select name="field_{{ field.name }}_group" class="form-control form-control-sm">
+                                            {% for value, label in field_groups %}
+                                                <option value="{{ value }}" {% if field.group == value %}selected{% endif %}>
+                                                    {{ label }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="text-center">
+                                        <input type="checkbox" name="field_{{ field.name }}_visible" 
+                                               {% if field.is_visible %}checked{% endif %}
+                                               class="form-check-input">
+                                    </td>
+                                    <td>
+                                        {% if field.is_custom_field %}
+                                            <span class="badge badge-info">Custom</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary">Standard</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden Fields Section -->
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-eye-slash me-2"></i>
+                    Hidden Fields
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">Order</th>
+                                <th style="width: 25%;">Field Name</th>
+                                <th style="width: 25%;">Display Label</th>
+                                <th style="width: 20%;">Section</th>
+                                <th style="width: 10%;">Visible</th>
+                                <th style="width: 15%;">Type</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hiddenFieldsList">
+                            {% for field in fields %}
+                                {% if field.group == 'hidden' or not field.is_visible %}
+                                <tr>
+                                    <td>
+                                        <input type="number" name="field_{{ field.name }}_order" 
+                                               value="{{ field.sort_order }}" 
+                                               class="form-control form-control-sm" min="0" style="width: 60px;">
+                                    </td>
+                                    <td>
+                                        <code>{{ field.name }}</code>
+                                        {% if field.is_custom_field %}
+                                            <br><small class="text-muted">Category: {{ field.category.name }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <input type="text" name="field_{{ field.name }}_label" 
+                                               value="{{ field.label }}" 
+                                               class="form-control form-control-sm">
+                                    </td>
+                                    <td>
+                                        <select name="field_{{ field.name }}_group" class="form-control form-control-sm">
+                                            {% for value, label in field_groups %}
+                                                <option value="{{ value }}" {% if field.group == value %}selected{% endif %}>
+                                                    {{ label }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td class="text-center">
+                                        <input type="checkbox" name="field_{{ field.name }}_visible" 
+                                               {% if field.is_visible %}checked{% endif %}
+                                               class="form-check-input">
+                                    </td>
+                                    <td>
+                                        {% if field.is_custom_field %}
+                                            <span class="badge badge-info">Custom</span>
+                                        {% else %}
+                                            <span class="badge badge-secondary">Standard</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save me-2"></i>
+                            Save Configuration
+                        </button>
+                        <a href="{% url 'equipment:equipment_list' %}" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-times me-2"></i>
+                            Cancel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Make tables sortable for better UX
+    $('tbody').sortable({
+        handle: 'td:first-child',
+        axis: 'y',
+        update: function(event, ui) {
+            // Update order values when dragged
+            $(this).find('tr').each(function(index) {
+                $(this).find('input[type="number"]').first().val(index * 10);
+            });
+        }
+    });
+    
+    // Auto-save on section change
+    $('select[name$="_group"]').on('change', function() {
+        // Optionally show a visual indicator that changes need to be saved
+        $('#fieldConfigForm').addClass('has-changes');
+    });
+});
+</script>
+{% endblock %}
+

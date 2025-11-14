@@ -25,6 +25,9 @@
                     <button type="button" class="btn btn-warning" data-toggle="modal" data-target="#logIssueModal">
                         <i class="fas fa-exclamation-triangle me-1"></i> Log Issue
                     </button>
+                    <a href="{% url 'equipment:equipment_kpi_tracker' equipment.id %}" class="btn btn-info">
+                        <i class="fas fa-chart-line me-1"></i> KPI Tracker
+                    </a>
                     <a href="{% url 'equipment:edit_equipment' equipment.id %}" class="btn btn-primary">
                         <i class="fas fa-edit me-1"></i> Edit Equipment
                     </a>
@@ -147,6 +150,28 @@
                     <!-- Details Tab -->
                     <div class="tab-pane fade show active" id="details" role="tabpanel">
                         <div class="row">
+                            {% if configured_fields and configured_fields.basic %}
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Basic Information</h6>
+                                <table class="table table-sm">
+                                    {% for field in configured_fields.basic %}
+                                    <tr>
+                                        <td><strong>{{ field.label }}:</strong></td>
+                                        <td>
+                                            {% if field.name == 'commissioning_date' or field.name == 'warranty_expiry_date' or field.name == 'dga_due_date' or field.name == 'next_maintenance_date' %}
+                                                {{ field.value|date:"M d, Y"|default:"Not specified" }}
+                                            {% elif field.name == 'created_at' or field.name == 'updated_at' %}
+                                                {{ field.value|date:"M d, Y H:i"|default:"Not specified" }}
+                                            {% else %}
+                                                {{ field.value|default:"Not specified" }}
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </table>
+                            </div>
+                            {% else %}
+                            <!-- Fallback to default layout if configurations not available -->
                             <div class="col-md-6">
                                 <h6 class="mb-3">Basic Information</h6>
                                 <table class="table table-sm">
@@ -176,6 +201,29 @@
                                     </tr>
                                 </table>
                             </div>
+                            {% endif %}
+                            {% if configured_fields and configured_fields.technical %}
+                            <div class="col-md-6">
+                                <h6 class="mb-3">Technical Specifications</h6>
+                                <table class="table table-sm">
+                                    {% for field in configured_fields.technical %}
+                                    <tr>
+                                        <td><strong>{{ field.label }}:</strong></td>
+                                        <td>
+                                            {% if field.name == 'commissioning_date' or field.name == 'warranty_expiry_date' or field.name == 'dga_due_date' or field.name == 'next_maintenance_date' %}
+                                                {{ field.value|date:"M d, Y"|default:"Not specified" }}
+                                            {% elif field.name == 'created_at' or field.name == 'updated_at' %}
+                                                {{ field.value|date:"M d, Y H:i"|default:"Not specified" }}
+                                            {% else %}
+                                                {{ field.value|default:"Not specified" }}
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </table>
+                            </div>
+                            {% else %}
+                            <!-- Fallback to default layout if configurations not available -->
                             <div class="col-md-6">
                                 <h6 class="mb-3">Technical Specifications</h6>
                                 <table class="table table-sm">
@@ -205,6 +253,7 @@
                                     </tr>
                                 </table>
                             </div>
+                            {% endif %}
                         </div>
                         
                         {% if equipment.installed_upgrades %}
@@ -214,41 +263,6 @@
                                 <div class="bg-light p-3 rounded">
                                     {{ equipment.installed_upgrades|linebreaks }}
                                 </div>
-                            </div>
-                        </div>
-                        {% endif %}
-                        
-                        <!-- Custom Fields -->
-                        {% load equipment_filters %}
-                        {% if custom_fields_by_group %}
-                        <div class="row mt-4">
-                            <div class="col-12">
-                                <h6 class="mb-3">Category-Specific Information</h6>
-                                {% for group_name, fields in custom_fields_by_group.items %}
-                                <div class="card mb-3">
-                                    <div class="card-header">
-                                        <h6 class="mb-0">{{ group_name }}</h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="row">
-                                            {% for field in fields %}
-                                            <div class="col-md-6 mb-2">
-                                                <strong>{{ field.label }}:</strong>
-                                                {% if field.field_type == 'boolean' %}
-                                                    {% if equipment|get_custom_value:field.name == 'Yes' %}
-                                                        <span class="badge badge-success">Yes</span>
-                                                    {% else %}
-                                                        <span class="badge badge-secondary">No</span>
-                                                    {% endif %}
-                                                {% else %}
-                                                    <span>{{ equipment|get_custom_value:field.name|default:"Not specified" }}</span>
-                                                {% endif %}
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
                             </div>
                         </div>
                         {% endif %}

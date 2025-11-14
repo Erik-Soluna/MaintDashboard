@@ -13,6 +13,7 @@ urlpatterns = [
     path('manage/', views.manage_equipment, name='manage_equipment'),
     path('add/', views.add_equipment, name='add_equipment'),
     path('<int:equipment_id>/', views.equipment_detail, name='equipment_detail'),
+    path('<int:equipment_id>/kpi-tracker/', views.equipment_kpi_tracker, name='equipment_kpi_tracker'),
     path('<int:equipment_id>/edit/', views.edit_equipment, name='edit_equipment'),
     path('<int:equipment_id>/delete/', views.delete_equipment, name='delete_equipment'),
     
@@ -42,6 +43,12 @@ urlpatterns = [
     
     # Custom Field Management
     path('categories/<int:category_id>/fields/', views.category_fields_management, name='category_fields_management'),
+    path('fields/<int:field_id>/data/', views.get_field_data, name='get_field_data'),
+    path('fields/assign/', views.assign_field_to_categories, name='assign_field_to_categories'),
+    path('fields/unassign/', views.unassign_field_from_category, name='unassign_field_from_category'),
+    
+    # Field Configuration Settings
+    path('settings/field-configuration/', views.field_configuration_settings, name='field_configuration_settings'),
     
     # Issues
     path('<int:equipment_id>/issues/log/', views.log_issue, name='log_issue'),

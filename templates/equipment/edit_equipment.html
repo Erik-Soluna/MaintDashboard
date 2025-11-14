@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load crispy_forms_tags %}
+{% load widget_tweaks %}
 
 {% block title %}Edit {{ equipment.name }} - Maintenance Dashboard{% endblock %}
 
@@ -81,194 +82,103 @@
                         </div>
                     {% endif %}
                     
-                    <!-- Render form fields manually to use custom location template -->
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.name.id_for_label }}" class="form-label">
-                                    {{ form.name.label }}
-                                    <span class="text-danger">*</span>
-                                </label>
-                                {{ form.name }}
-                                {% if form.name.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.name.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.category.id_for_label }}" class="form-label">
-                                    {{ form.category.label }}
-                                    <span class="text-danger">*</span>
-                                </label>
-                                {{ form.category }}
-                                {% if form.category.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.category.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
+                    {% load equipment_filters %}
+                    
+                    <!-- Basic Information Section -->
+                    {% if configured_fields and configured_fields.basic %}
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="mb-3">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Basic Information
+                            </h5>
                         </div>
                     </div>
-                    
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.status.id_for_label }}" class="form-label">
-                                    {{ form.status.label }}
-                                </label>
-                                {{ form.status }}
-                                {% if form.status.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.status.errors %}
-                                            {{ error }}
-                                        {% endfor %}
+                        {% for field_info in configured_fields.basic %}
+                            {% if field_info.name in form.fields %}
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="id_{{ field_info.name }}" class="form-label">
+                                            {{ field_info.label }}
+                                            {% if field_info.name == 'name' or field_info.name == 'category' or field_info.name == 'manufacturer_serial' or field_info.name == 'asset_tag' %}
+                                                <span class="text-danger">*</span>
+                                            {% endif %}
+                                        </label>
+                                        {% if field_info.name == 'location' %}
+                                            {% include 'equipment/location_select.html' %}
+                                        {% else %}
+                                            {% with field_widget=form|get_field:field_info.name %}
+                                                {% if field_widget %}
+                                                    {{ field_widget|add_class:"form-control" }}
+                                                {% endif %}
+                                            {% endwith %}
+                                        {% endif %}
+                                        {% if form|get_field_errors:field_info.name %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form|get_field_errors:field_info.name %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
                                     </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.is_active.id_for_label }}" class="form-label">
-                                    {{ form.is_active.label }}
-                                </label>
-                                {{ form.is_active }}
-                                {% if form.is_active.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.is_active.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <hr class="my-4">
+                    {% endif %}
+                    
+                    <!-- Technical Specifications Section -->
+                    {% if configured_fields and configured_fields.technical %}
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="mb-3">
+                                <i class="fas fa-cogs me-2"></i>
+                                Technical Specifications
+                            </h5>
                         </div>
                     </div>
-                    
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.manufacturer_serial.id_for_label }}" class="form-label">
-                                    {{ form.manufacturer_serial.label }}
-                                    <span class="text-danger">*</span>
-                                </label>
-                                {{ form.manufacturer_serial }}
-                                {% if form.manufacturer_serial.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.manufacturer_serial.errors %}
-                                            {{ error }}
-                                        {% endfor %}
+                        {% for field_info in configured_fields.technical %}
+                            {% if field_info.name in form.fields %}
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="id_{{ field_info.name }}" class="form-label">
+                                            {{ field_info.label }}
+                                        </label>
+                                        {% with field_widget=form|get_field:field_info.name %}
+                                            {% if field_widget %}
+                                                {{ field_widget|add_class:"form-control" }}
+                                            {% endif %}
+                                        {% endwith %}
+                                        {% if form|get_field_errors:field_info.name %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form|get_field_errors:field_info.name %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
                                     </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.asset_tag.id_for_label }}" class="form-label">
-                                    {{ form.asset_tag.label }}
-                                    <span class="text-danger">*</span>
-                                </label>
-                                {{ form.asset_tag }}
-                                {% if form.asset_tag.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.asset_tag.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Additional Fields (not in configured_fields) -->
+                    {% if form.datasheet or form.schematics or form.warranty_details or form.installed_upgrades %}
+                    <hr class="my-4">
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h5 class="mb-3">
+                                <i class="fas fa-file-alt me-2"></i>
+                                Additional Information
+                            </h5>
                         </div>
                     </div>
-                    
                     <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.manufacturer.id_for_label }}" class="form-label">
-                                    {{ form.manufacturer.label }}
-                                </label>
-                                {{ form.manufacturer }}
-                                {% if form.manufacturer.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.manufacturer.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.model_number.id_for_label }}" class="form-label">
-                                    {{ form.model_number.label }}
-                                </label>
-                                {{ form.model_number }}
-                                {% if form.model_number.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.model_number.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Custom location selection -->
-                    {% include 'equipment/location_select.html' %}
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.power_ratings.id_for_label }}" class="form-label">
-                                    {{ form.power_ratings.label }}
-                                </label>
-                                {{ form.power_ratings }}
-                                {% if form.power_ratings.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.power_ratings.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.trip_setpoints.id_for_label }}" class="form-label">
-                                    {{ form.trip_setpoints.label }}
-                                </label>
-                                {{ form.trip_setpoints }}
-                                {% if form.trip_setpoints.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.trip_setpoints.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="{{ form.installed_upgrades.id_for_label }}" class="form-label">
-                            {{ form.installed_upgrades.label }}
-                        </label>
-                        {{ form.installed_upgrades }}
-                        {% if form.installed_upgrades.errors %}
-                            <div class="invalid-feedback d-block">
-                                {% for error in form.installed_upgrades.errors %}
-                                    {{ error }}
-                                {% endfor %}
-                            </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="row">
+                        {% if form.datasheet %}
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="{{ form.datasheet.id_for_label }}" class="form-label">
@@ -284,6 +194,8 @@
                                 {% endif %}
                             </div>
                         </div>
+                        {% endif %}
+                        {% if form.schematics %}
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label for="{{ form.schematics.id_for_label }}" class="form-label">
@@ -299,8 +211,9 @@
                                 {% endif %}
                             </div>
                         </div>
+                        {% endif %}
                     </div>
-                    
+                    {% if form.warranty_details %}
                     <div class="form-group">
                         <label for="{{ form.warranty_details.id_for_label }}" class="form-label">
                             {{ form.warranty_details.label }}
@@ -314,72 +227,23 @@
                             </div>
                         {% endif %}
                     </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.dga_due_date.id_for_label }}" class="form-label">
-                                    {{ form.dga_due_date.label }}
-                                </label>
-                                {{ form.dga_due_date }}
-                                {% if form.dga_due_date.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.dga_due_date.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
+                    {% endif %}
+                    {% if form.installed_upgrades %}
+                    <div class="form-group">
+                        <label for="{{ form.installed_upgrades.id_for_label }}" class="form-label">
+                            {{ form.installed_upgrades.label }}
+                        </label>
+                        {{ form.installed_upgrades }}
+                        {% if form.installed_upgrades.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.installed_upgrades.errors %}
+                                    {{ error }}
+                                {% endfor %}
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.next_maintenance_date.id_for_label }}" class="form-label">
-                                    {{ form.next_maintenance_date.label }}
-                                </label>
-                                {{ form.next_maintenance_date }}
-                                {% if form.next_maintenance_date.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.next_maintenance_date.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
+                        {% endif %}
                     </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.commissioning_date.id_for_label }}" class="form-label">
-                                    {{ form.commissioning_date.label }}
-                                </label>
-                                {{ form.commissioning_date }}
-                                {% if form.commissioning_date.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.commissioning_date.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="{{ form.warranty_expiry_date.id_for_label }}" class="form-label">
-                                    {{ form.warranty_expiry_date.label }}
-                                </label>
-                                {{ form.warranty_expiry_date }}
-                                {% if form.warranty_expiry_date.errors %}
-                                    <div class="invalid-feedback d-block">
-                                        {% for error in form.warranty_expiry_date.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
+                    {% endif %}
+                    {% endif %}
                     
                     <div class="form-actions">
                         <button type="submit" class="btn btn-primary">
@@ -539,6 +403,35 @@
     .changed-field {
         border-left: 4px solid #ffc107 !important;
         background-color: #fff3cd;
+    }
+    
+    /* Ensure Category-Specific Information fields match other form fields */
+    #id_custom_*,
+    .form-group input[name^="custom_"],
+    .form-group select[name^="custom_"],
+    .form-group textarea[name^="custom_"] {
+        display: block;
+        width: 100%;
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #212529;
+        background-color: #fff;
+        background-clip: padding-box;
+        border: 1px solid #ced4da;
+        border-radius: 0.375rem;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    }
+    
+    .form-group input[name^="custom_"]:focus,
+    .form-group select[name^="custom_"]:focus,
+    .form-group textarea[name^="custom_"]:focus {
+        color: #212529;
+        background-color: #fff;
+        border-color: #86b7fe;
+        outline: 0;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
     }
 </style>
 {% endblock %}

@@ -12,7 +12,7 @@ from django.utils.timezone import now
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.utils.decorators import method_decorator
-from .models import EquipmentCategory, Location, UserProfile, Customer, Role, Permission, PortainerConfig, Logo, BrandingSettings, CSSCustomization
+from .models import EquipmentCategory, Location, UserProfile, Customer, Role, Permission, PortainerConfig, Logo, BrandingSettings, DashboardSettings, CSSCustomization
 
 
 # Custom Password Change View for Admin
@@ -218,6 +218,40 @@ class BrandingSettingsAdmin(admin.ModelAdmin):
         # Ensure only one branding settings instance is active at a time
         if obj.is_active:
             BrandingSettings.objects.exclude(pk=obj.pk).update(is_active=False)
+        super().save_model(request, obj, form, change)
+
+@admin.register(DashboardSettings)
+class DashboardSettingsAdmin(admin.ModelAdmin):
+    list_display = ['is_active', 'group_urgent_by_site', 'group_upcoming_by_site', 'urgent_days_ahead', 'upcoming_days_ahead', 'updated_at']
+    list_filter = ['is_active', 'group_urgent_by_site', 'group_upcoming_by_site', 'show_urgent_items', 'show_upcoming_items']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Visibility Settings', {
+            'fields': ('show_urgent_items', 'show_upcoming_items', 'show_site_status', 'show_kpi_cards', 'show_overview_data')
+        }),
+        ('Grouping Settings', {
+            'fields': ('group_urgent_by_site', 'group_upcoming_by_site')
+        }),
+        ('Display Limits', {
+            'fields': ('max_urgent_items_per_site', 'max_upcoming_items_per_site', 'max_urgent_items_total', 'max_upcoming_items_total')
+        }),
+        ('Time Range Settings', {
+            'fields': ('urgent_days_ahead', 'upcoming_days_ahead')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        })
+    )
+    
+    def save_model(self, request, obj, form, change):
+        # Ensure only one dashboard settings instance is active at a time
+        if obj.is_active:
+            DashboardSettings.objects.exclude(pk=obj.pk).update(is_active=False)
         super().save_model(request, obj, form, change)
 
 @admin.register(CSSCustomization)

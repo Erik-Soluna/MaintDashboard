@@ -28,7 +28,7 @@ from .models import (
     MaintenanceTimelineEntry
 )
 from equipment.models import Equipment
-from core.models import EquipmentCategory
+from core.models import EquipmentCategory, UserProfile
 from equipment.models import Equipment, EquipmentDocument
 from .forms import (
     MaintenanceActivityForm, MaintenanceScheduleForm, 
@@ -247,9 +247,15 @@ def bulk_add_activity(request):
     from equipment.models import Equipment
     from core.models import Location
     from datetime import datetime
+    import pytz
     
     try:
         connection.ensure_connection()
+        
+        # Get user's timezone from profile (defaults to Central)
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        user_timezone_str = user_profile.get_user_timezone()  # Returns 'America/Chicago' by default
+        user_tz = pytz.timezone(user_timezone_str)
         
         # Get site filtering
         selected_site_id = request.GET.get('site_id')
@@ -305,9 +311,17 @@ def bulk_add_activity(request):
                     activity_type = MaintenanceActivityType.objects.get(id=activity_type_id)
                     assigned_to = User.objects.get(id=assigned_to_id) if assigned_to_id else None
                     
-                    # Convert date strings to datetime objects
-                    scheduled_start_dt = datetime.strptime(scheduled_start, '%Y-%m-%dT%H:%M') if scheduled_start else None
-                    scheduled_end_dt = datetime.strptime(scheduled_end, '%Y-%m-%dT%H:%M') if scheduled_end else None
+                    # Convert date strings to timezone-aware datetime objects in user's timezone
+                    scheduled_start_dt = None
+                    scheduled_end_dt = None
+                    if scheduled_start:
+                        # Parse as naive datetime, then localize to user's timezone
+                        naive_dt = datetime.strptime(scheduled_start, '%Y-%m-%dT%H:%M')
+                        scheduled_start_dt = user_tz.localize(naive_dt)
+                    if scheduled_end:
+                        # Parse as naive datetime, then localize to user's timezone
+                        naive_dt = datetime.strptime(scheduled_end, '%Y-%m-%dT%H:%M')
+                        scheduled_end_dt = user_tz.localize(naive_dt)
                     
                     created_activities = []
                     created_schedules = []
@@ -606,12 +620,13 @@ def add_activity(request):
             if equipment_id:
                 try:
                     equipment = Equipment.objects.get(id=equipment_id, is_active=True)
-                    initial_data['equipment'] = equipment
-                    logger.info(f"Pre-populating equipment: {equipment.name}")
+                    # Use equipment.id instead of equipment object for ModelChoiceField
+                    initial_data['equipment'] = equipment.id
+                    logger.info(f"Pre-populating equipment: {equipment.name} (ID: {equipment.id})")
                 except (Equipment.DoesNotExist, ValueError):
                     logger.warning(f"Invalid equipment ID in GET parameter: {equipment_id}")
             
-            form = MaintenanceActivityForm(initial=initial_data, request=request)
+            form = MaintenanceActivityForm(initial=initial_data, request=request, equipment_id=equipment_id)
         
         # Debug: Check equipment queryset in form with better error handling
         try:
@@ -1206,7 +1221,13 @@ def import_maintenance_csv(request):
                 if priority not in valid_priorities:
                     priority = 'medium'
                 
-                # Parse dates
+                # Get user's timezone from profile (defaults to Central)
+                user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+                user_timezone_str = user_profile.get_user_timezone()  # Returns 'America/Chicago' by default
+                import pytz
+                user_tz = pytz.timezone(user_timezone_str)
+                
+                # Parse dates - interpret naive datetimes as being in user's timezone
                 scheduled_start = None
                 scheduled_end = None
                 actual_start = None
@@ -1217,7 +1238,11 @@ def import_maintenance_csv(request):
                     if len(row) > 5 and row[5].strip():
                         scheduled_start = datetime.fromisoformat(row[5].strip())
                         if scheduled_start.tzinfo is None:
-                            scheduled_start = django_timezone.make_aware(scheduled_start)
+                            # Interpret naive datetime as being in user's timezone
+                            scheduled_start = user_tz.localize(scheduled_start)
+                        else:
+                            # Already timezone-aware, convert to user's timezone for consistency
+                            scheduled_start = scheduled_start.astimezone(user_tz)
                 except ValueError:
                     pass
                 
@@ -1225,7 +1250,11 @@ def import_maintenance_csv(request):
                     if len(row) > 6 and row[6].strip():
                         scheduled_end = datetime.fromisoformat(row[6].strip())
                         if scheduled_end.tzinfo is None:
-                            scheduled_end = django_timezone.make_aware(scheduled_end)
+                            # Interpret naive datetime as being in user's timezone
+                            scheduled_end = user_tz.localize(scheduled_end)
+                        else:
+                            # Already timezone-aware, convert to user's timezone for consistency
+                            scheduled_end = scheduled_end.astimezone(user_tz)
                 except ValueError:
                     pass
                 
@@ -1233,7 +1262,11 @@ def import_maintenance_csv(request):
                     if len(row) > 7 and row[7].strip():
                         actual_start = datetime.fromisoformat(row[7].strip())
                         if actual_start.tzinfo is None:
-                            actual_start = django_timezone.make_aware(actual_start)
+                            # Interpret naive datetime as being in user's timezone
+                            actual_start = user_tz.localize(actual_start)
+                        else:
+                            # Already timezone-aware, convert to user's timezone for consistency
+                            actual_start = actual_start.astimezone(user_tz)
                 except ValueError:
                     pass
                 
@@ -1241,7 +1274,11 @@ def import_maintenance_csv(request):
                     if len(row) > 8 and row[8].strip():
                         actual_end = datetime.fromisoformat(row[8].strip())
                         if actual_end.tzinfo is None:
-                            actual_end = django_timezone.make_aware(actual_end)
+                            # Interpret naive datetime as being in user's timezone
+                            actual_end = user_tz.localize(actual_end)
+                        else:
+                            # Already timezone-aware, convert to user's timezone for consistency
+                            actual_end = actual_end.astimezone(user_tz)
                 except ValueError:
                     pass
                 
@@ -1263,11 +1300,11 @@ def import_maintenance_csv(request):
                     if users.exists():
                         assigned_to = users.first()
                 
-                # Default scheduled dates if not provided
+                # Default scheduled dates if not provided (in user's timezone)
                 if not scheduled_start:
-                    scheduled_start = django_timezone.now()
+                    scheduled_start = django_timezone.now().astimezone(user_tz)
                 if not scheduled_end:
-                    scheduled_end = scheduled_start + django_timezone.timedelta(hours=activity_type.estimated_duration_hours)
+                    scheduled_end = scheduled_start + timedelta(hours=activity_type.estimated_duration_hours)
                 
                 # Create maintenance activity
                 activity_data = {
@@ -1311,6 +1348,118 @@ def import_maintenance_csv(request):
         messages.error(request, f'Error reading CSV file: {str(e)}')
     
     return redirect('maintenance:maintenance_list')
+
+
+@login_required
+def export_maintenance_activities_csv(request):
+    """Export all maintenance activities to CSV."""
+    from equipment.models import EquipmentCategory
+    from core.models import Location
+    import pytz
+    
+    # Get user's timezone from profile (defaults to Central)
+    user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    user_timezone_str = user_profile.get_user_timezone()  # Returns 'America/Chicago' by default
+    user_tz = pytz.timezone(user_timezone_str)
+    
+    # Get filter parameters (same as reports page)
+    category_id = request.GET.get('category')
+    location_id = request.GET.get('location')
+    status_filter = request.GET.get('status')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    
+    # Base queryset
+    activities_queryset = MaintenanceActivity.objects.select_related(
+        'equipment', 'equipment__category', 'equipment__location', 'activity_type', 'assigned_to'
+    ).all()
+    
+    # Apply filters
+    if category_id:
+        activities_queryset = activities_queryset.filter(equipment__category_id=category_id)
+    if location_id:
+        activities_queryset = activities_queryset.filter(equipment__location_id=location_id)
+    if status_filter:
+        activities_queryset = activities_queryset.filter(status=status_filter)
+    if date_from:
+        try:
+            from datetime import datetime
+            # Parse date string and convert to timezone-aware datetime at start of day in user's timezone
+            date_from_naive = datetime.strptime(date_from, '%Y-%m-%d').date()
+            date_from_dt = user_tz.localize(datetime.combine(date_from_naive, datetime.min.time()))
+            # Convert to UTC for database query (Django stores datetimes in UTC)
+            date_from_utc = date_from_dt.astimezone(pytz.UTC)
+            activities_queryset = activities_queryset.filter(scheduled_start__gte=date_from_utc)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            from datetime import datetime
+            # Parse date string and convert to timezone-aware datetime at end of day in user's timezone
+            date_to_naive = datetime.strptime(date_to, '%Y-%m-%d').date()
+            date_to_dt = user_tz.localize(datetime.combine(date_to_naive, datetime.max.time()))
+            # Convert to UTC for database query
+            date_to_utc = date_to_dt.astimezone(pytz.UTC)
+            activities_queryset = activities_queryset.filter(scheduled_start__lte=date_to_utc)
+        except ValueError:
+            pass
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="maintenance_activities_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header
+    writer.writerow([
+        'ID',
+        'Title',
+        'Equipment',
+        'Category',
+        'Location',
+        'Activity Type',
+        'Status',
+        'Priority',
+        'Scheduled Start',
+        'Scheduled End',
+        'Actual Start',
+        'Actual End',
+        'Duration (Hours)',
+        'Assigned To',
+        'Description',
+        'Completion Notes',
+        'Created At',
+        'Updated At'
+    ])
+    
+    # Write data
+    for activity in activities_queryset.order_by('-scheduled_start'):
+        duration = None
+        if activity.actual_start and activity.actual_end:
+            duration = (activity.actual_end - activity.actual_start).total_seconds() / 3600
+        
+        writer.writerow([
+            activity.id,
+            activity.title or '',
+            activity.equipment.name if activity.equipment else '',
+            activity.equipment.category.name if activity.equipment and activity.equipment.category else '',
+            activity.equipment.location.name if activity.equipment and activity.equipment.location else '',
+            activity.activity_type.name if activity.activity_type else '',
+            activity.get_status_display(),
+            activity.get_priority_display(),
+            activity.scheduled_start.strftime('%Y-%m-%d %H:%M:%S') if activity.scheduled_start else '',
+            activity.scheduled_end.strftime('%Y-%m-%d %H:%M:%S') if activity.scheduled_end else '',
+            activity.actual_start.strftime('%Y-%m-%d %H:%M:%S') if activity.actual_start else '',
+            activity.actual_end.strftime('%Y-%m-%d %H:%M:%S') if activity.actual_end else '',
+            round(duration, 2) if duration else '',
+            activity.assigned_to.get_full_name() if activity.assigned_to else '',
+            (activity.description or '').replace('\n', ' ').replace('\r', ''),
+            (activity.completion_notes or '').replace('\n', ' ').replace('\r', ''),
+            activity.created_at.strftime('%Y-%m-%d %H:%M:%S') if activity.created_at else '',
+            activity.updated_at.strftime('%Y-%m-%d %H:%M:%S') if activity.updated_at else '',
+        ])
+    
+    return response
 
 
 @login_required
@@ -1368,21 +1517,75 @@ def export_maintenance_schedules_csv(request):
 
 @login_required
 def maintenance_reports(request):
-    """Maintenance reports and analytics."""
+    """Maintenance reports and analytics with timeline and export."""
+    from equipment.models import EquipmentCategory
+    from core.models import Location
+    import pytz
+    
+    # Get user's timezone from profile (defaults to Central)
+    user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    user_timezone_str = user_profile.get_user_timezone()  # Returns 'America/Chicago' by default
+    user_tz = pytz.timezone(user_timezone_str)
+    
+    # Get filter parameters
+    category_id = request.GET.get('category')
+    location_id = request.GET.get('location')
+    status_filter = request.GET.get('status')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    
+    # Base queryset for activities
+    activities_queryset = MaintenanceActivity.objects.select_related(
+        'equipment', 'equipment__category', 'equipment__location', 'activity_type', 'assigned_to'
+    ).all()
+    
+    # Apply filters
+    if category_id:
+        activities_queryset = activities_queryset.filter(equipment__category_id=category_id)
+    if location_id:
+        activities_queryset = activities_queryset.filter(equipment__location_id=location_id)
+    if status_filter:
+        activities_queryset = activities_queryset.filter(status=status_filter)
+    if date_from:
+        try:
+            from datetime import datetime
+            # Parse date string and convert to timezone-aware datetime at start of day in user's timezone
+            date_from_naive = datetime.strptime(date_from, '%Y-%m-%d').date()
+            date_from_dt = user_tz.localize(datetime.combine(date_from_naive, datetime.min.time()))
+            # Convert to UTC for database query (Django stores datetimes in UTC)
+            date_from_utc = date_from_dt.astimezone(pytz.UTC)
+            activities_queryset = activities_queryset.filter(scheduled_start__gte=date_from_utc)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            from datetime import datetime
+            # Parse date string and convert to timezone-aware datetime at end of day in user's timezone
+            date_to_naive = datetime.strptime(date_to, '%Y-%m-%d').date()
+            date_to_dt = user_tz.localize(datetime.combine(date_to_naive, datetime.max.time()))
+            # Convert to UTC for database query
+            date_to_utc = date_to_dt.astimezone(pytz.UTC)
+            activities_queryset = activities_queryset.filter(scheduled_start__lte=date_to_utc)
+        except ValueError:
+            pass
+    
+    # Get all activities for timeline (sorted by scheduled_start)
+    all_activities = activities_queryset.order_by('-scheduled_start')
+    
     # Activity status distribution
-    status_stats = MaintenanceActivity.objects.values('status').annotate(
+    status_stats = activities_queryset.values('status').annotate(
         count=Count('id')
     ).order_by('status')
     
     # Equipment with most maintenance
-    equipment_stats = MaintenanceActivity.objects.values(
+    equipment_stats = activities_queryset.values(
         'equipment__name'
     ).annotate(
         count=Count('id')
     ).order_by('-count')[:10]
     
     # Monthly completion stats
-    monthly_stats = MaintenanceActivity.objects.filter(
+    monthly_stats = activities_queryset.filter(
         status='completed',
         actual_end__gte=timezone.now() - timedelta(days=365)
     ).extra(
@@ -1391,10 +1594,149 @@ def maintenance_reports(request):
         count=Count('id')
     ).order_by('month')
     
+    # Daily completion stats for timeline chart (last 90 days)
+    daily_completions = {}
+    completed_activities = activities_queryset.filter(
+        status='completed',
+        actual_end__isnull=False
+    ).order_by('actual_end')
+    
+    # Get date range (default to last 30 days, or use filter dates)
+    # Use user's timezone for date calculations
+    now_in_user_tz = timezone.now().astimezone(user_tz)
+    if date_from:
+        try:
+            from datetime import datetime
+            start_date = datetime.strptime(date_from, '%Y-%m-%d').date()
+        except ValueError:
+            start_date = (now_in_user_tz - timedelta(days=30)).date()
+    else:
+        start_date = (now_in_user_tz - timedelta(days=30)).date()
+    
+    if date_to:
+        try:
+            from datetime import datetime
+            end_date = datetime.strptime(date_to, '%Y-%m-%d').date()
+        except ValueError:
+            end_date = now_in_user_tz.date()
+    else:
+        end_date = now_in_user_tz.date()
+    
+    # Initialize all dates in range with 0
+    current_date = start_date
+    while current_date <= end_date:
+        daily_completions[current_date.strftime('%Y-%m-%d')] = 0
+        current_date += timedelta(days=1)
+    
+    # Count completions per day - Use database aggregation instead of Python loop
+    # Convert dates to timezone-aware datetimes for database queries
+    from django.db.models.functions import TruncDate
+    from datetime import datetime
+    start_dt = user_tz.localize(datetime.combine(start_date, datetime.min.time()))
+    start_utc = start_dt.astimezone(pytz.UTC)
+    end_dt = user_tz.localize(datetime.combine(end_date, datetime.max.time()))
+    end_utc = end_dt.astimezone(pytz.UTC)
+    
+    daily_completions_queryset = completed_activities.filter(
+        actual_end__gte=start_utc,
+        actual_end__lte=end_utc
+    ).annotate(
+        date=TruncDate('actual_end')
+    ).values('date').annotate(
+        count=Count('id')
+    ).order_by('date')
+    
+    for item in daily_completions_queryset:
+        date_key = item['date'].strftime('%Y-%m-%d')
+        daily_completions[date_key] = item['count']
+    
+    # Convert to JSON for chart
+    import json
+    daily_completions_json = json.dumps(daily_completions)
+    
+    # Generate maintenance trends (monthly view for all equipment)
+    # Use the same date range or default to last 12 months for trends
+    # Convert dates to timezone-aware datetimes for database queries
+    trends_start_dt = user_tz.localize(datetime.combine(start_date, datetime.min.time()))
+    trends_start_utc = trends_start_dt.astimezone(pytz.UTC)
+    trends_end_dt = user_tz.localize(datetime.combine(end_date, datetime.max.time()))
+    trends_end_utc = trends_end_dt.astimezone(pytz.UTC)
+    
+    # For trends, group by month - Use database aggregation instead of Python loop
+    from django.db.models.functions import TruncMonth
+    monthly_trends_queryset = activities_queryset.filter(
+        scheduled_start__gte=trends_start_utc, 
+        scheduled_start__lte=trends_end_utc
+    ).annotate(
+        month=TruncMonth('scheduled_start')
+    ).values('month').annotate(
+        count=Count('id')
+    ).order_by('month')
+    
+    monthly_trends = {}
+    for item in monthly_trends_queryset:
+        month_key = item['month'].strftime('%Y-%m')
+        monthly_trends[month_key] = item['count']
+    
+    # Create labels and data for trends chart
+    trends_labels = []
+    trends_data = []
+    
+    # Generate all months in range
+    current_date = trends_start_date.replace(day=1)
+    while current_date <= trends_end_date:
+        month_key = current_date.strftime('%Y-%m')
+        trends_labels.append(current_date.strftime('%b %Y'))
+        trends_data.append(monthly_trends.get(month_key, 0))
+        # Move to next month
+        if current_date.month == 12:
+            current_date = current_date.replace(year=current_date.year + 1, month=1)
+        else:
+            current_date = current_date.replace(month=current_date.month + 1)
+    
+    trends_json = json.dumps({
+        'labels': trends_labels,
+        'data': trends_data
+    })
+    
+    # Build timeline events
+    timeline_events = []
+    for activity in all_activities[:100]:  # Limit to 100 most recent for performance
+        timeline_events.append({
+            'type': 'maintenance',
+            'title': activity.title or (activity.activity_type.name if activity.activity_type else 'Maintenance'),
+            'description': activity.description or '',
+            'timestamp': activity.scheduled_start,
+            'status': activity.status,
+            'priority': activity.priority,
+            'equipment': activity.equipment.name if activity.equipment else 'Unknown',
+            'category': activity.equipment.category.name if activity.equipment and activity.equipment.category else 'N/A',
+            'location': activity.equipment.location.name if activity.equipment and activity.equipment.location else 'N/A',
+            'scheduled_end': activity.scheduled_end,
+            'actual_start': activity.actual_start,
+            'actual_end': activity.actual_end,
+            'id': activity.id,
+        })
+    
+    # Get filter options
+    categories = EquipmentCategory.objects.filter(is_active=True).order_by('name')
+    locations = Location.objects.filter(is_active=True).order_by('name')
+    
     context = {
         'status_stats': status_stats,
         'equipment_stats': equipment_stats,
         'monthly_stats': monthly_stats,
+        'timeline_events': timeline_events,
+        'all_activities': all_activities,
+        'daily_completions': daily_completions_json,
+        'maintenance_trends': trends_json,
+        'categories': categories,
+        'locations': locations,
+        'selected_category': int(category_id) if category_id else None,
+        'selected_location': int(location_id) if location_id else None,
+        'selected_status': status_filter,
+        'date_from': date_from,
+        'date_to': date_to,
     }
     
     return render(request, 'maintenance/reports.html', context)
@@ -2026,12 +2368,36 @@ def fetch_activities(request):
 def get_activity_details(request, activity_id):
     """Get detailed information about a maintenance activity for AJAX requests."""
     try:
+        from core.models import UserProfile
+        import pytz
+        
+        # Get user's timezone from profile (defaults to Central)
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        user_timezone_str = user_profile.get_user_timezone()  # Returns 'America/Chicago' by default
+        user_tz = pytz.timezone(user_timezone_str)
+        
         activity = get_object_or_404(MaintenanceActivity, id=activity_id)
         
         # Get related data
         checklist_items = activity.checklist_items.all().order_by('order')
         timeline_entries = activity.timeline_entries.all().order_by('-created_at')[:10]
         reports = activity.reports.all().order_by('-created_at')
+        
+        # Convert datetimes to UTC for API response - JavaScript will format in user's timezone
+        def convert_to_utc(dt):
+            if not dt:
+                return None
+            # If already timezone-aware, convert to UTC
+            if timezone.is_aware(dt):
+                return dt.astimezone(pytz.UTC)
+            # If naive, assume UTC
+            return timezone.make_aware(dt, pytz.UTC)
+        
+        # Convert to UTC before formatting (JavaScript will handle timezone conversion)
+        scheduled_start_utc = convert_to_utc(activity.scheduled_start) if activity.scheduled_start else None
+        scheduled_end_utc = convert_to_utc(activity.scheduled_end) if activity.scheduled_end else None
+        actual_start_utc = convert_to_utc(activity.actual_start) if activity.actual_start else None
+        actual_end_utc = convert_to_utc(activity.actual_end) if activity.actual_end else None
         
         data = {
             'id': activity.id,
@@ -2049,10 +2415,11 @@ def get_activity_details(request, activity_id):
                 'name': activity.activity_type.name,
                 'category': activity.activity_type.category.name,
             },
-            'scheduled_start': activity.scheduled_start.isoformat() if activity.scheduled_start else None,
-            'scheduled_end': activity.scheduled_end.isoformat() if activity.scheduled_end else None,
-            'actual_start': activity.actual_start.isoformat() if activity.actual_start else None,
-            'actual_end': activity.actual_end.isoformat() if activity.actual_end else None,
+            'scheduled_start': scheduled_start_utc.isoformat() if scheduled_start_utc else None,
+            'scheduled_end': scheduled_end_utc.isoformat() if scheduled_end_utc else None,
+            'actual_start': actual_start_utc.isoformat() if actual_start_utc else None,
+            'actual_end': actual_end_utc.isoformat() if actual_end_utc else None,
+            'timezone': user_timezone_str,  # Include timezone info for JavaScript to use for formatting
             'assigned_to': activity.assigned_to.username if activity.assigned_to else None,
             'completion_notes': activity.completion_notes,
             'checklist_items': [
