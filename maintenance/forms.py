@@ -465,8 +465,102 @@ class MaintenanceActivityForm(forms.ModelForm):
                         'auto_generate': True,
                         'advance_notice_days': recurrence_advance_notice_days,
                         'is_active': True,
+                        'created_by': instance.created_by,
                     }
                 )
+                
+                # Immediately generate future activities/events based on advance notice from schedule creation
+                from django.utils import timezone
+                from datetime import timedelta, datetime
+                
+                # Calculate target date based on advance notice from when schedule is created
+                schedule_creation_date = timezone.now().date()
+                advance_target_date = schedule_creation_date + timedelta(days=recurrence_advance_notice_days)
+                
+                # Determine how far ahead to generate
+                if recurrence_end_date:
+                    # Generate up to the end date or advance notice date, whichever comes first
+                    target_date = min(recurrence_end_date, advance_target_date)
+                else:
+                    # Generate up to advance notice date if no end date specified
+                    target_date = advance_target_date
+                
+                # Generate all future activities starting from the next occurrence
+                # (skip the first one since it's already created)
+                next_date = instance.scheduled_start.date() + timedelta(days=frequency_days)
+                last_generated_date = None
+                
+                while next_date <= target_date:
+                    # Check if activity already exists for this date
+                    existing = MaintenanceActivity.objects.filter(
+                        equipment=instance.equipment,
+                        activity_type=instance.activity_type,
+                        scheduled_start__date=next_date
+                    ).exists()
+                    
+                    if not existing:
+                        # Get the time from the original activity, or use a default
+                        start_time = instance.scheduled_start.time() if instance.scheduled_start else datetime.min.time()
+                        
+                        # Create the maintenance activity
+                        future_activity = MaintenanceActivity.objects.create(
+                            equipment=instance.equipment,
+                            activity_type=instance.activity_type,
+                            title=f"{instance.activity_type.name} - {instance.equipment.name}",
+                            description=instance.activity_type.description or instance.description,
+                            scheduled_start=timezone.make_aware(
+                                datetime.combine(next_date, start_time)
+                            ),
+                            scheduled_end=timezone.make_aware(
+                                datetime.combine(next_date, start_time)
+                            ) + timedelta(
+                                hours=instance.activity_type.estimated_duration_hours if instance.activity_type.estimated_duration_hours else 1
+                            ),
+                            status='scheduled',
+                            priority=instance.priority,
+                            assigned_to=instance.assigned_to,
+                            created_by=instance.created_by,
+                        )
+                        
+                        # Track the last date we generated an activity for
+                        last_generated_date = next_date
+                        
+                        # Create corresponding calendar event
+                        try:
+                            from events.models import CalendarEvent
+                            CalendarEvent.objects.create(
+                                title=f"Maintenance: {future_activity.title}",
+                                description=future_activity.description,
+                                event_type='maintenance',
+                                equipment=future_activity.equipment,
+                                maintenance_activity=future_activity,
+                                event_date=future_activity.scheduled_start.date(),
+                                start_time=future_activity.scheduled_start.time(),
+                                end_time=future_activity.scheduled_end.time() if future_activity.scheduled_end else None,
+                                assigned_to=future_activity.assigned_to,
+                                priority=future_activity.priority,
+                                created_by=future_activity.created_by
+                            )
+                        except Exception as e:
+                            import logging
+                            logger = logging.getLogger(__name__)
+                            logger.error(f"Error creating calendar event for future activity: {str(e)}")
+                    
+                    # Calculate next occurrence
+                    next_date = next_date + timedelta(days=frequency_days)
+                    
+                    # Check if we've exceeded the end date
+                    if recurrence_end_date and next_date > recurrence_end_date:
+                        break
+                
+                # Update last generated date on the schedule
+                # Use the last date we actually generated, or the start date if none were generated
+                if last_generated_date:
+                    schedule.last_generated = last_generated_date
+                else:
+                    # No new activities were generated, use the start date
+                    schedule.last_generated = instance.scheduled_start.date()
+                schedule.save()
         
         return instance
 
