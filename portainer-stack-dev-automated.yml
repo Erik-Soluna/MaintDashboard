@@ -77,7 +77,7 @@ services:
         GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-unknown}
     container_name: maintenance_web_dev_auto
     entrypoint: ["./scripts/deployment/docker-entrypoint-automated.sh"]
-    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    command: ["python", "manage.py", "runserver", "--noreload", "0.0.0.0:8000"]
     volumes:
       - static_volume_dev_auto:/app/staticfiles
       - media_volume_dev_auto:/app/media
