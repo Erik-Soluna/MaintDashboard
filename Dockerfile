@@ -108,5 +108,5 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
 # Set the entrypoint
 ENTRYPOINT ["./scripts/deployment/docker-entrypoint.sh"]
 
-# Default command
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Default command (--noreload disables file watching which causes high CPU during deployments)
+CMD ["python", "manage.py", "runserver", "--noreload", "0.0.0.0:8000"]
