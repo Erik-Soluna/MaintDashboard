@@ -531,24 +531,41 @@ def dashboard(request):
                 if site_id in next_events_by_site and len(next_events_by_site[site_id]) < 3:
                     next_events_by_site[site_id].append(event)
         
-        # Bulk fetch calendar counts for all sites
-        calendar_counts_by_site = {}
-        all_calendar_counts = CalendarEvent.objects.filter(
-            all_site_filters
-        ).values('equipment__location__parent_location_id', 'equipment__location_id', 'is_completed', 'event_date').annotate(
-            count=Count('id')
-        )
+        # Bulk fetch calendar counts for all sites - use separate efficient queries
+        calendar_counts_by_site = {site.id: {'total': 0, 'pending': 0, 'completed': 0} for site in all_sites}
         
-        for item in all_calendar_counts:
+        # Get total counts per site (single query)
+        calendar_totals = CalendarEvent.objects.filter(
+            all_site_filters
+        ).values('equipment__location__parent_location_id', 'equipment__location_id').annotate(count=Count('id'))
+        
+        for item in calendar_totals:
             site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
-            if site_id:
-                if site_id not in calendar_counts_by_site:
-                    calendar_counts_by_site[site_id] = {'total': 0, 'pending': 0, 'completed': 0}
-                calendar_counts_by_site[site_id]['total'] += item['count']
-                if item.get('is_completed'):
-                    calendar_counts_by_site[site_id]['completed'] += item['count']
-                elif item.get('event_date') and item['event_date'] >= today:
-                    calendar_counts_by_site[site_id]['pending'] += item['count']
+            if site_id in calendar_counts_by_site:
+                calendar_counts_by_site[site_id]['total'] = item['count']
+        
+        # Get completed counts per site (single query)
+        calendar_completed = CalendarEvent.objects.filter(
+            all_site_filters,
+            is_completed=True
+        ).values('equipment__location__parent_location_id', 'equipment__location_id').annotate(count=Count('id'))
+        
+        for item in calendar_completed:
+            site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
+            if site_id in calendar_counts_by_site:
+                calendar_counts_by_site[site_id]['completed'] = item['count']
+        
+        # Get pending counts per site (single query)
+        calendar_pending = CalendarEvent.objects.filter(
+            all_site_filters,
+            is_completed=False,
+            event_date__gte=today
+        ).values('equipment__location__parent_location_id', 'equipment__location_id').annotate(count=Count('id'))
+        
+        for item in calendar_pending:
+            site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
+            if site_id in calendar_counts_by_site:
+                calendar_counts_by_site[site_id]['pending'] = item['count']
         
         # Bulk fetch pod counts for all sites
         pod_counts = Location.objects.filter(
