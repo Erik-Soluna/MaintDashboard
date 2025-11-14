@@ -1683,8 +1683,8 @@ def maintenance_reports(request):
     trends_data = []
     
     # Generate all months in range
-    current_date = trends_start_date.replace(day=1)
-    while current_date <= trends_end_date:
+    current_date = start_date.replace(day=1)
+    while current_date <= end_date:
         month_key = current_date.strftime('%Y-%m')
         trends_labels.append(current_date.strftime('%b %Y'))
         trends_data.append(monthly_trends.get(month_key, 0))
