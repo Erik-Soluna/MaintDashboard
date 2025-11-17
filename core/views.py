@@ -4727,9 +4727,10 @@ def run_migrations_api(request):
             'error': str(e)
         }, status=500)
 
-@csrf_exempt
-@require_http_methods(["POST"])
-def run_test_scenario_api(request):
+# Removed: run_test_scenario_api - Playwright functionality removed
+# @csrf_exempt
+# @require_http_methods(["POST"])
+# def run_test_scenario_api(request):
     """
     Run a predefined test scenario.
     
