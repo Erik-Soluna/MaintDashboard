@@ -183,12 +183,13 @@ PYTHON
             print_status "📝 Checking for new migrations..."
             # Only create migrations if there are actual model changes not reflected in migration files
             # This prevents re-creating migrations that already exist in the codebase from GitHub
-            python manage.py makemigrations --check --dry-run > /dev/null 2>&1
-            if [ $? -eq 0 ]; then
-                # No changes detected, skip makemigrations
+            # makemigrations --check returns 0 if no changes needed, 1 if changes needed
+            if python manage.py makemigrations --check --dry-run > /dev/null 2>&1; then
+                # No changes detected (exit code 0), skip makemigrations
                 print_status "ℹ️ No model changes detected, skipping makemigrations"
             else
-                # Changes detected, create migrations
+                # Changes detected (exit code 1), create migrations
+                print_status "📝 Model changes detected, creating migrations..."
                 python manage.py makemigrations --noinput || print_warning "⚠️ No new migrations to create"
             fi
             
