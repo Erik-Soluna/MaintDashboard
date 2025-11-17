@@ -3473,12 +3473,12 @@ def playwright_debug_api(request):
     #                 "output": log.output,
     #                 "error_message": log.error_message,
     #                 "result_json": log.result_json,
-                    "started_at": log.started_at,
-                    "finished_at": log.finished_at,
-                }
-                for log in logs
-            ]
-        })
+    #                 "started_at": log.started_at,
+    #                 "finished_at": log.finished_at,
+    #             }
+    #             for log in logs
+    #         ]
+    #     })
     # elif request.method == "POST":
     #     # DEPRECATED - Playwright functionality removed
     #     import json
