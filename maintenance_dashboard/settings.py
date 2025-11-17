@@ -147,7 +147,7 @@ else:
             'PASSWORD': config('DB_PASSWORD', default='postgres'),
             'HOST': config('DB_HOST', default='localhost'),
             'PORT': config('DB_PORT', default='5432'),
-            'CONN_MAX_AGE': 300,  # 5 minutes - Django connection pooling setting
+            'CONN_MAX_AGE': 0,  # Disable persistent connections for celery - each task gets a fresh connection
             'OPTIONS': {
                 # PostgreSQL-specific connection options can go here
             },
