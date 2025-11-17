@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('core', '0021_brandingsettings_table_hover_background_color_and_more'),
+        ('core', '0020_brandingsettings_table_hover_background_color_and_more'),
     ]
     
     # Note: This migration removes the PlaywrightDebugLog model
