@@ -90,7 +90,11 @@ RUN chmod +x /app/scripts/deployment/docker-entrypoint.sh \
 RUN python manage.py collectstatic --noinput || echo "Static files collection failed, will retry at runtime"
 
 # Create a non-root user and add to docker group
-RUN adduser --disabled-password --gecos '' appuser \
+# Install su-exec for switching to non-root user
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends su-exec \
+    && rm -rf /var/lib/apt/lists/* \
+    && adduser --disabled-password --gecos '' appuser \
     && chown -R appuser:appuser /app \
     && groupadd -g 999 docker || true \
     && usermod -aG docker appuser

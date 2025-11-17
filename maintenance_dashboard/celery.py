@@ -21,6 +21,25 @@ app = Celery('maintenance_dashboard')
 # the configuration object to child processes.
 app.config_from_object('django.conf:settings', namespace='CELERY')
 
+# Security: Disable superuser privileges for Celery workers
+# This prevents the security warning about running with superuser privileges
+app.conf.worker_disable_rate_limits = False
+app.conf.worker_send_task_events = True
+app.conf.task_send_sent_event = True
+# Disable superuser privileges - workers should not run as root
+import os
+if os.geteuid() == 0:
+    logging.warning("Celery worker is running as root. This is not recommended for security.")
+    # Try to switch to non-root user if available
+    try:
+        import pwd
+        appuser = pwd.getpwnam('appuser')
+        os.setgid(appuser.pw_gid)
+        os.setuid(appuser.pw_uid)
+        logging.info("Switched to non-root user: appuser")
+    except (KeyError, OSError, ImportError):
+        logging.warning("Could not switch to non-root user. Please configure container to run as non-root.")
+
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 

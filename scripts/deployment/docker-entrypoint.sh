@@ -402,10 +402,25 @@ main() {
         exec gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 maintenance_dashboard.wsgi:application
 elif [ "$1" = "celery" ]; then
     # Run both worker and beat in the same process to reduce container count
-    exec celery -A maintenance_dashboard worker --beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    # Switch to non-root user for security (appuser created in Dockerfile)
+    if id appuser >/dev/null 2>&1; then
+        print_status "🔒 Switching to non-root user 'appuser' for Celery worker..."
+        exec su-exec appuser celery -A maintenance_dashboard worker --beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    else
+        # Fallback if appuser doesn't exist (should not happen in production)
+        print_warning "⚠️ appuser not found, running as current user (not recommended)"
+        exec celery -A maintenance_dashboard worker --beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    fi
 elif [ "$1" = "celery-beat" ]; then
     # Legacy support - but celery command now handles both
-    exec celery -A maintenance_dashboard beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    # Switch to non-root user for security
+    if id appuser >/dev/null 2>&1; then
+        print_status "🔒 Switching to non-root user 'appuser' for Celery beat..."
+        exec su-exec appuser celery -A maintenance_dashboard beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    else
+        print_warning "⚠️ appuser not found, running as current user (not recommended)"
+        exec celery -A maintenance_dashboard beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    fi
     else
         exec "$@"
     fi
