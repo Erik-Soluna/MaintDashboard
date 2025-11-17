@@ -58,6 +58,24 @@ def configure_celery_broker():
 # Configure broker on startup
 configure_celery_broker()
 
+# Close database connections after each task to prevent connection issues
+# This is especially important when running worker + beat in the same process
+from celery.signals import task_postrun, beat_init
+
+@task_postrun.connect
+def close_db_after_task(sender=None, **kwargs):
+    """Close database connections after each task completes."""
+    from django.db import connections
+    for conn in connections.all():
+        conn.close_if_unusable_or_obsolete()
+
+@beat_init.connect
+def close_db_on_beat_init(sender=None, **kwargs):
+    """Ensure database connections are fresh when beat scheduler starts."""
+    from django.db import connections
+    for conn in connections.all():
+        conn.close()
+
 @app.task(bind=True)
 def debug_task(self):
     """Debug task for testing Celery setup."""
