@@ -36,11 +36,6 @@ import redis
 from django_celery_beat.models import PeriodicTask
 import requests
 from django.test import RequestFactory
-# from .models import PlaywrightDebugLog  # DEPRECATED
-# from core.tasks import run_playwright_debug  # DEPRECATED - Playwright removed
-# from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite  # DEPRECATED
-# from .tasks import run_natural_language_test_task, run_rbac_test_suite_task  # DEPRECATED
-# import asyncio  # Only used for playwright
 from django.contrib.admin.views.decorators import staff_member_required
 import hmac
 import hashlib
@@ -3078,48 +3073,6 @@ def api_explorer(request):
                 'description': 'Get all roles and permissions',
                 'auth_required': True
             },
-            {
-                'name': 'Playwright Debug API',
-                'url': reverse('core:playwright_debug_api'),
-                'method': 'GET/POST',
-                'description': 'Playwright test execution and debugging',
-                'auth_required': True
-            },
-            {
-                'name': 'Natural Language Test API',
-                'url': reverse('core:run_natural_language_test_api'),
-                'method': 'POST',
-                'description': 'Execute natural language Playwright tests',
-                'auth_required': True
-            },
-            {
-                'name': 'RBAC Test Suite API',
-                'url': reverse('core:run_rbac_test_suite_api'),
-                'method': 'POST',
-                'description': 'Execute RBAC test suite',
-                'auth_required': True
-            },
-            {
-                'name': 'Test Results API',
-                'url': reverse('core:get_test_results_api'),
-                'method': 'GET',
-                'description': 'Get Playwright test results',
-                'auth_required': True
-            },
-            {
-                'name': 'Test Screenshots API',
-                'url': reverse('core:get_test_screenshots_api'),
-                'method': 'GET',
-                'description': 'Get Playwright test screenshots',
-                'auth_required': True
-            },
-            {
-                'name': 'Test Scenario API',
-                'url': reverse('core:run_test_scenario_api'),
-                'method': 'POST',
-                'description': 'Execute specific test scenarios',
-                'auth_required': True
-            }
         ],
         
         # System Information
@@ -3448,48 +3401,6 @@ def generate_mdcs(request):
             'error': f'Error generating MDCs: {str(e)}',
             'details': error_details
         }, status=500)
-
-
-@csrf_exempt
-@require_http_methods(["GET", "POST"])
-def playwright_debug_api(request):
-    # DEPRECATED - Playwright functionality removed
-    return JsonResponse({
-        "error": "Playwright debug functionality has been deprecated and removed.",
-        "logs": []
-    }, status=410)  # 410 Gone
-    
-    # OLD CODE - DEPRECATED
-    # if request.method == "GET":
-    #     # Return the latest 10 logs
-    #     logs = PlaywrightDebugLog.objects.all()[:10]
-    #     return JsonResponse({
-    #         "logs": [
-    #             {
-    #                 "id": log.id,
-    #                 "timestamp": log.timestamp,
-    #                 "prompt": log.prompt,
-    #                 "status": log.status,
-    #                 "output": log.output,
-    #                 "error_message": log.error_message,
-    #                 "result_json": log.result_json,
-    #                 "started_at": log.started_at,
-    #                 "finished_at": log.finished_at,
-    #             }
-    #             for log in logs
-    #         ]
-    #     })
-    # elif request.method == "POST":
-    #     # DEPRECATED - Playwright functionality removed
-    #     import json
-    #     data = json.loads(request.body.decode())
-    #     prompt = data.get("prompt", "").strip()
-    #     if not prompt:
-    #         return JsonResponse({"error": "Prompt is required."}, status=400)
-    #     log = PlaywrightDebugLog.objects.create(prompt=prompt, status="pending")
-    #     # Trigger Celery task
-    #     run_playwright_debug.delay(log.id)
-    #     return JsonResponse({"id": log.id, "status": log.status, "prompt": log.prompt})
 
 
 @login_required
@@ -3906,139 +3817,6 @@ def clear_database(request):
         }, status=500)
 
 
-@csrf_exempt
-@require_http_methods(["POST"])
-def run_natural_language_test_api(request):
-    """
-    Run a natural language test via API.
-    
-    Expected JSON payload:
-    {
-        "prompt": "Clear database with keep users option",
-        "user_role": "admin",
-        "username": "admin",
-        "password": "temppass123",
-        "async": false
-    }
-    """
-    import json
-    try:
-        data = json.loads(request.body)
-        prompt = data.get('prompt', '')
-        user_role = data.get('user_role', 'admin')
-        username = data.get('username', 'admin')
-        password = data.get('password', 'temppass123')
-        run_async = data.get('async', False)
-        if not prompt:
-            return JsonResponse({'success': False, 'error': 'Prompt is required'}, status=400)
-        
-        if run_async:
-            # DEPRECATED - Playwright functionality removed
-            return JsonResponse({
-                'success': False,
-                'error': 'Playwright natural language testing has been deprecated and removed.',
-                'status': 'deprecated'
-            }, status=410)  # 410 Gone
-            
-            # OLD CODE - DEPRECATED
-            # # Run as Celery task
-            # task = run_natural_language_test_task.delay(
-            #     prompt=prompt,
-            #     user_role=user_role,
-            #     username=username,
-            #     password=password
-            # )
-            # 
-            # return JsonResponse({
-            #     'success': True,
-            #     'task_id': task.id,
-            #     'status': 'queued',
-                'message': 'Test queued for execution'
-            })
-        else:
-            # Run synchronously
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                result = loop.run_until_complete(
-                    run_natural_language_test(prompt, user_role, username, password)
-                )
-                
-                return JsonResponse({
-                    'success': True,
-                    'result': result,
-                    'status': 'completed'
-                })
-            finally:
-                loop.close()
-                
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'Invalid JSON payload'}, status=400)
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def run_rbac_test_suite_api(request):
-    """
-    Run comprehensive RBAC test suite via API.
-    
-    Expected JSON payload:
-    {
-        "async": false
-    }
-    """
-    try:
-        data = json.loads(request.body) if request.body else {}
-        run_async = data.get('async', False)
-        
-        if run_async:
-            # DEPRECATED - Playwright functionality removed
-            return JsonResponse({
-                'success': False,
-                'error': 'Playwright RBAC test suite has been deprecated and removed.',
-                'status': 'deprecated'
-            }, status=410)  # 410 Gone
-            
-            # OLD CODE - DEPRECATED
-            # # Run as Celery task
-            # task = run_rbac_test_suite_task.delay()
-            # 
-            # return JsonResponse({
-            #     'success': True,
-            #     'task_id': task.id,
-            #     'status': 'queued',
-            #     'message': 'RBAC test suite queued for execution'
-            # })
-        else:
-            # Run synchronously
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                result = loop.run_until_complete(run_rbac_test_suite())
-                
-                return JsonResponse({
-                    'success': True,
-                    'result': result,
-                    'status': 'completed'
-                })
-            finally:
-                loop.close()
-                
-    except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'error': 'Invalid JSON payload'
-        }, status=400)
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
 @login_required
 def system_health_check(request):
     """System health check endpoint for debugging issues."""
@@ -4246,86 +4024,6 @@ def health_check_view(request):
         return render(request, 'core/access_denied.html', {'message': 'Access denied'})
     
     return render(request, 'core/health_check.html')
-
-@csrf_exempt
-@require_http_methods(["GET"])
-def get_test_results_api(request):
-    """
-    Get test results and logs.
-    
-    Query parameters:
-    - log_id: Specific log ID to retrieve
-    - limit: Number of recent logs to retrieve (default: 10)
-    - status: Filter by status (pending, running, done, error)
-    """
-    try:
-        log_id = request.GET.get('log_id')
-        limit = int(request.GET.get('limit', 10))
-        status = request.GET.get('status')
-        
-        # DEPRECATED - Playwright functionality removed
-        return JsonResponse({
-            'success': False,
-            'error': 'Playwright debug functionality has been deprecated and removed.',
-            'logs': []
-        }, status=410)  # 410 Gone
-        
-        # OLD CODE - DEPRECATED
-        # if log_id:
-        #     # Get specific log
-        #     try:
-        #         log = PlaywrightDebugLog.objects.get(id=log_id)
-        #         return JsonResponse({
-        #             'success': True,
-        #             'log': {
-        #                 'id': log.id,
-        #                 'prompt': log.prompt,
-        #                 'status': log.status,
-        #                 'started_at': log.started_at.isoformat() if log.started_at else None,
-        #                 'finished_at': log.finished_at.isoformat() if log.finished_at else None,
-        #                 'output': log.output,
-        #                 'result_json': log.result_json,
-        #                 'error_message': log.error_message
-        #             }
-        #         })
-        #     except PlaywrightDebugLog.DoesNotExist:
-        #         return JsonResponse({
-        #             'success': False,
-        #             'error': 'Log not found'
-        #         }, status=404)
-        # else:
-        #     # Get recent logs
-        #     queryset = PlaywrightDebugLog.objects.all().order_by('-created_at')
-        #     
-        #     if status:
-        #         queryset = queryset.filter(status=status)
-        #     
-        #     logs = queryset[:limit]
-        #     
-        #     return JsonResponse({
-        #         'success': True,
-        #         'logs': [{
-        #             'id': log.id,
-        #             'prompt': log.prompt,
-        #             'status': log.status,
-        #             'started_at': log.started_at.isoformat() if log.started_at else None,
-        #             'finished_at': log.finished_at.isoformat() if log.finished_at else None,
-        #             'created_at': log.created_at.isoformat(),
-        #             'error_message': log.error_message
-        #         } for log in logs]
-        #     })
-            
-    except ValueError:
-        return JsonResponse({
-            'success': False,
-            'error': 'Invalid limit parameter'
-        }, status=400)
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
 
 @login_required
 def system_health_check(request):
@@ -5669,33 +5367,6 @@ def bulk_locations_view(request):
     
     return render(request, 'core/bulk_locations.html', context)
 
-
-@staff_member_required
-def playwright_slideshow(request):
-    """
-    Display a slideshow of the latest Playwright test run steps/screenshots.
-    """
-    import json
-    report_path = os.path.join(settings.BASE_DIR, 'playwright', 'smart-test-report.json')
-    screenshots = []
-    captions = []
-    if os.path.exists(report_path):
-        with open(report_path, 'r', encoding='utf-8') as f:
-            report = json.load(f)
-            for i, result in enumerate(report.get('results', [])):
-                for j, screenshot in enumerate(result.get('screenshots', [])):
-                    # Only use the filename for static serving
-                    filename = os.path.basename(screenshot)
-                    step_caption = f"Step {len(screenshots)+1}: {result.get('testName', 'Step')}"
-                    if result.get('errors'):
-                        step_caption += f" (Error: {result['errors'][0]})"
-                    screenshots.append(filename)
-                    captions.append(step_caption)
-    context = {
-        'screenshots': screenshots,
-        'captions': captions,
-    }
-    return render(request, 'core/playwright_slideshow.html', context)
 
 
 def get_comprehensive_system_health():
