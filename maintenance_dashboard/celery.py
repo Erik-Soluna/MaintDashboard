@@ -10,6 +10,12 @@ from django.conf import settings
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
 
+# Configure database connection pooling for celery
+# Disable persistent connections for celery to avoid "Bad file descriptor" errors
+# when running worker + beat in the same process
+import os
+os.environ.setdefault('DJANGO_DB_CONN_MAX_AGE', '0')
+
 app = Celery('maintenance_dashboard')
 
 # Using a string here means the worker doesn't have to serialize
