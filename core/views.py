@@ -3453,35 +3453,43 @@ def generate_mdcs(request):
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def playwright_debug_api(request):
-    if request.method == "GET":
-        # Return the latest 10 logs
-        logs = PlaywrightDebugLog.objects.all()[:10]
-        return JsonResponse({
-            "logs": [
-                {
-                    "id": log.id,
-                    "timestamp": log.timestamp,
-                    "prompt": log.prompt,
-                    "status": log.status,
-                    "output": log.output,
-                    "error_message": log.error_message,
-                    "result_json": log.result_json,
+    # DEPRECATED - Playwright functionality removed
+    return JsonResponse({
+        "error": "Playwright debug functionality has been deprecated and removed.",
+        "logs": []
+    }, status=410)  # 410 Gone
+    
+    # OLD CODE - DEPRECATED
+    # if request.method == "GET":
+    #     # Return the latest 10 logs
+    #     logs = PlaywrightDebugLog.objects.all()[:10]
+    #     return JsonResponse({
+    #         "logs": [
+    #             {
+    #                 "id": log.id,
+    #                 "timestamp": log.timestamp,
+    #                 "prompt": log.prompt,
+    #                 "status": log.status,
+    #                 "output": log.output,
+    #                 "error_message": log.error_message,
+    #                 "result_json": log.result_json,
                     "started_at": log.started_at,
                     "finished_at": log.finished_at,
                 }
                 for log in logs
             ]
         })
-    elif request.method == "POST":
-        import json
-        data = json.loads(request.body.decode())
-        prompt = data.get("prompt", "").strip()
-        if not prompt:
-            return JsonResponse({"error": "Prompt is required."}, status=400)
-        log = PlaywrightDebugLog.objects.create(prompt=prompt, status="pending")
-        # Trigger Celery task
-        run_playwright_debug.delay(log.id)
-        return JsonResponse({"id": log.id, "status": log.status, "prompt": log.prompt})
+    # elif request.method == "POST":
+    #     # DEPRECATED - Playwright functionality removed
+    #     import json
+    #     data = json.loads(request.body.decode())
+    #     prompt = data.get("prompt", "").strip()
+    #     if not prompt:
+    #         return JsonResponse({"error": "Prompt is required."}, status=400)
+    #     log = PlaywrightDebugLog.objects.create(prompt=prompt, status="pending")
+    #     # Trigger Celery task
+    #     run_playwright_debug.delay(log.id)
+    #     return JsonResponse({"id": log.id, "status": log.status, "prompt": log.prompt})
 
 
 @login_required
@@ -3925,18 +3933,26 @@ def run_natural_language_test_api(request):
             return JsonResponse({'success': False, 'error': 'Prompt is required'}, status=400)
         
         if run_async:
-            # Run as Celery task
-            task = run_natural_language_test_task.delay(
-                prompt=prompt,
-                user_role=user_role,
-                username=username,
-                password=password
-            )
-            
+            # DEPRECATED - Playwright functionality removed
             return JsonResponse({
-                'success': True,
-                'task_id': task.id,
-                'status': 'queued',
+                'success': False,
+                'error': 'Playwright natural language testing has been deprecated and removed.',
+                'status': 'deprecated'
+            }, status=410)  # 410 Gone
+            
+            # OLD CODE - DEPRECATED
+            # # Run as Celery task
+            # task = run_natural_language_test_task.delay(
+            #     prompt=prompt,
+            #     user_role=user_role,
+            #     username=username,
+            #     password=password
+            # )
+            # 
+            # return JsonResponse({
+            #     'success': True,
+            #     'task_id': task.id,
+            #     'status': 'queued',
                 'message': 'Test queued for execution'
             })
         else:
@@ -3978,15 +3994,23 @@ def run_rbac_test_suite_api(request):
         run_async = data.get('async', False)
         
         if run_async:
-            # Run as Celery task
-            task = run_rbac_test_suite_task.delay()
-            
+            # DEPRECATED - Playwright functionality removed
             return JsonResponse({
-                'success': True,
-                'task_id': task.id,
-                'status': 'queued',
-                'message': 'RBAC test suite queued for execution'
-            })
+                'success': False,
+                'error': 'Playwright RBAC test suite has been deprecated and removed.',
+                'status': 'deprecated'
+            }, status=410)  # 410 Gone
+            
+            # OLD CODE - DEPRECATED
+            # # Run as Celery task
+            # task = run_rbac_test_suite_task.delay()
+            # 
+            # return JsonResponse({
+            #     'success': True,
+            #     'task_id': task.id,
+            #     'status': 'queued',
+            #     'message': 'RBAC test suite queued for execution'
+            # })
         else:
             # Run synchronously
             loop = asyncio.new_event_loop()
@@ -4239,36 +4263,44 @@ def get_test_results_api(request):
         limit = int(request.GET.get('limit', 10))
         status = request.GET.get('status')
         
-        if log_id:
-            # Get specific log
-            try:
-                log = PlaywrightDebugLog.objects.get(id=log_id)
-                return JsonResponse({
-                    'success': True,
-                    'log': {
-                        'id': log.id,
-                        'prompt': log.prompt,
-                        'status': log.status,
-                        'started_at': log.started_at.isoformat() if log.started_at else None,
-                        'finished_at': log.finished_at.isoformat() if log.finished_at else None,
-                        'output': log.output,
-                        'result_json': log.result_json,
-                        'error_message': log.error_message
-                    }
-                })
-            except PlaywrightDebugLog.DoesNotExist:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Log not found'
-                }, status=404)
-        else:
-            # Get recent logs
-            queryset = PlaywrightDebugLog.objects.all().order_by('-created_at')
-            
-            if status:
-                queryset = queryset.filter(status=status)
-            
-            logs = queryset[:limit]
+        # DEPRECATED - Playwright functionality removed
+        return JsonResponse({
+            'success': False,
+            'error': 'Playwright debug functionality has been deprecated and removed.',
+            'logs': []
+        }, status=410)  # 410 Gone
+        
+        # OLD CODE - DEPRECATED
+        # if log_id:
+        #     # Get specific log
+        #     try:
+        #         log = PlaywrightDebugLog.objects.get(id=log_id)
+        #         return JsonResponse({
+        #             'success': True,
+        #             'log': {
+        #                 'id': log.id,
+        #                 'prompt': log.prompt,
+        #                 'status': log.status,
+        #                 'started_at': log.started_at.isoformat() if log.started_at else None,
+        #                 'finished_at': log.finished_at.isoformat() if log.finished_at else None,
+        #                 'output': log.output,
+        #                 'result_json': log.result_json,
+        #                 'error_message': log.error_message
+        #             }
+        #         })
+        #     except PlaywrightDebugLog.DoesNotExist:
+        #         return JsonResponse({
+        #             'success': False,
+        #             'error': 'Log not found'
+        #         }, status=404)
+        # else:
+        #     # Get recent logs
+        #     queryset = PlaywrightDebugLog.objects.all().order_by('-created_at')
+        #     
+        #     if status:
+        #         queryset = queryset.filter(status=status)
+        #     
+        #     logs = queryset[:limit]
             
             return JsonResponse({
                 'success': True,
@@ -4523,14 +4555,23 @@ def get_test_screenshots_api(request):
                 'error': 'log_id parameter is required'
             }, status=400)
         
-        # Get the log
-        try:
-            log = PlaywrightDebugLog.objects.get(id=log_id)
-        except PlaywrightDebugLog.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'error': 'Log not found'
-            }, status=404)
+        # DEPRECATED - Playwright functionality removed
+        return JsonResponse({
+            'success': False,
+            'error': 'Playwright debug functionality has been deprecated and removed.',
+            'screenshots': [],
+            'html_dumps': []
+        }, status=410)  # 410 Gone
+        
+        # OLD CODE - DEPRECATED
+        # # Get the log
+        # try:
+        #     log = PlaywrightDebugLog.objects.get(id=log_id)
+        # except PlaywrightDebugLog.DoesNotExist:
+        #     return JsonResponse({
+        #         'success': False,
+        #         'error': 'Log not found'
+        #     }, status=404)
         
         # Extract screenshots and HTML dumps from result_json
         screenshots = []
@@ -5052,16 +5093,24 @@ def run_test_scenario_api(request):
         results = []
         
         if run_async:
-            # Queue all tests as Celery tasks
-            task_ids = []
-            for prompt in test_prompts:
-                task = run_natural_language_test_task.delay(
-                    prompt=prompt,
-                    user_role=user_role,
-                    username='admin',
-                    password='temppass123'
-                )
-                task_ids.append(task.id)
+            # DEPRECATED - Playwright functionality removed
+            return JsonResponse({
+                'success': False,
+                'error': 'Playwright natural language testing has been deprecated and removed.',
+                'status': 'deprecated'
+            }, status=410)  # 410 Gone
+            
+            # OLD CODE - DEPRECATED
+            # # Queue all tests as Celery tasks
+            # task_ids = []
+            # for prompt in test_prompts:
+            #     task = run_natural_language_test_task.delay(
+            #         prompt=prompt,
+            #         user_role=user_role,
+            #         username='admin',
+            #         password='temppass123'
+            #     )
+            #     task_ids.append(task.id)
             
             return JsonResponse({
                 'success': True,
