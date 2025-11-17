@@ -58,6 +58,12 @@ def configure_celery_broker():
 # Configure broker on startup
 configure_celery_broker()
 
+# Ensure Django is fully initialized before beat scheduler starts
+# This is critical when running worker + beat in the same process
+import django
+if not django.apps.apps.ready:
+    django.setup()
+
 # Close database connections after each task to prevent connection issues
 # This is especially important when running worker + beat in the same process
 from celery.signals import task_postrun, beat_init
@@ -72,9 +78,32 @@ def close_db_after_task(sender=None, **kwargs):
 @beat_init.connect
 def close_db_on_beat_init(sender=None, **kwargs):
     """Ensure database connections are fresh when beat scheduler starts."""
-    from django.db import connections
+    import time
+    from django.db import connections, connection
+    from django.db.utils import OperationalError
+    
+    # Close all existing connections
     for conn in connections.all():
         conn.close()
+    
+    # Wait a moment for connections to fully close
+    time.sleep(0.1)
+    
+    # Ensure a fresh connection is established before beat scheduler queries
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            connection.ensure_connection()
+            if connection.connection is not None:
+                logging.info("Database connection established for beat scheduler")
+                return
+        except (OperationalError, Exception) as e:
+            if attempt < max_retries - 1:
+                logging.warning(f"Database connection attempt {attempt + 1} failed, retrying...")
+                time.sleep(0.5)
+            else:
+                logging.error(f"Failed to establish database connection for beat scheduler: {e}")
+                raise
 
 @app.task(bind=True)
 def debug_task(self):
