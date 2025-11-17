@@ -66,7 +66,24 @@ if not django.apps.apps.ready:
 
 # Close database connections after each task to prevent connection issues
 # This is especially important when running worker + beat in the same process
-from celery.signals import task_postrun, beat_init
+from celery.signals import task_postrun, beat_init, worker_process_init
+
+@worker_process_init.connect
+def init_worker_process(sender=None, **kwargs):
+    """Initialize database connections when worker process starts."""
+    import django
+    from django.db import connection
+    
+    # Ensure Django is fully initialized
+    if not django.apps.apps.ready:
+        django.setup()
+    
+    # Establish a database connection for this worker process
+    try:
+        connection.ensure_connection()
+        logging.info("Database connection established for worker process")
+    except Exception as e:
+        logging.warning(f"Could not establish database connection in worker init: {e}")
 
 @task_postrun.connect
 def close_db_after_task(sender=None, **kwargs):
@@ -76,34 +93,51 @@ def close_db_after_task(sender=None, **kwargs):
         conn.close_if_unusable_or_obsolete()
 
 @beat_init.connect
-def close_db_on_beat_init(sender=None, **kwargs):
-    """Ensure database connections are fresh when beat scheduler starts."""
+def init_beat_scheduler(sender=None, **kwargs):
+    """Ensure database connections are ready when beat scheduler starts."""
     import time
+    import django
     from django.db import connections, connection
     from django.db.utils import OperationalError
     
-    # Close all existing connections
+    # Ensure Django is fully initialized
+    if not django.apps.apps.ready:
+        django.setup()
+    
+    # Close any stale connections first
     for conn in connections.all():
-        conn.close()
+        if conn.connection is not None:
+            try:
+                conn.close_if_unusable_or_obsolete()
+            except Exception:
+                pass
     
     # Wait a moment for connections to fully close
-    time.sleep(0.1)
+    time.sleep(0.2)
     
     # Ensure a fresh connection is established before beat scheduler queries
-    max_retries = 5
+    max_retries = 10
     for attempt in range(max_retries):
         try:
+            # Close and reconnect to ensure fresh connection
+            connection.close()
             connection.ensure_connection()
-            if connection.connection is not None:
-                logging.info("Database connection established for beat scheduler")
-                return
+            
+            # Test the connection with a simple query
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+            
+            logging.info("Database connection established for beat scheduler")
+            return
         except (OperationalError, Exception) as e:
             if attempt < max_retries - 1:
-                logging.warning(f"Database connection attempt {attempt + 1} failed, retrying...")
+                logging.warning(f"Database connection attempt {attempt + 1}/{max_retries} failed, retrying in 0.5s...")
                 time.sleep(0.5)
             else:
-                logging.error(f"Failed to establish database connection for beat scheduler: {e}")
-                raise
+                logging.error(f"Failed to establish database connection for beat scheduler after {max_retries} attempts: {e}")
+                # Don't raise - let beat scheduler handle the error
+                pass
 
 @app.task(bind=True)
 def debug_task(self):
