@@ -4301,19 +4301,19 @@ def get_test_results_api(request):
         #         queryset = queryset.filter(status=status)
         #     
         #     logs = queryset[:limit]
-            
-            return JsonResponse({
-                'success': True,
-                'logs': [{
-                    'id': log.id,
-                    'prompt': log.prompt,
-                    'status': log.status,
-                    'started_at': log.started_at.isoformat() if log.started_at else None,
-                    'finished_at': log.finished_at.isoformat() if log.finished_at else None,
-                    'created_at': log.created_at.isoformat(),
-                    'error_message': log.error_message
-                } for log in logs]
-            })
+        #     
+        #     return JsonResponse({
+        #         'success': True,
+        #         'logs': [{
+        #             'id': log.id,
+        #             'prompt': log.prompt,
+        #             'status': log.status,
+        #             'started_at': log.started_at.isoformat() if log.started_at else None,
+        #             'finished_at': log.finished_at.isoformat() if log.finished_at else None,
+        #             'created_at': log.created_at.isoformat(),
+        #             'error_message': log.error_message
+        #         } for log in logs]
+        #     })
             
     except ValueError:
         return JsonResponse({
@@ -5111,14 +5111,14 @@ def run_test_scenario_api(request):
             #         password='temppass123'
             #     )
             #     task_ids.append(task.id)
-            
-            return JsonResponse({
-                'success': True,
-                'scenario': scenario,
-                'task_ids': task_ids,
-                'status': 'queued',
-                'message': f'Scenario {scenario} queued with {len(task_ids)} tests'
-            })
+            # 
+            # return JsonResponse({
+            #     'success': True,
+            #     'scenario': scenario,
+            #     'task_ids': task_ids,
+            #     'status': 'queued',
+            #     'message': f'Scenario {scenario} queued with {len(task_ids)} tests'
+            # })
         else:
             # Run tests synchronously
             loop = asyncio.new_event_loop()
