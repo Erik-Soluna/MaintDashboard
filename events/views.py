@@ -409,51 +409,6 @@ def edit_event(request, event_id):
     # If no maintenance activity, redirect to calendar
     messages.info(request, 'This calendar event is not linked to a maintenance activity. Calendar events are now only managed via maintenance activities.')
     return redirect('events:calendar_view')
-            
-            # Note: Calendar events no longer automatically create maintenance activities
-            # to prevent duplication. Maintenance activities should be created directly
-            # and will automatically create calendar events.
-            messages.success(request, f'Event "{event.title}" updated successfully!')
-            
-            return redirect('events:event_detail', event_id=event.id)
-            
-        except Exception as e:
-            messages.error(request, f'Error updating event: {str(e)}')
-    
-    # Get equipment and users for the form
-    equipment_list = Equipment.objects.filter(is_active=True).order_by('name')
-    from django.contrib.auth.models import User
-    users = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
-    
-    # Get activity types for the dropdown
-    try:
-        from maintenance.models import MaintenanceActivityType
-        activity_types = MaintenanceActivityType.objects.filter(is_active=True).order_by('category__sort_order', 'category__name', 'name')
-        event_types = []
-        
-        # Group by category
-        current_category = None
-        for activity_type in activity_types:
-            if current_category != activity_type.category:
-                current_category = activity_type.category
-                # Add category header
-                event_types.append(('', f'--- {activity_type.category.name} ---'))
-            
-            # Add activity type
-            event_types.append((f'activity_{activity_type.id}', activity_type.name))
-                
-    except Exception as e:
-        event_types = []
-        logger.warning(f"Could not load activity types: {str(e)}")
-    
-    context = {
-        'event': event,
-        'equipment_list': equipment_list,
-        'users': users,
-        'event_types': event_types,
-        'priority_choices': CalendarEvent.PRIORITY_CHOICES,
-    }
-    return render(request, 'events/edit_event.html', context)
 
 
 @login_required
