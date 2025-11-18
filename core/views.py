@@ -155,13 +155,20 @@ def dashboard(request):
         # Step 2: Now load only those 100 locations with full prefetch
         # This way we only prefetch data for the locations we'll actually use
         if limited_location_ids:
+            from django.db.models import Prefetch
+            from maintenance.models import MaintenanceActivity
+            
+            # Use Prefetch objects to ensure no slices are applied to prefetch querysets
+            # Must use explicit queryset to avoid any default manager slices
             locations_queryset = Location.objects.filter(
                 id__in=limited_location_ids
             ).select_related('parent_location', 'customer').prefetch_related(
                 'equipment',  # Simple prefetch without slice
                 'equipment__category',  # Prefetch category for equipment
-                'equipment__maintenance_activities',  # Prefetch activities without slice
-                'equipment__maintenance_activities__assigned_to'  # Prefetch assigned_to for activities
+                Prefetch(
+                    'equipment__maintenance_activities',
+                    queryset=MaintenanceActivity.objects.select_related('assigned_to')
+                )
             )
             locations = list(locations_queryset)
             locations.sort(key=lambda loc: natural_sort_key(loc.name))
