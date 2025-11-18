@@ -85,7 +85,12 @@ configure_celery_broker()
 # Ensure Django is fully initialized before beat scheduler starts
 # This is critical when running worker + beat in the same process
 import django
-if not django.apps.apps.ready:
+try:
+    # Check if Django apps are ready
+    if not hasattr(django, 'apps') or not django.apps.apps.ready:
+        django.setup()
+except (AttributeError, ImportError):
+    # If django.apps doesn't exist yet, setup Django
     django.setup()
 
 # Close database connections after each task to prevent connection issues
@@ -99,7 +104,10 @@ def init_worker_process(sender=None, **kwargs):
     from django.db import connection
     
     # Ensure Django is fully initialized
-    if not django.apps.apps.ready:
+    try:
+        if not hasattr(django, 'apps') or not django.apps.apps.ready:
+            django.setup()
+    except (AttributeError, ImportError):
         django.setup()
     
     # Establish a database connection for this worker process
@@ -125,7 +133,10 @@ def init_beat_scheduler(sender=None, **kwargs):
     from django.db.utils import OperationalError
     
     # Ensure Django is fully initialized
-    if not django.apps.apps.ready:
+    try:
+        if not hasattr(django, 'apps') or not django.apps.apps.ready:
+            django.setup()
+    except (AttributeError, ImportError):
         django.setup()
     
     # Close any stale connections first
