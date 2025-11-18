@@ -51,36 +51,15 @@ class Migration(migrations.Migration):
     operations = [
         # Use SeparateDatabaseAndState to handle fields that may not exist in migration state
         migrations.SeparateDatabaseAndState(
-            # Database operations: safely remove columns if they exist
+            # Database operations: safely remove columns if they exist in the database
             database_operations=[
                 migrations.RunPython(remove_status_color_fields_if_exist, reverse_migration),
             ],
-            # State operations: tell Django these fields don't exist in the model
+            # State operations: Empty because these fields were never added via migration
+            # The fields don't exist in Django's migration state, so we can't remove them
+            # Django will automatically sync the state when it detects the model change
             state_operations=[
-                migrations.RemoveField(
-                    model_name='dashboardsettings',
-                    name='status_color_scheduled',
-                ),
-                migrations.RemoveField(
-                    model_name='dashboardsettings',
-                    name='status_color_pending',
-                ),
-                migrations.RemoveField(
-                    model_name='dashboardsettings',
-                    name='status_color_in_progress',
-                ),
-                migrations.RemoveField(
-                    model_name='dashboardsettings',
-                    name='status_color_cancelled',
-                ),
-                migrations.RemoveField(
-                    model_name='dashboardsettings',
-                    name='status_color_completed',
-                ),
-                migrations.RemoveField(
-                    model_name='dashboardsettings',
-                    name='status_color_overdue',
-                ),
+                # No state operations needed - fields were never in migration state
             ],
         ),
     ]
