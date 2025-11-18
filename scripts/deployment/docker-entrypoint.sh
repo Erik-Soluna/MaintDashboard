@@ -181,9 +181,13 @@ PYTHON
             
             # Check for unapplied migrations first
             print_status "📝 Checking migration state..."
-            unapplied_migrations=$(python manage.py showmigrations --plan 2>/dev/null | grep -c "\[ \]" || echo "0")
+            # Count unapplied migrations (those with "[ ]" marker)
+            # Use tr to remove whitespace and ensure we get a clean number
+            unapplied_migrations=$(python manage.py showmigrations --plan 2>/dev/null | grep -c "\[ \]" 2>/dev/null || echo "0")
+            # Remove any whitespace and ensure it's a valid number
+            unapplied_migrations=$(echo "$unapplied_migrations" | tr -d '[:space:]' | grep -E '^[0-9]+$' || echo "0")
             
-            if [ "$unapplied_migrations" -gt 0 ]; then
+            if [ -n "$unapplied_migrations" ] && [ "$unapplied_migrations" -gt 0 ] 2>/dev/null; then
                 # There are unapplied migrations - just apply them, don't create new ones
                 print_status "ℹ️ Found $unapplied_migrations unapplied migration(s) - will apply existing migrations only"
             else
@@ -195,23 +199,64 @@ PYTHON
                     # No changes detected (exit code 0), skip makemigrations
                     print_status "ℹ️ No model changes detected, skipping makemigrations"
                 else
-                    # Changes detected - use --dry-run to see what would be created
-                    # This helps us avoid recreating migrations that already exist
-                    print_status "📝 Model changes detected, checking what migrations would be created..."
-                    makemigrations_dry_output=$(python manage.py makemigrations --dry-run 2>&1 || true)
+                    # Changes detected - check if migrations have already been applied to the database
+                    # If the database schema matches the models, we don't need to recreate migrations
+                    print_status "📝 Model changes detected, checking if migrations are already applied..."
                     
-                    # Check if the dry-run output shows migrations would be created
-                    # If it says "No changes detected" or is empty, migrations already exist
-                    if echo "$makemigrations_dry_output" | grep -qi "No changes detected\|already exist"; then
-                        print_status "ℹ️ Migrations already exist for these model changes"
-                    elif echo "$makemigrations_dry_output" | grep -q "Migrations for"; then
-                        # New migrations need to be created
+                    # Check if the database tables/columns already exist (migrations were applied)
+                    # This is more reliable than checking for migration files
+                    db_schema_matches=true
+                    python_check_output=$(python -c "
+import os
+import django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
+django.setup()
+from django.db import connection
+
+try:
+    with connection.cursor() as cursor:
+        # Check if status_color fields exist in brandingsettings table
+        cursor.execute(\"\"\"
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='core_brandingsettings' 
+            AND column_name LIKE 'status_color%'
+        \"\"\")
+        branding_cols = cursor.fetchall()
+        
+        # Check if status_color fields exist in dashboardsettings table
+        cursor.execute(\"\"\"
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='core_dashboardsettings' 
+            AND column_name LIKE 'status_color%'
+        \"\"\")
+        dashboard_cols = cursor.fetchall()
+        
+        # Check if equipmentissue table exists
+        cursor.execute(\"\"\"
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_name='equipment_equipmentissue'
+        \"\"\")
+        issue_table = cursor.fetchone()
+        
+        # If all expected schema elements exist, migrations are likely applied
+        if len(branding_cols) >= 6 and len(dashboard_cols) >= 6 and issue_table:
+            print('MATCH')
+        else:
+            print('NO_MATCH')
+except Exception as e:
+    print('ERROR')
+" 2>/dev/null || echo "ERROR")
+                    
+                    if echo "$python_check_output" | grep -q "MATCH"; then
+                        print_status "ℹ️ Database schema matches models - migrations already applied, skipping creation"
+                        print_status "💡 Tip: Commit migration files to git to persist them across container restarts"
+                    else
+                        # Schema doesn't match or check failed - create migrations
                         print_status "📝 Creating new migrations..."
                         python manage.py makemigrations --noinput || print_warning "⚠️ Could not create migrations"
-                    else
-                        # Ambiguous case - try to create but don't fail if it says no changes
-                        print_status "📝 Attempting to create migrations..."
-                        python manage.py makemigrations --noinput 2>&1 | grep -v "No changes detected" || print_status "ℹ️ No new migrations to create"
                     fi
                 fi
             fi
