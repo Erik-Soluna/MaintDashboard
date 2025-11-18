@@ -672,6 +672,14 @@ class BrandingSettings(models.Model):
     danger_color = models.CharField(max_length=7, default="#f56565", help_text="Danger color in hex format (#RRGGBB)")
     info_color = models.CharField(max_length=7, default="#4299e1", help_text="Info color in hex format (#RRGGBB)")
     
+    # Maintenance status colors for overview page
+    status_color_scheduled = models.CharField(max_length=7, default="#808080", help_text="Scheduled status color in hex format (#RRGGBB)")
+    status_color_pending = models.CharField(max_length=7, default="#4299e1", help_text="Pending status color in hex format (#RRGGBB)")
+    status_color_in_progress = models.CharField(max_length=7, default="#ed8936", help_text="In Progress status color in hex format (#RRGGBB)")
+    status_color_cancelled = models.CharField(max_length=7, default="#000000", help_text="Cancelled status color in hex format (#RRGGBB)")
+    status_color_completed = models.CharField(max_length=7, default="#48bb78", help_text="Completed status color in hex format (#RRGGBB)")
+    status_color_overdue = models.CharField(max_length=7, default="#f56565", help_text="Overdue status color in hex format (#RRGGBB)")
+    
     # Dropdown and menu colors
     dropdown_background_color = models.CharField(max_length=7, default="#2d3748", help_text="Dropdown menu background color in hex format (#RRGGBB)")
     dropdown_background_opacity = models.DecimalField(max_digits=3, decimal_places=2, default=0.95, help_text="Dropdown background opacity (0.00 to 1.00)")
@@ -735,6 +743,14 @@ class DashboardSettings(models.Model):
     # Urgent items configuration
     urgent_days_ahead = models.IntegerField(default=7, help_text="Number of days ahead to consider items as urgent")
     upcoming_days_ahead = models.IntegerField(default=30, help_text="Number of days ahead to consider items as upcoming")
+    
+    # Status colors for overview page
+    status_color_scheduled = models.CharField(max_length=7, default="#808080", help_text="Scheduled status color in hex format (#RRGGBB)")
+    status_color_pending = models.CharField(max_length=7, default="#4299e1", help_text="Pending status color in hex format (#RRGGBB)")
+    status_color_in_progress = models.CharField(max_length=7, default="#ed8936", help_text="In Progress status color in hex format (#RRGGBB)")
+    status_color_cancelled = models.CharField(max_length=7, default="#000000", help_text="Cancelled status color in hex format (#RRGGBB)")
+    status_color_completed = models.CharField(max_length=7, default="#48bb78", help_text="Completed status color in hex format (#RRGGBB)")
+    status_color_overdue = models.CharField(max_length=7, default="#f56565", help_text="Overdue status color in hex format (#RRGGBB)")
     
     # Meta settings
     is_active = models.BooleanField(default=True, help_text="Whether these dashboard settings are currently active")

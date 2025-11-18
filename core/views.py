@@ -138,17 +138,35 @@ def dashboard(request):
         )
         
         # Get locations (pods) with natural sorting and prefetch related data
-        # Limit prefetch to avoid loading excessive data
-        locations_queryset = Location.objects.filter(
+        # CRITICAL: Must get IDs first, then prefetch only those to avoid loading excessive data
+        # This prevents loading 1000+ locations when we only need 100
+        # Step 1: Get just the IDs of locations (no prefetch, very fast)
+        location_ids_queryset = Location.objects.filter(
             parent_location=selected_site,
             is_active=True
-        ).select_related('parent_location', 'customer').prefetch_related(
-            Prefetch('equipment', queryset=Equipment.objects.select_related('category')[:50]),  # Limit equipment per location
-            Prefetch('equipment__maintenance_activities', 
-                    queryset=MaintenanceActivity.objects.select_related('assigned_to').order_by('-scheduled_start')[:10])  # Limit activities per equipment
-        )
-        locations = list(locations_queryset[:100])  # Limit total locations
-        locations.sort(key=lambda loc: natural_sort_key(loc.name))
+        ).values_list('id', flat=True)
+        
+        # Get all IDs and sort them (we'll sort by name after loading)
+        all_location_ids = list(location_ids_queryset)
+        
+        # Limit to 100 IDs before doing expensive prefetch operations
+        limited_location_ids = all_location_ids[:100]
+        
+        # Step 2: Now load only those 100 locations with full prefetch
+        # This way we only prefetch data for the locations we'll actually use
+        if limited_location_ids:
+            locations_queryset = Location.objects.filter(
+                id__in=limited_location_ids
+            ).select_related('parent_location', 'customer').prefetch_related(
+                'equipment',  # Simple prefetch without slice
+                'equipment__category',  # Prefetch category for equipment
+                'equipment__maintenance_activities',  # Prefetch activities without slice
+                'equipment__maintenance_activities__assigned_to'  # Prefetch assigned_to for activities
+            )
+            locations = list(locations_queryset)
+            locations.sort(key=lambda loc: natural_sort_key(loc.name))
+        else:
+            locations = []
         
     else:
         # Global queries
@@ -162,11 +180,12 @@ def dashboard(request):
         )
         
         # Show top-level locations if no site selected
+        # Evaluate queryset first to avoid prefetch issues
         locations_queryset = Location.objects.filter(
             is_site=False,
             is_active=True
-        ).select_related('parent_location', 'customer')[:8]
-        locations = list(locations_queryset)
+        ).select_related('parent_location', 'customer')
+        locations = list(locations_queryset[:8])  # Limit after evaluation
         locations.sort(key=lambda loc: natural_sort_key(loc.name))
     
     # ===== BULK STATISTICS CALCULATION =====
@@ -187,14 +206,14 @@ def dashboard(request):
     upcoming_cutoff = today + timedelta(days=upcoming_days)
     
     # Calculate urgent items with single queries - only show maintenance activities to avoid duplication
-    # Include overdue items (scheduled_end < now) and pending/in_progress items due within configured days
+    # Include overdue items (scheduled_start < now) and pending/in_progress/scheduled items due within configured days
     # Limit queries to prevent loading too much data
     max_items = 200  # Reasonable limit to prevent excessive memory usage
     now = timezone.now()
     urgent_maintenance_all = list(maintenance_query.filter(
         Q(status='overdue') |  # Items explicitly marked as overdue
-        (Q(scheduled_end__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past due date (overdue)
-        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['pending', 'in_progress']))  # Urgent pending/in_progress items
+        (Q(scheduled_start__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past scheduled start date (overdue) - count on Day of Schedule start
+        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['pending', 'in_progress', 'scheduled']))  # Urgent pending/in_progress/scheduled items
     ).order_by('scheduled_end')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
@@ -209,7 +228,7 @@ def dashboard(request):
     upcoming_maintenance_all = list(maintenance_query.filter(
         scheduled_end__gt=urgent_cutoff,
         scheduled_end__lte=upcoming_cutoff,
-        status__in=['pending', 'scheduled']
+        status__in=['pending', 'scheduled', 'in_progress']  # Include scheduled and in_progress statuses
     ).order_by('scheduled_end')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
@@ -702,6 +721,45 @@ def dashboard(request):
     else:
         site_health = 'good'
     
+    # Get status colors from dashboard settings or branding settings (dashboard settings take precedence)
+    status_colors = {}
+    if dashboard_settings:
+        status_colors = {
+            'scheduled': dashboard_settings.status_color_scheduled,
+            'pending': dashboard_settings.status_color_pending,
+            'in_progress': dashboard_settings.status_color_in_progress,
+            'cancelled': dashboard_settings.status_color_cancelled,
+            'completed': dashboard_settings.status_color_completed,
+            'overdue': dashboard_settings.status_color_overdue,
+        }
+    else:
+        # Fallback to branding settings if dashboard settings don't exist
+        try:
+            from core.models import BrandingSettings
+            branding = BrandingSettings.objects.filter(is_active=True).first()
+            if branding:
+                status_colors = {
+                    'scheduled': branding.status_color_scheduled,
+                    'pending': branding.status_color_pending,
+                    'in_progress': branding.status_color_in_progress,
+                    'cancelled': branding.status_color_cancelled,
+                    'completed': branding.status_color_completed,
+                    'overdue': branding.status_color_overdue,
+                }
+        except Exception:
+            pass
+    
+    # Use defaults if no settings found
+    if not status_colors:
+        status_colors = {
+            'scheduled': '#808080',  # Grey
+            'pending': '#4299e1',    # Blue
+            'in_progress': '#ed8936',  # Yellow
+            'cancelled': '#000000',  # Black
+            'completed': '#48bb78',  # Green
+            'overdue': '#f56565',    # Red
+        }
+    
     # Build final context
     context = {
         'sites': sites,
@@ -729,6 +787,9 @@ def dashboard(request):
         
         # Dashboard settings
         'dashboard_settings': dashboard_settings,
+        
+        # Status colors for overview page
+        'status_colors': status_colors,
         
         # Overview data (either pods or sites based on selection)
         'overview_data': overview_data,

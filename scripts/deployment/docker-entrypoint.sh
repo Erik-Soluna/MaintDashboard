@@ -179,18 +179,41 @@ PYTHON
             # Fast path - database already initialized
             print_success "✅ Database ready - running migrations..."
             
-            # Create migrations if model changes exist (will skip if nothing to do)
-            print_status "📝 Checking for new migrations..."
-            # Only create migrations if there are actual model changes not reflected in migration files
-            # This prevents re-creating migrations that already exist in the codebase from GitHub
-            # makemigrations --check returns 0 if no changes needed, 1 if changes needed
-            if python manage.py makemigrations --check --dry-run > /dev/null 2>&1; then
-                # No changes detected (exit code 0), skip makemigrations
-                print_status "ℹ️ No model changes detected, skipping makemigrations"
+            # Check for unapplied migrations first
+            print_status "📝 Checking migration state..."
+            unapplied_migrations=$(python manage.py showmigrations --plan 2>/dev/null | grep -c "\[ \]" || echo "0")
+            
+            if [ "$unapplied_migrations" -gt 0 ]; then
+                # There are unapplied migrations - just apply them, don't create new ones
+                print_status "ℹ️ Found $unapplied_migrations unapplied migration(s) - will apply existing migrations only"
             else
-                # Changes detected (exit code 1), create migrations
-                print_status "📝 Model changes detected, creating migrations..."
-                python manage.py makemigrations --noinput || print_warning "⚠️ No new migrations to create"
+                # All migrations are applied - check if we need to create new ones
+                # Only create migrations if there are actual model changes not reflected in migration files
+                # makemigrations --check returns 0 if no changes needed, 1 if changes needed
+                print_status "📝 Checking for model changes..."
+                if python manage.py makemigrations --check --dry-run > /dev/null 2>&1; then
+                    # No changes detected (exit code 0), skip makemigrations
+                    print_status "ℹ️ No model changes detected, skipping makemigrations"
+                else
+                    # Changes detected - use --dry-run to see what would be created
+                    # This helps us avoid recreating migrations that already exist
+                    print_status "📝 Model changes detected, checking what migrations would be created..."
+                    makemigrations_dry_output=$(python manage.py makemigrations --dry-run 2>&1 || true)
+                    
+                    # Check if the dry-run output shows migrations would be created
+                    # If it says "No changes detected" or is empty, migrations already exist
+                    if echo "$makemigrations_dry_output" | grep -qi "No changes detected\|already exist"; then
+                        print_status "ℹ️ Migrations already exist for these model changes"
+                    elif echo "$makemigrations_dry_output" | grep -q "Migrations for"; then
+                        # New migrations need to be created
+                        print_status "📝 Creating new migrations..."
+                        python manage.py makemigrations --noinput || print_warning "⚠️ Could not create migrations"
+                    else
+                        # Ambiguous case - try to create but don't fail if it says no changes
+                        print_status "📝 Attempting to create migrations..."
+                        python manage.py makemigrations --noinput 2>&1 | grep -v "No changes detected" || print_status "ℹ️ No new migrations to create"
+                    fi
+                fi
             fi
             
             # Always run migrations on boot (will skip if nothing to do)
