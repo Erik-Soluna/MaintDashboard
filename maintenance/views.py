@@ -2419,7 +2419,7 @@ def get_activity_details(request, activity_id):
             'scheduled_end': scheduled_end_utc.isoformat() if scheduled_end_utc else None,
             'actual_start': actual_start_utc.isoformat() if actual_start_utc else None,
             'actual_end': actual_end_utc.isoformat() if actual_end_utc else None,
-            'timezone': user_timezone_str,  # Include timezone info for JavaScript to use for formatting
+            'timezone': activity.timezone or user_timezone_str,  # Use activity's timezone, fallback to user's timezone
             'assigned_to': activity.assigned_to.username if activity.assigned_to else None,
             'completion_notes': activity.completion_notes,
             'checklist_items': [
