@@ -160,6 +160,9 @@ def dashboard(request):
             
             # Use Prefetch objects to ensure no slices are applied to prefetch querysets
             # Must use explicit queryset to avoid any default manager slices
+            # Create explicit queryset for maintenance activities with no slices
+            maintenance_activities_qs = MaintenanceActivity.objects.select_related('assigned_to').all()
+            
             locations_queryset = Location.objects.filter(
                 id__in=limited_location_ids
             ).select_related('parent_location', 'customer').prefetch_related(
@@ -167,7 +170,7 @@ def dashboard(request):
                 'equipment__category',  # Prefetch category for equipment
                 Prefetch(
                     'equipment__maintenance_activities',
-                    queryset=MaintenanceActivity.objects.select_related('assigned_to')
+                    queryset=maintenance_activities_qs
                 )
             )
             locations = list(locations_queryset)
