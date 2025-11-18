@@ -144,9 +144,10 @@ def equipment_list(request):
         else:
             try:
                 selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-                queryset = queryset.filter(
-                    Q(location__parent_location=selected_site) | Q(location=selected_site)
-                )
+                # Use recursive location filtering (same as bulk activities and calendar)
+                from maintenance.views import get_all_descendant_location_ids
+                location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
+                queryset = queryset.filter(location_id__in=location_ids)
             except (Location.DoesNotExist, ValueError):
                 logger.warning(f"Selected site with ID {selected_site_id} not found")
             except Exception as e:
@@ -263,9 +264,10 @@ def manage_equipment(request):
         else:
             try:
                 selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-                equipment_queryset = equipment_queryset.filter(
-                    Q(location__parent_location=selected_site) | Q(location=selected_site)
-                )
+                # Use recursive location filtering (same as bulk activities and calendar)
+                from maintenance.views import get_all_descendant_location_ids
+                location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
+                equipment_queryset = equipment_queryset.filter(location_id__in=location_ids)
             except (Location.DoesNotExist, ValueError):
                 logger.warning(f"Selected site with ID {selected_site_id} not found")
             except Exception as e:
@@ -1178,10 +1180,10 @@ def export_equipment_csv(request):
             # Verify site exists
             site = Location.objects.filter(id=site_id_int, is_site=True).first()
             if site:
-                # Filter equipment by site or locations under the site
-                equipment_list = equipment_list.filter(
-                    Q(location__parent_location_id=site_id_int) | Q(location_id=site_id_int)
-                )
+                # Use recursive location filtering (same as bulk activities and calendar)
+                from maintenance.views import get_all_descendant_location_ids
+                location_ids = get_all_descendant_location_ids(site, include_inactive=True)
+                equipment_list = equipment_list.filter(location_id__in=location_ids)
                 logger.info(f"CSV export filtered to site: {site.name} ({equipment_list.count()} items)")
             else:
                 logger.warning(f"Site ID {site_id_int} not found, exporting all equipment")
