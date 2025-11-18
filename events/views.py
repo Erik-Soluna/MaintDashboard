@@ -261,6 +261,22 @@ def calendar_view(request):
             'overdue': '#f56565',    # Red
         }
     
+    # Get customers for filter dropdown
+    try:
+        from core.models import Customer
+        customers = Customer.objects.filter(is_active=True).order_by('name')
+    except Exception:
+        customers = []
+    
+    # Get user's timezone from profile
+    user_timezone = 'America/Chicago'  # Default
+    try:
+        from core.models import UserProfile
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        user_timezone = user_profile.get_user_timezone()
+    except Exception:
+        pass
+    
     # Default context - unified calendar
     context = {
         'sites': sites,
@@ -269,12 +285,14 @@ def calendar_view(request):
         'is_all_sites': is_all_sites,
         'equipment_list': equipment_list,
         'event_types': event_types,
+        'customers': customers,
         'priority_choices': CalendarEvent.PRIORITY_CHOICES,
         'selected_event_type': event_type,
         'selected_equipment': equipment_filter,
         'calendar_view': 'unified',  # Always unified now
         'view_mode': view_mode,
         'status_colors': status_colors,  # Status colors from branding settings
+        'user_timezone': user_timezone,  # User's profile timezone
     }
 
     # Get count of maintenance activities (calendar events are just a view of maintenance activities)
@@ -627,9 +645,10 @@ def fetch_unified_events(request):
         end_date = request.GET.get('end')
         equipment_filter = request.GET.get('equipment')
         event_type_filter = request.GET.get('event_type')
+        customer_filter = request.GET.get('customer')
         site_id = request.GET.get('site_id')
-        # Use user's timezone instead of request parameter (but allow override)
-        target_timezone = request.GET.get('timezone', user_timezone_str)  # Default to user's timezone
+        # Always use user's timezone from profile (no override needed)
+        target_timezone = user_timezone_str
         
         # Helper function to convert datetime to target timezone
         def convert_to_timezone(dt, tz_name):
@@ -687,6 +706,18 @@ def fetch_unified_events(request):
                 activity_type_id = event_type_filter.replace('activity_', '')
                 activities = activities.filter(activity_type_id=activity_type_id)
             
+            # Customer filtering
+            if customer_filter:
+                try:
+                    customer_id = int(customer_filter)
+                    # Filter by customer through equipment location
+                    activities = activities.filter(
+                        Q(equipment__location__customer_id=customer_id) |
+                        Q(equipment__location__parent_location__customer_id=customer_id)
+                    )
+                except (ValueError, TypeError):
+                    pass  # Invalid customer ID, ignore filter
+            
             # Convert to FullCalendar format
             for activity in activities:
                 try:
@@ -694,15 +725,19 @@ def fetch_unified_events(request):
                     if activity.equipment:
                         title = f"{activity.title} - {activity.equipment.name}"
                     
-                    # Determine color based on status
+                    # Determine color based on status using branding settings
                     if activity.status == 'scheduled':
-                        bg_color = '#4299e1'
+                        bg_color = status_colors.get('scheduled', '#808080')
                     elif activity.status == 'overdue':
-                        bg_color = '#dc3545'
+                        bg_color = status_colors.get('overdue', '#f56565')
                     elif activity.status == 'completed':
-                        bg_color = '#28a745'
+                        bg_color = status_colors.get('completed', '#48bb78')
                     elif activity.status == 'in_progress':
-                        bg_color = '#ffc107'
+                        bg_color = status_colors.get('in_progress', '#ed8936')
+                    elif activity.status == 'pending':
+                        bg_color = status_colors.get('pending', '#4299e1')
+                    elif activity.status == 'cancelled':
+                        bg_color = status_colors.get('cancelled', '#000000')
                     else:
                         bg_color = '#6c757d'
                     
@@ -726,6 +761,13 @@ def fetch_unified_events(request):
                     else:
                         scheduled_end_utc = None
                     
+                    # Get customer ID from equipment location
+                    customer_id = None
+                    if activity.equipment and activity.equipment.location:
+                        customer_id = activity.equipment.location.get_effective_customer()
+                        if customer_id:
+                            customer_id = customer_id.id
+                    
                     calendar_event = {
                         'id': f'activity_{activity.id}',
                         'title': title,
@@ -741,6 +783,7 @@ def fetch_unified_events(request):
                             'equipment': activity.equipment.name if activity.equipment else 'No equipment',
                             'equipment_id': activity.equipment.id if activity.equipment else None,
                             'location': activity.equipment.location.name if activity.equipment and activity.equipment.location else 'No location',
+                            'customer_id': customer_id,
                             'priority': activity.priority,
                             'activity_type': activity.activity_type.name if activity.activity_type else 'N/A',
                             'activity_type_id': activity.activity_type.id if activity.activity_type else None,
