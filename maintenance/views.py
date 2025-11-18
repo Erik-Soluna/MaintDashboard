@@ -2416,6 +2416,7 @@ def get_activity_details(request, activity_id):
             'actual_start': actual_start_utc.isoformat() if actual_start_utc else None,
             'actual_end': actual_end_utc.isoformat() if actual_end_utc else None,
             'timezone': activity.timezone or user_timezone_str,  # Use activity's timezone, fallback to user's timezone
+            'timezone_display_name': activity.get_timezone_display_name(),  # Human-readable timezone name from DB
             'assigned_to': activity.assigned_to.username if activity.assigned_to else None,
             'completion_notes': activity.completion_notes,
             'checklist_items': [

@@ -1867,12 +1867,12 @@ function displayMaintenanceDetails(activity) {
                         <div class="mb-2">
                             <small class="text-muted">Start:</small><br>
                             <span class="text-white">${formatDateTime(activity.scheduled_start, activity.timezone)}</span>
-                            ${activity.timezone ? `<br><small class="text-info">(${getTimezoneDisplayName(activity.timezone)})</small>` : ''}
+                            ${activity.timezone_display_name ? `<br><small class="text-info">(${activity.timezone_display_name})</small>` : ''}
                         </div>
                         <div class="mb-2">
                             <small class="text-muted">End:</small><br>
                             <span class="text-white">${formatDateTime(activity.scheduled_end, activity.timezone)}</span>
-                            ${activity.timezone ? `<br><small class="text-info">(${getTimezoneDisplayName(activity.timezone)})</small>` : ''}
+                            ${activity.timezone_display_name ? `<br><small class="text-info">(${activity.timezone_display_name})</small>` : ''}
                         </div>
                         ${activity.actual_start ? `
                         <div class="mb-2">
@@ -2459,6 +2459,6 @@ function completeMaintenanceActivity(activityId) {
     });
 }
 
-// Timezone is now managed via user profile - no selector needed
+// Timezone display name is now provided by the API from the database
 </script>
 {% endblock %}
