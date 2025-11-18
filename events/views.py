@@ -1039,9 +1039,14 @@ def get_form_data(request):
         # Get site filter if provided
         site_id = request.GET.get('site_id')
         if site_id and site_id != 'all':
-            equipment_list = equipment_list.filter(
-                Q(location__parent_location_id=site_id) | Q(location_id=site_id)
-            )
+            # Use recursive location filtering (same as bulk activities and calendar)
+            try:
+                selected_site = Location.objects.get(id=site_id, is_site=True)
+                from maintenance.views import get_all_descendant_location_ids
+                location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
+                equipment_list = equipment_list.filter(location_id__in=location_ids)
+            except Location.DoesNotExist:
+                pass
         
         equipment_data = []
         for equipment in equipment_list:
