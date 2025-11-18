@@ -239,12 +239,23 @@ def dashboard(request):
         maintenance_activity__isnull=True  # Only show calendar events NOT synced with maintenance
     ).order_by('event_date')[:max_items])
     
+    # Calculate active items (in_progress and pending statuses) - all active items regardless of date
+    active_maintenance_all = list(maintenance_query.filter(
+        status__in=['in_progress', 'pending']
+    ).order_by('-scheduled_start', '-created_at')[:max_items])
+    
+    # Filter out calendar events that are synced with maintenance activities to avoid duplication
+    # Note: Calendar events don't have in_progress/pending status, so we'll only show maintenance activities for active items
+    active_calendar_all = []  # Calendar events don't have in_progress/pending status
+    
     # Group items by site if enabled
     group_by_site = dashboard_settings.group_urgent_by_site if dashboard_settings else True
     urgent_maintenance_by_site = {}
     urgent_calendar_by_site = {}
     upcoming_maintenance_by_site = {}
     upcoming_calendar_by_site = {}
+    active_maintenance_by_site = {}
+    active_calendar_by_site = {}
     
     if group_by_site and is_all_sites:
         # Build site mapping dictionary to avoid N+1 queries
@@ -262,6 +273,9 @@ def dashboard(request):
         for event in upcoming_calendar_all:
             if event.equipment and event.equipment.location:
                 location_ids.add(event.equipment.location.id)
+        for item in active_maintenance_all:
+            if item.equipment and item.equipment.location:
+                location_ids.add(item.equipment.location.id)
         
         # Fetch all locations with prefetched parent relationships
         locations_with_parents = Location.objects.filter(id__in=location_ids).select_related('parent_location')
@@ -315,16 +329,32 @@ def dashboard(request):
                     upcoming_calendar_by_site[site_name] = []
                 if len(upcoming_calendar_by_site[site_name]) < (dashboard_settings.max_upcoming_items_per_site if dashboard_settings else 15):
                     upcoming_calendar_by_site[site_name].append(event)
+        
+        # Group active maintenance by site
+        group_active = dashboard_settings.group_active_by_site if dashboard_settings else True
+        if group_active:
+            for item in active_maintenance_all:
+                if item.equipment and item.equipment.location:
+                    site_name = location_to_site.get(item.equipment.location.id, "Unknown Site")
+                else:
+                    site_name = "Unknown Site"
+                if site_name not in active_maintenance_by_site:
+                    active_maintenance_by_site[site_name] = []
+                if len(active_maintenance_by_site[site_name]) < (dashboard_settings.max_active_items_per_site if dashboard_settings else 15):
+                    active_maintenance_by_site[site_name].append(item)
     
     # For backwards compatibility, keep flat lists
     urgent_maintenance = urgent_maintenance_all[:dashboard_settings.max_urgent_items_total if dashboard_settings else 50]
     urgent_calendar = urgent_calendar_all[:10]
     upcoming_maintenance = upcoming_maintenance_all[:dashboard_settings.max_upcoming_items_total if dashboard_settings else 50]
     upcoming_calendar = upcoming_calendar_all[:10]
+    active_maintenance = active_maintenance_all[:dashboard_settings.max_active_items_total if dashboard_settings else 50]
+    active_calendar = active_calendar_all[:10]
     
     # Calculate total counts for grouped items
     urgent_total_count = 0
     upcoming_total_count = 0
+    active_total_count = 0
     
     if group_by_site and is_all_sites:
         # Count from grouped data
@@ -338,10 +368,17 @@ def dashboard(request):
                 upcoming_total_count += len(site_items)
             for site_events in upcoming_calendar_by_site.values():
                 upcoming_total_count += len(site_events)
+        
+        # Count active items from grouped data
+        group_active = dashboard_settings.group_active_by_site if dashboard_settings else True
+        if group_active:
+            for site_items in active_maintenance_by_site.values():
+                active_total_count += len(site_items)
     else:
         # Count from flat lists
         urgent_total_count = len(urgent_maintenance) + len(urgent_calendar)
         upcoming_total_count = len(upcoming_maintenance) + len(upcoming_calendar)
+        active_total_count = len(active_maintenance) + len(active_calendar)
     
     # ===== OPTIMIZED OVERVIEW DATA CALCULATION =====
     
@@ -380,12 +417,21 @@ def dashboard(request):
             active_equipment = sum(1 for eq in location_equipment if eq.status == 'active')
             total_equipment = len(location_equipment)
             
-            # Calculate maintenance counts
+            # Calculate IN MAINT count: equipment in maintenance OR maintenance activities in progress
+            in_maint_count = equipment_in_maintenance
+            in_maint_count += sum(
+                1 for ma in location_maintenance
+                if ma.status == 'in_progress' and ma.equipment and ma.equipment.status != 'maintenance'
+            )
+            
+            # Calculate UPCOMING count: maintenance activities scheduled within upcoming_cutoff
+            # upcoming_cutoff is configured in Dashboard Settings (default: 30 days)
+            # This matches the same setting used for the "Upcoming Items" section on the overview page
             upcoming_maintenance_count = sum(
                 1 for ma in location_maintenance
                 if (ma.scheduled_start and 
-                    today <= ma.scheduled_start.date() <= urgent_cutoff and
-                    ma.status in ['scheduled', 'pending'])
+                    today <= ma.scheduled_start.date() <= upcoming_cutoff and
+                    ma.status in ['scheduled', 'pending', 'in_progress'])
             )
             
             # Get recent activities (filter out any that might have been deleted)
@@ -434,6 +480,7 @@ def dashboard(request):
                 'total_equipment': total_equipment,
                 'active_equipment': active_equipment,
                 'equipment_in_maintenance': equipment_in_maintenance,
+                'in_maint_count': in_maint_count,  # Total count including in_progress activities
                 'upcoming_maintenance_count': upcoming_maintenance_count,
                 'recent_activities': recent_activities,
                 'next_events': next_events,
@@ -492,24 +539,30 @@ def dashboard(request):
             if site_id:
                 if site_id not in site_equipment_lookup:
                     site_equipment_lookup[site_id] = {}
-                site_equipment_lookup[site_id][item['status']] = item['count']
+                # Sum counts for the same status from different locations within the same site
+                status = item['status']
+                site_equipment_lookup[site_id][status] = site_equipment_lookup[site_id].get(status, 0) + item['count']
         
         for item in maintenance_by_site:
             site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
             if site_id:
                 if site_id not in site_maintenance_lookup:
                     site_maintenance_lookup[site_id] = {}
-                site_maintenance_lookup[site_id][item['status']] = item['count']
+                # Sum counts for the same status from different locations within the same site
+                status = item['status']
+                site_maintenance_lookup[site_id][status] = site_maintenance_lookup[site_id].get(status, 0) + item['count']
         
         for item in overdue_by_site:
             site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
             if site_id:
-                site_overdue_lookup[site_id] = item['count']
+                # Sum counts from different locations within the same site
+                site_overdue_lookup[site_id] = site_overdue_lookup.get(site_id, 0) + item['count']
         
         for item in upcoming_by_site:
             site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
             if site_id:
-                site_upcoming_lookup[site_id] = item['count']
+                # Sum counts from different locations within the same site
+                site_upcoming_lookup[site_id] = site_upcoming_lookup.get(site_id, 0) + item['count']
         
         # Bulk fetch recent activities and events for ALL sites at once (avoid N+1 queries)
         all_site_ids = [site.id for site in all_sites]
@@ -556,7 +609,8 @@ def dashboard(request):
         for item in calendar_totals:
             site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
             if site_id in calendar_counts_by_site:
-                calendar_counts_by_site[site_id]['total'] = item['count']
+                # Sum counts from different locations within the same site
+                calendar_counts_by_site[site_id]['total'] = calendar_counts_by_site[site_id].get('total', 0) + item['count']
         
         # Get completed counts per site (single query)
         calendar_completed = CalendarEvent.objects.filter(
@@ -567,7 +621,8 @@ def dashboard(request):
         for item in calendar_completed:
             site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
             if site_id in calendar_counts_by_site:
-                calendar_counts_by_site[site_id]['completed'] = item['count']
+                # Sum counts from different locations within the same site
+                calendar_counts_by_site[site_id]['completed'] = calendar_counts_by_site[site_id].get('completed', 0) + item['count']
         
         # Get pending counts per site (single query)
         calendar_pending = CalendarEvent.objects.filter(
@@ -579,7 +634,8 @@ def dashboard(request):
         for item in calendar_pending:
             site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
             if site_id in calendar_counts_by_site:
-                calendar_counts_by_site[site_id]['pending'] = item['count']
+                # Sum counts from different locations within the same site
+                calendar_counts_by_site[site_id]['pending'] = calendar_counts_by_site[site_id].get('pending', 0) + item['count']
         
         # Bulk fetch pod counts for all sites
         pod_counts = Location.objects.filter(
@@ -768,6 +824,11 @@ def dashboard(request):
         'is_all_sites': is_all_sites,
         'site_health': site_health,
         'site_stats': site_stats,
+        'active_maintenance': active_maintenance,
+        'active_calendar': active_calendar,
+        'active_maintenance_by_site': active_maintenance_by_site,
+        'active_calendar_by_site': active_calendar_by_site,
+        'active_total_count': active_total_count,
         
         # Urgent and upcoming items
         'urgent_maintenance': urgent_maintenance,

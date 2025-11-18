@@ -726,6 +726,7 @@ class DashboardSettings(models.Model):
     # Visibility settings
     show_urgent_items = models.BooleanField(default=True, help_text="Show urgent items section")
     show_upcoming_items = models.BooleanField(default=True, help_text="Show upcoming items section")
+    show_active_items = models.BooleanField(default=True, help_text="Show active items section (in progress and pending)")
     show_site_status = models.BooleanField(default=True, help_text="Show site status cards")
     show_kpi_cards = models.BooleanField(default=True, help_text="Show KPI cards at top")
     show_overview_data = models.BooleanField(default=True, help_text="Show overview data (pods/sites)")
@@ -733,12 +734,15 @@ class DashboardSettings(models.Model):
     # Grouping settings
     group_urgent_by_site = models.BooleanField(default=True, help_text="Group urgent items by site")
     group_upcoming_by_site = models.BooleanField(default=True, help_text="Group upcoming items by site")
+    group_active_by_site = models.BooleanField(default=True, help_text="Group active items by site")
     
     # Display limits
     max_urgent_items_per_site = models.IntegerField(default=15, help_text="Maximum urgent items to show per site")
     max_upcoming_items_per_site = models.IntegerField(default=15, help_text="Maximum upcoming items to show per site")
+    max_active_items_per_site = models.IntegerField(default=15, help_text="Maximum active items to show per site")
     max_urgent_items_total = models.IntegerField(default=50, help_text="Maximum total urgent items across all sites")
     max_upcoming_items_total = models.IntegerField(default=50, help_text="Maximum total upcoming items across all sites")
+    max_active_items_total = models.IntegerField(default=50, help_text="Maximum total active items across all sites")
     
     # Urgent items configuration
     urgent_days_ahead = models.IntegerField(default=7, help_text="Number of days ahead to consider items as urgent")

@@ -369,11 +369,11 @@ class DashboardSettingsForm(forms.ModelForm):
     class Meta:
         model = DashboardSettings
         fields = [
-            'show_urgent_items', 'show_upcoming_items', 'show_site_status', 
+            'show_urgent_items', 'show_upcoming_items', 'show_active_items', 'show_site_status', 
             'show_kpi_cards', 'show_overview_data',
-            'group_urgent_by_site', 'group_upcoming_by_site',
-            'max_urgent_items_per_site', 'max_upcoming_items_per_site',
-            'max_urgent_items_total', 'max_upcoming_items_total',
+            'group_urgent_by_site', 'group_upcoming_by_site', 'group_active_by_site',
+            'max_urgent_items_per_site', 'max_upcoming_items_per_site', 'max_active_items_per_site',
+            'max_urgent_items_total', 'max_upcoming_items_total', 'max_active_items_total',
             'urgent_days_ahead', 'upcoming_days_ahead',
             'status_color_scheduled', 'status_color_pending', 'status_color_in_progress',
             'status_color_cancelled', 'status_color_completed', 'status_color_overdue'
@@ -381,15 +381,19 @@ class DashboardSettingsForm(forms.ModelForm):
         widgets = {
             'show_urgent_items': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'show_upcoming_items': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'show_active_items': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'show_site_status': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'show_kpi_cards': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'show_overview_data': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'group_urgent_by_site': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'group_upcoming_by_site': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'group_active_by_site': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'max_urgent_items_per_site': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
             'max_upcoming_items_per_site': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
+            'max_active_items_per_site': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 100}),
             'max_urgent_items_total': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 500}),
             'max_upcoming_items_total': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 500}),
+            'max_active_items_total': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 500}),
             'urgent_days_ahead': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 90}),
             'upcoming_days_ahead': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 365}),
             'status_color_scheduled': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
@@ -411,10 +415,11 @@ class DashboardSettingsForm(forms.ModelForm):
                     Column('show_upcoming_items', css_class='form-group col-md-6 mb-0'),
                 ),
                 Row(
+                    Column('show_active_items', css_class='form-group col-md-6 mb-0'),
                     Column('show_site_status', css_class='form-group col-md-6 mb-0'),
-                    Column('show_kpi_cards', css_class='form-group col-md-6 mb-0'),
                 ),
                 Row(
+                    Column('show_kpi_cards', css_class='form-group col-md-6 mb-0'),
                     Column('show_overview_data', css_class='form-group col-md-6 mb-0'),
                 ),
             ),
@@ -424,6 +429,9 @@ class DashboardSettingsForm(forms.ModelForm):
                     Column('group_urgent_by_site', css_class='form-group col-md-6 mb-0'),
                     Column('group_upcoming_by_site', css_class='form-group col-md-6 mb-0'),
                 ),
+                Row(
+                    Column('group_active_by_site', css_class='form-group col-md-6 mb-0'),
+                ),
             ),
             Fieldset(
                 'Display Limits',
@@ -432,8 +440,12 @@ class DashboardSettingsForm(forms.ModelForm):
                     Column('max_upcoming_items_per_site', css_class='form-group col-md-6 mb-0'),
                 ),
                 Row(
+                    Column('max_active_items_per_site', css_class='form-group col-md-6 mb-0'),
                     Column('max_urgent_items_total', css_class='form-group col-md-6 mb-0'),
+                ),
+                Row(
                     Column('max_upcoming_items_total', css_class='form-group col-md-6 mb-0'),
+                    Column('max_active_items_total', css_class='form-group col-md-6 mb-0'),
                 ),
             ),
             Fieldset(
