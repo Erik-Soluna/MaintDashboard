@@ -170,6 +170,7 @@ services:
         GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-11e13c5}
         GIT_BRANCH: ${GIT_BRANCH:-latest}
         GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-2025-09-02}
+    image: maint-dashboard-prod:${GIT_COMMIT_HASH:-latest}
     container_name: maintenance_celery_prod
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["celery"]
