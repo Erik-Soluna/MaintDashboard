@@ -405,7 +405,7 @@ elif [ "$1" = "celery" ]; then
     # Switch to non-root user for security (appuser created in Dockerfile)
     if id appuser >/dev/null 2>&1; then
         print_status "🔒 Switching to non-root user 'appuser' for Celery worker..."
-        exec su-exec appuser celery -A maintenance_dashboard worker --beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+        exec gosu appuser celery -A maintenance_dashboard worker --beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     else
         # Fallback if appuser doesn't exist (should not happen in production)
         print_warning "⚠️ appuser not found, running as current user (not recommended)"
@@ -416,7 +416,7 @@ elif [ "$1" = "celery-beat" ]; then
     # Switch to non-root user for security
     if id appuser >/dev/null 2>&1; then
         print_status "🔒 Switching to non-root user 'appuser' for Celery beat..."
-        exec su-exec appuser celery -A maintenance_dashboard beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+        exec gosu appuser celery -A maintenance_dashboard beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     else
         print_warning "⚠️ appuser not found, running as current user (not recommended)"
         exec celery -A maintenance_dashboard beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler

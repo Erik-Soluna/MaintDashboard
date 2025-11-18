@@ -32,8 +32,8 @@ RUN apt-get update \
         ca-certificates \
         gnupg \
         lsb-release \
-        # User switching utility
-        su-exec \
+        # User switching utility (gosu is more commonly available in Debian)
+        gosu \
         # Playwright dependencies
         libglib2.0-0 \
         libnss3 \
