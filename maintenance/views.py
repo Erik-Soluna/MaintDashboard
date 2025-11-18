@@ -3289,6 +3289,67 @@ def debug_equipment_filtering(request):
             """, [list(location_ids)])
             equipment_by_location = cursor.fetchall()
             
+            # CRITICAL DIAGNOSTIC: Get ALL equipment and their location_ids to see what's actually in the database
+            cursor.execute("""
+                SELECT e.id, e.name, e.location_id, l.name as location_name, 
+                       l.parent_location_id, l.is_active as location_active,
+                       CASE WHEN e.location_id = ANY(%s) THEN true ELSE false END as location_in_filter
+                FROM equipment_equipment e
+                LEFT JOIN core_location l ON e.location_id = l.id
+                WHERE e.is_active = true
+                ORDER BY e.location_id, e.name;
+            """, [list(location_ids)])
+            all_equipment_location_check = cursor.fetchall()
+            
+            # Get equipment that SHOULD be in filter but location_id doesn't match
+            cursor.execute("""
+                SELECT e.id, e.name, e.location_id, l.name as location_name,
+                       l.parent_location_id, 
+                       (SELECT name FROM core_location WHERE id = l.parent_location_id) as parent_name
+                FROM equipment_equipment e
+                LEFT JOIN core_location l ON e.location_id = l.id
+                WHERE e.is_active = true
+                AND e.location_id IS NOT NULL
+                AND e.location_id NOT IN (SELECT unnest(%s::int[]))
+                ORDER BY e.name;
+            """, [list(location_ids)])
+            equipment_not_in_filter = cursor.fetchall()
+            
+            # CRITICAL: Find equipment in PODs with SAME NAME but different location_id (belongs to other sites)
+            # This identifies equipment that might be incorrectly assigned
+            cursor.execute("""
+                WITH target_pods AS (
+                    SELECT id, name, parent_location_id
+                    FROM core_location
+                    WHERE id = ANY(%s)
+                    AND is_site = false
+                ),
+                all_pods_with_same_name AS (
+                    SELECT l.id, l.name, l.parent_location_id, 
+                           (SELECT name FROM core_location WHERE id = l.parent_location_id AND is_site = true) as site_name,
+                           (SELECT id FROM core_location WHERE id = l.parent_location_id AND is_site = true) as site_id
+                    FROM core_location l
+                    WHERE l.is_site = false
+                    AND l.name IN (SELECT name FROM target_pods)
+                )
+                SELECT e.id, e.name, e.location_id, 
+                       l.name as location_name,
+                       l.parent_location_id,
+                       apsn.site_name as actual_site_name,
+                       apsn.site_id as actual_site_id,
+                       tp.name as target_pod_name,
+                       tp.id as target_pod_id
+                FROM equipment_equipment e
+                INNER JOIN all_pods_with_same_name apsn ON e.location_id = apsn.id
+                INNER JOIN core_location l ON e.location_id = l.id
+                LEFT JOIN target_pods tp ON tp.name = l.name
+                WHERE e.is_active = true
+                AND apsn.site_id != %s
+                AND tp.id IS NOT NULL
+                ORDER BY l.name, e.name;
+            """, [list(location_ids), selected_site.id])
+            equipment_in_duplicate_pods = cursor.fetchall()
+            
             # Get ALL equipment with their actual site (using get_site_location logic)
             cursor.execute("""
                 SELECT e.id, e.name, e.location_id, l.name as location_name, 
@@ -3376,6 +3437,9 @@ def debug_equipment_filtering(request):
         'raw_location_hierarchy': raw_location_hierarchy if selected_site else [],
         'equipment_by_location': equipment_by_location if selected_site else [],
         'all_equipment_with_sites': all_equipment_with_sites if selected_site else [],
+        'all_equipment_location_check': all_equipment_location_check if selected_site else [],
+        'equipment_not_in_filter': equipment_not_in_filter if selected_site else [],
+        'equipment_in_duplicate_pods': equipment_in_duplicate_pods if selected_site else [],
         'location_hierarchy_details': location_hierarchy_details if selected_site else None,
     }
     

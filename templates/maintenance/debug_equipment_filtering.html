@@ -113,15 +113,117 @@
                             </thead>
                             <tbody>
                                 {% for loc in equipment_by_location %}
-                                <tr>
+                                <tr class="{% if loc.2 == 0 %}table-warning{% endif %}">
                                     <td>{{ loc.0 }}</td>
                                     <td>{{ loc.1 }}</td>
-                                    <td><strong>{{ loc.2 }}</strong></td>
+                                    <td><strong>{% if loc.2 == 0 %}<span class="text-danger">0 ⚠️</span>{% else %}{{ loc.2 }}{% endif %}</strong></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    
+                    <h6>All Equipment Location Check (Diagnostic)</h6>
+                    <p class="small text-muted">This shows every active equipment item and whether its location_id is in our filter list</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Equipment ID</th>
+                                    <th>Equipment Name</th>
+                                    <th>Location ID</th>
+                                    <th>Location Name</th>
+                                    <th>Location Active</th>
+                                    <th>In Filter?</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for eq in all_equipment_location_check %}
+                                <tr class="{% if not eq.6 %}table-danger{% endif %}">
+                                    <td>{{ eq.0 }}</td>
+                                    <td>{{ eq.1 }}</td>
+                                    <td>{{ eq.2|default:"NULL" }}</td>
+                                    <td>{{ eq.3|default:"NULL" }}</td>
+                                    <td>{% if eq.5 %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-warning">No</span>{% endif %}</td>
+                                    <td>
+                                        {% if eq.6 %}
+                                            <span class="badge bg-success">Yes</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">No</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    {% if equipment_not_in_filter %}
+                    <h6>Equipment NOT in Filter (Location ID mismatch)</h6>
+                    <p class="text-danger">These equipment items are active but their location_id is NOT in our location_ids list</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-danger">
+                            <thead>
+                                <tr>
+                                    <th>Equipment ID</th>
+                                    <th>Equipment Name</th>
+                                    <th>Location ID</th>
+                                    <th>Location Name</th>
+                                    <th>Parent Location ID</th>
+                                    <th>Parent Name</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for eq in equipment_not_in_filter %}
+                                <tr>
+                                    <td>{{ eq.0 }}</td>
+                                    <td><strong>{{ eq.1 }}</strong></td>
+                                    <td>{{ eq.2|default:"NULL" }}</td>
+                                    <td>{{ eq.3|default:"NULL" }}</td>
+                                    <td>{{ eq.4|default:"NULL" }}</td>
+                                    <td>{{ eq.5|default:"NULL" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+                    
+                    {% if equipment_in_duplicate_pods %}
+                    <h6>⚠️ CRITICAL: Equipment in PODs with Same Name but Different Site</h6>
+                    <p class="text-danger"><strong>ROOT CAUSE FOUND:</strong> These equipment items are in PODs with the same name as Dorothy 1A PODs, but they belong to OTHER sites. This is why they're not showing up in the filter!</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-danger">
+                            <thead>
+                                <tr>
+                                    <th>Equipment ID</th>
+                                    <th>Equipment Name</th>
+                                    <th>Current Location ID</th>
+                                    <th>Current Location Name</th>
+                                    <th>Current Site</th>
+                                    <th>Should Be In POD</th>
+                                    <th>Target POD ID</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for eq in equipment_in_duplicate_pods %}
+                                <tr>
+                                    <td>{{ eq.0 }}</td>
+                                    <td><strong>{{ eq.1 }}</strong></td>
+                                    <td>{{ eq.2 }}</td>
+                                    <td>{{ eq.3 }}</td>
+                                    <td><span class="badge bg-warning">{{ eq.5 }} (Site ID: {{ eq.6 }})</span></td>
+                                    <td><span class="badge bg-info">{{ eq.7 }}</span></td>
+                                    <td><span class="badge bg-success">{{ eq.8 }}</span></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="alert alert-warning">
+                        <strong>Solution:</strong> These equipment items need to be reassigned from their current POD locations (which belong to other sites) to the Dorothy 1A POD locations with the same names. The POD names are the same, but they are different location records!
+                    </div>
+                    {% endif %}
                     
                     <h6>All Equipment with Actual Site Assignment</h6>
                     <div class="table-responsive">
