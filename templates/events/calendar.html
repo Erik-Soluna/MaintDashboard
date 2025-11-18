@@ -1956,8 +1956,11 @@ function formatDateTime(dateTimeStr, timezoneStr) {
     const date = new Date(dateTimeStr);
     
     // If timezone is provided, format using that timezone; otherwise use browser's timezone
+    // Note: The dateTimeStr should already be in the correct timezone from the API
     if (timezoneStr) {
         try {
+            // Use the timezone to format, but the date should already be correct
+            // The API sends times in the activity's timezone, so we just format it
             return date.toLocaleString('en-US', {
                 timeZone: timezoneStr,
                 year: 'numeric',
@@ -2343,12 +2346,11 @@ function openCreateMaintenanceModal(selectedDate = null) {
     let startDateTime, endDateTime;
     
     if (selectedDate) {
-        // Parse selected date (could be ISO string or date string)
-        const selected = new Date(selectedDate);
-        startDateTime = new Date(selected);
-        startDateTime.setHours(9, 0, 0, 0);
-        endDateTime = new Date(selected);
-        endDateTime.setHours(17, 0, 0, 0);
+        // Parse selected date as local date (YYYY-MM-DD format from FullCalendar)
+        // Split the date string to avoid timezone conversion issues
+        const [year, month, day] = selectedDate.split('-').map(Number);
+        startDateTime = new Date(year, month - 1, day, 9, 0, 0); // month is 0-indexed
+        endDateTime = new Date(year, month - 1, day, 17, 0, 0);
     } else {
         // Default to today 9 AM - 5 PM
         startDateTime = new Date(now);

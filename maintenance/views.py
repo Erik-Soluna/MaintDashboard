@@ -2379,21 +2379,27 @@ def get_activity_details(request, activity_id):
         timeline_entries = activity.timeline_entries.all().order_by('-created_at')[:10]
         reports = activity.reports.all().order_by('-created_at')
         
-        # Convert datetimes to UTC for API response - JavaScript will format in user's timezone
-        def convert_to_utc(dt):
+        # Get activity's timezone (or fallback to user's timezone)
+        activity_timezone_str = activity.timezone or user_timezone_str
+        activity_tz = pytz.timezone(activity_timezone_str)
+        
+        # Convert datetimes to the activity's timezone for display
+        # This ensures the time shown matches what was entered
+        def convert_to_activity_tz(dt):
             if not dt:
                 return None
-            # If already timezone-aware, convert to UTC
+            # If already timezone-aware, convert to activity's timezone
             if timezone.is_aware(dt):
-                return dt.astimezone(pytz.UTC)
-            # If naive, assume UTC
-            return timezone.make_aware(dt, pytz.UTC)
+                return dt.astimezone(activity_tz)
+            # If naive, assume UTC and convert to activity's timezone
+            return timezone.make_aware(dt, pytz.UTC).astimezone(activity_tz)
         
-        # Convert to UTC before formatting (JavaScript will handle timezone conversion)
-        scheduled_start_utc = convert_to_utc(activity.scheduled_start) if activity.scheduled_start else None
-        scheduled_end_utc = convert_to_utc(activity.scheduled_end) if activity.scheduled_end else None
-        actual_start_utc = convert_to_utc(activity.actual_start) if activity.actual_start else None
-        actual_end_utc = convert_to_utc(activity.actual_end) if activity.actual_end else None
+        # Convert to activity's timezone before formatting
+        # JavaScript will receive these as ISO strings with timezone info
+        scheduled_start_tz = convert_to_activity_tz(activity.scheduled_start) if activity.scheduled_start else None
+        scheduled_end_tz = convert_to_activity_tz(activity.scheduled_end) if activity.scheduled_end else None
+        actual_start_tz = convert_to_activity_tz(activity.actual_start) if activity.actual_start else None
+        actual_end_tz = convert_to_activity_tz(activity.actual_end) if activity.actual_end else None
         
         data = {
             'id': activity.id,
@@ -2411,10 +2417,10 @@ def get_activity_details(request, activity_id):
                 'name': activity.activity_type.name,
                 'category': activity.activity_type.category.name,
             },
-            'scheduled_start': scheduled_start_utc.isoformat() if scheduled_start_utc else None,
-            'scheduled_end': scheduled_end_utc.isoformat() if scheduled_end_utc else None,
-            'actual_start': actual_start_utc.isoformat() if actual_start_utc else None,
-            'actual_end': actual_end_utc.isoformat() if actual_end_utc else None,
+            'scheduled_start': scheduled_start_tz.isoformat() if scheduled_start_tz else None,
+            'scheduled_end': scheduled_end_tz.isoformat() if scheduled_end_tz else None,
+            'actual_start': actual_start_tz.isoformat() if actual_start_tz else None,
+            'actual_end': actual_end_tz.isoformat() if actual_end_tz else None,
             'timezone': activity.timezone or user_timezone_str,  # Use activity's timezone, fallback to user's timezone
             'timezone_display_name': activity.get_timezone_display_name(),  # Human-readable timezone name from DB
             'assigned_to': activity.assigned_to.username if activity.assigned_to else None,
