@@ -51,16 +51,24 @@ from core.models import Location
 logger = logging.getLogger(__name__)
 
 
-def get_all_descendant_location_ids(site):
+def get_all_descendant_location_ids(site, include_inactive=False):
     """
     Get all location IDs that belong to a site (including nested children).
     Returns a set of location IDs including the site itself and all its descendants.
+    
+    Args:
+        site: The site Location object
+        include_inactive: If True, include inactive locations in the hierarchy
     """
     location_ids = {site.id}
     
     def get_children(parent_id):
         """Recursively get all child location IDs."""
-        children = Location.objects.filter(parent_location_id=parent_id, is_active=True).values_list('id', flat=True)
+        if include_inactive:
+            children = Location.objects.filter(parent_location_id=parent_id).values_list('id', flat=True)
+        else:
+            children = Location.objects.filter(parent_location_id=parent_id, is_active=True).values_list('id', flat=True)
+        
         for child_id in children:
             location_ids.add(child_id)
             get_children(child_id)  # Recursively get grandchildren, etc.
@@ -285,15 +293,29 @@ def bulk_add_activity(request):
         is_all_sites = False
         
         # Build equipment queryset with site filtering
+        # IMPORTANT: Don't filter by location here - we'll handle that separately
+        # to ensure we catch equipment with NULL locations or inactive location hierarchies
         equipment_query = Equipment.objects.filter(is_active=True).select_related('location', 'location__parent_location', 'category')
         
         if selected_site_id and selected_site_id != 'all':
             try:
                 selected_site = Location.objects.get(id=selected_site_id, is_site=True)
                 # Get all descendant location IDs (handles nested locations at any depth)
-                location_ids = get_all_descendant_location_ids(selected_site)
+                # Include inactive locations to catch equipment that might be in inactive location hierarchies
+                location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
+                
+                # Log for debugging
+                logger.info(f"Bulk add activity - Site: {selected_site.name} (ID: {selected_site_id}), Found {len(location_ids)} location IDs")
+                
+                # Filter equipment by location IDs (includes all nested locations)
                 equipment_query = equipment_query.filter(location_id__in=location_ids)
+                
+                # Log equipment count for debugging
+                equipment_count = equipment_query.count()
+                total_equipment_count = Equipment.objects.filter(is_active=True).count()
+                logger.info(f"Bulk add activity - Filtered equipment count: {equipment_count} out of {total_equipment_count} total active equipment")
             except Location.DoesNotExist:
+                logger.warning(f"Bulk add activity - Site ID {selected_site_id} not found")
                 pass
         else:
             is_all_sites = True
@@ -3157,6 +3179,7 @@ def debug_equipment_filtering(request):
     from core.models import Location
     from equipment.models import Equipment
     from django.db.models import Q
+    from django.db import connection
     
     # Get current site selection
     selected_site_id = request.GET.get('site_id')
@@ -3183,24 +3206,70 @@ def debug_equipment_filtering(request):
         # No site selected, treat as "All Sites"
         is_all_sites = True
     
-    # Filter equipment by site
-    filtered_equipment = all_equipment
+    # OLD METHOD (one level deep) - for comparison
+    old_filtered_equipment = all_equipment
     if selected_site:
-        filtered_equipment = all_equipment.filter(
+        old_filtered_equipment = all_equipment.filter(
             Q(location__parent_location=selected_site) | Q(location=selected_site)
         )
+    
+    # NEW METHOD (recursive) - what bulk_add_activity uses
+    new_filtered_equipment = all_equipment
+    location_ids = None
+    if selected_site:
+        location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
+        new_filtered_equipment = all_equipment.filter(location_id__in=location_ids)
+    
+    # Diagnostic information
+    diagnostics = {
+        'equipment_with_null_location': all_equipment.filter(location__isnull=True).count(),
+        'equipment_with_inactive_location': all_equipment.filter(location__is_active=False).count(),
+        'equipment_by_location_status': {},
+        'location_hierarchy_depth': {},
+    }
+    
+    # Check equipment location status
+    for equipment in all_equipment[:100]:  # Sample first 100
+        if equipment.location:
+            status = 'active' if equipment.location.is_active else 'inactive'
+            diagnostics['equipment_by_location_status'][status] = diagnostics['equipment_by_location_status'].get(status, 0) + 1
+            
+            # Check hierarchy depth
+            depth = 0
+            current = equipment.location
+            while current and current.parent_location:
+                depth += 1
+                current = current.parent_location
+            max_depth = diagnostics['location_hierarchy_depth'].get('max', 0)
+            if depth > max_depth:
+                diagnostics['location_hierarchy_depth']['max'] = depth
+        else:
+            diagnostics['equipment_by_location_status']['null'] = diagnostics['equipment_by_location_status'].get('null', 0) + 1
+    
+    # Get SQL queries for inspection
+    old_query_sql = str(old_filtered_equipment.query) if selected_site else "N/A (all sites)"
+    new_query_sql = str(new_filtered_equipment.query) if selected_site else "N/A (all sites)"
     
     # Get all sites
     all_sites = Location.objects.filter(is_site=True)
     
+    # Get location IDs if site is selected
+    location_ids_list = list(location_ids) if location_ids else []
+    
     context = {
         'all_equipment': all_equipment,
-        'filtered_equipment': filtered_equipment,
+        'old_filtered_equipment': old_filtered_equipment,
+        'new_filtered_equipment': new_filtered_equipment,
         'selected_site': selected_site,
         'all_sites': all_sites,
         'selected_site_id': selected_site_id,
         'total_equipment': all_equipment.count(),
-        'filtered_count': filtered_equipment.count(),
+        'old_filtered_count': old_filtered_equipment.count(),
+        'new_filtered_count': new_filtered_equipment.count(),
+        'location_ids': location_ids_list,
+        'diagnostics': diagnostics,
+        'old_query_sql': old_query_sql,
+        'new_query_sql': new_query_sql,
     }
     
     return render(request, 'maintenance/debug_equipment_filtering.html', context)
