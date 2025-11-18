@@ -752,9 +752,13 @@
                         <div class="legend-color" style="background-color: {{ status_colors.in_progress|default:"#ed8936" }};"></div>
                         <span>In Progress</span>
                     </div>
-                    <div class="legend-item" data-type="events" onclick="toggleLegendItem(this, 'events')">
-                        <div class="legend-color" style="background-color: #17a2b8;"></div>
-                        <span>Events</span>
+                    <div class="legend-item" data-type="pending" onclick="toggleLegendItem(this, 'pending')">
+                        <div class="legend-color" style="background-color: {{ status_colors.pending|default:"#4299e1" }};"></div>
+                        <span>Pending</span>
+                    </div>
+                    <div class="legend-item" data-type="cancelled" onclick="toggleLegendItem(this, 'cancelled')">
+                        <div class="legend-color" style="background-color: {{ status_colors.cancelled|default:"#000000" }};"></div>
+                        <span>Cancelled</span>
                     </div>
                     <button type="button" class="btn btn-outline-light btn-sm" onclick="showAllLegendItems()">
                         <i class="fas fa-eye"></i> Show All
@@ -1607,7 +1611,8 @@ let legendVisibility = {
     overdue: true,
     completed: true,
     in_progress: true,
-    events: true
+    pending: true,
+    cancelled: true
 };
 
 function toggleLegendItem(element, type) {
@@ -1630,13 +1635,13 @@ function applyLegendVisibilityToEvent(event) {
     let shouldShow = true;
     
     // Check if this event type should be visible
-    if (eventType === 'maintenance') {
+    if (eventType === 'maintenance' || eventType === 'activity') {
         if (status === 'scheduled' && !legendVisibility.scheduled) shouldShow = false;
         else if (status === 'overdue' && !legendVisibility.overdue) shouldShow = false;
         else if (status === 'completed' && !legendVisibility.completed) shouldShow = false;
         else if (status === 'in_progress' && !legendVisibility.in_progress) shouldShow = false;
-    } else if (eventType === 'event' && !legendVisibility.events) {
-        shouldShow = false;
+        else if (status === 'pending' && !legendVisibility.pending) shouldShow = false;
+        else if (status === 'cancelled' && !legendVisibility.cancelled) shouldShow = false;
     }
     
     // Show/hide event
