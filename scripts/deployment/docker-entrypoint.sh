@@ -138,6 +138,28 @@ wait_for_database() {
     exit 1
 }
 
+# Setup media directory permissions
+setup_media_permissions() {
+    print_status "📁 Setting up media directory permissions..."
+    
+    # Create media directory and subdirectories if they don't exist
+    mkdir -p /app/media/equipment/documents
+    mkdir -p /app/media/maintenance/reports
+    mkdir -p /app/media/logos
+    mkdir -p /app/media/uploads
+    
+    # Set ownership to appuser if it exists, otherwise use current user
+    if id appuser >/dev/null 2>&1; then
+        chown -R appuser:appuser /app/media
+        chmod -R 755 /app/media
+        print_success "✅ Media directories configured with appuser permissions"
+    else
+        # If appuser doesn't exist, ensure directories are writable by current user
+        chmod -R 755 /app/media
+        print_warning "⚠️ appuser not found, using current user permissions for media"
+    fi
+}
+
 # Smart database initialization (fast-path for already-initialized databases)
 initialize_database_smart() {
     print_status "🚀 Initializing..."
@@ -462,6 +484,9 @@ main() {
     
     # Step 5: Initialize database schema and data
     initialize_database_smart
+    
+    # Step 6: Ensure media directories exist with proper permissions
+    setup_media_permissions
     
     print_success "✅ Ready to serve"
     
