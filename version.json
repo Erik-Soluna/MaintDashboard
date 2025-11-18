@@ -1,5 +1,6 @@
 {
 <<<<<<< HEAD
+<<<<<<< HEAD
   "commit_count": 1134,
   "commit_hash": "d662b94",
   "branch": "main",
@@ -13,5 +14,13 @@
   "commit_date": "2025-11-18",
   "version": "v1115.862e2f8",
   "full_version": "v1115.862e2f8 (latest) - 2025-11-18"
+>>>>>>> latest
+=======
+  "commit_count": 1118,
+  "commit_hash": "05ae4d0",
+  "branch": "latest",
+  "commit_date": "2025-11-18",
+  "version": "v1118.05ae4d0",
+  "full_version": "v1118.05ae4d0 (latest) - 2025-11-18"
 >>>>>>> latest
 }
