@@ -3590,10 +3590,18 @@ def clear_maintenance_activities_api(request):
                             cursor.execute(f"DELETE FROM maintenance_maintenancetimelineentry WHERE activity_id IN ({ids_str})")
                             cursor.execute(f"DELETE FROM maintenance_maintenancechecklist WHERE activity_id IN ({ids_str})")
                             cursor.execute(f"DELETE FROM maintenance_maintenancereport WHERE maintenance_activity_id IN ({ids_str})")
+                            # Delete calendar events (must be done before activities)
                             try:
                                 cursor.execute(f"DELETE FROM events_calendarevent WHERE maintenance_activity_id IN ({ids_str})")
-                            except:
-                                pass
+                                logger.info(f"Background: Deleted {cursor.rowcount} calendar events via SQL")
+                            except Exception as e:
+                                logger.warning(f"Background: Could not delete calendar events via SQL: {str(e)}")
+                                # Try to delete via ORM as fallback
+                                try:
+                                    from events.models import CalendarEvent
+                                    CalendarEvent.objects.filter(maintenance_activity_id__in=activity_ids).delete()
+                                except Exception as e2:
+                                    logger.error(f"Background: Could not delete calendar events via ORM either: {str(e2)}")
                             cursor.execute(f"DELETE FROM maintenance_maintenanceactivity WHERE id IN ({ids_str})")
                         logger.info(f"Fast SQL deletion completed: {len(activity_ids)} activities")
                     else:
@@ -3645,11 +3653,18 @@ def clear_maintenance_activities_api(request):
                         # Delete reports
                         cursor.execute(f"DELETE FROM maintenance_maintenancereport WHERE maintenance_activity_id IN ({ids_str})")
                         
-                        # Delete calendar events if they exist
+                        # Delete calendar events if they exist (must be done before activities)
                         try:
-                            cursor.execute(f"DELETE FROM events_calendarevent WHERE maintenance_activity_id IN ({ids_str})")
-                        except:
-                            pass  # Table might not exist or column might be different
+                            deleted_events = cursor.execute(f"DELETE FROM events_calendarevent WHERE maintenance_activity_id IN ({ids_str})")
+                            logger.info(f"Deleted {cursor.rowcount} calendar events via SQL")
+                        except Exception as e:
+                            logger.warning(f"Could not delete calendar events via SQL: {str(e)}")
+                            # Try to delete via ORM as fallback
+                            try:
+                                from events.models import CalendarEvent
+                                CalendarEvent.objects.filter(maintenance_activity_id__in=activity_ids).delete()
+                            except Exception as e2:
+                                logger.error(f"Could not delete calendar events via ORM either: {str(e2)}")
                         
                         # Finally delete the activities themselves
                         cursor.execute(f"DELETE FROM maintenance_maintenanceactivity WHERE id IN ({ids_str})")
