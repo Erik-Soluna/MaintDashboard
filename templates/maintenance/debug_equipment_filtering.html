@@ -29,21 +29,65 @@
                         <div class="col-md-6">
                             <h6>Current Site Selection</h6>
                             {% if selected_site %}
-                                <p><strong>Selected Site:</strong> {{ selected_site.name|default:'All Sites' }} (ID: {{ selected_site.id|default:'N/A' }})</p>
+                                <p><strong>Selected Site:</strong> {{ selected_site.name }} (ID: {{ selected_site.id }})</p>
                             {% else %}
-                                <p><strong>Selected Site:</strong> None</p>
+                                <p><strong>Selected Site:</strong> All Sites</p>
                             {% endif %}
                             <p><strong>Session Site ID:</strong> {{ selected_site_id|default:"None" }}</p>
                         </div>
                         <div class="col-md-6">
                             <h6>Equipment Counts</h6>
-                            <p><strong>Total Equipment:</strong> {{ total_equipment }}</p>
-                            <p><strong>Filtered Equipment:</strong> {{ filtered_count }}</p>
+                            <p><strong>Total Equipment (is_active=True):</strong> {{ total_equipment }}</p>
+                            <p><strong>Old Method (1 level):</strong> {{ old_filtered_count }}</p>
+                            <p><strong>New Method (recursive):</strong> {{ new_filtered_count }}</p>
+                            <p><strong>Difference:</strong> {{ new_filtered_count|add:"-"|add:old_filtered_count }}</p>
                         </div>
                     </div>
 
+                    {% if diagnostics %}
                     <hr>
+                    <h6>Diagnostics</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul>
+                                <li><strong>Equipment with NULL location:</strong> {{ diagnostics.equipment_with_null_location }}</li>
+                                <li><strong>Equipment with inactive location:</strong> {{ diagnostics.equipment_with_inactive_location }}</li>
+                                <li><strong>Max location hierarchy depth:</strong> {{ diagnostics.location_hierarchy_depth.max|default:"0" }}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Equipment by location status (sample of 100):</strong>
+                            <ul>
+                                {% for status, count in diagnostics.equipment_by_location_status.items %}
+                                <li>{{ status }}: {{ count }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
 
+                    {% if selected_site and location_ids %}
+                    <hr>
+                    <h6>Location IDs Included ({{ location_ids|length }} total)</h6>
+                    <p class="small text-muted">First 50 location IDs: {{ location_ids|slice:":50"|join:", " }}{% if location_ids|length > 50 %}... (and {{ location_ids|length|add:"-50" }} more){% endif %}</p>
+                    {% endif %}
+
+                    {% if old_query_sql or new_query_sql %}
+                    <hr>
+                    <h6>SQL Queries</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Old Method Query:</strong>
+                            <pre class="bg-light p-2 small">{{ old_query_sql|truncatewords:50 }}</pre>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>New Method Query:</strong>
+                            <pre class="bg-light p-2 small">{{ new_query_sql|truncatewords:50 }}</pre>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <hr>
                     <h6>All Sites</h6>
                     <div class="table-responsive">
                         <table class="table table-sm">
@@ -51,7 +95,7 @@
                                 <tr>
                                     <th>Site Name</th>
                                     <th>ID</th>
-                                    <th>Equipment Count</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -60,12 +104,7 @@
                                     <td>{{ site.name }}</td>
                                     <td>{{ site.id }}</td>
                                     <td>
-                                        {% for equipment in all_equipment %}
-                                            {% if equipment.location == site or equipment.location.parent_location == site %}
-                                                {% if forloop.first %}{% endif %}
-                                            {% endif %}
-                                        {% endfor %}
-                                        {{ all_equipment|length }}
+                                        <a href="?site_id={{ site.id }}" class="btn btn-sm btn-primary">Debug This Site</a>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -74,31 +113,78 @@
                     </div>
 
                     <hr>
-
-                    <h6>All Equipment</h6>
+                    <h6>All Equipment (showing first 100)</h6>
                     <div class="table-responsive">
-                        <table class="table table-sm">
+                        <table class="table table-sm table-striped">
                             <thead>
                                 <tr>
+                                    <th>ID</th>
                                     <th>Equipment Name</th>
                                     <th>Category</th>
                                     <th>Location</th>
+                                    <th>Location Active</th>
                                     <th>Site</th>
+                                    <th>In Old Filter</th>
+                                    <th>In New Filter</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for equipment in all_equipment %}
+                                {% for equipment in all_equipment|slice:":100" %}
                                 <tr>
+                                    <td>{{ equipment.id }}</td>
                                     <td>{{ equipment.name }}</td>
-                                    <td>{{ equipment.category.name }}</td>
-                                    <td>{{ equipment.location.name }}</td>
+                                    <td>{{ equipment.category.name|default:"N/A" }}</td>
                                     <td>
-                                        {% if equipment.location.is_site %}
-                                            {{ equipment.location.name }}
-                                        {% elif equipment.location.parent_location %}
-                                            {{ equipment.location.parent_location.name }}
+                                        {% if equipment.location %}
+                                            {{ equipment.location.name }} (ID: {{ equipment.location.id }})
                                         {% else %}
-                                            <span class="text-muted">No site</span>
+                                            <span class="text-danger">NULL</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if equipment.location %}
+                                            {% if equipment.location.is_active %}
+                                                <span class="badge bg-success">Active</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">Inactive</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if equipment.location %}
+                                            {% if equipment.location.is_site %}
+                                                {{ equipment.location.name }}
+                                            {% elif equipment.location.parent_location %}
+                                                {{ equipment.location.parent_location.name }}
+                                            {% else %}
+                                                <span class="text-muted">No site</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-danger">No location</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if selected_site %}
+                                            {% if equipment in old_filtered_equipment %}
+                                                <span class="badge bg-success">Yes</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">No</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if selected_site %}
+                                            {% if equipment in new_filtered_equipment %}
+                                                <span class="badge bg-success">Yes</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">No</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">N/A</span>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -106,30 +192,35 @@
                             </tbody>
                         </table>
                     </div>
+                    {% if total_equipment > 100 %}
+                    <p class="text-muted">Showing first 100 of {{ total_equipment }} total equipment items.</p>
+                    {% endif %}
 
                     {% if selected_site %}
                     <hr>
-
-                    <h6>Filtered Equipment (for selected site)</h6>
+                    <h6>Missing Equipment Analysis</h6>
+                    <p>Equipment in NEW filter but not in OLD filter:</p>
                     <div class="table-responsive">
                         <table class="table table-sm">
                             <thead>
                                 <tr>
                                     <th>Equipment Name</th>
-                                    <th>Category</th>
                                     <th>Location</th>
+                                    <th>Location Path</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for equipment in filtered_equipment %}
-                                <tr>
-                                    <td>{{ equipment.name }}</td>
-                                    <td>{{ equipment.category.name }}</td>
-                                    <td>{{ equipment.location.name }}</td>
-                                </tr>
+                                {% for equipment in new_filtered_equipment %}
+                                    {% if equipment not in old_filtered_equipment %}
+                                    <tr>
+                                        <td>{{ equipment.name }}</td>
+                                        <td>{{ equipment.location.name|default:"NULL" }}</td>
+                                        <td>{{ equipment.location.get_full_path|default:"N/A" }}</td>
+                                    </tr>
+                                    {% endif %}
                                 {% empty %}
                                 <tr>
-                                    <td colspan="3" class="text-center text-muted">No equipment found for this site</td>
+                                    <td colspan="3" class="text-center text-muted">No differences found</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -141,4 +232,4 @@
         </div>
     </div>
 </div>
-{% endblock %} 
+{% endblock %}
