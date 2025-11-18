@@ -37,10 +37,12 @@
                         </div>
                         <div class="col-md-6">
                             <h6>Equipment Counts</h6>
-                            <p><strong>Total Equipment (is_active=True):</strong> {{ total_equipment }}</p>
+                            <p><strong>Total Equipment (ALL, no filter):</strong> {{ total_equipment_all }}</p>
+                            <p><strong>Total Equipment (is_active=True):</strong> {{ total_equipment_active }}</p>
                             <p><strong>Old Method (1 level):</strong> {{ old_filtered_count }}</p>
                             <p><strong>New Method (recursive):</strong> {{ new_filtered_count }}</p>
-                            <p><strong>Difference:</strong> {{ new_filtered_count|add:"-"|add:old_filtered_count }}</p>
+                            <p><strong>Difference (New - Old):</strong> {{ new_filtered_count|add:"-"|add:old_filtered_count }}</p>
+                            <p class="text-danger"><strong>Missing Equipment:</strong> {{ total_equipment_all|add:"-"|add:total_equipment_active }} (inactive equipment)</p>
                         </div>
                     </div>
 
@@ -70,6 +72,92 @@
                     <hr>
                     <h6>Location IDs Included ({{ location_ids|length }} total)</h6>
                     <p class="small text-muted">First 50 location IDs: {{ location_ids|slice:":50"|join:", " }}{% if location_ids|length > 50 %}... (and {{ location_ids|length|add:"-50" }} more){% endif %}</p>
+                    
+                    <h6>Raw Location Hierarchy (from database)</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Parent ID</th>
+                                    <th>Active</th>
+                                    <th>Is Site</th>
+                                    <th>Depth</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for loc in raw_location_hierarchy %}
+                                <tr>
+                                    <td>{{ loc.0 }}</td>
+                                    <td>{{ loc.1 }}</td>
+                                    <td>{{ loc.2|default:"None" }}</td>
+                                    <td>{% if loc.3 %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-warning">No</span>{% endif %}</td>
+                                    <td>{% if loc.4 %}<span class="badge bg-info">Yes</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</td>
+                                    <td>{{ loc.5 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <h6>Equipment Count by Location</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Location ID</th>
+                                    <th>Location Name</th>
+                                    <th>Equipment Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for loc in equipment_by_location %}
+                                <tr>
+                                    <td>{{ loc.0 }}</td>
+                                    <td>{{ loc.1 }}</td>
+                                    <td><strong>{{ loc.2 }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <h6>All Equipment with Actual Site Assignment</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Equipment ID</th>
+                                    <th>Equipment Name</th>
+                                    <th>Location ID</th>
+                                    <th>Location Name</th>
+                                    <th>Location Active</th>
+                                    <th>Actual Site ID</th>
+                                    <th>In Filter</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for eq in all_equipment_with_sites %}
+                                <tr>
+                                    <td>{{ eq.0 }}</td>
+                                    <td>{{ eq.1 }}</td>
+                                    <td>{{ eq.2|default:"NULL" }}</td>
+                                    <td>{{ eq.3|default:"NULL" }}</td>
+                                    <td>{% if eq.5 %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-warning">No</span>{% endif %}</td>
+                                    <td>{{ eq.6|default:"NULL" }}</td>
+                                    <td>
+                                        {% if eq.6 == selected_site.id %}
+                                            <span class="badge bg-success">Yes</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">No (Site: {{ eq.6|default:"None" }})</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                     {% endif %}
 
                     {% if old_query_sql or new_query_sql %}

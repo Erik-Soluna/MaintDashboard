@@ -61,19 +61,35 @@ def get_all_descendant_location_ids(site, include_inactive=False):
         include_inactive: If True, include inactive locations in the hierarchy
     """
     location_ids = {site.id}
+    visited = set()  # Track visited to prevent infinite loops
     
-    def get_children(parent_id):
+    def get_children(parent_id, depth=0, max_depth=20):
         """Recursively get all child location IDs."""
-        if include_inactive:
-            children = Location.objects.filter(parent_location_id=parent_id).values_list('id', flat=True)
-        else:
-            children = Location.objects.filter(parent_location_id=parent_id, is_active=True).values_list('id', flat=True)
+        if depth > max_depth:
+            logger.warning(f"Location hierarchy depth exceeded {max_depth} for parent {parent_id}")
+            return
         
-        for child_id in children:
+        if parent_id in visited:
+            logger.warning(f"Circular reference detected at location {parent_id}")
+            return
+        
+        visited.add(parent_id)
+        
+        if include_inactive:
+            children = Location.objects.filter(parent_location_id=parent_id).values_list('id', 'name', 'is_active')
+        else:
+            children = Location.objects.filter(parent_location_id=parent_id, is_active=True).values_list('id', 'name', 'is_active')
+        
+        children_list = list(children)
+        logger.debug(f"Found {len(children_list)} children for location {parent_id} at depth {depth}")
+        
+        for child_id, child_name, child_active in children_list:
             location_ids.add(child_id)
-            get_children(child_id)  # Recursively get grandchildren, etc.
+            logger.debug(f"Added location {child_id} ({child_name}, active={child_active}) to set")
+            get_children(child_id, depth + 1, max_depth)  # Recursively get grandchildren, etc.
     
     get_children(site.id)
+    logger.info(f"get_all_descendant_location_ids: Site {site.name} (ID: {site.id}) has {len(location_ids)} total location IDs: {sorted(location_ids)}")
     return location_ids
 
 
@@ -3186,8 +3202,10 @@ def debug_equipment_filtering(request):
     if selected_site_id is None:
         selected_site_id = request.session.get('selected_site_id')
     
-    # Get all equipment
-    all_equipment = Equipment.objects.filter(is_active=True).select_related('category', 'location')
+    # Get all equipment - compare with and without is_active filter
+    all_equipment_active = Equipment.objects.filter(is_active=True).select_related('category', 'location', 'location__parent_location')
+    all_equipment_total = Equipment.objects.select_related('category', 'location', 'location__parent_location').all()
+    all_equipment = all_equipment_active  # Use active for main display
     
     # Get site info
     selected_site = None
@@ -3216,9 +3234,92 @@ def debug_equipment_filtering(request):
     # NEW METHOD (recursive) - what bulk_add_activity uses
     new_filtered_equipment = all_equipment
     location_ids = None
+    location_hierarchy_details = []
     if selected_site:
         location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
+        
+        # Get detailed hierarchy information
+        def get_location_hierarchy(loc, depth=0):
+            """Get full location hierarchy details."""
+            children = Location.objects.filter(parent_location_id=loc.id).select_related('parent_location')
+            result = {
+                'id': loc.id,
+                'name': loc.name,
+                'is_active': loc.is_active,
+                'is_site': loc.is_site,
+                'depth': depth,
+                'equipment_count': Equipment.objects.filter(location_id=loc.id, is_active=True).count(),
+                'children': []
+            }
+            for child in children:
+                result['children'].append(get_location_hierarchy(child, depth + 1))
+            return result
+        
+        location_hierarchy_details = get_location_hierarchy(selected_site)
         new_filtered_equipment = all_equipment.filter(location_id__in=location_ids)
+        
+        # RAW SQL QUERY to verify what's actually in the database
+        with connection.cursor() as cursor:
+            # Get all locations that should belong to this site
+            cursor.execute("""
+                WITH RECURSIVE location_tree AS (
+                    SELECT id, name, parent_location_id, is_active, is_site, 0 as depth
+                    FROM core_location
+                    WHERE id = %s
+                    UNION ALL
+                    SELECT l.id, l.name, l.parent_location_id, l.is_active, l.is_site, lt.depth + 1
+                    FROM core_location l
+                    INNER JOIN location_tree lt ON l.parent_location_id = lt.id
+                    WHERE lt.depth < 10
+                )
+                SELECT id, name, parent_location_id, is_active, is_site, depth
+                FROM location_tree
+                ORDER BY depth, name;
+            """, [selected_site.id])
+            raw_location_hierarchy = cursor.fetchall()
+            
+            # Get equipment count per location
+            cursor.execute("""
+                SELECT l.id, l.name, COUNT(e.id) as equipment_count
+                FROM core_location l
+                LEFT JOIN equipment_equipment e ON e.location_id = l.id AND e.is_active = true
+                WHERE l.id = ANY(%s)
+                GROUP BY l.id, l.name
+                ORDER BY l.name;
+            """, [list(location_ids)])
+            equipment_by_location = cursor.fetchall()
+            
+            # Get ALL equipment with their actual site (using get_site_location logic)
+            cursor.execute("""
+                SELECT e.id, e.name, e.location_id, l.name as location_name, 
+                       l.parent_location_id, l.is_active as location_active,
+                       CASE 
+                           WHEN l.is_site = true THEN l.id
+                           WHEN l.parent_location_id IS NULL THEN NULL
+                           ELSE (
+                               WITH RECURSIVE find_site AS (
+                                   SELECT id, parent_location_id, is_site
+                                   FROM core_location
+                                   WHERE id = l.parent_location_id
+                                   UNION ALL
+                                   SELECT loc.id, loc.parent_location_id, loc.is_site
+                                   FROM core_location loc
+                                   INNER JOIN find_site fs ON loc.id = fs.parent_location_id
+                                   WHERE fs.is_site = false AND fs.parent_location_id IS NOT NULL
+                               )
+                               SELECT id FROM find_site WHERE is_site = true LIMIT 1
+                           )
+                       END as actual_site_id
+                FROM equipment_equipment e
+                LEFT JOIN core_location l ON e.location_id = l.id
+                WHERE e.is_active = true
+                ORDER BY e.name;
+            """)
+            all_equipment_with_sites = cursor.fetchall()
+    else:
+        raw_location_hierarchy = []
+        equipment_by_location = []
+        all_equipment_with_sites = []
     
     # Diagnostic information
     diagnostics = {
@@ -3264,12 +3365,18 @@ def debug_equipment_filtering(request):
         'all_sites': all_sites,
         'selected_site_id': selected_site_id,
         'total_equipment': all_equipment.count(),
+        'total_equipment_all': all_equipment_total.count(),
+        'total_equipment_active': all_equipment_active.count(),
         'old_filtered_count': old_filtered_equipment.count(),
         'new_filtered_count': new_filtered_equipment.count(),
         'location_ids': location_ids_list,
         'diagnostics': diagnostics,
         'old_query_sql': old_query_sql,
         'new_query_sql': new_query_sql,
+        'raw_location_hierarchy': raw_location_hierarchy if selected_site else [],
+        'equipment_by_location': equipment_by_location if selected_site else [],
+        'all_equipment_with_sites': all_equipment_with_sites if selected_site else [],
+        'location_hierarchy_details': location_hierarchy_details if selected_site else None,
     }
     
     return render(request, 'maintenance/debug_equipment_filtering.html', context)
