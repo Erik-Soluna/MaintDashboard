@@ -73,6 +73,7 @@ services:
         GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-unknown}
         GIT_BRANCH: ${GIT_BRANCH:-unknown}
         GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-unknown}
+    image: maint-dashboard-dev:${GIT_COMMIT_HASH:-latest}
     container_name: maintenance_web_dev
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["python", "manage.py", "runserver", "--noreload", "0.0.0.0:8000"]
@@ -176,6 +177,7 @@ services:
         GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-unknown}
         GIT_BRANCH: ${GIT_BRANCH:-unknown}
         GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-unknown}
+    image: maint-dashboard-dev:${GIT_COMMIT_HASH:-latest}
     container_name: maintenance_celery_dev
     entrypoint: ["./scripts/deployment/docker-entrypoint.sh"]
     command: ["celery"]
