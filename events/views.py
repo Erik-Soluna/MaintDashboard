@@ -44,10 +44,14 @@ def generate_ical_feed(request):
     
     # Apply filters
     if site_id and site_id != 'all':
-        events = events.filter(
-            Q(equipment__location__parent_location_id=site_id) | 
-            Q(equipment__location_id=site_id)
-        )
+        try:
+            selected_site = Location.objects.get(id=site_id, is_site=True)
+            # Get all descendant location IDs (handles nested locations at any depth)
+            from maintenance.views import get_all_descendant_location_ids
+            location_ids = get_all_descendant_location_ids(selected_site)
+            events = events.filter(equipment__location_id__in=location_ids)
+        except Location.DoesNotExist:
+            pass
     
     if equipment_id:
         events = events.filter(equipment_id=equipment_id)
@@ -206,9 +210,10 @@ def calendar_view(request):
     # Get equipment for filtering
     equipment_list = Equipment.objects.filter(is_active=True).order_by('name')
     if selected_site and not is_all_sites:
-        equipment_list = equipment_list.filter(
-            Q(location__parent_location=selected_site) | Q(location=selected_site)
-        )
+        # Get all descendant location IDs (handles nested locations at any depth)
+        from maintenance.views import get_all_descendant_location_ids
+        location_ids = get_all_descendant_location_ids(selected_site)
+        equipment_list = equipment_list.filter(location_id__in=location_ids)
 
     # Get activity types for the dropdown - use only maintenance activity types
     try:
@@ -560,10 +565,14 @@ def fetch_events(request):
         
         # Site filtering
         if site_id and site_id != 'all':
-            events = events.filter(
-                Q(equipment__location__parent_location_id=site_id) | 
-                Q(equipment__location_id=site_id)
-            )
+            try:
+                selected_site = Location.objects.get(id=site_id, is_site=True)
+                # Get all descendant location IDs (handles nested locations at any depth)
+                from maintenance.views import get_all_descendant_location_ids
+                location_ids = get_all_descendant_location_ids(selected_site)
+                events = events.filter(equipment__location_id__in=location_ids)
+            except Location.DoesNotExist:
+                pass
         
         # Equipment filtering (multiple selection - OR logic)
         if equipment_filter:
@@ -717,10 +726,14 @@ def fetch_unified_events(request):
             
             # Site filtering
             if site_id:
-                activities = activities.filter(
-                    Q(equipment__location__parent_location_id=site_id) |
-                    Q(equipment__location_id=site_id)
-                )
+                try:
+                    selected_site = Location.objects.get(id=site_id, is_site=True)
+                    # Get all descendant location IDs (handles nested locations at any depth)
+                    from maintenance.views import get_all_descendant_location_ids
+                    location_ids = get_all_descendant_location_ids(selected_site)
+                    activities = activities.filter(equipment__location_id__in=location_ids)
+                except Location.DoesNotExist:
+                    pass
             
             # Equipment filtering (multiple selection - OR logic)
             if equipment_filter:

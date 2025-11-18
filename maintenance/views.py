@@ -46,8 +46,27 @@ from .forms import (
 )
 
 from django.contrib.auth.models import User
+from core.models import Location
 
 logger = logging.getLogger(__name__)
+
+
+def get_all_descendant_location_ids(site):
+    """
+    Get all location IDs that belong to a site (including nested children).
+    Returns a set of location IDs including the site itself and all its descendants.
+    """
+    location_ids = {site.id}
+    
+    def get_children(parent_id):
+        """Recursively get all child location IDs."""
+        children = Location.objects.filter(parent_location_id=parent_id, is_active=True).values_list('id', flat=True)
+        for child_id in children:
+            location_ids.add(child_id)
+            get_children(child_id)  # Recursively get grandchildren, etc.
+    
+    get_children(site.id)
+    return location_ids
 
 
 
@@ -271,10 +290,9 @@ def bulk_add_activity(request):
         if selected_site_id and selected_site_id != 'all':
             try:
                 selected_site = Location.objects.get(id=selected_site_id, is_site=True)
-                equipment_query = equipment_query.filter(
-                    Q(location_id=selected_site_id) | 
-                    Q(location__parent_location_id=selected_site_id)
-                )
+                # Get all descendant location IDs (handles nested locations at any depth)
+                location_ids = get_all_descendant_location_ids(selected_site)
+                equipment_query = equipment_query.filter(location_id__in=location_ids)
             except Location.DoesNotExist:
                 pass
         else:
@@ -1776,12 +1794,21 @@ def delete_activity(request, activity_id):
         except Exception as cache_error:
             logger.warning(f"Could not invalidate dashboard cache: {cache_error}")
         
-        if events_deleted > 0:
-            messages.success(request, f'Maintenance activity "{activity_title}" and {events_deleted} associated calendar event(s) deleted successfully!')
+        # Check if this is an AJAX request
+        if request.headers.get('Content-Type') == 'application/json' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            # Return JSON response for AJAX requests
+            return JsonResponse({
+                'success': True,
+                'message': f'Maintenance activity "{activity_title}" deleted successfully!',
+                'events_deleted': events_deleted
+            })
         else:
-            messages.success(request, f'Maintenance activity "{activity_title}" deleted successfully!')
-        
-        return redirect('maintenance:maintenance_list')
+            # Return redirect for regular form submissions
+            if events_deleted > 0:
+                messages.success(request, f'Maintenance activity "{activity_title}" and {events_deleted} associated calendar event(s) deleted successfully!')
+            else:
+                messages.success(request, f'Maintenance activity "{activity_title}" deleted successfully!')
+            return redirect('maintenance:maintenance_list')
     
     context = {'activity': activity}
     return render(request, 'maintenance/delete_activity.html', context)
