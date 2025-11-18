@@ -320,18 +320,19 @@
     height: 8px;
     border-radius: 50%;
     margin-right: 6px;
+    background-color: #718096; /* Default gray color if status doesn't match */
 }
 
 /* Status colors from settings - defaults provided if not configured */
-.status-dot.scheduled { background-color: {{ status_colors.scheduled|default:"#808080" }}; }
-.status-dot.pending { background-color: {{ status_colors.pending|default:"#4299e1" }}; }
-.status-dot.in_progress { background-color: {{ status_colors.in_progress|default:"#ed8936" }}; }
-.status-dot.in-progress { background-color: {{ status_colors.in_progress|default:"#ed8936" }}; }
-.status-dot.completed { background-color: {{ status_colors.completed|default:"#48bb78" }}; }
-.status-dot.overdue { background-color: {{ status_colors.overdue|default:"#f56565" }}; }
-.status-dot.cancelled { background-color: {{ status_colors.cancelled|default:"#000000" }}; }
-.status-dot.maintenance { background-color: #9f7aea; }
-.status-dot.calendar { background-color: #9f7aea; }
+.status-dot.scheduled { background-color: {{ status_colors.scheduled|default:"#808080" }} !important; }
+.status-dot.pending { background-color: {{ status_colors.pending|default:"#4299e1" }} !important; }
+.status-dot.in_progress { background-color: {{ status_colors.in_progress|default:"#ed8936" }} !important; }
+.status-dot.in-progress { background-color: {{ status_colors.in_progress|default:"#ed8936" }} !important; }
+.status-dot.completed { background-color: {{ status_colors.completed|default:"#48bb78" }} !important; }
+.status-dot.overdue { background-color: {{ status_colors.overdue|default:"#f56565" }} !important; }
+.status-dot.cancelled { background-color: {{ status_colors.cancelled|default:"#000000" }} !important; }
+.status-dot.maintenance { background-color: #9f7aea !important; }
+.status-dot.calendar { background-color: #9f7aea !important; }
 
 /* Responsive design */
 @media (max-width: 1200px) {
