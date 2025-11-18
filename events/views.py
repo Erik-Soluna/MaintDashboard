@@ -233,6 +233,34 @@ def calendar_view(request):
         event_types = []
         logger.warning(f"Could not load activity types: {str(e)}")
 
+    # Get status colors from BrandingSettings for consistency with dashboard
+    status_colors = {}
+    try:
+        from core.models import BrandingSettings
+        branding = BrandingSettings.get_active()
+        if branding:
+            status_colors = {
+                'scheduled': branding.status_color_scheduled,
+                'pending': branding.status_color_pending,
+                'in_progress': branding.status_color_in_progress,
+                'cancelled': branding.status_color_cancelled,
+                'completed': branding.status_color_completed,
+                'overdue': branding.status_color_overdue,
+            }
+    except Exception:
+        pass
+    
+    # Use defaults if no settings found
+    if not status_colors:
+        status_colors = {
+            'scheduled': '#808080',  # Grey
+            'pending': '#4299e1',    # Blue
+            'in_progress': '#ed8936',  # Yellow
+            'cancelled': '#000000',  # Black
+            'completed': '#48bb78',  # Green
+            'overdue': '#f56565',    # Red
+        }
+    
     # Default context - unified calendar
     context = {
         'sites': sites,
@@ -246,6 +274,7 @@ def calendar_view(request):
         'selected_equipment': equipment_filter,
         'calendar_view': 'unified',  # Always unified now
         'view_mode': view_mode,
+        'status_colors': status_colors,  # Status colors from branding settings
     }
 
     # Get count of maintenance activities (calendar events are just a view of maintenance activities)

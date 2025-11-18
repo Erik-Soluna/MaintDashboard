@@ -753,19 +753,19 @@
             <div class="legend-compact">
                 <div class="legend-items">
                     <div class="legend-item" data-type="scheduled" onclick="toggleLegendItem(this, 'scheduled')">
-                        <div class="legend-color" style="background-color: #4299e1;"></div>
+                        <div class="legend-color" style="background-color: {{ status_colors.scheduled|default:"#808080" }};"></div>
                         <span>Scheduled</span>
                     </div>
                     <div class="legend-item" data-type="overdue" onclick="toggleLegendItem(this, 'overdue')">
-                        <div class="legend-color" style="background-color: #dc3545;"></div>
+                        <div class="legend-color" style="background-color: {{ status_colors.overdue|default:"#f56565" }};"></div>
                         <span>Overdue</span>
                     </div>
                     <div class="legend-item" data-type="completed" onclick="toggleLegendItem(this, 'completed')">
-                        <div class="legend-color" style="background-color: #28a745;"></div>
+                        <div class="legend-color" style="background-color: {{ status_colors.completed|default:"#48bb78" }};"></div>
                         <span>Completed</span>
                     </div>
                     <div class="legend-item" data-type="in_progress" onclick="toggleLegendItem(this, 'in_progress')">
-                        <div class="legend-color" style="background-color: #ffc107;"></div>
+                        <div class="legend-color" style="background-color: {{ status_colors.in_progress|default:"#ed8936" }};"></div>
                         <span>In Progress</span>
                     </div>
                     <div class="legend-item" data-type="events" onclick="toggleLegendItem(this, 'events')">

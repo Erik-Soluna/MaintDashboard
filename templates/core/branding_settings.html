@@ -691,6 +691,38 @@
                 </div>
 
                 <div class="branding-form-section">
+                    <h4><i class="fas fa-tasks me-2"></i>Maintenance Status Colors</h4>
+                    <p class="text-muted">Configure colors for maintenance status indicators on the overview page and calendar. Cancelled items are removed from Overview but visible in Calendar.</p>
+                    
+                    <div class="color-picker-group">
+                        <div class="color-picker-item">
+                            <label>Scheduled</label>
+                            {{ appearance_form.status_color_scheduled }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Pending</label>
+                            {{ appearance_form.status_color_pending }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>In Progress</label>
+                            {{ appearance_form.status_color_in_progress }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Completed</label>
+                            {{ appearance_form.status_color_completed }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Overdue</label>
+                            {{ appearance_form.status_color_overdue }}
+                        </div>
+                        <div class="color-picker-item">
+                            <label>Cancelled</label>
+                            {{ appearance_form.status_color_cancelled }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="branding-form-section">
                     <h4><i class="fas fa-chevron-down me-2"></i>Dropdown & Menu Colors</h4>
                     <p class="text-muted">Customize the appearance of dropdown menus and navigation popups.</p>
                     

@@ -375,8 +375,6 @@ class DashboardSettingsForm(forms.ModelForm):
             'max_urgent_items_per_site', 'max_upcoming_items_per_site', 'max_active_items_per_site',
             'max_urgent_items_total', 'max_upcoming_items_total', 'max_active_items_total',
             'urgent_days_ahead', 'upcoming_days_ahead',
-            'status_color_scheduled', 'status_color_pending', 'status_color_in_progress',
-            'status_color_cancelled', 'status_color_completed', 'status_color_overdue'
         ]
         widgets = {
             'show_urgent_items': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -396,12 +394,6 @@ class DashboardSettingsForm(forms.ModelForm):
             'max_active_items_total': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 500}),
             'urgent_days_ahead': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 90}),
             'upcoming_days_ahead': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 365}),
-            'status_color_scheduled': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
-            'status_color_pending': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
-            'status_color_in_progress': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
-            'status_color_cancelled': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
-            'status_color_completed': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
-            'status_color_overdue': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -453,22 +445,6 @@ class DashboardSettingsForm(forms.ModelForm):
                 Row(
                     Column('urgent_days_ahead', css_class='form-group col-md-6 mb-0'),
                     Column('upcoming_days_ahead', css_class='form-group col-md-6 mb-0'),
-                ),
-            ),
-            Fieldset(
-                'Status Colors',
-                HTML('<p class="text-muted small mb-3">Configure colors for maintenance status indicators on the overview page. Cancelled items are removed from Overview but visible in Calendar.</p>'),
-                Row(
-                    Column('status_color_scheduled', css_class='form-group col-md-6 mb-0'),
-                    Column('status_color_pending', css_class='form-group col-md-6 mb-0'),
-                ),
-                Row(
-                    Column('status_color_in_progress', css_class='form-group col-md-6 mb-0'),
-                    Column('status_color_completed', css_class='form-group col-md-6 mb-0'),
-                ),
-                Row(
-                    Column('status_color_overdue', css_class='form-group col-md-6 mb-0'),
-                    Column('status_color_cancelled', css_class='form-group col-md-6 mb-0'),
                 ),
             ),
             Submit('submit', 'Save Dashboard Settings', css_class='btn btn-primary')

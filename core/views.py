@@ -777,33 +777,22 @@ def dashboard(request):
     else:
         site_health = 'good'
     
-    # Get status colors from dashboard settings or branding settings (dashboard settings take precedence)
+    # Get status colors from BrandingSettings (moved from DashboardSettings for consistency)
     status_colors = {}
-    if dashboard_settings:
-        status_colors = {
-            'scheduled': dashboard_settings.status_color_scheduled,
-            'pending': dashboard_settings.status_color_pending,
-            'in_progress': dashboard_settings.status_color_in_progress,
-            'cancelled': dashboard_settings.status_color_cancelled,
-            'completed': dashboard_settings.status_color_completed,
-            'overdue': dashboard_settings.status_color_overdue,
-        }
-    else:
-        # Fallback to branding settings if dashboard settings don't exist
-        try:
-            from core.models import BrandingSettings
-            branding = BrandingSettings.objects.filter(is_active=True).first()
-            if branding:
-                status_colors = {
-                    'scheduled': branding.status_color_scheduled,
-                    'pending': branding.status_color_pending,
-                    'in_progress': branding.status_color_in_progress,
-                    'cancelled': branding.status_color_cancelled,
-                    'completed': branding.status_color_completed,
-                    'overdue': branding.status_color_overdue,
-                }
-        except Exception:
-            pass
+    try:
+        from core.models import BrandingSettings
+        branding = BrandingSettings.get_active()
+        if branding:
+            status_colors = {
+                'scheduled': branding.status_color_scheduled,
+                'pending': branding.status_color_pending,
+                'in_progress': branding.status_color_in_progress,
+                'cancelled': branding.status_color_cancelled,
+                'completed': branding.status_color_completed,
+                'overdue': branding.status_color_overdue,
+            }
+    except Exception:
+        pass
     
     # Use defaults if no settings found
     if not status_colors:
