@@ -6621,16 +6621,23 @@ def database_stats_api(request):
         
         tables = {}
         
-        # Get row counts for key tables
-        tables['Equipment'] = {'count': Equipment.objects.count()}
-        tables['Equipment Connections'] = {'count': EquipmentConnection.objects.count()}
-        tables['Locations'] = {'count': Location.objects.count()}
-        tables['Customers'] = {'count': Customer.objects.count()}
-        tables['Maintenance Activities'] = {'count': MaintenanceActivity.objects.count()}
-        tables['Maintenance Schedules'] = {'count': MaintenanceSchedule.objects.count()}
-        tables['Activity Types'] = {'count': MaintenanceActivityType.objects.count()}
-        tables['Calendar Events'] = {'count': CalendarEvent.objects.count()}
-        tables['Users'] = {'count': User.objects.count()}
+        # Get row counts for key tables - handle each one individually to avoid total failure
+        def safe_count(model_class, model_name):
+            try:
+                return model_class.objects.count()
+            except Exception as e:
+                logger.warning(f"Error counting {model_name}: {str(e)}")
+                return 'Error'
+        
+        tables['Equipment'] = {'count': safe_count(Equipment, 'Equipment')}
+        tables['Equipment Connections'] = {'count': safe_count(EquipmentConnection, 'EquipmentConnection')}
+        tables['Locations'] = {'count': safe_count(Location, 'Location')}
+        tables['Customers'] = {'count': safe_count(Customer, 'Customer')}
+        tables['Maintenance Activities'] = {'count': safe_count(MaintenanceActivity, 'MaintenanceActivity')}
+        tables['Maintenance Schedules'] = {'count': safe_count(MaintenanceSchedule, 'MaintenanceSchedule')}
+        tables['Activity Types'] = {'count': safe_count(MaintenanceActivityType, 'MaintenanceActivityType')}
+        tables['Calendar Events'] = {'count': safe_count(CalendarEvent, 'CalendarEvent')}
+        tables['Users'] = {'count': safe_count(User, 'User')}
         
         # Get database size (PostgreSQL specific)
         try:
@@ -6640,18 +6647,19 @@ def database_stats_api(request):
                 """)
                 row = cursor.fetchone()
                 db_size = row[0] if row else 'Unknown'
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Error getting database size: {str(e)}")
             db_size = 'N/A'
         
         return JsonResponse({
             'status': 'success',
             'tables': tables,
             'database_size': db_size,
-            'database_name': connection.settings_dict['NAME']
+            'database_name': connection.settings_dict.get('NAME', 'Unknown')
         })
         
     except Exception as e:
-        logger.error(f"Error getting database stats: {str(e)}")
+        logger.error(f"Error getting database stats: {str(e)}", exc_info=True)
         return JsonResponse({
             'status': 'error',
             'message': f'Error getting database stats: {str(e)}'
