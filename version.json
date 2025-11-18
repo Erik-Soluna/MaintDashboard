@@ -1,17 +1,8 @@
 {
-<<<<<<< HEAD
-  "commit_count": 1124,
-  "commit_hash": "174d8ac",
+  "commit_count": 1129,
+  "commit_hash": "f84db00",
   "branch": "main",
   "commit_date": "2025-11-18",
-  "version": "v1124.174d8ac",
-  "full_version": "v1124.174d8ac (main) - 2025-11-18"
-=======
-  "commit_count": 1109,
-  "commit_hash": "d0e437a",
-  "branch": "latest",
-  "commit_date": "2025-11-18",
-  "version": "v1109.d0e437a",
-  "full_version": "v1109.d0e437a (latest) - 2025-11-18"
->>>>>>> latest
+  "version": "v1129.f84db00",
+  "full_version": "v1129.f84db00 (main) - 2025-11-18"
 }
