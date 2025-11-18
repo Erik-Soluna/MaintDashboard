@@ -634,12 +634,39 @@ def fetch_events(request):
 def fetch_unified_events(request):
     """API endpoint to fetch both events and maintenance activities for unified calendar display."""
     try:
-        from core.models import UserProfile
+        from core.models import UserProfile, BrandingSettings
         import pytz
         
         # Get user's timezone from profile (defaults to Central)
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
         user_timezone_str = user_profile.get_user_timezone()  # Returns 'America/Chicago' by default
+        
+        # Get status colors from BrandingSettings for consistency
+        status_colors = {}
+        try:
+            branding = BrandingSettings.get_active()
+            if branding:
+                status_colors = {
+                    'scheduled': branding.status_color_scheduled,
+                    'pending': branding.status_color_pending,
+                    'in_progress': branding.status_color_in_progress,
+                    'cancelled': branding.status_color_cancelled,
+                    'completed': branding.status_color_completed,
+                    'overdue': branding.status_color_overdue,
+                }
+        except Exception:
+            pass
+        
+        # Use defaults if no settings found
+        if not status_colors:
+            status_colors = {
+                'scheduled': '#808080',  # Grey
+                'pending': '#4299e1',    # Blue
+                'in_progress': '#ed8936',  # Yellow
+                'cancelled': '#000000',  # Black
+                'completed': '#48bb78',  # Green
+                'overdue': '#f56565',    # Red
+            }
         
         start_date = request.GET.get('start')
         end_date = request.GET.get('end')
