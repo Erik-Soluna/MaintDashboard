@@ -32,6 +32,8 @@ urlpatterns = [
     path('equipment-conditional-fields/settings/', views.equipment_conditional_fields_settings, name='equipment_conditional_fields_settings'),
     path('custom-fields/management/', views.custom_fields_management, name='custom_fields_management'),
     path('equipment-categories/settings/', views.equipment_categories_settings, name='equipment_categories_settings'),
+    path('equipment-categories/<int:category_id>/edit/', views.edit_equipment_category, name='edit_equipment_category'),
+    path('api/equipment-categories/<int:category_id>/edit/', views.edit_equipment_category_ajax, name='edit_equipment_category_ajax'),
     
     # Debug and utility URLs
     path('health/comprehensive/', views.comprehensive_health_check, name='comprehensive_health_check'),
