@@ -302,6 +302,18 @@ class UserForm(UserCreationForm):
 class BrandingSettingsForm(forms.ModelForm):
     """Form for editing branding settings"""
     
+    # Custom file fields for handling uploads
+    logo_file = forms.ImageField(
+        required=False, 
+        help_text="Upload a new logo image (PNG, JPG, GIF recommended)",
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'})
+    )
+    favicon_file = forms.ImageField(
+        required=False, 
+        help_text="Upload a new favicon image (16x16, 32x32, or 48x48 recommended)",
+        widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'})
+    )
+    
     class Meta:
         model = BrandingSettings
         fields = [
@@ -319,17 +331,8 @@ class BrandingSettingsForm(forms.ModelForm):
             'window_title_prefix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., SOLUNA -'}),
             'window_title_suffix': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., - Maintenance System'}),
             'header_brand_text': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Text displayed next to logo'}),
-            # Custom file fields for handling uploads
-            'logo_file': forms.ImageField(
-                required=False, 
-                help_text="Upload a new logo image (PNG, JPG, GIF recommended)",
-                widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'})
-            ),
-            'favicon_file': forms.ImageField(
-                required=False, 
-                help_text="Upload a new favicon image (16x16, 32x32, or 48x48 recommended)",
-                widget=forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'})
-            ),
+            'logo': forms.Select(attrs={'class': 'form-control'}),
+            'favicon': forms.HiddenInput(),  # Hide the original favicon field since we're using favicon_file
             'navigation_overview_label': forms.TextInput(attrs={'class': 'form-control'}),
             'navigation_equipment_label': forms.TextInput(attrs={'class': 'form-control'}),
             'navigation_maintenance_label': forms.TextInput(attrs={'class': 'form-control'}),
@@ -343,6 +346,49 @@ class BrandingSettingsForm(forms.ModelForm):
             'secondary_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
             'accent_color': forms.TextInput(attrs={'class': 'form-control color-picker', 'type': 'color'}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter active logos for selection
+        from .models import Logo
+        try:
+            # Get all active logos, including the one currently selected
+            logos = Logo.objects.filter(is_active=True).order_by('name')
+            
+            # If we have an instance with a logo, make sure it's included even if inactive
+            if self.instance and self.instance.logo:
+                logos = Logo.objects.filter(
+                    Q(is_active=True) | Q(id=self.instance.logo.id)
+                ).order_by('name')
+            
+            self.fields['logo'].queryset = logos
+            
+            # Set initial value if instance has a logo
+            if self.instance and self.instance.logo:
+                self.fields['logo'].initial = self.instance.logo.id
+        except Exception:
+            # If there's any error (e.g., table doesn't exist), set empty queryset
+            self.fields['logo'].queryset = Logo.objects.none()
+    
+    def clean_logo(self):
+        """Clean and validate the logo field"""
+        logo_id = self.cleaned_data.get('logo')
+        
+        # If no logo is selected, that's fine
+        if not logo_id:
+            return None
+        
+        # If we have a logo_file, we don't need to validate the existing logo selection
+        if self.cleaned_data.get('logo_file'):
+            return None
+        
+        # Validate that the selected logo exists and is active
+        try:
+            from .models import Logo
+            logo = Logo.objects.get(id=logo_id, is_active=True)
+            return logo
+        except Logo.DoesNotExist:
+            raise forms.ValidationError("Selected logo is no longer available.")
     
     def clean_primary_color(self):
         color = self.cleaned_data['primary_color']
@@ -361,6 +407,31 @@ class BrandingSettingsForm(forms.ModelForm):
         if not color.startswith('#'):
             color = '#' + color
         return color
+    
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # Handle logo file upload
+        if self.cleaned_data.get('logo_file'):
+            from .models import Logo
+            # Create or update logo
+            logo_name = f"Logo_{instance.site_name or 'Site'}"
+            logo, created = Logo.objects.get_or_create(
+                name=logo_name,
+                defaults={'image': self.cleaned_data['logo_file']}
+            )
+            if not created:
+                logo.image = self.cleaned_data['logo_file']
+                logo.save()
+            instance.logo = logo
+        
+        # Handle favicon file upload
+        if self.cleaned_data.get('favicon_file'):
+            instance.favicon = self.cleaned_data['favicon_file']
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 class DashboardSettingsForm(forms.ModelForm):

@@ -207,13 +207,21 @@ def calendar_view(request):
                 # Handle invalid site_id gracefully
                 pass
 
-    # Get equipment for filtering
-    equipment_list = Equipment.objects.filter(is_active=True).order_by('name')
+    # Get equipment for filtering - include category for grouping
+    equipment_list = Equipment.objects.filter(is_active=True).select_related('category').order_by('category__name', 'name')
     if selected_site and not is_all_sites:
         # Get all descendant location IDs (handles nested locations at any depth)
         from maintenance.views import get_all_descendant_location_ids
         location_ids = get_all_descendant_location_ids(selected_site)
         equipment_list = equipment_list.filter(location_id__in=location_ids)
+    
+    # Group equipment by category for the modal
+    equipment_by_category = {}
+    for equipment in equipment_list:
+        category_name = equipment.category.name if equipment.category else 'Uncategorized'
+        if category_name not in equipment_by_category:
+            equipment_by_category[category_name] = []
+        equipment_by_category[category_name].append(equipment)
 
     # Get activity types for the dropdown - use only maintenance activity types
     try:
@@ -289,6 +297,7 @@ def calendar_view(request):
         'selected_site_id': selected_site_id,
         'is_all_sites': is_all_sites,
         'equipment_list': equipment_list,
+        'equipment_by_category': equipment_by_category,
         'event_types': event_types,
         'customers': customers,
         'priority_choices': CalendarEvent.PRIORITY_CHOICES,

@@ -117,29 +117,78 @@ def get_all_descendant_location_ids(site, include_inactive=False):
 def maintenance_list(request):
     """Main maintenance dashboard."""
     try:
+        # Get selected site from request, session, or user default
+        from core.models import Location, UserProfile
+        selected_site_id = request.GET.get('site_id')
+        if selected_site_id is None:
+            selected_site_id = request.session.get('selected_site_id')
+        
+        selected_site = None
+        is_all_sites = False
+        
+        if selected_site_id:
+            if selected_site_id == 'all':
+                # Clear site selection (All Sites)
+                request.session['selected_site_id'] = 'all'
+                is_all_sites = True
+            else:
+                try:
+                    selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                    request.session['selected_site_id'] = selected_site_id
+                    is_all_sites = False
+                except (Location.DoesNotExist, ValueError):
+                    pass
+        else:
+            # Check user default site
+            try:
+                user_profile = UserProfile.objects.get(user=request.user)
+                if user_profile.default_site:
+                    selected_site = user_profile.default_site
+                    selected_site_id = str(selected_site.id)
+                    request.session['selected_site_id'] = selected_site_id
+                    is_all_sites = False
+                else:
+                    is_all_sites = True
+            except UserProfile.DoesNotExist:
+                is_all_sites = True
+        
+        # Build base queryset
+        base_queryset = MaintenanceActivity.objects.select_related('equipment', 'equipment__location', 'activity_type')
+        
+        # Apply site filtering if a site is selected
+        if selected_site and not is_all_sites:
+            # Use recursive location filtering to get all descendant locations
+            location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
+            base_queryset = base_queryset.filter(equipment__location_id__in=location_ids)
+        
         # Get upcoming maintenance
-        upcoming_activities = MaintenanceActivity.objects.filter(
+        upcoming_activities = base_queryset.filter(
             scheduled_start__gte=timezone.now(),
             status__in=['scheduled', 'pending']
-        ).select_related('equipment', 'activity_type').order_by('scheduled_start')[:10]
+        ).order_by('scheduled_start')[:10]
         
         # Get overdue maintenance
-        overdue_activities = MaintenanceActivity.objects.filter(
+        overdue_activities = base_queryset.filter(
             scheduled_end__lt=timezone.now(),
             status__in=['scheduled', 'pending']
-        ).select_related('equipment', 'activity_type').order_by('scheduled_start')[:10]
+        ).order_by('scheduled_start')[:10]
         
         # Get in progress
-        in_progress = MaintenanceActivity.objects.filter(
+        in_progress = base_queryset.filter(
             status='in_progress'
-        ).select_related('equipment', 'activity_type')
+        )
         
-        # Statistics
+        # Statistics - apply site filter if needed
+        stats_queryset = MaintenanceActivity.objects.all()
+        if selected_site and not is_all_sites:
+            location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
+            stats_queryset = stats_queryset.filter(equipment__location_id__in=location_ids)
+        
         stats = {
-            'total_activities': MaintenanceActivity.objects.count(),
-            'pending_count': MaintenanceActivity.objects.filter(status='pending').count(),
+            'total_activities': stats_queryset.count(),
+            'pending_count': stats_queryset.filter(status='pending').count(),
             'overdue_count': overdue_activities.count(),
-            'completed_this_month': MaintenanceActivity.objects.filter(
+            'completed_this_month': stats_queryset.filter(
                 status='completed',
                 actual_end__gte=timezone.now().replace(day=1)
             ).count(),
@@ -159,25 +208,68 @@ def maintenance_list(request):
         
         # Try alternative query without select_related
         try:
-            upcoming_activities = MaintenanceActivity.objects.filter(
+            # Get selected site from request, session, or user default
+            from core.models import Location, UserProfile
+            selected_site_id = request.GET.get('site_id')
+            if selected_site_id is None:
+                selected_site_id = request.session.get('selected_site_id')
+            
+            selected_site = None
+            is_all_sites = False
+            
+            if selected_site_id:
+                if selected_site_id == 'all':
+                    is_all_sites = True
+                else:
+                    try:
+                        selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+                        is_all_sites = False
+                    except (Location.DoesNotExist, ValueError):
+                        pass
+            else:
+                try:
+                    user_profile = UserProfile.objects.get(user=request.user)
+                    if user_profile.default_site:
+                        selected_site = user_profile.default_site
+                        is_all_sites = False
+                    else:
+                        is_all_sites = True
+                except UserProfile.DoesNotExist:
+                    is_all_sites = True
+            
+            # Build base queryset
+            base_queryset = MaintenanceActivity.objects.all()
+            
+            # Apply site filtering if a site is selected
+            if selected_site and not is_all_sites:
+                location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
+                base_queryset = base_queryset.filter(equipment__location_id__in=location_ids)
+            
+            upcoming_activities = base_queryset.filter(
                 scheduled_start__gte=timezone.now(),
                 status__in=['scheduled', 'pending']
             ).order_by('scheduled_start')[:10]
             
-            overdue_activities = MaintenanceActivity.objects.filter(
+            overdue_activities = base_queryset.filter(
                 scheduled_end__lt=timezone.now(),
                 status__in=['scheduled', 'pending']
             ).order_by('scheduled_start')[:10]
             
-            in_progress = MaintenanceActivity.objects.filter(
+            in_progress = base_queryset.filter(
                 status='in_progress'
             )
             
+            # Statistics - apply site filter if needed
+            stats_queryset = MaintenanceActivity.objects.all()
+            if selected_site and not is_all_sites:
+                location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
+                stats_queryset = stats_queryset.filter(equipment__location_id__in=location_ids)
+            
             stats = {
-                'total_activities': MaintenanceActivity.objects.count(),
-                'pending_count': MaintenanceActivity.objects.filter(status='pending').count(),
+                'total_activities': stats_queryset.count(),
+                'pending_count': stats_queryset.filter(status='pending').count(),
                 'overdue_count': overdue_activities.count(),
-                'completed_this_month': MaintenanceActivity.objects.filter(
+                'completed_this_month': stats_queryset.filter(
                     status='completed',
                     actual_end__gte=timezone.now().replace(day=1)
                 ).count(),

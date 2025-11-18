@@ -70,7 +70,7 @@ def dashboard(request):
     
     if selected_site_id is not None:
         # If site_id is explicitly provided (even if empty), use it
-        if selected_site_id == '':
+        if selected_site_id == '' or selected_site_id == 'all':
             # Clear site selection (All Sites) - use special marker
             request.session['selected_site_id'] = 'all'
             selected_site_id = None
@@ -216,14 +216,15 @@ def dashboard(request):
     upcoming_cutoff = today + timedelta(days=upcoming_days)
     
     # Calculate urgent items with single queries - only show maintenance activities to avoid duplication
-    # Include overdue items (scheduled_start < now) and pending/in_progress/scheduled items due within configured days
+    # Include overdue items (scheduled_start < now) and in_progress items due within configured days
+    # Note: Pending items are shown in Active Items section, not Urgent Items
     # Limit queries to prevent loading too much data
     max_items = 200  # Reasonable limit to prevent excessive memory usage
     now = timezone.now()
     urgent_maintenance_all = list(maintenance_query.filter(
         Q(status='overdue') |  # Items explicitly marked as overdue
         (Q(scheduled_start__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past scheduled start date (overdue) - count on Day of Schedule start
-        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['pending', 'in_progress', 'scheduled']))  # Urgent pending/in_progress/scheduled items
+        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['in_progress']))  # Urgent in_progress items only (pending items go to Active Items)
     ).order_by('scheduled_end')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
@@ -437,10 +438,12 @@ def dashboard(request):
             # Calculate UPCOMING count: maintenance activities scheduled within upcoming_cutoff
             # upcoming_cutoff is configured in Dashboard Settings (default: 30 days)
             # This matches the same setting used for the "Upcoming Items" section on the overview page
+            # Use scheduled_end to match the logic in upcoming_maintenance_all query
             upcoming_maintenance_count = sum(
                 1 for ma in location_maintenance
-                if (ma.scheduled_start and 
-                    today <= ma.scheduled_start.date() <= upcoming_cutoff and
+                if (ma.scheduled_end and 
+                    ma.scheduled_end.date() > urgent_cutoff and
+                    ma.scheduled_end.date() <= upcoming_cutoff and
                     ma.status in ['scheduled', 'pending', 'in_progress'])
             )
             
