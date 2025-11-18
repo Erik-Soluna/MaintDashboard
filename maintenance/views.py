@@ -56,39 +56,56 @@ def get_all_descendant_location_ids(site, include_inactive=False):
     Get all location IDs that belong to a site (including nested children).
     Returns a set of location IDs including the site itself and all its descendants.
     
+    Uses a more reliable recursive CTE approach via raw SQL for better performance
+    and to avoid any Python-level recursion issues.
+    
     Args:
         site: The site Location object
         include_inactive: If True, include inactive locations in the hierarchy
     """
+    from django.db import connection
+    
     location_ids = {site.id}
-    visited = set()  # Track visited to prevent infinite loops
     
-    def get_children(parent_id, depth=0, max_depth=20):
-        """Recursively get all child location IDs."""
-        if depth > max_depth:
-            logger.warning(f"Location hierarchy depth exceeded {max_depth} for parent {parent_id}")
-            return
-        
-        if parent_id in visited:
-            logger.warning(f"Circular reference detected at location {parent_id}")
-            return
-        
-        visited.add(parent_id)
-        
+    # Use raw SQL with recursive CTE for reliable traversal
+    with connection.cursor() as cursor:
         if include_inactive:
-            children = Location.objects.filter(parent_location_id=parent_id).values_list('id', 'name', 'is_active')
+            cursor.execute("""
+                WITH RECURSIVE location_tree AS (
+                    -- Base case: start with the site
+                    SELECT id, parent_location_id, 0 as depth
+                    FROM core_location
+                    WHERE id = %s
+                    UNION ALL
+                    -- Recursive case: get all children
+                    SELECT l.id, l.parent_location_id, lt.depth + 1
+                    FROM core_location l
+                    INNER JOIN location_tree lt ON l.parent_location_id = lt.id
+                    WHERE lt.depth < 20  -- Prevent infinite loops
+                )
+                SELECT DISTINCT id FROM location_tree;
+            """, [site.id])
         else:
-            children = Location.objects.filter(parent_location_id=parent_id, is_active=True).values_list('id', 'name', 'is_active')
+            cursor.execute("""
+                WITH RECURSIVE location_tree AS (
+                    -- Base case: start with the site
+                    SELECT id, parent_location_id, 0 as depth
+                    FROM core_location
+                    WHERE id = %s AND is_active = true
+                    UNION ALL
+                    -- Recursive case: get all active children
+                    SELECT l.id, l.parent_location_id, lt.depth + 1
+                    FROM core_location l
+                    INNER JOIN location_tree lt ON l.parent_location_id = lt.id
+                    WHERE l.is_active = true AND lt.depth < 20  -- Prevent infinite loops
+                )
+                SELECT DISTINCT id FROM location_tree;
+            """, [site.id])
         
-        children_list = list(children)
-        logger.debug(f"Found {len(children_list)} children for location {parent_id} at depth {depth}")
-        
-        for child_id, child_name, child_active in children_list:
-            location_ids.add(child_id)
-            logger.debug(f"Added location {child_id} ({child_name}, active={child_active}) to set")
-            get_children(child_id, depth + 1, max_depth)  # Recursively get grandchildren, etc.
+        results = cursor.fetchall()
+        for (location_id,) in results:
+            location_ids.add(location_id)
     
-    get_children(site.id)
     logger.info(f"get_all_descendant_location_ids: Site {site.name} (ID: {site.id}) has {len(location_ids)} total location IDs: {sorted(location_ids)}")
     return location_ids
 
