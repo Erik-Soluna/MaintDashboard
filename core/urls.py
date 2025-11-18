@@ -39,6 +39,7 @@ urlpatterns = [
     path('health/api/', views.comprehensive_health_check, name='health_check_api'),  # Alias for template compatibility
     path('health/', views.run_health_check, name='health_check'),  # Alias for template compatibility
     path('health/simple/', views.simple_health_check, name='simple_health_check'),
+    path('health/simple', views.simple_health_check, name='simple_health_check_no_slash'),  # Accept without trailing slash for nginx/reverse proxies
     path('health/system/', views.system_health_check, name='system_health_check'),
     path('health/check/', views.health_check_view, name='health_check_view'),
     path('health/clear-logs/', views.clear_health_logs, name='clear_health_logs'),
