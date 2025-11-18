@@ -3213,32 +3213,84 @@ def create_activity_api(request):
         else:
             processed_data['assigned_to'] = None
         
-        # Handle equipment - ensure it's not empty string
-        if 'equipment' in processed_data and processed_data['equipment'] == '':
-            processed_data['equipment'] = None
+        # Handle equipment - support both single equipment and multiple equipment_ids
+        equipment_ids = processed_data.get('equipment_ids', [])
+        single_equipment = processed_data.get('equipment')
         
-        # Create form with the processed data
-        form = MaintenanceActivityForm(processed_data, request=request)
-        
-        if form.is_valid():
-            # Save the activity
-            activity = form.save(commit=False)
-            activity.created_by = request.user
-            activity.save()
-            
-            # Return success response
-            return JsonResponse({
-                'success': True,
-                'message': f'Maintenance activity "{activity.title}" created successfully!',
-                'activity_id': activity.id
-            })
+        # If equipment_ids is provided, use it; otherwise fall back to single equipment
+        if equipment_ids:
+            if isinstance(equipment_ids, str):
+                # Handle comma-separated string
+                equipment_ids = [int(id.strip()) for id in equipment_ids.split(',') if id.strip()]
+            elif not isinstance(equipment_ids, list):
+                equipment_ids = [equipment_ids]
+        elif single_equipment:
+            # Single equipment ID
+            equipment_ids = [single_equipment]
         else:
-            # Return validation errors
-            logger.error(f"Form validation failed: {form.errors}")
+            # No equipment provided
             return JsonResponse({
                 'success': False,
-                'error': 'Validation failed',
-                'errors': form.errors
+                'error': 'At least 1 equipment is required to create a Maintenance activity.'
+            }, status=400)
+        
+        # Validate equipment IDs exist
+        from equipment.models import Equipment
+        valid_equipment = Equipment.objects.filter(id__in=equipment_ids, is_active=True)
+        if valid_equipment.count() != len(equipment_ids):
+            return JsonResponse({
+                'success': False,
+                'error': 'One or more equipment IDs are invalid or inactive.'
+            }, status=400)
+        
+        # Create one activity per equipment
+        created_activities = []
+        errors = []
+        
+        for equipment_id in equipment_ids:
+            # Create a copy of processed_data for each equipment
+            equipment_data = processed_data.copy()
+            equipment_data['equipment'] = equipment_id
+            equipment_data.pop('equipment_ids', None)  # Remove equipment_ids from form data
+            
+            # Create form with the processed data
+            form = MaintenanceActivityForm(equipment_data, request=request)
+            
+            if form.is_valid():
+                # Save the activity
+                activity = form.save(commit=False)
+                activity.created_by = request.user
+                activity.save()
+                created_activities.append({
+                    'id': activity.id,
+                    'title': activity.title,
+                    'equipment': activity.equipment.name
+                })
+            else:
+                errors.append({
+                    'equipment_id': equipment_id,
+                    'errors': form.errors
+                })
+        
+        if created_activities:
+            # Return success response
+            message = f'Created {len(created_activities)} maintenance activity(ies) successfully!'
+            if errors:
+                message += f' {len(errors)} failed.'
+            
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'activities': created_activities,
+                'errors': errors if errors else None
+            })
+        else:
+            # All failed
+            logger.error(f"All activities failed to create: {errors}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Failed to create maintenance activities',
+                'errors': errors
             }, status=400)
             
     except json.JSONDecodeError:

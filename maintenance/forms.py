@@ -298,6 +298,14 @@ class MaintenanceActivityForm(forms.ModelForm):
     def clean(self):
         """Custom validation for maintenance activity form."""
         cleaned_data = super().clean()
+        
+        # Equipment is required
+        equipment = cleaned_data.get('equipment')
+        if not equipment:
+            raise forms.ValidationError({
+                'equipment': 'At least 1 equipment is required to create a Maintenance activity.'
+            })
+        
         scheduled_start = cleaned_data.get('scheduled_start')
         scheduled_end = cleaned_data.get('scheduled_end')
         timezone_str = cleaned_data.get('timezone')
@@ -399,6 +407,18 @@ class MaintenanceActivityForm(forms.ModelForm):
     def save(self, commit=True):
         """Save the form and handle quick creation of categories and activity types."""
         instance = super().save(commit=False)
+        
+        # Auto-generate title if empty using template
+        if not instance.title or instance.title.strip() == '':
+            from maintenance.utils import generate_activity_title
+            instance.title = generate_activity_title(
+                template=None,  # Will use default from settings
+                activity_type=instance.activity_type,
+                equipment=instance.equipment,
+                scheduled_start=instance.scheduled_start,
+                priority=instance.priority,
+                status=instance.status
+            )
         
         # Handle quick creation of category and activity type
         quick_category = self.cleaned_data.get('quick_category')

@@ -225,6 +225,30 @@ class Location(TimeStampedModel):
             path.insert(0, current.name)
             current = current.parent_location
         return " > ".join(path)
+    
+    def get_hierarchical_display(self):
+        """Get hierarchical display in Site > POD > MDC format."""
+        # Build path from bottom to top
+        parts = []
+        current = self
+        
+        # Traverse up the hierarchy
+        while current:
+            parts.insert(0, current.name)
+            current = current.parent_location
+        
+        # Format as Site > POD > MDC (if MDC exists)
+        if len(parts) >= 2:
+            # Site > POD
+            result = f"{parts[0]} > {parts[1]}"
+            # Add MDC if it exists (3rd level)
+            if len(parts) >= 3:
+                result += f" > {parts[2]}"
+            return result
+        elif len(parts) == 1:
+            return parts[0]
+        else:
+            return "No Location"
 
     def get_site_location(self):
         """Get the top-level site location."""
@@ -747,6 +771,13 @@ class DashboardSettings(models.Model):
     # Urgent items configuration
     urgent_days_ahead = models.IntegerField(default=7, help_text="Number of days ahead to consider items as urgent")
     upcoming_days_ahead = models.IntegerField(default=30, help_text="Number of days ahead to consider items as upcoming")
+    
+    # Title template for maintenance activities
+    activity_title_template = models.CharField(
+        max_length=200,
+        default="{Activity_Type} - {Equipment}",
+        help_text="Template for auto-generating maintenance activity titles. Available variables: {Activity_Type}, {Equipment}, {Date}, {Priority}, {Status}"
+    )
     
     # Meta settings
     is_active = models.BooleanField(default=True, help_text="Whether these dashboard settings are currently active")

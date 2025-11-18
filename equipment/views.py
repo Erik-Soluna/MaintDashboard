@@ -185,11 +185,14 @@ def equipment_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
+    # Get locations sorted naturally (1,2,3,4,10,11,12,222 etc)
+    locations = Location.objects.filter(is_active=True).natural_order()
+    
     context = {
         'page_obj': page_obj,
         'search_term': search_term,
         'categories': EquipmentCategory.objects.filter(is_active=True),
-        'locations': Location.objects.filter(is_active=True),
+        'locations': locations,
         'statuses': Equipment.STATUS_CHOICES,
         'selected_category': category_id,
         'selected_location': location_id,
@@ -241,7 +244,7 @@ def manage_equipment(request):
             'name': eq.name,
             'category': eq.category.name if eq.category else '',
             'manufacturer_serial': eq.manufacturer_serial,
-            'location': eq.location.name if eq.location else '',
+            'location': eq.location.get_hierarchical_display() if eq.location else '',
             'status': eq.get_status_display(),
             'asset_tag': eq.asset_tag,
         })

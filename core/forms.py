@@ -375,6 +375,7 @@ class DashboardSettingsForm(forms.ModelForm):
             'max_urgent_items_per_site', 'max_upcoming_items_per_site', 'max_active_items_per_site',
             'max_urgent_items_total', 'max_upcoming_items_total', 'max_active_items_total',
             'urgent_days_ahead', 'upcoming_days_ahead',
+            'activity_title_template',
         ]
         widgets = {
             'show_urgent_items': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -394,6 +395,7 @@ class DashboardSettingsForm(forms.ModelForm):
             'max_active_items_total': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 500}),
             'urgent_days_ahead': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 90}),
             'upcoming_days_ahead': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 365}),
+            'activity_title_template': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '{Activity_Type} - {Equipment}'}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -446,6 +448,11 @@ class DashboardSettingsForm(forms.ModelForm):
                     Column('urgent_days_ahead', css_class='form-group col-md-6 mb-0'),
                     Column('upcoming_days_ahead', css_class='form-group col-md-6 mb-0'),
                 ),
+            ),
+            Fieldset(
+                'Maintenance Activity Title Template',
+                HTML('<p class="text-muted">Template for auto-generating maintenance activity titles when left empty. Available variables: <code>{Activity_Type}</code>, <code>{Equipment}</code>, <code>{Date}</code>, <code>{Priority}</code>, <code>{Status}</code></p>'),
+                'activity_title_template',
             ),
             Submit('submit', 'Save Dashboard Settings', css_class='btn btn-primary')
         )

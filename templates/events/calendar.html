@@ -925,24 +925,18 @@
                         </div>
                         
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label for="maintenanceStartDate" class="text-white">Start Date *</label>
-                                    <input type="date" class="form-control bg-dark text-white border-secondary" id="maintenanceStartDate" name="scheduled_start" required>
-                                </div>
-                                <div class="form-group mb-3">
-                                    <label for="maintenanceStartTime" class="text-white">Start Time</label>
-                                    <input type="time" class="form-control bg-dark text-white border-secondary" id="maintenanceStartTime" name="start_time">
+                                    <label for="maintenanceScheduledStart" class="text-white">Scheduled Start *</label>
+                                    <input type="datetime-local" class="form-control bg-dark text-white border-secondary" id="maintenanceScheduledStart" name="scheduled_start" required>
+                                    <small class="text-muted">Scheduled start date and time</small>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label for="maintenanceEndDate" class="text-white">End Date *</label>
-                                    <input type="date" class="form-control bg-dark text-white border-secondary" id="maintenanceEndDate" name="scheduled_end" required>
-                                </div>
-                                <div class="form-group mb-3">
-                                    <label for="maintenanceEndTime" class="text-white">End Time</label>
-                                    <input type="time" class="form-control bg-dark text-white border-secondary" id="maintenanceEndTime" name="end_time">
+                                    <label for="maintenanceScheduledEnd" class="text-white">Scheduled End *</label>
+                                    <input type="datetime-local" class="form-control bg-dark text-white border-secondary" id="maintenanceScheduledEnd" name="scheduled_end" required>
+                                    <small class="text-muted">Scheduled end date and time</small>
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -980,13 +974,20 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label for="maintenanceEquipment" class="text-white">Equipment</label>
-                                    <select class="form-control bg-dark text-white border-secondary" id="maintenanceEquipment" name="equipment">
-                                        <option value="">Select Equipment</option>
+                                    <label for="maintenanceEquipment" class="text-white">Equipment *</label>
+                                    <div class="equipment-checkbox-container bg-dark border border-secondary rounded p-2" style="max-height: 200px; overflow-y: auto;">
                                         {% for equipment in equipment_list %}
-                                            <option value="{{ equipment.id }}">{{ equipment.name }}</option>
+                                        <div class="form-check">
+                                            <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids">
+                                            <label class="form-check-label text-white" for="equipment_{{ equipment.id }}">
+                                                {{ equipment.name }}
+                                            </label>
+                                        </div>
+                                        {% empty %}
+                                        <p class="text-muted mb-0">No equipment available</p>
                                         {% endfor %}
-                                    </select>
+                                    </div>
+                                    <small class="text-muted">Select at least 1 equipment. Multiple selections will create one activity per equipment.</small>
                                 </div>
                             </div>
                         </div>
@@ -2322,20 +2323,37 @@ function openCreateMaintenanceModal(selectedDate = null) {
     // Reset form
     document.getElementById('createMaintenanceForm').reset();
     
-    // Set the selected date if provided
+    // Format datetime-local value (YYYY-MM-DDTHH:MM)
+    const formatDateTimeLocal = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+    
+    // Set the selected date/time if provided, otherwise default to today 9 AM - 5 PM
+    const now = new Date();
+    let startDateTime, endDateTime;
+    
     if (selectedDate) {
-        document.getElementById('maintenanceStartDate').value = selectedDate;
-        document.getElementById('maintenanceEndDate').value = selectedDate;
+        // Parse selected date (could be ISO string or date string)
+        const selected = new Date(selectedDate);
+        startDateTime = new Date(selected);
+        startDateTime.setHours(9, 0, 0, 0);
+        endDateTime = new Date(selected);
+        endDateTime.setHours(17, 0, 0, 0);
     } else {
-        // Default to today
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('maintenanceStartDate').value = today;
-        document.getElementById('maintenanceEndDate').value = today;
+        // Default to today 9 AM - 5 PM
+        startDateTime = new Date(now);
+        startDateTime.setHours(9, 0, 0, 0);
+        endDateTime = new Date(now);
+        endDateTime.setHours(17, 0, 0, 0);
     }
     
-    // Set default time to 9 AM - 5 PM
-    document.getElementById('maintenanceStartTime').value = '09:00';
-    document.getElementById('maintenanceEndTime').value = '17:00';
+    document.getElementById('maintenanceScheduledStart').value = formatDateTimeLocal(startDateTime);
+    document.getElementById('maintenanceScheduledEnd').value = formatDateTimeLocal(endDateTime);
     
     // Set timezone to user's preferred timezone or calendar timezone
     // Use user's profile timezone (passed from server)
@@ -2350,19 +2368,24 @@ function submitMaintenanceForm() {
     const form = document.getElementById('createMaintenanceForm');
     const formData = new FormData(form);
     
-    // Combine date and time for start and end
-    const startDate = formData.get('scheduled_start');
-    const startTime = formData.get('start_time');
-    const endDate = formData.get('scheduled_end');
-    const endTime = formData.get('end_time');
+    // Get datetime-local values directly (already in YYYY-MM-DDTHH:MM format)
+    const scheduledStart = formData.get('scheduled_start');
+    const scheduledEnd = formData.get('scheduled_end');
     
-    // Create datetime strings
-    const scheduledStart = startTime ? `${startDate}T${startTime}:00` : startDate;
-    const scheduledEnd = endTime ? `${endDate}T${endTime}:00` : endDate;
+    // Get selected equipment IDs (checkboxes)
+    const equipmentCheckboxes = form.querySelectorAll('input[name="equipment_ids"]:checked');
+    const equipmentIds = Array.from(equipmentCheckboxes).map(cb => parseInt(cb.value));
+    
+    if (equipmentIds.length === 0) {
+        alert('Please select at least 1 equipment.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        return;
+    }
     
     // Prepare the data for submission
     const maintenanceData = {
-        title: formData.get('title'),
+        title: formData.get('title') || '',  // Empty title will trigger auto-generation
         description: formData.get('description'),
         priority: formData.get('priority'),
         status: formData.get('status'),
@@ -2370,7 +2393,7 @@ function submitMaintenanceForm() {
         scheduled_end: scheduledEnd,
         timezone: formData.get('timezone'),
         activity_type: formData.get('activity_type'),
-        equipment: formData.get('equipment') || null,
+        equipment_ids: equipmentIds,  // Multiple equipment IDs
         assigned_to: formData.get('assigned_to') || null
     };
     
@@ -2398,7 +2421,11 @@ function submitMaintenanceForm() {
     .then(data => {
         if (data.success) {
             // Show success message
-            alert('Maintenance activity created successfully!');
+            if (data.activities && data.activities.length > 1) {
+                alert(`Created ${data.activities.length} maintenance activities successfully!`);
+            } else {
+                alert(data.message || 'Maintenance activity created successfully!');
+            }
             
             // Close the modal
             $('#createMaintenanceModal').modal('hide');
