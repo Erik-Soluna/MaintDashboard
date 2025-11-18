@@ -33,7 +33,7 @@ except ImportError:
     PYPDF2_AVAILABLE = False
 
 from .models import Equipment, EquipmentDocument, EquipmentComponent, EquipmentCategoryField, EquipmentIssue, EquipmentFieldConfiguration
-from core.models import EquipmentCategory, Location
+from core.models import EquipmentCategory, Location, natural_sort_key
 from core.logging_utils import log_error, log_view_access, log_api_call
 from maintenance.models import MaintenanceReport
 from .forms import EquipmentForm, DynamicEquipmentForm, EquipmentComponentForm, EquipmentDocumentForm, IssueLogForm
@@ -185,14 +185,51 @@ def equipment_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Get locations sorted naturally (1,2,3,4,10,11,12,222 etc)
-    locations = Location.objects.filter(is_active=True).natural_order()
+    # Get locations filtered by selected site and grouped by site
+    if selected_site:
+        # Filter to only locations under the selected site
+        locations_queryset = Location.objects.filter(
+            Q(parent_location=selected_site) | Q(id=selected_site.id),
+            is_active=True
+        )
+    else:
+        # If "All Sites" or no site selected, show all non-site locations
+        locations_queryset = Location.objects.filter(
+            is_site=False,
+            is_active=True
+        )
+    
+    # Group locations by site and sort naturally
+    locations_by_site = {}
+    
+    for location in locations_queryset:
+        # Get the site for this location
+        site = location.get_site_location()
+        if not site:
+            # If no site found, skip (shouldn't happen for non-site locations)
+            continue
+        
+        site_name = site.name
+        if site_name not in locations_by_site:
+            locations_by_site[site_name] = []
+        
+        locations_by_site[site_name].append(location)
+    
+    # Sort sites naturally and locations within each site naturally
+    sorted_sites = sorted(locations_by_site.keys(), key=natural_sort_key)
+    locations_grouped = []
+    
+    for site_name in sorted_sites:
+        site_locations = locations_by_site[site_name]
+        # Sort locations within site naturally
+        site_locations.sort(key=lambda loc: natural_sort_key(loc.name))
+        locations_grouped.extend(site_locations)
     
     context = {
         'page_obj': page_obj,
         'search_term': search_term,
         'categories': EquipmentCategory.objects.filter(is_active=True),
-        'locations': locations,
+        'locations': locations_grouped,
         'statuses': Equipment.STATUS_CHOICES,
         'selected_category': category_id,
         'selected_location': location_id,
