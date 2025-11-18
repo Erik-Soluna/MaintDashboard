@@ -156,11 +156,11 @@ def dashboard(request):
         # This way we only prefetch data for the locations we'll actually use
         if limited_location_ids:
             from django.db.models import Prefetch
-            from maintenance.models import MaintenanceActivity
             
             # Use Prefetch objects to ensure no slices are applied to prefetch querysets
             # Must use explicit queryset to avoid any default manager slices
             # Create explicit queryset for maintenance activities with no slices
+            # Note: MaintenanceActivity is imported at the top of the file
             maintenance_activities_qs = MaintenanceActivity.objects.select_related('assigned_to').all()
             
             locations_queryset = Location.objects.filter(
