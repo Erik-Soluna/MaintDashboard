@@ -500,9 +500,34 @@ function loadDatabaseStats() {
     document.getElementById('database-stats').innerHTML = statsHtml;
     
     // Fetch actual stats
-    fetch('/core/api/database-stats/')
-        .then(response => response.json())
+    fetch('/core/api/database-stats/', {
+        credentials: 'same-origin',
+        headers: {
+            'Accept': 'application/json',
+        }
+    })
+        .then(response => {
+            // Check content type to handle HTML redirects (e.g., login page)
+            const contentType = response.headers.get('content-type');
+            if (contentType && !contentType.includes('application/json')) {
+                if (response.status === 302 || response.status === 401 || response.status === 403) {
+                    throw new Error('Authentication required. Please log in as a staff user.');
+                }
+                throw new Error(`Unexpected response type: ${contentType}`);
+            }
+            if (!response.ok) {
+                return response.json().then(err => {
+                    throw new Error(err.message || `HTTP error! status: ${response.status}`);
+                }).catch(() => {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
+            if (data.status === 'error') {
+                throw new Error(data.message || 'Error loading database statistics');
+            }
             if (data.tables) {
                 let html = '';
                 Object.entries(data.tables).forEach(([table, info]) => {
@@ -515,10 +540,14 @@ function loadDatabaseStats() {
                     `;
                 });
                 document.getElementById('db-table-stats').innerHTML = html;
+            } else {
+                throw new Error('Invalid response format: missing tables data');
             }
         })
         .catch(error => {
-            document.getElementById('db-table-stats').innerHTML = '<tr><td colspan="3" class="text-danger">Failed to load database statistics</td></tr>';
+            console.error('Error loading database statistics:', error);
+            const errorMsg = error.message || 'Failed to load database statistics';
+            document.getElementById('db-table-stats').innerHTML = `<tr><td colspan="3" class="text-danger"><i class="fas fa-exclamation-triangle me-1"></i>${errorMsg}</td></tr>`;
         });
 }
 

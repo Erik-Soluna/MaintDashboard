@@ -32,6 +32,8 @@ RUN apt-get update \
         ca-certificates \
         gnupg \
         lsb-release \
+        # User switching utility (gosu is more commonly available in Debian)
+        gosu \
         # Playwright dependencies
         libglib2.0-0 \
         libnss3 \
@@ -90,10 +92,11 @@ RUN chmod +x /app/scripts/deployment/docker-entrypoint.sh \
 RUN python manage.py collectstatic --noinput || echo "Static files collection failed, will retry at runtime"
 
 # Create a non-root user and add to docker group
+# su-exec is already installed in the system dependencies above
 RUN adduser --disabled-password --gecos '' appuser \
     && chown -R appuser:appuser /app \
-    && groupadd -g 999 docker || true \
-    && usermod -aG docker appuser
+    && (groupadd -g 999 docker || true) \
+    && usermod -aG docker appuser || true
 
 # For Docker access, we'll run as root but switch to appuser for the application
 # USER appuser

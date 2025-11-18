@@ -1762,23 +1762,19 @@ def delete_activity(request, activity_id):
     if request.method == 'POST':
         activity_title = activity.title
         
-        # Delete associated calendar events before deleting the activity
+        # Count associated calendar events before deletion (signal will handle deletion)
         from events.models import CalendarEvent
-        associated_events = CalendarEvent.objects.filter(maintenance_activity=activity)
-        events_deleted = associated_events.count()
+        events_deleted = CalendarEvent.objects.filter(maintenance_activity=activity).count()
         
-        # Delete the calendar events first
-        associated_events.delete()
+        # Delete the maintenance activity (signal will handle calendar event deletion and cache invalidation)
+        activity.delete()
         
-        # Invalidate dashboard cache
+        # Invalidate dashboard cache for current user only (signal invalidates all, but this is more targeted)
         try:
             from core.views import invalidate_dashboard_cache
             invalidate_dashboard_cache(user_id=request.user.id)
         except Exception as cache_error:
             logger.warning(f"Could not invalidate dashboard cache: {cache_error}")
-        
-        # Now delete the maintenance activity
-        activity.delete()
         
         if events_deleted > 0:
             messages.success(request, f'Maintenance activity "{activity_title}" and {events_deleted} associated calendar event(s) deleted successfully!')
@@ -2383,21 +2379,27 @@ def get_activity_details(request, activity_id):
         timeline_entries = activity.timeline_entries.all().order_by('-created_at')[:10]
         reports = activity.reports.all().order_by('-created_at')
         
-        # Convert datetimes to UTC for API response - JavaScript will format in user's timezone
-        def convert_to_utc(dt):
+        # Get activity's timezone (or fallback to user's timezone)
+        activity_timezone_str = activity.timezone or user_timezone_str
+        activity_tz = pytz.timezone(activity_timezone_str)
+        
+        # Convert datetimes to the activity's timezone for display
+        # This ensures the time shown matches what was entered
+        def convert_to_activity_tz(dt):
             if not dt:
                 return None
-            # If already timezone-aware, convert to UTC
+            # If already timezone-aware, convert to activity's timezone
             if timezone.is_aware(dt):
-                return dt.astimezone(pytz.UTC)
-            # If naive, assume UTC
-            return timezone.make_aware(dt, pytz.UTC)
+                return dt.astimezone(activity_tz)
+            # If naive, assume UTC and convert to activity's timezone
+            return timezone.make_aware(dt, pytz.UTC).astimezone(activity_tz)
         
-        # Convert to UTC before formatting (JavaScript will handle timezone conversion)
-        scheduled_start_utc = convert_to_utc(activity.scheduled_start) if activity.scheduled_start else None
-        scheduled_end_utc = convert_to_utc(activity.scheduled_end) if activity.scheduled_end else None
-        actual_start_utc = convert_to_utc(activity.actual_start) if activity.actual_start else None
-        actual_end_utc = convert_to_utc(activity.actual_end) if activity.actual_end else None
+        # Convert to activity's timezone before formatting
+        # JavaScript will receive these as ISO strings with timezone info
+        scheduled_start_tz = convert_to_activity_tz(activity.scheduled_start) if activity.scheduled_start else None
+        scheduled_end_tz = convert_to_activity_tz(activity.scheduled_end) if activity.scheduled_end else None
+        actual_start_tz = convert_to_activity_tz(activity.actual_start) if activity.actual_start else None
+        actual_end_tz = convert_to_activity_tz(activity.actual_end) if activity.actual_end else None
         
         data = {
             'id': activity.id,
@@ -2415,11 +2417,12 @@ def get_activity_details(request, activity_id):
                 'name': activity.activity_type.name,
                 'category': activity.activity_type.category.name,
             },
-            'scheduled_start': scheduled_start_utc.isoformat() if scheduled_start_utc else None,
-            'scheduled_end': scheduled_end_utc.isoformat() if scheduled_end_utc else None,
-            'actual_start': actual_start_utc.isoformat() if actual_start_utc else None,
-            'actual_end': actual_end_utc.isoformat() if actual_end_utc else None,
-            'timezone': user_timezone_str,  # Include timezone info for JavaScript to use for formatting
+            'scheduled_start': scheduled_start_tz.isoformat() if scheduled_start_tz else None,
+            'scheduled_end': scheduled_end_tz.isoformat() if scheduled_end_tz else None,
+            'actual_start': actual_start_tz.isoformat() if actual_start_tz else None,
+            'actual_end': actual_end_tz.isoformat() if actual_end_tz else None,
+            'timezone': activity.timezone or user_timezone_str,  # Use activity's timezone, fallback to user's timezone
+            'timezone_display_name': activity.get_timezone_display_name(),  # Human-readable timezone name from DB
             'assigned_to': activity.assigned_to.username if activity.assigned_to else None,
             'completion_notes': activity.completion_notes,
             'checklist_items': [
@@ -3216,32 +3219,84 @@ def create_activity_api(request):
         else:
             processed_data['assigned_to'] = None
         
-        # Handle equipment - ensure it's not empty string
-        if 'equipment' in processed_data and processed_data['equipment'] == '':
-            processed_data['equipment'] = None
+        # Handle equipment - support both single equipment and multiple equipment_ids
+        equipment_ids = processed_data.get('equipment_ids', [])
+        single_equipment = processed_data.get('equipment')
         
-        # Create form with the processed data
-        form = MaintenanceActivityForm(processed_data, request=request)
-        
-        if form.is_valid():
-            # Save the activity
-            activity = form.save(commit=False)
-            activity.created_by = request.user
-            activity.save()
-            
-            # Return success response
-            return JsonResponse({
-                'success': True,
-                'message': f'Maintenance activity "{activity.title}" created successfully!',
-                'activity_id': activity.id
-            })
+        # If equipment_ids is provided, use it; otherwise fall back to single equipment
+        if equipment_ids:
+            if isinstance(equipment_ids, str):
+                # Handle comma-separated string
+                equipment_ids = [int(id.strip()) for id in equipment_ids.split(',') if id.strip()]
+            elif not isinstance(equipment_ids, list):
+                equipment_ids = [equipment_ids]
+        elif single_equipment:
+            # Single equipment ID
+            equipment_ids = [single_equipment]
         else:
-            # Return validation errors
-            logger.error(f"Form validation failed: {form.errors}")
+            # No equipment provided
             return JsonResponse({
                 'success': False,
-                'error': 'Validation failed',
-                'errors': form.errors
+                'error': 'At least 1 equipment is required to create a Maintenance activity.'
+            }, status=400)
+        
+        # Validate equipment IDs exist
+        from equipment.models import Equipment
+        valid_equipment = Equipment.objects.filter(id__in=equipment_ids, is_active=True)
+        if valid_equipment.count() != len(equipment_ids):
+            return JsonResponse({
+                'success': False,
+                'error': 'One or more equipment IDs are invalid or inactive.'
+            }, status=400)
+        
+        # Create one activity per equipment
+        created_activities = []
+        errors = []
+        
+        for equipment_id in equipment_ids:
+            # Create a copy of processed_data for each equipment
+            equipment_data = processed_data.copy()
+            equipment_data['equipment'] = equipment_id
+            equipment_data.pop('equipment_ids', None)  # Remove equipment_ids from form data
+            
+            # Create form with the processed data
+            form = MaintenanceActivityForm(equipment_data, request=request)
+            
+            if form.is_valid():
+                # Save the activity
+                activity = form.save(commit=False)
+                activity.created_by = request.user
+                activity.save()
+                created_activities.append({
+                    'id': activity.id,
+                    'title': activity.title,
+                    'equipment': activity.equipment.name
+                })
+            else:
+                errors.append({
+                    'equipment_id': equipment_id,
+                    'errors': form.errors
+                })
+        
+        if created_activities:
+            # Return success response
+            message = f'Created {len(created_activities)} maintenance activity(ies) successfully!'
+            if errors:
+                message += f' {len(errors)} failed.'
+            
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'activities': created_activities,
+                'errors': errors if errors else None
+            })
+        else:
+            # All failed
+            logger.error(f"All activities failed to create: {errors}")
+            return JsonResponse({
+                'success': False,
+                'error': 'Failed to create maintenance activities',
+                'errors': errors
             }, status=400)
             
     except json.JSONDecodeError:

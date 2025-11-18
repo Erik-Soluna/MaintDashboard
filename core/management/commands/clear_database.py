@@ -119,7 +119,6 @@ class Command(BaseCommand):
                         'core.Location',
                         'core.EquipmentCategory',
                         'core.Customer',
-                        'core.PlaywrightDebugLog',
                     ]
                     
                     for model in models_to_clear:

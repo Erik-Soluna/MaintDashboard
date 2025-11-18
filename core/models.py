@@ -225,6 +225,30 @@ class Location(TimeStampedModel):
             path.insert(0, current.name)
             current = current.parent_location
         return " > ".join(path)
+    
+    def get_hierarchical_display(self):
+        """Get hierarchical display in Site > POD > MDC format."""
+        # Build path from bottom to top
+        parts = []
+        current = self
+        
+        # Traverse up the hierarchy
+        while current:
+            parts.insert(0, current.name)
+            current = current.parent_location
+        
+        # Format as Site > POD > MDC (if MDC exists)
+        if len(parts) >= 2:
+            # Site > POD
+            result = f"{parts[0]} > {parts[1]}"
+            # Add MDC if it exists (3rd level)
+            if len(parts) >= 3:
+                result += f" > {parts[2]}"
+            return result
+        elif len(parts) == 1:
+            return parts[0]
+        else:
+            return "No Location"
 
     def get_site_location(self):
         """Get the top-level site location."""
@@ -543,29 +567,6 @@ class ModelDocument(TimeStampedModel):
             raise ValidationError("Document title cannot be empty.")
 
 
-class PlaywrightDebugLog(models.Model):
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('running', 'Running'),
-        ('done', 'Done'),
-        ('error', 'Error'),
-    ]
-    timestamp = models.DateTimeField(auto_now_add=True)
-    prompt = models.TextField()
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
-    output = models.TextField(blank=True)
-    result_json = models.JSONField(blank=True, null=True)
-    error_message = models.TextField(blank=True)
-    started_at = models.DateTimeField(null=True, blank=True)
-    finished_at = models.DateTimeField(null=True, blank=True)
-    
-    class Meta:
-        ordering = ['-timestamp']
-    
-    def __str__(self):
-        return f"[{self.timestamp}] {self.prompt[:40]}... ({self.status})"
-
-
 class PortainerConfig(models.Model):
     """Configuration for Portainer integration."""
     portainer_url = models.URLField(max_length=500, blank=True, help_text="Portainer webhook URL (e.g., https://portainer:9000/api/stacks/webhooks/...)")
@@ -695,6 +696,14 @@ class BrandingSettings(models.Model):
     danger_color = models.CharField(max_length=7, default="#f56565", help_text="Danger color in hex format (#RRGGBB)")
     info_color = models.CharField(max_length=7, default="#4299e1", help_text="Info color in hex format (#RRGGBB)")
     
+    # Maintenance status colors for overview page
+    status_color_scheduled = models.CharField(max_length=7, default="#808080", help_text="Scheduled status color")
+    status_color_pending = models.CharField(max_length=7, default="#4299e1", help_text="Pending status color")
+    status_color_in_progress = models.CharField(max_length=7, default="#ed8936", help_text="In Progress status color")
+    status_color_cancelled = models.CharField(max_length=7, default="#000000", help_text="Cancelled status color")
+    status_color_completed = models.CharField(max_length=7, default="#48bb78", help_text="Completed status color")
+    status_color_overdue = models.CharField(max_length=7, default="#f56565", help_text="Overdue status color")
+    
     # Dropdown and menu colors
     dropdown_background_color = models.CharField(max_length=7, default="#2d3748", help_text="Dropdown menu background color in hex format (#RRGGBB)")
     dropdown_background_opacity = models.DecimalField(max_digits=3, decimal_places=2, default=0.95, help_text="Dropdown background opacity (0.00 to 1.00)")
@@ -741,6 +750,7 @@ class DashboardSettings(models.Model):
     # Visibility settings
     show_urgent_items = models.BooleanField(default=True, help_text="Show urgent items section")
     show_upcoming_items = models.BooleanField(default=True, help_text="Show upcoming items section")
+    show_active_items = models.BooleanField(default=True, help_text="Show active items section (in progress and pending)")
     show_site_status = models.BooleanField(default=True, help_text="Show site status cards")
     show_kpi_cards = models.BooleanField(default=True, help_text="Show KPI cards at top")
     show_overview_data = models.BooleanField(default=True, help_text="Show overview data (pods/sites)")
@@ -748,16 +758,26 @@ class DashboardSettings(models.Model):
     # Grouping settings
     group_urgent_by_site = models.BooleanField(default=True, help_text="Group urgent items by site")
     group_upcoming_by_site = models.BooleanField(default=True, help_text="Group upcoming items by site")
+    group_active_by_site = models.BooleanField(default=True, help_text="Group active items by site")
     
     # Display limits
     max_urgent_items_per_site = models.IntegerField(default=15, help_text="Maximum urgent items to show per site")
     max_upcoming_items_per_site = models.IntegerField(default=15, help_text="Maximum upcoming items to show per site")
+    max_active_items_per_site = models.IntegerField(default=15, help_text="Maximum active items to show per site")
     max_urgent_items_total = models.IntegerField(default=50, help_text="Maximum total urgent items across all sites")
     max_upcoming_items_total = models.IntegerField(default=50, help_text="Maximum total upcoming items across all sites")
+    max_active_items_total = models.IntegerField(default=50, help_text="Maximum total active items across all sites")
     
     # Urgent items configuration
     urgent_days_ahead = models.IntegerField(default=7, help_text="Number of days ahead to consider items as urgent")
     upcoming_days_ahead = models.IntegerField(default=30, help_text="Number of days ahead to consider items as upcoming")
+    
+    # Title template for maintenance activities
+    activity_title_template = models.CharField(
+        max_length=200,
+        default="{Activity_Type} - {Equipment}",
+        help_text="Template for auto-generating maintenance activity titles. Available variables: {Activity_Type}, {Equipment}, {Date}, {Priority}, {Status}"
+    )
     
     # Meta settings
     is_active = models.BooleanField(default=True, help_text="Whether these dashboard settings are currently active")

@@ -716,22 +716,6 @@
             </div>
             
             <div class="d-flex align-items-center gap-2">
-                <!-- Timezone Selector -->
-                <div class="timezone-selector">
-                    <select id="timezoneSelect" class="form-select form-select-sm" onchange="changeTimezone()">
-                        <option value="UTC">UTC</option>
-                        <option value="America/New_York">Eastern Time</option>
-                        <option value="America/Chicago" selected>Central Time</option>
-                        <option value="America/Denver">Mountain Time</option>
-                        <option value="America/Los_Angeles">Pacific Time</option>
-                        <option value="America/Anchorage">Alaska Time</option>
-                        <option value="Pacific/Honolulu">Hawaii Time</option>
-                        <option value="Europe/London">London (GMT)</option>
-                        <option value="Europe/Paris">Paris (CET)</option>
-                        <option value="Asia/Tokyo">Tokyo (JST)</option>
-                        <option value="Australia/Sydney">Sydney (AEST)</option>
-                    </select>
-                </div>
                 
                 <button type="button" class="btn btn-outline-success btn-sm" onclick="openCreateMaintenanceModal()">
                     <i class="fas fa-tools"></i>
@@ -753,24 +737,28 @@
             <div class="legend-compact">
                 <div class="legend-items">
                     <div class="legend-item" data-type="scheduled" onclick="toggleLegendItem(this, 'scheduled')">
-                        <div class="legend-color" style="background-color: #4299e1;"></div>
+                        <div class="legend-color" style="background-color: {{ status_colors.scheduled|default:"#808080" }};"></div>
                         <span>Scheduled</span>
                     </div>
                     <div class="legend-item" data-type="overdue" onclick="toggleLegendItem(this, 'overdue')">
-                        <div class="legend-color" style="background-color: #dc3545;"></div>
+                        <div class="legend-color" style="background-color: {{ status_colors.overdue|default:"#f56565" }};"></div>
                         <span>Overdue</span>
                     </div>
                     <div class="legend-item" data-type="completed" onclick="toggleLegendItem(this, 'completed')">
-                        <div class="legend-color" style="background-color: #28a745;"></div>
+                        <div class="legend-color" style="background-color: {{ status_colors.completed|default:"#48bb78" }};"></div>
                         <span>Completed</span>
                     </div>
                     <div class="legend-item" data-type="in_progress" onclick="toggleLegendItem(this, 'in_progress')">
-                        <div class="legend-color" style="background-color: #ffc107;"></div>
+                        <div class="legend-color" style="background-color: {{ status_colors.in_progress|default:"#ed8936" }};"></div>
                         <span>In Progress</span>
                     </div>
-                    <div class="legend-item" data-type="events" onclick="toggleLegendItem(this, 'events')">
-                        <div class="legend-color" style="background-color: #17a2b8;"></div>
-                        <span>Events</span>
+                    <div class="legend-item" data-type="pending" onclick="toggleLegendItem(this, 'pending')">
+                        <div class="legend-color" style="background-color: {{ status_colors.pending|default:"#4299e1" }};"></div>
+                        <span>Pending</span>
+                    </div>
+                    <div class="legend-item" data-type="cancelled" onclick="toggleLegendItem(this, 'cancelled')">
+                        <div class="legend-color" style="background-color: {{ status_colors.cancelled|default:"#000000" }};"></div>
+                        <span>Cancelled</span>
                     </div>
                     <button type="button" class="btn btn-outline-light btn-sm" onclick="showAllLegendItems()">
                         <i class="fas fa-eye"></i> Show All
@@ -805,7 +793,7 @@
                         <select id="customerFilter" onchange="updateCalendar()">
                             <option value="">All Customers</option>
                             {% for customer in customers %}
-                                <option value="{{ customer.id }}" {% if selected_customer == customer.id|stringformat:"s" %}selected{% endif %}>
+                                <option value="{{ customer.id }}">
                                     {{ customer.name }}
                                 </option>
                             {% endfor %}
@@ -941,24 +929,18 @@
                         </div>
                         
                         <div class="row">
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label for="maintenanceStartDate" class="text-white">Start Date *</label>
-                                    <input type="date" class="form-control bg-dark text-white border-secondary" id="maintenanceStartDate" name="scheduled_start" required>
-                                </div>
-                                <div class="form-group mb-3">
-                                    <label for="maintenanceStartTime" class="text-white">Start Time</label>
-                                    <input type="time" class="form-control bg-dark text-white border-secondary" id="maintenanceStartTime" name="start_time">
+                                    <label for="maintenanceScheduledStart" class="text-white">Scheduled Start *</label>
+                                    <input type="datetime-local" class="form-control bg-dark text-white border-secondary" id="maintenanceScheduledStart" name="scheduled_start" required>
+                                    <small class="text-muted">Scheduled start date and time</small>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label for="maintenanceEndDate" class="text-white">End Date *</label>
-                                    <input type="date" class="form-control bg-dark text-white border-secondary" id="maintenanceEndDate" name="scheduled_end" required>
-                                </div>
-                                <div class="form-group mb-3">
-                                    <label for="maintenanceEndTime" class="text-white">End Time</label>
-                                    <input type="time" class="form-control bg-dark text-white border-secondary" id="maintenanceEndTime" name="end_time">
+                                    <label for="maintenanceScheduledEnd" class="text-white">Scheduled End *</label>
+                                    <input type="datetime-local" class="form-control bg-dark text-white border-secondary" id="maintenanceScheduledEnd" name="scheduled_end" required>
+                                    <small class="text-muted">Scheduled end date and time</small>
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -996,13 +978,20 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label for="maintenanceEquipment" class="text-white">Equipment</label>
-                                    <select class="form-control bg-dark text-white border-secondary" id="maintenanceEquipment" name="equipment">
-                                        <option value="">Select Equipment</option>
+                                    <label for="maintenanceEquipment" class="text-white">Equipment *</label>
+                                    <div class="equipment-checkbox-container bg-dark border border-secondary rounded p-2" style="max-height: 200px; overflow-y: auto;">
                                         {% for equipment in equipment_list %}
-                                            <option value="{{ equipment.id }}">{{ equipment.name }}</option>
+                                        <div class="form-check">
+                                            <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids">
+                                            <label class="form-check-label text-white" for="equipment_{{ equipment.id }}">
+                                                {{ equipment.name }}
+                                            </label>
+                                        </div>
+                                        {% empty %}
+                                        <p class="text-muted mb-0">No equipment available</p>
                                         {% endfor %}
-                                    </select>
+                                    </div>
+                                    <small class="text-muted">Select at least 1 equipment. Multiple selections will create one activity per equipment.</small>
                                 </div>
                             </div>
                         </div>
@@ -1068,9 +1057,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var calendarView = '{{ calendar_view }}';
     var viewMode = '{{ view_mode }}';
     
-    // Initialize timezone detection and selection
-    initializeTimezone();
-    
     // Initialize equipment multiselect
     initializeEquipmentMultiselect();
     
@@ -1111,14 +1097,14 @@ function initializeCalendar() {
         return;
     }
 
-    // Get user's preferred timezone or default to Central Time
-    const userTimezone = localStorage.getItem('userTimezone') || 'America/Chicago';
+    // Get user's timezone from profile (passed from server)
+    const userTimezone = '{{ user_timezone|default:"America/Chicago" }}';
     
     try {
         var calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         height: 'auto',
-        timeZone: userTimezone, // Use user's preferred timezone
+        timeZone: userTimezone, // Use user's profile timezone
         views: {
             dayGridWeek: {
                 dayMaxEvents: 8,
@@ -1146,8 +1132,7 @@ function initializeCalendar() {
                 equipment: getSelectedEquipment().join(','),
                 site_id: document.getElementById('site-selector').value,
                 event_type: document.getElementById('eventTypeFilter').value,
-                customer: document.getElementById('customerFilter').value,
-                timezone: document.getElementById('timezoneSelect').value
+                customer: document.getElementById('customerFilter').value
             };
             
             // Debug logging for filter parameters
@@ -1626,7 +1611,8 @@ let legendVisibility = {
     overdue: true,
     completed: true,
     in_progress: true,
-    events: true
+    pending: true,
+    cancelled: true
 };
 
 function toggleLegendItem(element, type) {
@@ -1649,13 +1635,13 @@ function applyLegendVisibilityToEvent(event) {
     let shouldShow = true;
     
     // Check if this event type should be visible
-    if (eventType === 'maintenance') {
+    if (eventType === 'maintenance' || eventType === 'activity') {
         if (status === 'scheduled' && !legendVisibility.scheduled) shouldShow = false;
         else if (status === 'overdue' && !legendVisibility.overdue) shouldShow = false;
         else if (status === 'completed' && !legendVisibility.completed) shouldShow = false;
         else if (status === 'in_progress' && !legendVisibility.in_progress) shouldShow = false;
-    } else if (eventType === 'event' && !legendVisibility.events) {
-        shouldShow = false;
+        else if (status === 'pending' && !legendVisibility.pending) shouldShow = false;
+        else if (status === 'cancelled' && !legendVisibility.cancelled) shouldShow = false;
     }
     
     // Show/hide event
@@ -1887,12 +1873,12 @@ function displayMaintenanceDetails(activity) {
                         <div class="mb-2">
                             <small class="text-muted">Start:</small><br>
                             <span class="text-white">${formatDateTime(activity.scheduled_start, activity.timezone)}</span>
-                            ${activity.timezone ? `<br><small class="text-info">(${getTimezoneDisplayName(activity.timezone)})</small>` : ''}
+                            ${activity.timezone_display_name ? `<br><small class="text-info">(${activity.timezone_display_name})</small>` : ''}
                         </div>
                         <div class="mb-2">
                             <small class="text-muted">End:</small><br>
                             <span class="text-white">${formatDateTime(activity.scheduled_end, activity.timezone)}</span>
-                            ${activity.timezone ? `<br><small class="text-info">(${getTimezoneDisplayName(activity.timezone)})</small>` : ''}
+                            ${activity.timezone_display_name ? `<br><small class="text-info">(${activity.timezone_display_name})</small>` : ''}
                         </div>
                         ${activity.actual_start ? `
                         <div class="mb-2">
@@ -1970,8 +1956,11 @@ function formatDateTime(dateTimeStr, timezoneStr) {
     const date = new Date(dateTimeStr);
     
     // If timezone is provided, format using that timezone; otherwise use browser's timezone
+    // Note: The dateTimeStr should already be in the correct timezone from the API
     if (timezoneStr) {
         try {
+            // Use the timezone to format, but the date should already be correct
+            // The API sends times in the activity's timezone, so we just format it
             return date.toLocaleString('en-US', {
                 timeZone: timezoneStr,
                 year: 'numeric',
@@ -2342,23 +2331,40 @@ function openCreateMaintenanceModal(selectedDate = null) {
     // Reset form
     document.getElementById('createMaintenanceForm').reset();
     
-    // Set the selected date if provided
+    // Format datetime-local value (YYYY-MM-DDTHH:MM)
+    const formatDateTimeLocal = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+    
+    // Set the selected date/time if provided, otherwise default to today 9 AM - 5 PM
+    const now = new Date();
+    let startDateTime, endDateTime;
+    
     if (selectedDate) {
-        document.getElementById('maintenanceStartDate').value = selectedDate;
-        document.getElementById('maintenanceEndDate').value = selectedDate;
+        // Parse selected date as local date (YYYY-MM-DD format from FullCalendar)
+        // Split the date string to avoid timezone conversion issues
+        const [year, month, day] = selectedDate.split('-').map(Number);
+        startDateTime = new Date(year, month - 1, day, 9, 0, 0); // month is 0-indexed
+        endDateTime = new Date(year, month - 1, day, 17, 0, 0);
     } else {
-        // Default to today
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('maintenanceStartDate').value = today;
-        document.getElementById('maintenanceEndDate').value = today;
+        // Default to today 9 AM - 5 PM
+        startDateTime = new Date(now);
+        startDateTime.setHours(9, 0, 0, 0);
+        endDateTime = new Date(now);
+        endDateTime.setHours(17, 0, 0, 0);
     }
     
-    // Set default time to 9 AM - 5 PM
-    document.getElementById('maintenanceStartTime').value = '09:00';
-    document.getElementById('maintenanceEndTime').value = '17:00';
+    document.getElementById('maintenanceScheduledStart').value = formatDateTimeLocal(startDateTime);
+    document.getElementById('maintenanceScheduledEnd').value = formatDateTimeLocal(endDateTime);
     
     // Set timezone to user's preferred timezone or calendar timezone
-    const userTimezone = localStorage.getItem('userTimezone') || document.getElementById('timezoneSelect').value;
+    // Use user's profile timezone (passed from server)
+    const userTimezone = '{{ user_timezone|default:"America/Chicago" }}';
     document.getElementById('maintenanceTimezone').value = userTimezone;
     
     // Show the modal
@@ -2369,19 +2375,24 @@ function submitMaintenanceForm() {
     const form = document.getElementById('createMaintenanceForm');
     const formData = new FormData(form);
     
-    // Combine date and time for start and end
-    const startDate = formData.get('scheduled_start');
-    const startTime = formData.get('start_time');
-    const endDate = formData.get('scheduled_end');
-    const endTime = formData.get('end_time');
+    // Get datetime-local values directly (already in YYYY-MM-DDTHH:MM format)
+    const scheduledStart = formData.get('scheduled_start');
+    const scheduledEnd = formData.get('scheduled_end');
     
-    // Create datetime strings
-    const scheduledStart = startTime ? `${startDate}T${startTime}:00` : startDate;
-    const scheduledEnd = endTime ? `${endDate}T${endTime}:00` : endDate;
+    // Get selected equipment IDs (checkboxes)
+    const equipmentCheckboxes = form.querySelectorAll('input[name="equipment_ids"]:checked');
+    const equipmentIds = Array.from(equipmentCheckboxes).map(cb => parseInt(cb.value));
+    
+    if (equipmentIds.length === 0) {
+        alert('Please select at least 1 equipment.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        return;
+    }
     
     // Prepare the data for submission
     const maintenanceData = {
-        title: formData.get('title'),
+        title: formData.get('title') || '',  // Empty title will trigger auto-generation
         description: formData.get('description'),
         priority: formData.get('priority'),
         status: formData.get('status'),
@@ -2389,7 +2400,7 @@ function submitMaintenanceForm() {
         scheduled_end: scheduledEnd,
         timezone: formData.get('timezone'),
         activity_type: formData.get('activity_type'),
-        equipment: formData.get('equipment') || null,
+        equipment_ids: equipmentIds,  // Multiple equipment IDs
         assigned_to: formData.get('assigned_to') || null
     };
     
@@ -2417,7 +2428,11 @@ function submitMaintenanceForm() {
     .then(data => {
         if (data.success) {
             // Show success message
-            alert('Maintenance activity created successfully!');
+            if (data.activities && data.activities.length > 1) {
+                alert(`Created ${data.activities.length} maintenance activities successfully!`);
+            } else {
+                alert(data.message || 'Maintenance activity created successfully!');
+            }
             
             // Close the modal
             $('#createMaintenanceModal').modal('hide');
@@ -2478,185 +2493,6 @@ function completeMaintenanceActivity(activityId) {
     });
 }
 
-// Timezone Management Functions
-function initializeTimezone() {
-    // Try to get user's timezone from browser
-    const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const timezoneSelect = document.getElementById('timezoneSelect');
-    
-    // Check if user's timezone is in our list
-    const timezoneOptions = Array.from(timezoneSelect.options).map(option => option.value);
-    if (timezoneOptions.includes(userTimezone)) {
-        timezoneSelect.value = userTimezone;
-    } else {
-        // Try to find a matching timezone based on common patterns
-        const timezoneMap = {
-            'America/New_York': ['America/New_York', 'America/Detroit', 'America/Toronto'],
-            'America/Chicago': ['America/Chicago', 'America/Denver', 'America/Mexico_City'],
-            'America/Denver': ['America/Denver', 'America/Phoenix', 'America/Edmonton'],
-            'America/Los_Angeles': ['America/Los_Angeles', 'America/Vancouver', 'America/Tijuana'],
-            'Europe/London': ['Europe/London', 'Europe/Dublin'],
-            'Europe/Paris': ['Europe/Paris', 'Europe/Berlin', 'Europe/Rome'],
-            'Asia/Tokyo': ['Asia/Tokyo', 'Asia/Seoul'],
-            'Australia/Sydney': ['Australia/Sydney', 'Australia/Melbourne']
-        };
-        
-        for (const [defaultTz, variants] of Object.entries(timezoneMap)) {
-            if (variants.includes(userTimezone)) {
-                timezoneSelect.value = defaultTz;
-                break;
-            }
-        }
-    }
-    
-             // Set calendar timezone to match user preference
-    console.log('initializeTimezone: window.calendar =', window.calendar);
-    console.log('initializeTimezone: window.calendar type =', typeof window.calendar);
-    if (window.calendar) {
-        console.log('initializeTimezone: window.calendar methods =', Object.getOwnPropertyNames(window.calendar));
-        console.log('initializeTimezone: window.calendar.setOption =', typeof window.calendar.setOption);
-    }
-    if (window.calendar && window.calendar.setOption) {
-        window.calendar.setOption('timeZone', timezoneSelect.value);
-    } else {
-        console.warn('initializeTimezone: Calendar not ready or setOption not available');
-    }
-    
-    // Save timezone preference to user profile
-    saveTimezonePreference(timezoneSelect.value);
-}
-
-function changeTimezone() {
-    const timezoneSelect = document.getElementById('timezoneSelect');
-    const selectedTimezone = timezoneSelect.value;
-    
-             // Update calendar timezone if it exists
-    console.log('changeTimezone: window.calendar =', window.calendar);
-    if (window.calendar) {
-        console.log('changeTimezone: window.calendar methods =', Object.getOwnPropertyNames(window.calendar));
-        console.log('changeTimezone: window.calendar.setOption =', typeof window.calendar.setOption);
-    }
-    if (window.calendar && window.calendar.setOption) {
-        window.calendar.setOption('timeZone', selectedTimezone);
-        // Refresh events to show in new timezone
-        window.calendar.refetchEvents();
-    } else {
-        console.warn('changeTimezone: Calendar not ready or setOption not available');
-    }
-    
-    // Save timezone preference
-    saveTimezonePreference(selectedTimezone);
-    
-    // Show timezone change notification
-    showTimezoneNotification(selectedTimezone);
-}
-
-function saveTimezonePreference(timezone) {
-    // Save to localStorage for immediate use
-    localStorage.setItem('userTimezone', timezone);
-    
-    // Save to user profile via AJAX
-    fetch('{% url "core:update_user_timezone" %}', {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}',
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            timezone: timezone
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            console.log('Timezone preference saved successfully');
-        } else {
-            console.warn('Failed to save timezone preference:', data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error saving timezone preference:', error);
-    });
-}
-
-function showTimezoneNotification(timezone) {
-    // Create a temporary notification
-    const notification = document.createElement('div');
-    notification.className = 'timezone-notification';
-    notification.innerHTML = `
-        <i class="fas fa-clock me-2"></i>
-        Calendar timezone changed to ${getTimezoneDisplayName(timezone)}
-    `;
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
-        color: white;
-        padding: 12px 20px;
-        border-radius: 6px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        z-index: 9999;
-        font-size: 14px;
-        font-weight: 500;
-        animation: slideInRight 0.3s ease-out;
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // Remove notification after 3 seconds
-    setTimeout(() => {
-        notification.style.animation = 'slideOutRight 0.3s ease-in';
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 300);
-    }, 3000);
-}
-
-function getTimezoneDisplayName(timezone) {
-    const displayNames = {
-        'UTC': 'UTC',
-        'America/New_York': 'Eastern Time',
-        'America/Chicago': 'Central Time',
-        'America/Denver': 'Mountain Time',
-        'America/Los_Angeles': 'Pacific Time',
-        'America/Anchorage': 'Alaska Time',
-        'Pacific/Honolulu': 'Hawaii Time',
-        'Europe/London': 'London (GMT)',
-        'Europe/Paris': 'Paris (CET)',
-        'Asia/Tokyo': 'Tokyo (JST)',
-        'Australia/Sydney': 'Sydney (AEST)'
-    };
-    return displayNames[timezone] || timezone;
-}
-
-// Add CSS animations for timezone notification
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideInRight {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    
-    @keyframes slideOutRight {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-    }
-`;
-document.head.appendChild(style);
+// Timezone display name is now provided by the API from the database
 </script>
 {% endblock %}

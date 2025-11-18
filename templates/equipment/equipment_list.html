@@ -266,7 +266,7 @@
                 <option value="">All Locations</option>
                 {% for location in locations %}
                 <option value="{{ location.id }}" {% if selected_location == location.id|stringformat:"s" %}selected{% endif %}>
-                    {{ location.name }}
+                    {{ location.get_hierarchical_display }}
                 </option>
                 {% endfor %}
             </select>
@@ -335,12 +335,7 @@
                                 </td>
                                 <td>
                                     {% if equipment.location %}
-                                        {% if equipment.location.get_site_location %}
-                                            <span class="badge badge-info">{{ equipment.location.get_site_location.name }}</span><br>
-                                            <small>{{ equipment.location.name }}</small>
-                                        {% else %}
-                                            {{ equipment.location.name }}
-                                        {% endif %}
+                                        {{ equipment.location.get_hierarchical_display }}
                                     {% else %}
                                         <small class="text-muted">No location</small>
                                     {% endif %}

@@ -233,6 +233,50 @@ def calendar_view(request):
         event_types = []
         logger.warning(f"Could not load activity types: {str(e)}")
 
+    # Get status colors from BrandingSettings for consistency with dashboard
+    status_colors = {}
+    try:
+        from core.models import BrandingSettings
+        branding = BrandingSettings.get_active()
+        if branding:
+            status_colors = {
+                'scheduled': branding.status_color_scheduled,
+                'pending': branding.status_color_pending,
+                'in_progress': branding.status_color_in_progress,
+                'cancelled': branding.status_color_cancelled,
+                'completed': branding.status_color_completed,
+                'overdue': branding.status_color_overdue,
+            }
+    except Exception:
+        pass
+    
+    # Use defaults if no settings found
+    if not status_colors:
+        status_colors = {
+            'scheduled': '#808080',  # Grey
+            'pending': '#4299e1',    # Blue
+            'in_progress': '#ed8936',  # Yellow
+            'cancelled': '#000000',  # Black
+            'completed': '#48bb78',  # Green
+            'overdue': '#f56565',    # Red
+        }
+    
+    # Get customers for filter dropdown
+    try:
+        from core.models import Customer
+        customers = Customer.objects.filter(is_active=True).order_by('name')
+    except Exception:
+        customers = []
+    
+    # Get user's timezone from profile
+    user_timezone = 'America/Chicago'  # Default
+    try:
+        from core.models import UserProfile
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        user_timezone = user_profile.get_user_timezone()
+    except Exception:
+        pass
+    
     # Default context - unified calendar
     context = {
         'sites': sites,
@@ -241,31 +285,26 @@ def calendar_view(request):
         'is_all_sites': is_all_sites,
         'equipment_list': equipment_list,
         'event_types': event_types,
+        'customers': customers,
         'priority_choices': CalendarEvent.PRIORITY_CHOICES,
         'selected_event_type': event_type,
         'selected_equipment': equipment_filter,
         'calendar_view': 'unified',  # Always unified now
         'view_mode': view_mode,
+        'status_colors': status_colors,  # Status colors from branding settings
+        'user_timezone': user_timezone,  # User's profile timezone
     }
 
-    # Get counts for both types of data
-    try:
-        events = CalendarEvent.objects.select_related('equipment', 'equipment__location').all()
-        context['events_count'] = events.count()
-    except Exception as e:
-        context['events_count'] = 0
-        context['events_error'] = str(e)
-
+    # Get count of maintenance activities (calendar events are just a view of maintenance activities)
     try:
         from maintenance.models import MaintenanceActivity
         activities = MaintenanceActivity.objects.select_related('equipment', 'activity_type').all()
         context['maintenance_count'] = activities.count()
+        context['total_count'] = context['maintenance_count']
     except Exception as e:
         context['maintenance_count'] = 0
+        context['total_count'] = 0
         context['maintenance_error'] = str(e)
-
-    # Total count
-    context['total_count'] = context.get('events_count', 0) + context.get('maintenance_count', 0)
 
     return render(request, 'events/calendar.html', context)
 
@@ -381,174 +420,42 @@ def event_list(request):
 
 @login_required
 def add_event(request):
-    """Add a new event linked to equipment or location."""
-    if request.method == 'POST':
-        try:
-            # Get form data
-            title = request.POST.get('title')
-            description = request.POST.get('description', '')
-            event_type = request.POST.get('event_type')
-            equipment_id = request.POST.get('equipment')
-            event_date = request.POST.get('event_date')
-            start_time = request.POST.get('start_time') or None
-            end_time = request.POST.get('end_time') or None
-            all_day = 'all_day' in request.POST
-            priority = request.POST.get('priority', 'medium')
-            assigned_to_id = request.POST.get('assigned_to') or None
-            
-            # Create the event
-            event = CalendarEvent.objects.create(
-                title=title,
-                description=description,
-                event_type=event_type,
-                equipment_id=equipment_id,
-                event_date=event_date,
-                start_time=start_time,
-                end_time=end_time,
-                all_day=all_day,
-                priority=priority,
-                assigned_to_id=assigned_to_id,
-                created_by=request.user
-            )
-            
-            # Note: Calendar events no longer automatically create maintenance activities
-            # to prevent duplication. Maintenance activities should be created directly
-            # and will automatically create calendar events.
-            messages.success(request, f'Event "{title}" created successfully!')
-            
-            return redirect('events:event_detail', event_id=event.id)
-            
-        except Exception as e:
-            messages.error(request, f'Error creating event: {str(e)}')
-            return redirect('events:add_event')
-    
-    # Get equipment and users for the form
-    equipment_list = Equipment.objects.filter(is_active=True).order_by('name')
-    from django.contrib.auth.models import User
-    users = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
-    
-    # Get activity types for the dropdown
+    """Redirect to maintenance activity creation - calendar events are now only created from maintenance activities."""
+    messages.info(request, 'Calendar events are automatically created from maintenance activities. Please create a maintenance activity instead.')
+    # Try to redirect to maintenance activity creation, fallback to list
     try:
-        from maintenance.models import MaintenanceActivityType
-        activity_types = MaintenanceActivityType.objects.filter(is_active=True).order_by('category__sort_order', 'category__name', 'name')
-        event_types = []
-        
-        # Group by category
-        current_category = None
-        for activity_type in activity_types:
-            if current_category != activity_type.category:
-                current_category = activity_type.category
-                # Add category header
-                event_types.append(('', f'--- {activity_type.category.name} ---'))
-            
-            # Add activity type
-            event_types.append((f'activity_{activity_type.id}', activity_type.name))
-                
-    except Exception as e:
-        event_types = []
-        logger.warning(f"Could not load activity types: {str(e)}")
-    
-    context = {
-        'equipment_list': equipment_list,
-        'users': users,
-        'event_types': event_types,
-        'priority_choices': CalendarEvent.PRIORITY_CHOICES,
-    }
-    return render(request, 'events/add_event.html', context)
+        return redirect('maintenance:activity_create')
+    except:
+        return redirect('maintenance:activity_list')
 
 
 @login_required
 def event_detail(request, event_id):
-    """Display detailed view of an event."""
+    """Redirect to maintenance activity detail - calendar events are now just a view of maintenance activities."""
     event = get_object_or_404(CalendarEvent, id=event_id)
-    comments = event.comments.all().order_by('-created_at')
-    attachments = event.attachments.all()
     
-    # Handle comment submission
-    if request.method == 'POST' and 'add_comment' in request.POST:
-        comment_text = request.POST.get('comment')
-        if comment_text:
-            EventComment.objects.create(
-                event=event,
-                comment=comment_text,
-                created_by=request.user
-            )
-            messages.success(request, 'Comment added successfully!')
-            return redirect('events:event_detail', event_id=event.id)
+    # If event is linked to a maintenance activity, redirect there
+    if event.maintenance_activity:
+        return redirect('maintenance:activity_detail', activity_id=event.maintenance_activity.id)
     
-    context = {
-        'event': event,
-        'comments': comments,
-        'attachments': attachments,
-    }
-    return render(request, 'events/event_detail.html', context)
+    # If no maintenance activity, show a message and redirect to calendar
+    messages.info(request, 'This calendar event is not linked to a maintenance activity. Calendar events are now only created from maintenance activities.')
+    return redirect('events:calendar_view')
 
 
 @login_required
 def edit_event(request, event_id):
-    """Edit an existing event."""
+    """Redirect to maintenance activity edit - calendar events are now only updated via maintenance activities."""
     event = get_object_or_404(CalendarEvent, id=event_id)
     
-    if request.method == 'POST':
-        try:
-            # Update event fields
-            event.title = request.POST.get('title')
-            event.description = request.POST.get('description', '')
-            event.event_type = request.POST.get('event_type')
-            event.equipment_id = request.POST.get('equipment')
-            event.event_date = request.POST.get('event_date')
-            event.start_time = request.POST.get('start_time') or None
-            event.end_time = request.POST.get('end_time') or None
-            event.all_day = 'all_day' in request.POST
-            event.priority = request.POST.get('priority', 'medium')
-            event.assigned_to_id = request.POST.get('assigned_to') or None
-            event.updated_by = request.user
-            event.save()
-            
-            # Note: Calendar events no longer automatically create maintenance activities
-            # to prevent duplication. Maintenance activities should be created directly
-            # and will automatically create calendar events.
-            messages.success(request, f'Event "{event.title}" updated successfully!')
-            
-            return redirect('events:event_detail', event_id=event.id)
-            
-        except Exception as e:
-            messages.error(request, f'Error updating event: {str(e)}')
+    # If event is linked to a maintenance activity, redirect to edit that
+    if event.maintenance_activity:
+        messages.info(request, 'Calendar events are automatically updated from maintenance activities. Editing the maintenance activity instead.')
+        return redirect('maintenance:activity_edit', activity_id=event.maintenance_activity.id)
     
-    # Get equipment and users for the form
-    equipment_list = Equipment.objects.filter(is_active=True).order_by('name')
-    from django.contrib.auth.models import User
-    users = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
-    
-    # Get activity types for the dropdown
-    try:
-        from maintenance.models import MaintenanceActivityType
-        activity_types = MaintenanceActivityType.objects.filter(is_active=True).order_by('category__sort_order', 'category__name', 'name')
-        event_types = []
-        
-        # Group by category
-        current_category = None
-        for activity_type in activity_types:
-            if current_category != activity_type.category:
-                current_category = activity_type.category
-                # Add category header
-                event_types.append(('', f'--- {activity_type.category.name} ---'))
-            
-            # Add activity type
-            event_types.append((f'activity_{activity_type.id}', activity_type.name))
-                
-    except Exception as e:
-        event_types = []
-        logger.warning(f"Could not load activity types: {str(e)}")
-    
-    context = {
-        'event': event,
-        'equipment_list': equipment_list,
-        'users': users,
-        'event_types': event_types,
-        'priority_choices': CalendarEvent.PRIORITY_CHOICES,
-    }
-    return render(request, 'events/edit_event.html', context)
+    # If no maintenance activity, redirect to calendar
+    messages.info(request, 'This calendar event is not linked to a maintenance activity. Calendar events are now only managed via maintenance activities.')
+    return redirect('events:calendar_view')
 
 
 @login_required
@@ -569,24 +476,25 @@ def complete_event(request, event_id):
 
 @login_required
 def delete_event(request, event_id):
-    """Delete a calendar event."""
+    """Redirect to maintenance activity delete - calendar events are now only deleted via maintenance activities."""
+    event = get_object_or_404(CalendarEvent, id=event_id)
+    
+    # If event is linked to a maintenance activity, redirect to delete that
+    if event.maintenance_activity:
+        messages.info(request, 'Calendar events are automatically deleted when maintenance activities are deleted. Deleting the maintenance activity instead.')
+        return redirect('maintenance:activity_delete', activity_id=event.maintenance_activity.id)
+    
+    # If no maintenance activity, allow deletion of orphaned event
     if request.method == 'POST':
-        event = get_object_or_404(CalendarEvent, id=event_id)
         event_title = event.title
-        
-        # Invalidate dashboard cache before deleting the event
-        try:
-            from core.views import invalidate_dashboard_cache
-            invalidate_dashboard_cache(user_id=request.user.id)
-        except Exception as cache_error:
-            print(f"Warning: Could not invalidate dashboard cache: {cache_error}")
-        
         event.delete()
-        
-        messages.success(request, f'Event "{event_title}" deleted successfully!')
+        messages.success(request, f'Orphaned calendar event "{event_title}" deleted successfully!')
         return redirect('events:calendar_view')
     
-    return JsonResponse({'error': 'Method not allowed'}, status=405)
+    context = {
+        'event': event,
+    }
+    return render(request, 'events/delete_event.html', context)
 
 
 @login_required
@@ -726,20 +634,48 @@ def fetch_events(request):
 def fetch_unified_events(request):
     """API endpoint to fetch both events and maintenance activities for unified calendar display."""
     try:
-        from core.models import UserProfile
+        from core.models import UserProfile, BrandingSettings
         import pytz
         
         # Get user's timezone from profile (defaults to Central)
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
         user_timezone_str = user_profile.get_user_timezone()  # Returns 'America/Chicago' by default
         
+        # Get status colors from BrandingSettings for consistency
+        status_colors = {}
+        try:
+            branding = BrandingSettings.get_active()
+            if branding:
+                status_colors = {
+                    'scheduled': branding.status_color_scheduled,
+                    'pending': branding.status_color_pending,
+                    'in_progress': branding.status_color_in_progress,
+                    'cancelled': branding.status_color_cancelled,
+                    'completed': branding.status_color_completed,
+                    'overdue': branding.status_color_overdue,
+                }
+        except Exception:
+            pass
+        
+        # Use defaults if no settings found
+        if not status_colors:
+            status_colors = {
+                'scheduled': '#808080',  # Grey
+                'pending': '#4299e1',    # Blue
+                'in_progress': '#ed8936',  # Yellow
+                'cancelled': '#000000',  # Black
+                'completed': '#48bb78',  # Green
+                'overdue': '#f56565',    # Red
+            }
+        
         start_date = request.GET.get('start')
         end_date = request.GET.get('end')
         equipment_filter = request.GET.get('equipment')
         event_type_filter = request.GET.get('event_type')
+        customer_filter = request.GET.get('customer')
         site_id = request.GET.get('site_id')
-        # Use user's timezone instead of request parameter (but allow override)
-        target_timezone = request.GET.get('timezone', user_timezone_str)  # Default to user's timezone
+        # Always use user's timezone from profile (no override needed)
+        target_timezone = user_timezone_str
         
         # Helper function to convert datetime to target timezone
         def convert_to_timezone(dt, tz_name):
@@ -756,86 +692,8 @@ def fetch_unified_events(request):
         
         calendar_events = []
         
-        # Fetch Calendar Events (excluding those that are duplicates of maintenance activities)
-        try:
-            events = CalendarEvent.objects.select_related('equipment', 'equipment__location').filter(
-                maintenance_activity__isnull=True  # Exclude events that are duplicates of maintenance activities
-            )
-            
-            # Date filtering
-            if start_date and end_date:
-                try:
-                    start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
-                    end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
-                    events = events.filter(
-                        event_date__gte=start_dt.date(),
-                        event_date__lte=end_dt.date()
-                    )
-                except ValueError:
-                    events = events.filter(
-                        event_date__gte=start_date,
-                        event_date__lte=end_date
-                    )
-            
-            # Site filtering
-            if site_id and site_id != 'all':
-                events = events.filter(
-                    Q(equipment__location__parent_location_id=site_id) | 
-                    Q(equipment__location_id=site_id)
-                )
-            
-            # Equipment filtering (multiple selection - OR logic)
-            if equipment_filter:
-                equipment_ids = [id.strip() for id in equipment_filter.split(',') if id.strip()]
-                if equipment_ids:
-                    events = events.filter(equipment_id__in=equipment_ids)
-            
-            # Event type filtering
-            if event_type_filter and not event_type_filter.startswith('maintenance_'):
-                events = events.filter(event_type=event_type_filter)
-            
-            # Convert to FullCalendar format
-            for event in events:
-                try:
-                    title = event.title
-                    if event.equipment:
-                        title = f"{event.title} - {event.equipment.name}"
-                    
-                    calendar_event = {
-                        'id': f'event_{event.id}',
-                        'title': title,
-                        'start': str(event.event_date),
-                        'allDay': event.all_day,
-                        'backgroundColor': get_event_color(event.event_type, event.priority),
-                        'borderColor': get_event_color(event.event_type, event.priority),
-                        'textColor': '#ffffff',
-                        'url': f"/events/events/{event.id}/",
-                        'extendedProps': {
-                            'type': 'event',
-                            'equipment': event.equipment.name if event.equipment else 'No equipment',
-                            'equipment_id': event.equipment.id if event.equipment else None,
-                            'location': event.equipment.location.name if event.equipment and event.equipment.location else 'No location',
-                            'priority': event.priority,
-                            'event_type': event.event_type,
-                            'assigned_to': event.assigned_to.get_full_name() if event.assigned_to else 'Unassigned',
-                            'is_completed': event.is_completed,
-                        }
-                    }
-                    
-                    # Add time information if not all day
-                    if not event.all_day and event.start_time:
-                        calendar_event['start'] = f"{event.event_date}T{event.start_time}"
-                        if event.end_time:
-                            calendar_event['end'] = f"{event.event_date}T{event.end_time}"
-                    
-                    calendar_events.append(calendar_event)
-                except Exception as e:
-                    print(f"Error processing event {event.id}: {str(e)}")
-                    continue
-        except Exception as e:
-            print(f"Error fetching events: {str(e)}")
-        
-        # Fetch Maintenance Activities
+        # Only fetch Maintenance Activities - calendar events are now just a view of maintenance activities
+        # Calendar events are automatically created/updated/deleted via signals when maintenance activities change
         try:
             from maintenance.models import MaintenanceActivity
             activities = MaintenanceActivity.objects.select_related('equipment', 'activity_type', 'assigned_to')
@@ -875,6 +733,18 @@ def fetch_unified_events(request):
                 activity_type_id = event_type_filter.replace('activity_', '')
                 activities = activities.filter(activity_type_id=activity_type_id)
             
+            # Customer filtering
+            if customer_filter:
+                try:
+                    customer_id = int(customer_filter)
+                    # Filter by customer through equipment location
+                    activities = activities.filter(
+                        Q(equipment__location__customer_id=customer_id) |
+                        Q(equipment__location__parent_location__customer_id=customer_id)
+                    )
+                except (ValueError, TypeError):
+                    pass  # Invalid customer ID, ignore filter
+            
             # Convert to FullCalendar format
             for activity in activities:
                 try:
@@ -882,15 +752,19 @@ def fetch_unified_events(request):
                     if activity.equipment:
                         title = f"{activity.title} - {activity.equipment.name}"
                     
-                    # Determine color based on status
+                    # Determine color based on status using branding settings
                     if activity.status == 'scheduled':
-                        bg_color = '#4299e1'
+                        bg_color = status_colors.get('scheduled', '#808080')
                     elif activity.status == 'overdue':
-                        bg_color = '#dc3545'
+                        bg_color = status_colors.get('overdue', '#f56565')
                     elif activity.status == 'completed':
-                        bg_color = '#28a745'
+                        bg_color = status_colors.get('completed', '#48bb78')
                     elif activity.status == 'in_progress':
-                        bg_color = '#ffc107'
+                        bg_color = status_colors.get('in_progress', '#ed8936')
+                    elif activity.status == 'pending':
+                        bg_color = status_colors.get('pending', '#4299e1')
+                    elif activity.status == 'cancelled':
+                        bg_color = status_colors.get('cancelled', '#000000')
                     else:
                         bg_color = '#6c757d'
                     
@@ -914,6 +788,13 @@ def fetch_unified_events(request):
                     else:
                         scheduled_end_utc = None
                     
+                    # Get customer ID from equipment location
+                    customer_id = None
+                    if activity.equipment and activity.equipment.location:
+                        customer_id = activity.equipment.location.get_effective_customer()
+                        if customer_id:
+                            customer_id = customer_id.id
+                    
                     calendar_event = {
                         'id': f'activity_{activity.id}',
                         'title': title,
@@ -929,6 +810,7 @@ def fetch_unified_events(request):
                             'equipment': activity.equipment.name if activity.equipment else 'No equipment',
                             'equipment_id': activity.equipment.id if activity.equipment else None,
                             'location': activity.equipment.location.name if activity.equipment and activity.equipment.location else 'No location',
+                            'customer_id': customer_id,
                             'priority': activity.priority,
                             'activity_type': activity.activity_type.name if activity.activity_type else 'N/A',
                             'activity_type_id': activity.activity_type.id if activity.activity_type else None,

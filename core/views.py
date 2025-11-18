@@ -36,11 +36,6 @@ import redis
 from django_celery_beat.models import PeriodicTask
 import requests
 from django.test import RequestFactory
-# from .models import PlaywrightDebugLog  # DEPRECATED
-# from core.tasks import run_playwright_debug  # DEPRECATED - Playwright removed
-# from .playwright_orchestrator import run_natural_language_test, run_rbac_test_suite  # DEPRECATED
-# from .tasks import run_natural_language_test_task, run_rbac_test_suite_task  # DEPRECATED
-# import asyncio  # Only used for playwright
 from django.contrib.admin.views.decorators import staff_member_required
 import hmac
 import hashlib
@@ -143,17 +138,45 @@ def dashboard(request):
         )
         
         # Get locations (pods) with natural sorting and prefetch related data
-        # Limit prefetch to avoid loading excessive data
-        locations_queryset = Location.objects.filter(
+        # CRITICAL: Must get IDs first, then prefetch only those to avoid loading excessive data
+        # This prevents loading 1000+ locations when we only need 100
+        # Step 1: Get just the IDs of locations (no prefetch, very fast)
+        location_ids_queryset = Location.objects.filter(
             parent_location=selected_site,
             is_active=True
-        ).select_related('parent_location', 'customer').prefetch_related(
-            Prefetch('equipment', queryset=Equipment.objects.select_related('category')[:50]),  # Limit equipment per location
-            Prefetch('equipment__maintenance_activities', 
-                    queryset=MaintenanceActivity.objects.select_related('assigned_to').order_by('-scheduled_start')[:10])  # Limit activities per equipment
-        )
-        locations = list(locations_queryset[:100])  # Limit total locations
-        locations.sort(key=lambda loc: natural_sort_key(loc.name))
+        ).values_list('id', flat=True)
+        
+        # Get all IDs and sort them (we'll sort by name after loading)
+        all_location_ids = list(location_ids_queryset)
+        
+        # Limit to 100 IDs before doing expensive prefetch operations
+        limited_location_ids = all_location_ids[:100]
+        
+        # Step 2: Now load only those 100 locations with full prefetch
+        # This way we only prefetch data for the locations we'll actually use
+        if limited_location_ids:
+            from django.db.models import Prefetch
+            from maintenance.models import MaintenanceActivity
+            
+            # Use Prefetch objects to ensure no slices are applied to prefetch querysets
+            # Must use explicit queryset to avoid any default manager slices
+            # Create explicit queryset for maintenance activities with no slices
+            maintenance_activities_qs = MaintenanceActivity.objects.select_related('assigned_to').all()
+            
+            locations_queryset = Location.objects.filter(
+                id__in=limited_location_ids
+            ).select_related('parent_location', 'customer').prefetch_related(
+                'equipment',  # Simple prefetch without slice
+                'equipment__category',  # Prefetch category for equipment
+                Prefetch(
+                    'equipment__maintenance_activities',
+                    queryset=maintenance_activities_qs
+                )
+            )
+            locations = list(locations_queryset)
+            locations.sort(key=lambda loc: natural_sort_key(loc.name))
+        else:
+            locations = []
         
     else:
         # Global queries
@@ -167,11 +190,12 @@ def dashboard(request):
         )
         
         # Show top-level locations if no site selected
+        # Evaluate queryset first to avoid prefetch issues
         locations_queryset = Location.objects.filter(
             is_site=False,
             is_active=True
-        ).select_related('parent_location', 'customer')[:8]
-        locations = list(locations_queryset)
+        ).select_related('parent_location', 'customer')
+        locations = list(locations_queryset[:8])  # Limit after evaluation
         locations.sort(key=lambda loc: natural_sort_key(loc.name))
     
     # ===== BULK STATISTICS CALCULATION =====
@@ -192,14 +216,14 @@ def dashboard(request):
     upcoming_cutoff = today + timedelta(days=upcoming_days)
     
     # Calculate urgent items with single queries - only show maintenance activities to avoid duplication
-    # Include overdue items (scheduled_end < now) and pending/in_progress items due within configured days
+    # Include overdue items (scheduled_start < now) and pending/in_progress/scheduled items due within configured days
     # Limit queries to prevent loading too much data
     max_items = 200  # Reasonable limit to prevent excessive memory usage
     now = timezone.now()
     urgent_maintenance_all = list(maintenance_query.filter(
         Q(status='overdue') |  # Items explicitly marked as overdue
-        (Q(scheduled_end__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past due date (overdue)
-        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['pending', 'in_progress']))  # Urgent pending/in_progress items
+        (Q(scheduled_start__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past scheduled start date (overdue) - count on Day of Schedule start
+        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['pending', 'in_progress', 'scheduled']))  # Urgent pending/in_progress/scheduled items
     ).order_by('scheduled_end')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
@@ -214,7 +238,7 @@ def dashboard(request):
     upcoming_maintenance_all = list(maintenance_query.filter(
         scheduled_end__gt=urgent_cutoff,
         scheduled_end__lte=upcoming_cutoff,
-        status__in=['pending', 'scheduled']
+        status__in=['pending', 'scheduled', 'in_progress']  # Include scheduled and in_progress statuses
     ).order_by('scheduled_end')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
@@ -225,12 +249,23 @@ def dashboard(request):
         maintenance_activity__isnull=True  # Only show calendar events NOT synced with maintenance
     ).order_by('event_date')[:max_items])
     
+    # Calculate active items (in_progress and pending statuses) - all active items regardless of date
+    active_maintenance_all = list(maintenance_query.filter(
+        status__in=['in_progress', 'pending']
+    ).order_by('-scheduled_start', '-created_at')[:max_items])
+    
+    # Filter out calendar events that are synced with maintenance activities to avoid duplication
+    # Note: Calendar events don't have in_progress/pending status, so we'll only show maintenance activities for active items
+    active_calendar_all = []  # Calendar events don't have in_progress/pending status
+    
     # Group items by site if enabled
     group_by_site = dashboard_settings.group_urgent_by_site if dashboard_settings else True
     urgent_maintenance_by_site = {}
     urgent_calendar_by_site = {}
     upcoming_maintenance_by_site = {}
     upcoming_calendar_by_site = {}
+    active_maintenance_by_site = {}
+    active_calendar_by_site = {}
     
     if group_by_site and is_all_sites:
         # Build site mapping dictionary to avoid N+1 queries
@@ -248,6 +283,9 @@ def dashboard(request):
         for event in upcoming_calendar_all:
             if event.equipment and event.equipment.location:
                 location_ids.add(event.equipment.location.id)
+        for item in active_maintenance_all:
+            if item.equipment and item.equipment.location:
+                location_ids.add(item.equipment.location.id)
         
         # Fetch all locations with prefetched parent relationships
         locations_with_parents = Location.objects.filter(id__in=location_ids).select_related('parent_location')
@@ -301,16 +339,32 @@ def dashboard(request):
                     upcoming_calendar_by_site[site_name] = []
                 if len(upcoming_calendar_by_site[site_name]) < (dashboard_settings.max_upcoming_items_per_site if dashboard_settings else 15):
                     upcoming_calendar_by_site[site_name].append(event)
+        
+        # Group active maintenance by site
+        group_active = dashboard_settings.group_active_by_site if dashboard_settings else True
+        if group_active:
+            for item in active_maintenance_all:
+                if item.equipment and item.equipment.location:
+                    site_name = location_to_site.get(item.equipment.location.id, "Unknown Site")
+                else:
+                    site_name = "Unknown Site"
+                if site_name not in active_maintenance_by_site:
+                    active_maintenance_by_site[site_name] = []
+                if len(active_maintenance_by_site[site_name]) < (dashboard_settings.max_active_items_per_site if dashboard_settings else 15):
+                    active_maintenance_by_site[site_name].append(item)
     
     # For backwards compatibility, keep flat lists
     urgent_maintenance = urgent_maintenance_all[:dashboard_settings.max_urgent_items_total if dashboard_settings else 50]
     urgent_calendar = urgent_calendar_all[:10]
     upcoming_maintenance = upcoming_maintenance_all[:dashboard_settings.max_upcoming_items_total if dashboard_settings else 50]
     upcoming_calendar = upcoming_calendar_all[:10]
+    active_maintenance = active_maintenance_all[:dashboard_settings.max_active_items_total if dashboard_settings else 50]
+    active_calendar = active_calendar_all[:10]
     
     # Calculate total counts for grouped items
     urgent_total_count = 0
     upcoming_total_count = 0
+    active_total_count = 0
     
     if group_by_site and is_all_sites:
         # Count from grouped data
@@ -324,10 +378,17 @@ def dashboard(request):
                 upcoming_total_count += len(site_items)
             for site_events in upcoming_calendar_by_site.values():
                 upcoming_total_count += len(site_events)
+        
+        # Count active items from grouped data
+        group_active = dashboard_settings.group_active_by_site if dashboard_settings else True
+        if group_active:
+            for site_items in active_maintenance_by_site.values():
+                active_total_count += len(site_items)
     else:
         # Count from flat lists
         urgent_total_count = len(urgent_maintenance) + len(urgent_calendar)
         upcoming_total_count = len(upcoming_maintenance) + len(upcoming_calendar)
+        active_total_count = len(active_maintenance) + len(active_calendar)
     
     # ===== OPTIMIZED OVERVIEW DATA CALCULATION =====
     
@@ -366,12 +427,21 @@ def dashboard(request):
             active_equipment = sum(1 for eq in location_equipment if eq.status == 'active')
             total_equipment = len(location_equipment)
             
-            # Calculate maintenance counts
+            # Calculate IN MAINT count: equipment in maintenance OR maintenance activities in progress
+            in_maint_count = equipment_in_maintenance
+            in_maint_count += sum(
+                1 for ma in location_maintenance
+                if ma.status == 'in_progress' and ma.equipment and ma.equipment.status != 'maintenance'
+            )
+            
+            # Calculate UPCOMING count: maintenance activities scheduled within upcoming_cutoff
+            # upcoming_cutoff is configured in Dashboard Settings (default: 30 days)
+            # This matches the same setting used for the "Upcoming Items" section on the overview page
             upcoming_maintenance_count = sum(
                 1 for ma in location_maintenance
                 if (ma.scheduled_start and 
-                    today <= ma.scheduled_start.date() <= urgent_cutoff and
-                    ma.status in ['scheduled', 'pending'])
+                    today <= ma.scheduled_start.date() <= upcoming_cutoff and
+                    ma.status in ['scheduled', 'pending', 'in_progress'])
             )
             
             # Get recent activities (filter out any that might have been deleted)
@@ -420,6 +490,7 @@ def dashboard(request):
                 'total_equipment': total_equipment,
                 'active_equipment': active_equipment,
                 'equipment_in_maintenance': equipment_in_maintenance,
+                'in_maint_count': in_maint_count,  # Total count including in_progress activities
                 'upcoming_maintenance_count': upcoming_maintenance_count,
                 'recent_activities': recent_activities,
                 'next_events': next_events,
@@ -478,24 +549,30 @@ def dashboard(request):
             if site_id:
                 if site_id not in site_equipment_lookup:
                     site_equipment_lookup[site_id] = {}
-                site_equipment_lookup[site_id][item['status']] = item['count']
+                # Sum counts for the same status from different locations within the same site
+                status = item['status']
+                site_equipment_lookup[site_id][status] = site_equipment_lookup[site_id].get(status, 0) + item['count']
         
         for item in maintenance_by_site:
             site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
             if site_id:
                 if site_id not in site_maintenance_lookup:
                     site_maintenance_lookup[site_id] = {}
-                site_maintenance_lookup[site_id][item['status']] = item['count']
+                # Sum counts for the same status from different locations within the same site
+                status = item['status']
+                site_maintenance_lookup[site_id][status] = site_maintenance_lookup[site_id].get(status, 0) + item['count']
         
         for item in overdue_by_site:
             site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
             if site_id:
-                site_overdue_lookup[site_id] = item['count']
+                # Sum counts from different locations within the same site
+                site_overdue_lookup[site_id] = site_overdue_lookup.get(site_id, 0) + item['count']
         
         for item in upcoming_by_site:
             site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
             if site_id:
-                site_upcoming_lookup[site_id] = item['count']
+                # Sum counts from different locations within the same site
+                site_upcoming_lookup[site_id] = site_upcoming_lookup.get(site_id, 0) + item['count']
         
         # Bulk fetch recent activities and events for ALL sites at once (avoid N+1 queries)
         all_site_ids = [site.id for site in all_sites]
@@ -542,7 +619,8 @@ def dashboard(request):
         for item in calendar_totals:
             site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
             if site_id in calendar_counts_by_site:
-                calendar_counts_by_site[site_id]['total'] = item['count']
+                # Sum counts from different locations within the same site
+                calendar_counts_by_site[site_id]['total'] = calendar_counts_by_site[site_id].get('total', 0) + item['count']
         
         # Get completed counts per site (single query)
         calendar_completed = CalendarEvent.objects.filter(
@@ -553,7 +631,8 @@ def dashboard(request):
         for item in calendar_completed:
             site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
             if site_id in calendar_counts_by_site:
-                calendar_counts_by_site[site_id]['completed'] = item['count']
+                # Sum counts from different locations within the same site
+                calendar_counts_by_site[site_id]['completed'] = calendar_counts_by_site[site_id].get('completed', 0) + item['count']
         
         # Get pending counts per site (single query)
         calendar_pending = CalendarEvent.objects.filter(
@@ -565,7 +644,8 @@ def dashboard(request):
         for item in calendar_pending:
             site_id = item.get('equipment__location__parent_location_id') or item.get('equipment__location_id')
             if site_id in calendar_counts_by_site:
-                calendar_counts_by_site[site_id]['pending'] = item['count']
+                # Sum counts from different locations within the same site
+                calendar_counts_by_site[site_id]['pending'] = calendar_counts_by_site[site_id].get('pending', 0) + item['count']
         
         # Bulk fetch pod counts for all sites
         pod_counts = Location.objects.filter(
@@ -707,6 +787,34 @@ def dashboard(request):
     else:
         site_health = 'good'
     
+    # Get status colors from BrandingSettings (moved from DashboardSettings for consistency)
+    status_colors = {}
+    try:
+        from core.models import BrandingSettings
+        branding = BrandingSettings.get_active()
+        if branding:
+            status_colors = {
+                'scheduled': branding.status_color_scheduled,
+                'pending': branding.status_color_pending,
+                'in_progress': branding.status_color_in_progress,
+                'cancelled': branding.status_color_cancelled,
+                'completed': branding.status_color_completed,
+                'overdue': branding.status_color_overdue,
+            }
+    except Exception:
+        pass
+    
+    # Use defaults if no settings found
+    if not status_colors:
+        status_colors = {
+            'scheduled': '#808080',  # Grey
+            'pending': '#4299e1',    # Blue
+            'in_progress': '#ed8936',  # Yellow
+            'cancelled': '#000000',  # Black
+            'completed': '#48bb78',  # Green
+            'overdue': '#f56565',    # Red
+        }
+    
     # Build final context
     context = {
         'sites': sites,
@@ -715,6 +823,11 @@ def dashboard(request):
         'is_all_sites': is_all_sites,
         'site_health': site_health,
         'site_stats': site_stats,
+        'active_maintenance': active_maintenance,
+        'active_calendar': active_calendar,
+        'active_maintenance_by_site': active_maintenance_by_site,
+        'active_calendar_by_site': active_calendar_by_site,
+        'active_total_count': active_total_count,
         
         # Urgent and upcoming items
         'urgent_maintenance': urgent_maintenance,
@@ -734,6 +847,9 @@ def dashboard(request):
         
         # Dashboard settings
         'dashboard_settings': dashboard_settings,
+        
+        # Status colors for overview page
+        'status_colors': status_colors,
         
         # Overview data (either pods or sites based on selection)
         'overview_data': overview_data,
@@ -841,16 +957,16 @@ def invalidate_dashboard_cache(user_id=None, site_id=None):
             cache_key = f"dashboard_data_all_{user_id}"
             cache.delete(cache_key)
         else:
-            # Invalidate all dashboard caches for this user (use with caution)
-            # Since Django cache doesn't support pattern deletion, we'll clear common cache keys
-            for i in range(100):  # Reasonable upper limit for user IDs
-                cache.delete(f"dashboard_data_all_{i}")
-                # Also clear some common site-specific caches
-                for site_id_val in range(1, 100):  # Reasonable upper limit for site IDs
-                    cache.delete(f"dashboard_data_{site_id_val}_{i}")
+            # Invalidate all dashboard caches for this specific user only
+            # Clear the 'all' cache and common site-specific caches for this user
+            cache.delete(f"dashboard_data_all_{user_id}")
+            # Clear site-specific caches for this user (limit to reasonable range)
+            for site_id_val in range(1, 100):  # Reasonable upper limit for site IDs
+                cache.delete(f"dashboard_data_{site_id_val}_{user_id}")
     else:
-        # Invalidate all dashboard caches (use with caution)
+        # Invalidate all dashboard caches (use with caution - can be slow)
         # Since Django cache doesn't support pattern deletion, we'll clear common cache keys
+        # This is expensive, so prefer passing user_id when possible
         for i in range(100):  # Reasonable upper limit for user IDs
             cache.delete(f"dashboard_data_all_{i}")
             # Also clear some common site-specific caches
@@ -3078,48 +3194,6 @@ def api_explorer(request):
                 'description': 'Get all roles and permissions',
                 'auth_required': True
             },
-            {
-                'name': 'Playwright Debug API',
-                'url': reverse('core:playwright_debug_api'),
-                'method': 'GET/POST',
-                'description': 'Playwright test execution and debugging',
-                'auth_required': True
-            },
-            {
-                'name': 'Natural Language Test API',
-                'url': reverse('core:run_natural_language_test_api'),
-                'method': 'POST',
-                'description': 'Execute natural language Playwright tests',
-                'auth_required': True
-            },
-            {
-                'name': 'RBAC Test Suite API',
-                'url': reverse('core:run_rbac_test_suite_api'),
-                'method': 'POST',
-                'description': 'Execute RBAC test suite',
-                'auth_required': True
-            },
-            {
-                'name': 'Test Results API',
-                'url': reverse('core:get_test_results_api'),
-                'method': 'GET',
-                'description': 'Get Playwright test results',
-                'auth_required': True
-            },
-            {
-                'name': 'Test Screenshots API',
-                'url': reverse('core:get_test_screenshots_api'),
-                'method': 'GET',
-                'description': 'Get Playwright test screenshots',
-                'auth_required': True
-            },
-            {
-                'name': 'Test Scenario API',
-                'url': reverse('core:run_test_scenario_api'),
-                'method': 'POST',
-                'description': 'Execute specific test scenarios',
-                'auth_required': True
-            }
         ],
         
         # System Information
@@ -3450,40 +3524,6 @@ def generate_mdcs(request):
         }, status=500)
 
 
-@csrf_exempt
-@require_http_methods(["GET", "POST"])
-def playwright_debug_api(request):
-    if request.method == "GET":
-        # Return the latest 10 logs
-        logs = PlaywrightDebugLog.objects.all()[:10]
-        return JsonResponse({
-            "logs": [
-                {
-                    "id": log.id,
-                    "timestamp": log.timestamp,
-                    "prompt": log.prompt,
-                    "status": log.status,
-                    "output": log.output,
-                    "error_message": log.error_message,
-                    "result_json": log.result_json,
-                    "started_at": log.started_at,
-                    "finished_at": log.finished_at,
-                }
-                for log in logs
-            ]
-        })
-    elif request.method == "POST":
-        import json
-        data = json.loads(request.body.decode())
-        prompt = data.get("prompt", "").strip()
-        if not prompt:
-            return JsonResponse({"error": "Prompt is required."}, status=400)
-        log = PlaywrightDebugLog.objects.create(prompt=prompt, status="pending")
-        # Trigger Celery task
-        run_playwright_debug.delay(log.id)
-        return JsonResponse({"id": log.id, "status": log.status, "prompt": log.prompt})
-
-
 @login_required
 @user_passes_test(is_staff_or_superuser)
 @require_http_methods(["POST"])
@@ -3671,10 +3711,18 @@ def clear_maintenance_activities_api(request):
                             cursor.execute(f"DELETE FROM maintenance_maintenancetimelineentry WHERE activity_id IN ({ids_str})")
                             cursor.execute(f"DELETE FROM maintenance_maintenancechecklist WHERE activity_id IN ({ids_str})")
                             cursor.execute(f"DELETE FROM maintenance_maintenancereport WHERE maintenance_activity_id IN ({ids_str})")
+                            # Delete calendar events (must be done before activities)
                             try:
                                 cursor.execute(f"DELETE FROM events_calendarevent WHERE maintenance_activity_id IN ({ids_str})")
-                            except:
-                                pass
+                                logger.info(f"Background: Deleted {cursor.rowcount} calendar events via SQL")
+                            except Exception as e:
+                                logger.warning(f"Background: Could not delete calendar events via SQL: {str(e)}")
+                                # Try to delete via ORM as fallback
+                                try:
+                                    from events.models import CalendarEvent
+                                    CalendarEvent.objects.filter(maintenance_activity_id__in=activity_ids).delete()
+                                except Exception as e2:
+                                    logger.error(f"Background: Could not delete calendar events via ORM either: {str(e2)}")
                             cursor.execute(f"DELETE FROM maintenance_maintenanceactivity WHERE id IN ({ids_str})")
                         logger.info(f"Fast SQL deletion completed: {len(activity_ids)} activities")
                     else:
@@ -3726,11 +3774,18 @@ def clear_maintenance_activities_api(request):
                         # Delete reports
                         cursor.execute(f"DELETE FROM maintenance_maintenancereport WHERE maintenance_activity_id IN ({ids_str})")
                         
-                        # Delete calendar events if they exist
+                        # Delete calendar events if they exist (must be done before activities)
                         try:
-                            cursor.execute(f"DELETE FROM events_calendarevent WHERE maintenance_activity_id IN ({ids_str})")
-                        except:
-                            pass  # Table might not exist or column might be different
+                            deleted_events = cursor.execute(f"DELETE FROM events_calendarevent WHERE maintenance_activity_id IN ({ids_str})")
+                            logger.info(f"Deleted {cursor.rowcount} calendar events via SQL")
+                        except Exception as e:
+                            logger.warning(f"Could not delete calendar events via SQL: {str(e)}")
+                            # Try to delete via ORM as fallback
+                            try:
+                                from events.models import CalendarEvent
+                                CalendarEvent.objects.filter(maintenance_activity_id__in=activity_ids).delete()
+                            except Exception as e2:
+                                logger.error(f"Could not delete calendar events via ORM either: {str(e2)}")
                         
                         # Finally delete the activities themselves
                         cursor.execute(f"DELETE FROM maintenance_maintenanceactivity WHERE id IN ({ids_str})")
@@ -3898,122 +3953,213 @@ def clear_database(request):
         }, status=500)
 
 
-@csrf_exempt
-@require_http_methods(["POST"])
-def run_natural_language_test_api(request):
-    """
-    Run a natural language test via API.
+@login_required
+def system_health_check(request):
+    """System health check endpoint for debugging issues."""
+    if not request.user.is_superuser:
+        return JsonResponse({'error': 'Access denied'}, status=403)
     
-    Expected JSON payload:
-    {
-        "prompt": "Clear database with keep users option",
-        "user_role": "admin",
-        "username": "admin",
-        "password": "temppass123",
-        "async": false
+    health_data = {
+        'timestamp': timezone.now().isoformat(),
+        'categories': {},
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0,
+            'health_percentage': 0
+        },
+        'quick_fixes': []
     }
-    """
-    import json
-    try:
-        data = json.loads(request.body)
-        prompt = data.get('prompt', '')
-        user_role = data.get('user_role', 'admin')
-        username = data.get('username', 'admin')
-        password = data.get('password', 'temppass123')
-        run_async = data.get('async', False)
-        if not prompt:
-            return JsonResponse({'success': False, 'error': 'Prompt is required'}, status=400)
-        
-        if run_async:
-            # Run as Celery task
-            task = run_natural_language_test_task.delay(
-                prompt=prompt,
-                user_role=user_role,
-                username=username,
-                password=password
-            )
-            
-            return JsonResponse({
-                'success': True,
-                'task_id': task.id,
-                'status': 'queued',
-                'message': 'Test queued for execution'
-            })
-        else:
-            # Run synchronously
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                result = loop.run_until_complete(
-                    run_natural_language_test(prompt, user_role, username, password)
-                )
-                
-                return JsonResponse({
-                    'success': True,
-                    'result': result,
-                    'status': 'completed'
-                })
-            finally:
-                loop.close()
-                
-    except json.JSONDecodeError:
-        return JsonResponse({'success': False, 'error': 'Invalid JSON payload'}, status=400)
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def run_rbac_test_suite_api(request):
-    """
-    Run comprehensive RBAC test suite via API.
     
-    Expected JSON payload:
-    {
-        "async": false
-    }
-    """
-    try:
-        data = json.loads(request.body) if request.body else {}
-        run_async = data.get('async', False)
-        
-        if run_async:
-            # Run as Celery task
-            task = run_rbac_test_suite_task.delay()
-            
-            return JsonResponse({
-                'success': True,
-                'task_id': task.id,
-                'status': 'queued',
-                'message': 'RBAC test suite queued for execution'
-            })
-        else:
-            # Run synchronously
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                result = loop.run_until_complete(run_rbac_test_suite())
-                
-                return JsonResponse({
-                    'success': True,
-                    'result': result,
-                    'status': 'completed'
+    def run_check(category, check_name, test_func, fix_suggestion=None):
+        """Run a health check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
                 })
-            finally:
-                loop.close()
-                
-    except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'error': 'Invalid JSON payload'
-        }, status=400)
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['failed'].append({
+                    'name': check_name,
+                    'status': 'FAIL',
+                    'fix': fix_suggestion
+                })
+                health_data['summary']['failed'] += 1
+                if fix_suggestion:
+                    health_data['quick_fixes'].append(fix_suggestion)
+        except Exception as e:
+            health_data['categories'][category]['failed'].append({
+                'name': check_name,
+                'status': 'ERROR',
+                'error': str(e),
+                'fix': fix_suggestion
+            })
+            health_data['summary']['failed'] += 1
+            if fix_suggestion:
+                health_data['quick_fixes'].append(fix_suggestion)
+        
+        health_data['summary']['total_checks'] += 1
+    
+    def run_warning_check(category, check_name, test_func, warning_message=None):
+        """Run a warning check and record results."""
+        try:
+            result = test_func()
+            if result:
+                health_data['categories'][category]['passed'].append({
+                    'name': check_name,
+                    'status': 'PASS'
+                })
+                health_data['summary']['passed'] += 1
+            else:
+                health_data['categories'][category]['warnings'].append({
+                    'name': check_name,
+                    'status': 'WARNING',
+                    'message': warning_message
+                })
+                health_data['summary']['warnings'] += 1
+        except Exception as e:
+            health_data['categories'][category]['warnings'].append({
+                'name': check_name,
+                'status': 'WARNING',
+                'error': str(e),
+                'message': warning_message
+            })
+            health_data['summary']['warnings'] += 1
+        
+        health_data['summary']['total_checks'] += 1
+    
+    # Initialize categories
+    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
+    for category in categories:
+        health_data['categories'][category] = {
+            'passed': [],
+            'failed': [],
+            'warnings': []
+        }
+    
+    # CORE APPLICATION HEALTH
+    run_check('CORE', 'Django Configuration', 
+              lambda: True,  # Simplified for now
+              'Check Django settings and configuration')
+    
+    run_check('CORE', 'Database Connection',
+              lambda: connection.cursor().execute('SELECT 1') is not None,
+              'Check database connectivity and credentials')
+    
+    # DATABASE SCHEMA INTEGRITY
+    run_check('SCHEMA', 'MaintenanceActivity Model',
+              lambda: MaintenanceActivity.objects.count() >= 0,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    run_check('SCHEMA', 'Timezone Field Exists',
+              lambda: hasattr(MaintenanceActivity, 'timezone'),
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    try:
+        from events.models import CalendarEvent
+        run_check('SCHEMA', 'CalendarEvent Model',
+                  lambda: CalendarEvent.objects.count() >= 0,
+                  'Check events app migrations')
+    except ImportError:
+        health_data['categories']['SCHEMA']['failed'].append({
+            'name': 'CalendarEvent Model',
+            'status': 'ERROR',
+            'error': 'CalendarEvent model not found',
+            'fix': 'Check events app migrations'
+        })
+        health_data['summary']['failed'] += 1
+        health_data['summary']['total_checks'] += 1
+    
+    # API ENDPOINTS FUNCTIONALITY
+    def test_unified_events_api():
+        try:
+            from events.views import fetch_unified_events
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
+            test_request.user = request.user
+            
+            response = fetch_unified_events(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('API', 'fetch_unified_events API',
+              test_unified_events_api,
+              'Run: ./scripts/simple_timezone_fix.sh')
+    
+    # CALENDAR SPECIFIC ISSUES
+    def test_calendar_view():
+        try:
+            from events.views import calendar_view
+            from django.test import RequestFactory
+            
+            factory = RequestFactory()
+            test_request = factory.get('/events/calendar/')
+            test_request.user = request.user
+            
+            response = calendar_view(test_request)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    run_check('CALENDAR', 'Calendar View Renders',
+              test_calendar_view,
+              'Check calendar view and template rendering')
+    
+    run_warning_check('CALENDAR', 'Maintenance Activities Count',
+                      lambda: MaintenanceActivity.objects.count() > 0,
+                      'No maintenance activities found - calendar may appear empty')
+    
+    # USER AUTHENTICATION
+    run_check('AUTH', 'Admin User Exists',
+              lambda: User.objects.filter(is_superuser=True).exists(),
+              'Create admin user: python manage.py createsuperuser')
+    
+    # EXTERNAL DEPENDENCIES
+    def test_redis():
+        try:
+            from django.core.cache import cache
+            cache.set('health_test', 'value')
+            return cache.get('health_test') == 'value'
+        except Exception:
+            return False
+    
+    run_check('DEPS', 'Redis Connection',
+              test_redis,
+              'Check Redis server connectivity')
+    
+    # Calculate health percentage
+    if health_data['summary']['total_checks'] > 0:
+        health_data['summary']['health_percentage'] = round(
+            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
+        )
+    
+    # Determine overall health status
+    if health_data['summary']['health_percentage'] >= 90:
+        health_data['summary']['status'] = 'EXCELLENT'
+    elif health_data['summary']['health_percentage'] >= 75:
+        health_data['summary']['status'] = 'GOOD'
+    elif health_data['summary']['health_percentage'] >= 50:
+        health_data['summary']['status'] = 'MODERATE'
+    else:
+        health_data['summary']['status'] = 'CRITICAL'
+    
+    return JsonResponse(health_data)
 
+
+@login_required
+def health_check_view(request):
+    """Render the health check interface."""
+    if not request.user.is_superuser:
+        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
+    
+    return render(request, 'core/health_check.html')
 
 @login_required
 def system_health_check(request):
@@ -4223,343 +4369,6 @@ def health_check_view(request):
     
     return render(request, 'core/health_check.html')
 
-@csrf_exempt
-@require_http_methods(["GET"])
-def get_test_results_api(request):
-    """
-    Get test results and logs.
-    
-    Query parameters:
-    - log_id: Specific log ID to retrieve
-    - limit: Number of recent logs to retrieve (default: 10)
-    - status: Filter by status (pending, running, done, error)
-    """
-    try:
-        log_id = request.GET.get('log_id')
-        limit = int(request.GET.get('limit', 10))
-        status = request.GET.get('status')
-        
-        if log_id:
-            # Get specific log
-            try:
-                log = PlaywrightDebugLog.objects.get(id=log_id)
-                return JsonResponse({
-                    'success': True,
-                    'log': {
-                        'id': log.id,
-                        'prompt': log.prompt,
-                        'status': log.status,
-                        'started_at': log.started_at.isoformat() if log.started_at else None,
-                        'finished_at': log.finished_at.isoformat() if log.finished_at else None,
-                        'output': log.output,
-                        'result_json': log.result_json,
-                        'error_message': log.error_message
-                    }
-                })
-            except PlaywrightDebugLog.DoesNotExist:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Log not found'
-                }, status=404)
-        else:
-            # Get recent logs
-            queryset = PlaywrightDebugLog.objects.all().order_by('-created_at')
-            
-            if status:
-                queryset = queryset.filter(status=status)
-            
-            logs = queryset[:limit]
-            
-            return JsonResponse({
-                'success': True,
-                'logs': [{
-                    'id': log.id,
-                    'prompt': log.prompt,
-                    'status': log.status,
-                    'started_at': log.started_at.isoformat() if log.started_at else None,
-                    'finished_at': log.finished_at.isoformat() if log.finished_at else None,
-                    'created_at': log.created_at.isoformat(),
-                    'error_message': log.error_message
-                } for log in logs]
-            })
-            
-    except ValueError:
-        return JsonResponse({
-            'success': False,
-            'error': 'Invalid limit parameter'
-        }, status=400)
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
-
-@login_required
-def system_health_check(request):
-    """System health check endpoint for debugging issues."""
-    if not request.user.is_superuser:
-        return JsonResponse({'error': 'Access denied'}, status=403)
-    
-    health_data = {
-        'timestamp': timezone.now().isoformat(),
-        'categories': {},
-        'summary': {
-            'total_checks': 0,
-            'passed': 0,
-            'failed': 0,
-            'warnings': 0,
-            'health_percentage': 0
-        },
-        'quick_fixes': []
-    }
-    
-    def run_check(category, check_name, test_func, fix_suggestion=None):
-        """Run a health check and record results."""
-        try:
-            result = test_func()
-            if result:
-                health_data['categories'][category]['passed'].append({
-                    'name': check_name,
-                    'status': 'PASS'
-                })
-                health_data['summary']['passed'] += 1
-            else:
-                health_data['categories'][category]['failed'].append({
-                    'name': check_name,
-                    'status': 'FAIL',
-                    'fix': fix_suggestion
-                })
-                health_data['summary']['failed'] += 1
-                if fix_suggestion:
-                    health_data['quick_fixes'].append(fix_suggestion)
-        except Exception as e:
-            health_data['categories'][category]['failed'].append({
-                'name': check_name,
-                'status': 'ERROR',
-                'error': str(e),
-                'fix': fix_suggestion
-            })
-            health_data['summary']['failed'] += 1
-            if fix_suggestion:
-                health_data['quick_fixes'].append(fix_suggestion)
-        
-        health_data['summary']['total_checks'] += 1
-    
-    def run_warning_check(category, check_name, test_func, warning_message=None):
-        """Run a warning check and record results."""
-        try:
-            result = test_func()
-            if result:
-                health_data['categories'][category]['passed'].append({
-                    'name': check_name,
-                    'status': 'PASS'
-                })
-                health_data['summary']['passed'] += 1
-            else:
-                health_data['categories'][category]['warnings'].append({
-                    'name': check_name,
-                    'status': 'WARNING',
-                    'message': warning_message
-                })
-                health_data['summary']['warnings'] += 1
-        except Exception as e:
-            health_data['categories'][category]['warnings'].append({
-                'name': check_name,
-                'status': 'WARNING',
-                'error': str(e),
-                'message': warning_message
-            })
-            health_data['summary']['warnings'] += 1
-        
-        health_data['summary']['total_checks'] += 1
-    
-    # Initialize categories
-    categories = ['CORE', 'SCHEMA', 'API', 'CALENDAR', 'MIGRATIONS', 'AUTH', 'DEPS']
-    for category in categories:
-        health_data['categories'][category] = {
-            'passed': [],
-            'failed': [],
-            'warnings': []
-        }
-    
-    # CORE APPLICATION HEALTH
-    run_check('CORE', 'Django Configuration', 
-              lambda: True,  # Simplified for now
-              'Check Django settings and configuration')
-    
-    run_check('CORE', 'Database Connection',
-              lambda: connection.cursor().execute('SELECT 1') is not None,
-              'Check database connectivity and credentials')
-    
-    # DATABASE SCHEMA INTEGRITY
-    run_check('SCHEMA', 'MaintenanceActivity Model',
-              lambda: MaintenanceActivity.objects.count() >= 0,
-              'Run: ./scripts/simple_timezone_fix.sh')
-    
-    run_check('SCHEMA', 'Timezone Field Exists',
-              lambda: hasattr(MaintenanceActivity, 'timezone'),
-              'Run: ./scripts/simple_timezone_fix.sh')
-    
-    try:
-        from events.models import CalendarEvent
-        run_check('SCHEMA', 'CalendarEvent Model',
-                  lambda: CalendarEvent.objects.count() >= 0,
-                  'Check events app migrations')
-    except ImportError:
-        health_data['categories']['SCHEMA']['failed'].append({
-            'name': 'CalendarEvent Model',
-            'status': 'ERROR',
-            'error': 'CalendarEvent model not found',
-            'fix': 'Check events app migrations'
-        })
-        health_data['summary']['failed'] += 1
-        health_data['summary']['total_checks'] += 1
-    
-    # API ENDPOINTS FUNCTIONALITY
-    def test_unified_events_api():
-        try:
-            from events.views import fetch_unified_events
-            from django.test import RequestFactory
-            
-            factory = RequestFactory()
-            test_request = factory.get('/events/api/unified/?start=2025-01-01&end=2025-12-31')
-            test_request.user = request.user
-            
-            response = fetch_unified_events(test_request)
-            return response.status_code == 200
-        except Exception:
-            return False
-    
-    run_check('API', 'fetch_unified_events API',
-              test_unified_events_api,
-              'Run: ./scripts/simple_timezone_fix.sh')
-    
-    # CALENDAR SPECIFIC ISSUES
-    def test_calendar_view():
-        try:
-            from events.views import calendar_view
-            from django.test import RequestFactory
-            
-            factory = RequestFactory()
-            test_request = factory.get('/events/calendar/')
-            test_request.user = request.user
-            
-            response = calendar_view(test_request)
-            return response.status_code == 200
-        except Exception:
-            return False
-    
-    run_check('CALENDAR', 'Calendar View Renders',
-              test_calendar_view,
-              'Check calendar view and template rendering')
-    
-    run_warning_check('CALENDAR', 'Maintenance Activities Count',
-                      lambda: MaintenanceActivity.objects.count() > 0,
-                      'No maintenance activities found - calendar may appear empty')
-    
-    # USER AUTHENTICATION
-    run_check('AUTH', 'Admin User Exists',
-              lambda: User.objects.filter(is_superuser=True).exists(),
-              'Create admin user: python manage.py createsuperuser')
-    
-    # EXTERNAL DEPENDENCIES
-    def test_redis():
-        try:
-            from django.core.cache import cache
-            cache.set('health_test', 'value')
-            return cache.get('health_test') == 'value'
-        except Exception:
-            return False
-    
-    run_check('DEPS', 'Redis Connection',
-              test_redis,
-              'Check Redis server connectivity')
-    
-    # Calculate health percentage
-    if health_data['summary']['total_checks'] > 0:
-        health_data['summary']['health_percentage'] = round(
-            (health_data['summary']['passed'] * 100) / health_data['summary']['total_checks']
-        )
-    
-    # Determine overall health status
-    if health_data['summary']['health_percentage'] >= 90:
-        health_data['summary']['status'] = 'EXCELLENT'
-    elif health_data['summary']['health_percentage'] >= 75:
-        health_data['summary']['status'] = 'GOOD'
-    elif health_data['summary']['health_percentage'] >= 50:
-        health_data['summary']['status'] = 'MODERATE'
-    else:
-        health_data['summary']['status'] = 'CRITICAL'
-    
-    return JsonResponse(health_data)
-
-
-@login_required
-def health_check_view(request):
-    """Render the health check interface."""
-    if not request.user.is_superuser:
-        return render(request, 'core/access_denied.html', {'message': 'Access denied'})
-    
-    return render(request, 'core/health_check.html')
-
-@csrf_exempt
-@require_http_methods(["GET"])
-def get_test_screenshots_api(request):
-    """
-    Get test screenshots and HTML dumps.
-    
-    Query parameters:
-    - log_id: Specific log ID to retrieve screenshots for
-    - test_name: Filter by test name
-    """
-    try:
-        log_id = request.GET.get('log_id')
-        test_name = request.GET.get('test_name')
-        
-        if not log_id:
-            return JsonResponse({
-                'success': False,
-                'error': 'log_id parameter is required'
-            }, status=400)
-        
-        # Get the log
-        try:
-            log = PlaywrightDebugLog.objects.get(id=log_id)
-        except PlaywrightDebugLog.DoesNotExist:
-            return JsonResponse({
-                'success': False,
-                'error': 'Log not found'
-            }, status=404)
-        
-        # Extract screenshots and HTML dumps from result_json
-        screenshots = []
-        html_dumps = []
-        
-        if log.result_json:
-            result = log.result_json
-            screenshots = result.get('screenshots', [])
-            html_dumps = result.get('html_dumps', [])
-            
-            # Filter by test name if specified
-            if test_name:
-                screenshots = [s for s in screenshots if test_name in s.get('name', '')]
-                html_dumps = [h for h in html_dumps if test_name in h.get('name', '')]
-        
-        return JsonResponse({
-            'success': True,
-            'log_id': log_id,
-            'screenshots': screenshots,
-            'html_dumps': html_dumps,
-            'total_screenshots': len(screenshots),
-            'total_html_dumps': len(html_dumps)
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
 
 
 @login_required
@@ -4987,136 +4796,6 @@ def run_migrations_api(request):
             'success': False,
             'error': str(e)
         }, status=500)
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def run_test_scenario_api(request):
-    """
-    Run a predefined test scenario.
-    
-    Expected JSON payload:
-    {
-        "scenario": "admin_tools",
-        "user_role": "admin",
-        "async": false
-    }
-    
-    Available scenarios:
-    - admin_tools: Test admin functionality (clear database, populate demo)
-    - rbac_basic: Test basic RBAC permissions
-    - equipment_management: Test equipment CRUD operations
-    - maintenance_workflow: Test maintenance activity workflow
-    """
-    try:
-        data = json.loads(request.body)
-        scenario = data.get('scenario', '')
-        user_role = data.get('user_role', 'admin')
-        run_async = data.get('async', False)
-        
-        if not scenario:
-            return JsonResponse({
-                'success': False,
-                'error': 'Scenario is required'
-            }, status=400)
-        
-        # Define test scenarios
-        scenarios = {
-            'admin_tools': [
-                'Test admin user can clear database with keep users option',
-                'Test admin user can populate demo data with 5 users and 10 equipment'
-            ],
-            'rbac_basic': [
-                'Test admin user can access settings page',
-                'Test technician user cannot access admin tools',
-                'Test manager user can view equipment list'
-            ],
-            'equipment_management': [
-                'Test creating equipment called Test Transformer in default location',
-                'Test viewing equipment list page',
-                'Test equipment detail page loads correctly'
-            ],
-            'maintenance_workflow': [
-                'Test maintenance activity list page',
-                'Test creating maintenance activity',
-                'Test maintenance report generation'
-            ]
-        }
-        
-        if scenario not in scenarios:
-            return JsonResponse({
-                'success': False,
-                'error': f'Unknown scenario: {scenario}. Available: {list(scenarios.keys())}'
-            }, status=400)
-        
-        test_prompts = scenarios[scenario]
-        results = []
-        
-        if run_async:
-            # Queue all tests as Celery tasks
-            task_ids = []
-            for prompt in test_prompts:
-                task = run_natural_language_test_task.delay(
-                    prompt=prompt,
-                    user_role=user_role,
-                    username='admin',
-                    password='temppass123'
-                )
-                task_ids.append(task.id)
-            
-            return JsonResponse({
-                'success': True,
-                'scenario': scenario,
-                'task_ids': task_ids,
-                'status': 'queued',
-                'message': f'Scenario {scenario} queued with {len(task_ids)} tests'
-            })
-        else:
-            # Run tests synchronously
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                for prompt in test_prompts:
-                    result = loop.run_until_complete(
-                        run_natural_language_test(prompt, user_role, 'admin', 'temppass123')
-                    )
-                    results.append({
-                        'prompt': prompt,
-                        'result': result
-                    })
-                
-                # Calculate scenario summary
-                total_tests = len(results)
-                passed_tests = sum(1 for r in results if r['result'].get('success', False))
-                
-                scenario_summary = {
-                    'scenario': scenario,
-                    'total_tests': total_tests,
-                    'passed_tests': passed_tests,
-                    'failed_tests': total_tests - passed_tests,
-                    'success_rate': (passed_tests / total_tests * 100) if total_tests > 0 else 0,
-                    'results': results
-                }
-                
-                return JsonResponse({
-                    'success': True,
-                    'scenario_summary': scenario_summary,
-                    'status': 'completed'
-                })
-            finally:
-                loop.close()
-                
-    except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'error': 'Invalid JSON payload'
-        }, status=400)
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
-
 
 @login_required
 def system_health_check(request):
@@ -5620,33 +5299,6 @@ def bulk_locations_view(request):
     
     return render(request, 'core/bulk_locations.html', context)
 
-
-@staff_member_required
-def playwright_slideshow(request):
-    """
-    Display a slideshow of the latest Playwright test run steps/screenshots.
-    """
-    import json
-    report_path = os.path.join(settings.BASE_DIR, 'playwright', 'smart-test-report.json')
-    screenshots = []
-    captions = []
-    if os.path.exists(report_path):
-        with open(report_path, 'r', encoding='utf-8') as f:
-            report = json.load(f)
-            for i, result in enumerate(report.get('results', [])):
-                for j, screenshot in enumerate(result.get('screenshots', [])):
-                    # Only use the filename for static serving
-                    filename = os.path.basename(screenshot)
-                    step_caption = f"Step {len(screenshots)+1}: {result.get('testName', 'Step')}"
-                    if result.get('errors'):
-                        step_caption += f" (Error: {result['errors'][0]})"
-                    screenshots.append(filename)
-                    captions.append(step_caption)
-    context = {
-        'screenshots': screenshots,
-        'captions': captions,
-    }
-    return render(request, 'core/playwright_slideshow.html', context)
 
 
 def get_comprehensive_system_health():
@@ -7105,16 +6757,23 @@ def database_stats_api(request):
         
         tables = {}
         
-        # Get row counts for key tables
-        tables['Equipment'] = {'count': Equipment.objects.count()}
-        tables['Equipment Connections'] = {'count': EquipmentConnection.objects.count()}
-        tables['Locations'] = {'count': Location.objects.count()}
-        tables['Customers'] = {'count': Customer.objects.count()}
-        tables['Maintenance Activities'] = {'count': MaintenanceActivity.objects.count()}
-        tables['Maintenance Schedules'] = {'count': MaintenanceSchedule.objects.count()}
-        tables['Activity Types'] = {'count': MaintenanceActivityType.objects.count()}
-        tables['Calendar Events'] = {'count': CalendarEvent.objects.count()}
-        tables['Users'] = {'count': User.objects.count()}
+        # Get row counts for key tables - handle each one individually to avoid total failure
+        def safe_count(model_class, model_name):
+            try:
+                return model_class.objects.count()
+            except Exception as e:
+                logger.warning(f"Error counting {model_name}: {str(e)}")
+                return 'Error'
+        
+        tables['Equipment'] = {'count': safe_count(Equipment, 'Equipment')}
+        tables['Equipment Connections'] = {'count': safe_count(EquipmentConnection, 'EquipmentConnection')}
+        tables['Locations'] = {'count': safe_count(Location, 'Location')}
+        tables['Customers'] = {'count': safe_count(Customer, 'Customer')}
+        tables['Maintenance Activities'] = {'count': safe_count(MaintenanceActivity, 'MaintenanceActivity')}
+        tables['Maintenance Schedules'] = {'count': safe_count(MaintenanceSchedule, 'MaintenanceSchedule')}
+        tables['Activity Types'] = {'count': safe_count(MaintenanceActivityType, 'MaintenanceActivityType')}
+        tables['Calendar Events'] = {'count': safe_count(CalendarEvent, 'CalendarEvent')}
+        tables['Users'] = {'count': safe_count(User, 'User')}
         
         # Get database size (PostgreSQL specific)
         try:
@@ -7124,18 +6783,19 @@ def database_stats_api(request):
                 """)
                 row = cursor.fetchone()
                 db_size = row[0] if row else 'Unknown'
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Error getting database size: {str(e)}")
             db_size = 'N/A'
         
         return JsonResponse({
             'status': 'success',
             'tables': tables,
             'database_size': db_size,
-            'database_name': connection.settings_dict['NAME']
+            'database_name': connection.settings_dict.get('NAME', 'Unknown')
         })
         
     except Exception as e:
-        logger.error(f"Error getting database stats: {str(e)}")
+        logger.error(f"Error getting database stats: {str(e)}", exc_info=True)
         return JsonResponse({
             'status': 'error',
             'message': f'Error getting database stats: {str(e)}'

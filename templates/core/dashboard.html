@@ -60,12 +60,12 @@
 
 .dashboard-content {
     display: grid;
-    grid-template-columns: 300px 300px 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 20px;
     min-height: 70vh;
 }
 
-.urgent-section, .upcoming-section {
+.urgent-section, .upcoming-section, .active-section {
     background-color: #2d3748;
     border-radius: 12px;
     padding: 20px;
@@ -320,13 +320,19 @@
     height: 8px;
     border-radius: 50%;
     margin-right: 6px;
+    background-color: #718096; /* Default gray color if status doesn't match */
 }
 
-.status-dot.pending { background-color: #ed8936; }
-.status-dot.scheduled { background-color: #4299e1; }
-.status-dot.in-progress { background-color: #f56565; }
-.status-dot.maintenance { background-color: #9f7aea; }
-.status-dot.calendar { background-color: #9f7aea; }
+/* Status colors from settings - defaults provided if not configured */
+.status-dot.scheduled { background-color: {{ status_colors.scheduled|default:"#808080" }} !important; }
+.status-dot.pending { background-color: {{ status_colors.pending|default:"#4299e1" }} !important; }
+.status-dot.in_progress { background-color: {{ status_colors.in_progress|default:"#ed8936" }} !important; }
+.status-dot.in-progress { background-color: {{ status_colors.in_progress|default:"#ed8936" }} !important; }
+.status-dot.completed { background-color: {{ status_colors.completed|default:"#48bb78" }} !important; }
+.status-dot.overdue { background-color: {{ status_colors.overdue|default:"#f56565" }} !important; }
+.status-dot.cancelled { background-color: {{ status_colors.cancelled|default:"#000000" }} !important; }
+.status-dot.maintenance { background-color: #9f7aea !important; }
+.status-dot.calendar { background-color: #9f7aea !important; }
 
 /* Responsive design */
 @media (max-width: 1200px) {
@@ -582,6 +588,60 @@
     </div>
     {% endif %}
 
+    <!-- Active Items Section -->
+    {% if dashboard_settings.show_active_items %}
+    <div class="active-section">
+        <div class="section-header">
+            <span><i class="fas fa-tasks"></i>Active Items</span>
+            <span class="section-count">{% if active_total_count %}{{ active_total_count }}{% else %}{{ active_maintenance|length|add:active_calendar|length }}{% endif %}</span>
+        </div>
+        
+        {% if dashboard_settings.group_active_by_site and is_all_sites and active_maintenance_by_site %}
+            <!-- Grouped by Site -->
+            {% for site_name, items in active_maintenance_by_site.items %}
+            <div class="site-group">
+                <div class="site-group-header">
+                    <strong>{{ site_name }}</strong>
+                    <span class="badge badge-secondary">{{ items|length }}</span>
+                </div>
+                {% for item in items %}
+                <div class="maintenance-item {% if item.status == 'in_progress' %}in-progress{% else %}pending{% endif %}" onclick="viewMaintenanceItem({{ item.id }})">
+                    <div class="item-title">{{ item.title|truncatechars:35 }}</div>
+                    <div class="item-meta">
+                        <span class="status-dot {{ item.status }}"></span>
+                        {% if item.scheduled_start %}{{ item.scheduled_start|date:"M d, H:i" }}{% else %}No date{% endif %}
+                    </div>
+                    <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
+                    <div class="item-type-badge">MAINT</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        {% else %}
+            <!-- Not Grouped - Show Flat List -->
+            <!-- Active Maintenance -->
+            {% for item in active_maintenance %}
+            <div class="maintenance-item {% if item.status == 'in_progress' %}in-progress{% else %}pending{% endif %}" onclick="viewMaintenanceItem({{ item.id }})">
+                <div class="item-title">{{ item.title|truncatechars:35 }}</div>
+                <div class="item-meta">
+                    <span class="status-dot {{ item.status }}"></span>
+                    {% if item.scheduled_start %}{{ item.scheduled_start|date:"M d, H:i" }}{% else %}No date{% endif %}
+                </div>
+                <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
+                <div class="item-type-badge">MAINT</div>
+            </div>
+            {% endfor %}
+        {% endif %}
+        
+        {% if not active_maintenance and not active_calendar %}
+        <div class="empty-state">
+            <i class="fas fa-check-circle"></i>
+            No active items
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Overview Section (Pod Status or Site Status) -->
     <div class="pod-overview-section">
         <div class="section-header">
@@ -662,7 +722,7 @@
                             <div class="pod-stat-label">Total</div>
                         </div>
                         <div class="pod-stat">
-                            <div class="pod-stat-value">{{ item.equipment_in_maintenance }}</div>
+                            <div class="pod-stat-value">{{ item.in_maint_count|default:item.equipment_in_maintenance }}</div>
                             <div class="pod-stat-label">In Maint</div>
                         </div>
                         <div class="pod-stat">

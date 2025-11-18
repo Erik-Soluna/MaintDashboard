@@ -179,9 +179,87 @@ PYTHON
             # Fast path - database already initialized
             print_success "✅ Database ready - running migrations..."
             
-            # Create migrations if model changes exist (will skip if nothing to do)
-            print_status "📝 Checking for new migrations..."
-            python manage.py makemigrations --noinput || print_warning "⚠️ No new migrations to create"
+            # Check for unapplied migrations first
+            print_status "📝 Checking migration state..."
+            # Count unapplied migrations (those with "[ ]" marker)
+            # Use tr to remove whitespace and ensure we get a clean number
+            unapplied_migrations=$(python manage.py showmigrations --plan 2>/dev/null | grep -c "\[ \]" 2>/dev/null || echo "0")
+            # Remove any whitespace and ensure it's a valid number
+            unapplied_migrations=$(echo "$unapplied_migrations" | tr -d '[:space:]' | grep -E '^[0-9]+$' || echo "0")
+            
+            if [ -n "$unapplied_migrations" ] && [ "$unapplied_migrations" -gt 0 ] 2>/dev/null; then
+                # There are unapplied migrations - just apply them, don't create new ones
+                print_status "ℹ️ Found $unapplied_migrations unapplied migration(s) - will apply existing migrations only"
+            else
+                # All migrations are applied - check if we need to create new ones
+                # Only create migrations if there are actual model changes not reflected in migration files
+                # makemigrations --check returns 0 if no changes needed, 1 if changes needed
+                print_status "📝 Checking for model changes..."
+                if python manage.py makemigrations --check --dry-run > /dev/null 2>&1; then
+                    # No changes detected (exit code 0), skip makemigrations
+                    print_status "ℹ️ No model changes detected, skipping makemigrations"
+                else
+                    # Changes detected - check if migrations have already been applied to the database
+                    # If the database schema matches the models, we don't need to recreate migrations
+                    print_status "📝 Model changes detected, checking if migrations are already applied..."
+                    
+                    # Check if the database tables/columns already exist (migrations were applied)
+                    # This is more reliable than checking for migration files
+                    db_schema_matches=true
+                    python_check_output=$(python -c "
+import os
+import django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'maintenance_dashboard.settings')
+django.setup()
+from django.db import connection
+
+try:
+    with connection.cursor() as cursor:
+        # Check if status_color fields exist in brandingsettings table
+        cursor.execute(\"\"\"
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='core_brandingsettings' 
+            AND column_name LIKE 'status_color%'
+        \"\"\")
+        branding_cols = cursor.fetchall()
+        
+        # Check if status_color fields exist in dashboardsettings table
+        cursor.execute(\"\"\"
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name='core_dashboardsettings' 
+            AND column_name LIKE 'status_color%'
+        \"\"\")
+        dashboard_cols = cursor.fetchall()
+        
+        # Check if equipmentissue table exists
+        cursor.execute(\"\"\"
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_name='equipment_equipmentissue'
+        \"\"\")
+        issue_table = cursor.fetchone()
+        
+        # If all expected schema elements exist, migrations are likely applied
+        if len(branding_cols) >= 6 and len(dashboard_cols) >= 6 and issue_table:
+            print('MATCH')
+        else:
+            print('NO_MATCH')
+except Exception as e:
+    print('ERROR')
+" 2>/dev/null || echo "ERROR")
+                    
+                    if echo "$python_check_output" | grep -q "MATCH"; then
+                        print_status "ℹ️ Database schema matches models - migrations already applied, skipping creation"
+                        print_status "💡 Tip: Commit migration files to git to persist them across container restarts"
+                    else
+                        # Schema doesn't match or check failed - create migrations
+                        print_status "📝 Creating new migrations..."
+                        python manage.py makemigrations --noinput || print_warning "⚠️ Could not create migrations"
+                    fi
+                fi
+            fi
             
             # Always run migrations on boot (will skip if nothing to do)
             print_status "🔄 Applying migrations..."
@@ -392,10 +470,25 @@ main() {
         exec gunicorn --bind 0.0.0.0:8000 --workers 3 --timeout 120 maintenance_dashboard.wsgi:application
 elif [ "$1" = "celery" ]; then
     # Run both worker and beat in the same process to reduce container count
-    exec celery -A maintenance_dashboard worker --beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    # Switch to non-root user for security (appuser created in Dockerfile)
+    if id appuser >/dev/null 2>&1; then
+        print_status "🔒 Switching to non-root user 'appuser' for Celery worker..."
+        exec gosu appuser celery -A maintenance_dashboard worker --beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    else
+        # Fallback if appuser doesn't exist (should not happen in production)
+        print_warning "⚠️ appuser not found, running as current user (not recommended)"
+        exec celery -A maintenance_dashboard worker --beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    fi
 elif [ "$1" = "celery-beat" ]; then
     # Legacy support - but celery command now handles both
-    exec celery -A maintenance_dashboard beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    # Switch to non-root user for security
+    if id appuser >/dev/null 2>&1; then
+        print_status "🔒 Switching to non-root user 'appuser' for Celery beat..."
+        exec gosu appuser celery -A maintenance_dashboard beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    else
+        print_warning "⚠️ appuser not found, running as current user (not recommended)"
+        exec celery -A maintenance_dashboard beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    fi
     else
         exec "$@"
     fi

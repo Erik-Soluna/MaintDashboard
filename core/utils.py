@@ -40,11 +40,32 @@ def ensure_default_activity_types():
                 'sort_order': 1,
             },
             {
+                'name': 'Corrective Maintenance',
+                'description': 'Corrective and repair activities',
+                'color': '#dc3545',
+                'icon': 'fas fa-wrench',
+                'sort_order': 2,
+            },
+            {
                 'name': 'Inspection',
                 'description': 'Inspection and testing activities',
                 'color': '#17a2b8',
                 'icon': 'fas fa-search',
-                'sort_order': 2,
+                'sort_order': 3,
+            },
+            {
+                'name': 'Calibration',
+                'description': 'Calibration and measurement activities',
+                'color': '#ffc107',
+                'icon': 'fas fa-balance-scale',
+                'sort_order': 4,
+            },
+            {
+                'name': 'Testing',
+                'description': 'Functional and performance testing activities',
+                'color': '#6f42c1',
+                'icon': 'fas fa-flask',
+                'sort_order': 5,
             },
         ]
         
@@ -65,21 +86,63 @@ def ensure_default_activity_types():
             if created:
                 logger.info(f"Created default category: {category.name}")
         
-        # Create basic activity types
+        # Create default activity types
         basic_activity_types = [
             {
-                'name': 'PM-001',
+                'name': 'Thermal Imaging',
                 'category': categories.get('Preventive Maintenance'),
-                'description': 'Regular preventive maintenance inspection and service',
-                'estimated_duration_hours': 4,
-                'frequency_days': 90,
+                'description': 'Thermal imaging inspection for preventive maintenance',
+                'estimated_duration_hours': 1,
+                'frequency_days': 365,
+                'is_mandatory': True,
             },
             {
-                'name': 'INS-001',
+                'name': 'Operational inspection',
                 'category': categories.get('Inspection'),
-                'description': 'Monthly operational inspection',
+                'description': 'Annual operational inspection',
+                'estimated_duration_hours': 2,
+                'frequency_days': 365,
+                'is_mandatory': True,
+            },
+            {
+                'name': 'Visual Inspection',
+                'category': categories.get('Inspection'),
+                'description': 'Monthly visual inspection',
                 'estimated_duration_hours': 1,
                 'frequency_days': 30,
+                'is_mandatory': True,
+            },
+            {
+                'name': 'Corrective Maintenance',
+                'category': categories.get('Corrective Maintenance'),
+                'description': 'Corrective maintenance and repair activities',
+                'estimated_duration_hours': 2,
+                'frequency_days': 1,
+                'is_mandatory': False,
+            },
+            {
+                'name': '3 Year Torque Check',
+                'category': categories.get('Calibration'),
+                'description': 'Three-year torque calibration check',
+                'estimated_duration_hours': 1,
+                'frequency_days': 1095,
+                'is_mandatory': True,
+            },
+            {
+                'name': 'Annual Torque Check',
+                'category': categories.get('Calibration'),
+                'description': 'Annual torque calibration check',
+                'estimated_duration_hours': 1,
+                'frequency_days': 365,
+                'is_mandatory': True,
+            },
+            {
+                'name': 'DGA Sample',
+                'category': categories.get('Testing'),
+                'description': 'Dissolved Gas Analysis sample collection',
+                'estimated_duration_hours': 2,
+                'frequency_days': 365,
+                'is_mandatory': True,
             },
         ]
         
@@ -92,7 +155,7 @@ def ensure_default_activity_types():
                         'description': at_data['description'],
                         'estimated_duration_hours': at_data['estimated_duration_hours'],
                         'frequency_days': at_data['frequency_days'],
-                        'is_mandatory': True,
+                        'is_mandatory': at_data['is_mandatory'],
                         'is_active': True,
                         'created_by': admin_user,
                     }

@@ -80,6 +80,14 @@ class Command(BaseCommand):
             
             # Delete activity types with default names
             default_names = [
+                'Thermal Imaging',
+                'Operational inspection',
+                'Visual Inspection',
+                'Corrective Maintenance',
+                '3 Year Torque Check',
+                'Annual Torque Check',
+                'DGA Sample',
+                # Legacy names (keep for backward compatibility)
                 'PM-001', 'PM-002', 'PM-003', 'PM-004', 'PM-005',
                 'INS-001', 'INS-002', 'INS-003',
                 'CAL-001', 'CAL-002',
@@ -91,10 +99,11 @@ class Command(BaseCommand):
             deleted_count = MaintenanceActivityType.objects.filter(name__in=default_names).delete()[0]
             self.stdout.write(f'  Deleted {deleted_count} default activity types')
             
-            # Delete default categories
+            # Delete default categories (including duplicates)
             default_categories = [
-                'Preventive Maintenance', 'Corrective Maintenance', 
-                'Inspection', 'Calibration', 'Safety'
+                'Preventive', 'Preventive Maintenance',
+                'Corrective', 'Corrective Maintenance',
+                'Inspection', 'Calibration', 'Testing', 'Safety'
             ]
             
             deleted_categories = ActivityTypeCategory.objects.filter(name__in=default_categories).delete()[0]
@@ -104,9 +113,35 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('Maintenance app not available, skipping clear operation'))
 
     def ensure_default_categories(self, admin_user):
-        """Ensure default activity type categories exist."""
+        """Ensure default activity type categories exist and merge duplicates."""
         try:
-            from maintenance.models import ActivityTypeCategory
+            from maintenance.models import ActivityTypeCategory, MaintenanceActivityType
+            
+            # Map of duplicate short names to full names
+            duplicate_map = {
+                'Preventive': 'Preventive Maintenance',
+                'Corrective': 'Corrective Maintenance',
+            }
+            
+            # First, handle duplicate categories - merge or rename as needed
+            for short_name, full_name in duplicate_map.items():
+                short_cat = ActivityTypeCategory.objects.filter(name=short_name).first()
+                full_cat = ActivityTypeCategory.objects.filter(name=full_name).first()
+                
+                if short_cat and full_cat:
+                    # Both exist - merge short into full
+                    self.stdout.write(f'  Merging duplicate category "{short_name}" into "{full_name}"')
+                    # Update all activity types using the short category
+                    MaintenanceActivityType.objects.filter(category=short_cat).update(category=full_cat)
+                    # Delete the short category
+                    short_cat.delete()
+                    self.stdout.write(f'    Merged and deleted "{short_name}"')
+                elif short_cat and not full_cat:
+                    # Only short exists - rename it to full
+                    self.stdout.write(f'  Renaming category "{short_name}" to "{full_name}"')
+                    short_cat.name = full_name
+                    short_cat.save()
+                    self.stdout.write(f'    Renamed "{short_name}" to "{full_name}"')
             
             categories_data = [
                 {
@@ -138,11 +173,18 @@ class Command(BaseCommand):
                     'sort_order': 4,
                 },
                 {
+                    'name': 'Testing',
+                    'description': 'Functional and performance testing activities',
+                    'color': '#6f42c1',
+                    'icon': 'fas fa-flask',
+                    'sort_order': 5,
+                },
+                {
                     'name': 'Safety',
                     'description': 'Safety-related activities',
                     'color': '#fd7e14',
                     'icon': 'fas fa-shield-alt',
-                    'sort_order': 5,
+                    'sort_order': 6,
                 },
             ]
             
@@ -160,6 +202,19 @@ class Command(BaseCommand):
                         'created_by': admin_user,
                     }
                 )
+                # Update existing category if it was renamed from a short name
+                if not created:
+                    # Update properties to ensure consistency
+                    category.description = data['description']
+                    category.color = data['color']
+                    category.icon = data['icon']
+                    category.sort_order = data['sort_order']
+                    category.is_active = True
+                    category.is_global = True
+                    if not category.created_by:
+                        category.created_by = admin_user
+                    category.save()
+                
                 categories[data['name']] = category
                 if created:
                     self.stdout.write(f'  Created category: {category.name}')
@@ -178,168 +233,82 @@ class Command(BaseCommand):
             from maintenance.models import MaintenanceActivityType
             
             activity_types_data = [
-                # Preventive Maintenance
                 {
-                    'name': 'PM-001',
+                    'name': 'Thermal Imaging',
                     'category': categories.get('Preventive Maintenance'),
-                    'description': 'Regular preventive maintenance inspection and service',
-                    'estimated_duration_hours': 4,
-                    'frequency_days': 90,
-                    'is_mandatory': True,
-                    'tools_required': 'Basic hand tools, inspection equipment',
-                    'parts_required': 'Lubricants, filters (as needed)',
-                    'safety_notes': 'Follow lockout/tagout procedures, wear appropriate PPE',
-                },
-                {
-                    'name': 'PM-002',
-                    'category': categories.get('Preventive Maintenance'),
-                    'description': 'Annual comprehensive maintenance and inspection',
-                    'estimated_duration_hours': 8,
+                    'description': 'Thermal imaging inspection for preventive maintenance',
+                    'estimated_duration_hours': 1,
                     'frequency_days': 365,
                     'is_mandatory': True,
-                    'tools_required': 'Complete tool set, testing equipment',
-                    'parts_required': 'Complete maintenance kit, replacement parts',
-                    'safety_notes': 'Full lockout/tagout, safety briefing required',
-                },
-                {
-                    'name': 'PM-003',
-                    'category': categories.get('Preventive Maintenance'),
-                    'description': 'Quarterly lubrication and minor adjustments',
-                    'estimated_duration_hours': 2,
-                    'frequency_days': 90,
-                    'is_mandatory': True,
-                    'tools_required': 'Lubrication equipment, adjustment tools',
-                    'parts_required': 'Lubricants, gaskets',
-                    'safety_notes': 'Ensure equipment is properly isolated',
-                },
-                {
-                    'name': 'PM-004',
-                    'category': categories.get('Preventive Maintenance'),
-                    'description': 'Monthly visual inspection and cleaning',
-                    'estimated_duration_hours': 1,
-                    'frequency_days': 30,
-                    'is_mandatory': False,
-                    'tools_required': 'Cleaning supplies, inspection tools',
-                    'parts_required': 'Cleaning materials',
-                    'safety_notes': 'Basic safety precautions',
-                },
-                {
-                    'name': 'PM-005',
-                    'category': categories.get('Preventive Maintenance'),
-                    'description': 'Weekly operational check and basic cleaning',
-                    'estimated_duration_hours': 0.5,
-                    'frequency_days': 7,
-                    'is_mandatory': False,
-                    'tools_required': 'Basic cleaning supplies',
+                    'tools_required': 'Thermal imaging camera',
                     'parts_required': 'None',
-                    'safety_notes': 'Standard operational safety',
+                    'safety_notes': 'Follow thermal imaging safety procedures',
                 },
-                
-                # Inspection
                 {
-                    'name': 'INS-001',
+                    'name': 'Operational inspection',
                     'category': categories.get('Inspection'),
-                    'description': 'Monthly operational inspection',
-                    'estimated_duration_hours': 1,
-                    'frequency_days': 30,
+                    'description': 'Annual operational inspection',
+                    'estimated_duration_hours': 2,
+                    'frequency_days': 365,
                     'is_mandatory': True,
                     'tools_required': 'Inspection checklist, basic tools',
                     'parts_required': 'None',
                     'safety_notes': 'Operational safety procedures',
                 },
                 {
-                    'name': 'INS-002',
+                    'name': 'Visual Inspection',
                     'category': categories.get('Inspection'),
-                    'description': 'Quarterly detailed inspection',
-                    'estimated_duration_hours': 4,
-                    'frequency_days': 90,
+                    'description': 'Monthly visual inspection',
+                    'estimated_duration_hours': 1,
+                    'frequency_days': 30,
                     'is_mandatory': True,
-                    'tools_required': 'Detailed inspection equipment',
-                    'parts_required': 'Inspection materials',
-                    'safety_notes': 'Full safety procedures required',
+                    'tools_required': 'Visual inspection tools',
+                    'parts_required': 'None',
+                    'safety_notes': 'Visual inspection only, no physical contact required',
                 },
                 {
-                    'name': 'INS-003',
-                    'category': categories.get('Inspection'),
-                    'description': 'Annual comprehensive inspection',
-                    'estimated_duration_hours': 8,
-                    'frequency_days': 365,
-                    'is_mandatory': True,
-                    'tools_required': 'Complete inspection suite',
-                    'parts_required': 'Inspection materials, test equipment',
-                    'safety_notes': 'Comprehensive safety briefing required',
-                },
-                
-                # Calibration
-                {
-                    'name': 'CAL-001',
-                    'category': categories.get('Calibration'),
-                    'description': 'Semi-annual calibration check',
-                    'estimated_duration_hours': 3,
-                    'frequency_days': 180,
-                    'is_mandatory': True,
-                    'tools_required': 'Calibration equipment, standards',
-                    'parts_required': 'Calibration materials',
-                    'safety_notes': 'Precision work area required',
-                },
-                {
-                    'name': 'CAL-002',
-                    'category': categories.get('Calibration'),
-                    'description': 'Annual full calibration',
-                    'estimated_duration_hours': 6,
-                    'frequency_days': 365,
-                    'is_mandatory': True,
-                    'tools_required': 'Full calibration suite',
-                    'parts_required': 'Calibration standards, materials',
-                    'safety_notes': 'Controlled environment required',
-                },
-                
-                # Corrective Maintenance
-                {
-                    'name': 'COR-001',
+                    'name': 'Corrective Maintenance',
                     'category': categories.get('Corrective Maintenance'),
-                    'description': 'Minor repair and adjustment',
+                    'description': 'Corrective maintenance and repair activities',
                     'estimated_duration_hours': 2,
-                    'frequency_days': 0,  # As needed
+                    'frequency_days': 1,
                     'is_mandatory': False,
-                    'tools_required': 'Basic repair tools',
+                    'tools_required': 'Repair tools as needed',
                     'parts_required': 'Replacement parts as needed',
                     'safety_notes': 'Standard repair safety procedures',
                 },
                 {
-                    'name': 'COR-002',
-                    'category': categories.get('Corrective Maintenance'),
-                    'description': 'Major repair or component replacement',
-                    'estimated_duration_hours': 8,
-                    'frequency_days': 0,  # As needed
-                    'is_mandatory': False,
-                    'tools_required': 'Complete repair tool set',
-                    'parts_required': 'Major components, replacement parts',
-                    'safety_notes': 'Comprehensive safety procedures required',
+                    'name': '3 Year Torque Check',
+                    'category': categories.get('Calibration'),
+                    'description': 'Three-year torque calibration check',
+                    'estimated_duration_hours': 1,
+                    'frequency_days': 1095,
+                    'is_mandatory': True,
+                    'tools_required': 'Torque wrench, calibration equipment',
+                    'parts_required': 'Calibration standards',
+                    'safety_notes': 'Precision work area required',
                 },
-                
-                # Safety
                 {
-                    'name': 'SAF-001',
-                    'category': categories.get('Safety'),
-                    'description': 'Safety system inspection and testing',
+                    'name': 'Annual Torque Check',
+                    'category': categories.get('Calibration'),
+                    'description': 'Annual torque calibration check',
+                    'estimated_duration_hours': 1,
+                    'frequency_days': 365,
+                    'is_mandatory': True,
+                    'tools_required': 'Torque wrench, calibration equipment',
+                    'parts_required': 'Calibration standards',
+                    'safety_notes': 'Precision work area required',
+                },
+                {
+                    'name': 'DGA Sample',
+                    'category': categories.get('Testing'),
+                    'description': 'Dissolved Gas Analysis sample collection',
                     'estimated_duration_hours': 2,
-                    'frequency_days': 90,
+                    'frequency_days': 365,
                     'is_mandatory': True,
-                    'tools_required': 'Safety testing equipment',
-                    'parts_required': 'Safety system components',
-                    'safety_notes': 'Critical safety procedures must be followed',
-                },
-                {
-                    'name': 'SAF-002',
-                    'category': categories.get('Safety'),
-                    'description': 'Emergency system verification',
-                    'estimated_duration_hours': 4,
-                    'frequency_days': 180,
-                    'is_mandatory': True,
-                    'tools_required': 'Emergency system test equipment',
-                    'parts_required': 'Emergency system components',
-                    'safety_notes': 'Emergency procedures must be in place',
+                    'tools_required': 'DGA sampling equipment',
+                    'parts_required': 'Sample containers',
+                    'safety_notes': 'Follow DGA sampling safety procedures',
                 },
             ]
             

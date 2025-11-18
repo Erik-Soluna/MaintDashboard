@@ -59,17 +59,18 @@ def create_or_update_calendar_event(sender, instance, created, **kwargs):
 def delete_calendar_event(sender, instance, **kwargs):
     """Delete the associated calendar event when a maintenance activity is deleted."""
     try:
-        calendar_event = CalendarEvent.objects.filter(maintenance_activity=instance).first()
-        if calendar_event:
+        # Use get() instead of filter().first() for better performance
+        # If calendar event doesn't exist, that's fine - it may have been deleted already
+        try:
+            calendar_event = CalendarEvent.objects.get(maintenance_activity=instance)
             calendar_event.delete()
             logger.info(f"Deleted calendar event {calendar_event.id} for maintenance activity {instance.id}")
+        except CalendarEvent.DoesNotExist:
+            # Calendar event may have been deleted already or never existed
+            pass
         
-        # Invalidate dashboard cache for all users since maintenance activities affect dashboard data
-        try:
-            from core.views import invalidate_dashboard_cache
-            invalidate_dashboard_cache()  # Invalidate all dashboard caches
-        except Exception as cache_error:
-            logger.warning(f"Could not invalidate dashboard cache: {cache_error}")
+        # Note: Cache invalidation is handled in the view for better performance
+        # (targeted to specific user rather than all users)
             
     except Exception as e:
         logger.error(f"Error deleting calendar event for maintenance activity {instance.id}: {str(e)}")

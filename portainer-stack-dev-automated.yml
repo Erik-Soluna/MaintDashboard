@@ -75,6 +75,7 @@ services:
         GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-unknown}
         GIT_BRANCH: ${GIT_BRANCH:-unknown}
         GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-unknown}
+    image: maint-dashboard-dev-auto:${GIT_COMMIT_HASH:-latest}
     container_name: maintenance_web_dev_auto
     entrypoint: ["./scripts/deployment/docker-entrypoint-automated.sh"]
     command: ["python", "manage.py", "runserver", "--noreload", "0.0.0.0:8000"]
@@ -197,6 +198,7 @@ services:
         GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-unknown}
         GIT_BRANCH: ${GIT_BRANCH:-unknown}
         GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-unknown}
+    image: maint-dashboard-dev-auto:${GIT_COMMIT_HASH:-latest}
     container_name: maintenance_celery_dev_auto
     entrypoint: ["./scripts/deployment/docker-entrypoint-automated.sh"]
     command: ["celery"]
@@ -251,64 +253,7 @@ services:
         reservations:
           memory: 256M
 
-  celery-beat-dev:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        GIT_COMMIT_COUNT: ${GIT_COMMIT_COUNT:-0}
-        GIT_COMMIT_HASH: ${GIT_COMMIT_HASH:-unknown}
-        GIT_BRANCH: ${GIT_BRANCH:-unknown}
-        GIT_COMMIT_DATE: ${GIT_COMMIT_DATE:-unknown}
-    container_name: maintenance_celery_beat_dev_auto
-    entrypoint: ["./scripts/deployment/docker-entrypoint-automated.sh"]
-    command: ["celery-beat"]
-    environment:
-      # Django Configuration
-      - DEBUG=True
-      - SECRET_KEY=django-development-secret-key-change-this-immediately-2024
-      
-      # Database Configuration
-      - DB_NAME=maintenance_dashboard_dev
-      - DB_USER=maintenance_user_dev
-      - DB_PASSWORD=DevPassword2024!
-      - DB_HOST=db-dev
-      - DB_PORT=5432
-      
-      # Redis Configuration
-      - REDIS_URL=redis://redis-dev:6379/0
-      
-      # Celery Beat Configuration
-      - CELERY_BROKER_URL=redis://redis-dev:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis-dev:6379/0
-      
-      # Automation Settings (Skip DB init for beat)
-      - SKIP_DB_INIT=true
-      - MAX_RETRIES=30
-      - RETRY_DELAY=5
-      
-    depends_on:
-      db-dev:
-        condition: service_healthy
-      redis-dev:
-        condition: service_healthy
-      web-dev:
-        condition: service_healthy
-    networks:
-      - maintenance_network_dev_auto
-    healthcheck:
-      test: ["CMD-SHELL", "pgrep -f 'celery.*beat' || exit 1"]
-      interval: 30s
-      timeout: 15s
-      retries: 5
-      start_period: 120s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
+  # celery-beat-dev removed - now runs in the same container as celery-dev using --beat flag
 
 networks:
   maintenance_network_dev_auto:
