@@ -30,6 +30,7 @@ urlpatterns = [
     path('locations/settings/', views.locations_settings, name='locations_settings'),
     path('equipment-items/settings/', views.equipment_items_settings, name='equipment_items_settings'),
     path('equipment-conditional-fields/settings/', views.equipment_conditional_fields_settings, name='equipment_conditional_fields_settings'),
+    path('custom-fields/management/', views.custom_fields_management, name='custom_fields_management'),
     path('equipment-categories/settings/', views.equipment_categories_settings, name='equipment_categories_settings'),
     
     # Debug and utility URLs

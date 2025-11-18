@@ -1376,6 +1376,171 @@ def equipment_conditional_fields_settings(request):
 
 
 @login_required
+@user_passes_test(lambda u: u.is_staff or u.has_perm('equipment.change_equipmentcategoryfield'))
+def custom_fields_management(request):
+    """
+    User-friendly custom fields management page.
+    Replaces the admin interface for managing EquipmentCategoryField.
+    """
+    from equipment.models import EquipmentCategoryField, EquipmentCategory
+    from django.db import transaction
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'create_field':
+            try:
+                with transaction.atomic():
+                    category_id = request.POST.get('category_id')
+                    name = request.POST.get('name', '').strip()
+                    label = request.POST.get('label', '').strip()
+                    field_type = request.POST.get('field_type', 'text')
+                    required = request.POST.get('required') == 'on'
+                    help_text = request.POST.get('help_text', '').strip()
+                    default_value = request.POST.get('default_value', '').strip()
+                    choices = request.POST.get('choices', '').strip()
+                    field_group = request.POST.get('field_group', 'General').strip()
+                    sort_order = int(request.POST.get('sort_order', 0) or 0)
+                    min_value = request.POST.get('min_value', '').strip() or None
+                    max_value = request.POST.get('max_value', '').strip() or None
+                    max_length = request.POST.get('max_length', '').strip() or None
+                    
+                    category = EquipmentCategory.objects.get(id=category_id)
+                    
+                    # Validation
+                    if not name or not label:
+                        messages.error(request, 'Name and label are required.')
+                        return redirect('core:custom_fields_management')
+                    
+                    # Check for duplicate names
+                    if EquipmentCategoryField.objects.filter(category=category, name=name).exists():
+                        messages.error(request, f'A field with name "{name}" already exists in this category.')
+                        return redirect('core:custom_fields_management')
+                    
+                    # Create the field
+                    field = EquipmentCategoryField.objects.create(
+                        category=category,
+                        name=name,
+                        label=label,
+                        field_type=field_type,
+                        required=required,
+                        help_text=help_text,
+                        default_value=default_value,
+                        choices=choices,
+                        field_group=field_group,
+                        sort_order=sort_order,
+                        min_value=float(min_value) if min_value else None,
+                        max_value=float(max_value) if max_value else None,
+                        max_length=int(max_length) if max_length else None,
+                        created_by=request.user,
+                        updated_by=request.user
+                    )
+                    
+                    messages.success(request, f'Field "{label}" created successfully for category "{category.name}".')
+            except Exception as e:
+                messages.error(request, f'Error creating field: {str(e)}')
+        
+        elif action == 'update_field':
+            try:
+                with transaction.atomic():
+                    field_id = request.POST.get('field_id')
+                    field = get_object_or_404(EquipmentCategoryField, id=field_id)
+                    
+                    name = request.POST.get('name', '').strip()
+                    label = request.POST.get('label', '').strip()
+                    field_type = request.POST.get('field_type', 'text')
+                    required = request.POST.get('required') == 'on'
+                    help_text = request.POST.get('help_text', '').strip()
+                    default_value = request.POST.get('default_value', '').strip()
+                    choices = request.POST.get('choices', '').strip()
+                    field_group = request.POST.get('field_group', 'General').strip()
+                    sort_order = int(request.POST.get('sort_order', 0) or 0)
+                    min_value = request.POST.get('min_value', '').strip() or None
+                    max_value = request.POST.get('max_value', '').strip() or None
+                    max_length = request.POST.get('max_length', '').strip() or None
+                    is_active = request.POST.get('is_active') == 'on'
+                    
+                    # Validation
+                    if not name or not label:
+                        messages.error(request, 'Name and label are required.')
+                        return redirect('core:custom_fields_management')
+                    
+                    # Check for duplicate names (excluding current field)
+                    if EquipmentCategoryField.objects.filter(
+                        category=field.category, name=name
+                    ).exclude(id=field_id).exists():
+                        messages.error(request, f'A field with name "{name}" already exists in this category.')
+                        return redirect('core:custom_fields_management')
+                    
+                    # Update the field
+                    field.name = name
+                    field.label = label
+                    field.field_type = field_type
+                    field.required = required
+                    field.help_text = help_text
+                    field.default_value = default_value
+                    field.choices = choices
+                    field.field_group = field_group
+                    field.sort_order = sort_order
+                    field.min_value = float(min_value) if min_value else None
+                    field.max_value = float(max_value) if max_value else None
+                    field.max_length = int(max_length) if max_length else None
+                    field.is_active = is_active
+                    field.updated_by = request.user
+                    field.save()
+                    
+                    messages.success(request, f'Field "{label}" updated successfully.')
+            except Exception as e:
+                messages.error(request, f'Error updating field: {str(e)}')
+        
+        elif action == 'delete_field':
+            try:
+                field_id = request.POST.get('field_id')
+                field = get_object_or_404(EquipmentCategoryField, id=field_id)
+                field_label = field.label
+                field.delete()
+                messages.success(request, f'Field "{field_label}" deleted successfully.')
+            except Exception as e:
+                messages.error(request, f'Error deleting field: {str(e)}')
+        
+        elif action == 'toggle_field':
+            try:
+                field_id = request.POST.get('field_id')
+                field = get_object_or_404(EquipmentCategoryField, id=field_id)
+                field.is_active = not field.is_active
+                field.save()
+                status = 'enabled' if field.is_active else 'disabled'
+                messages.success(request, f'Field "{field.label}" {status}.')
+            except Exception as e:
+                messages.error(request, f'Error toggling field: {str(e)}')
+        
+        return redirect('core:custom_fields_management')
+    
+    # Get all categories with their custom fields
+    categories = EquipmentCategory.objects.filter(is_active=True).prefetch_related(
+        'custom_fields'
+    ).order_by('name')
+    
+    # Group fields by category
+    categories_with_fields = []
+    for category in categories:
+        fields = category.custom_fields.all().order_by('sort_order', 'label')
+        categories_with_fields.append({
+            'category': category,
+            'fields': fields,
+            'field_count': fields.count(),
+            'active_field_count': fields.filter(is_active=True).count(),
+        })
+    
+    context = {
+        'categories_with_fields': categories_with_fields,
+        'field_types': EquipmentCategoryField.FIELD_TYPE_CHOICES,
+    }
+    
+    return render(request, 'core/custom_fields_management.html', context)
+
+
+@login_required
 @user_passes_test(is_staff_or_superuser)
 def category_fields_api(request, category_id):
     """API endpoint to get fields for a specific equipment category."""

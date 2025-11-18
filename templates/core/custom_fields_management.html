@@ -1,0 +1,483 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Custom Fields Management - Maintenance Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'core:settings' %}">Settings</a></li>
+<li class="breadcrumb-item active">Custom Fields</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="mb-0 text-white">
+                <i class="fas fa-cog me-2"></i>
+                Custom Fields Management
+            </h2>
+            <p class="text-muted mb-0">Manage custom fields for equipment categories</p>
+        </div>
+        <div>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addFieldModal">
+                <i class="fas fa-plus me-1"></i>
+                Add Custom Field
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Messages -->
+{% if messages %}
+<div class="messages">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Categories with Fields -->
+{% for cat_data in categories_with_fields %}
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+            <h5 class="mb-0">
+                <i class="fas fa-tag me-2"></i>
+                {{ cat_data.category.name }}
+            </h5>
+            <small class="text-muted">{{ cat_data.active_field_count }} active / {{ cat_data.field_count }} total fields</small>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addFieldModal" data-category-id="{{ cat_data.category.id }}" data-category-name="{{ cat_data.category.name }}">
+            <i class="fas fa-plus me-1"></i>
+            Add Field
+        </button>
+    </div>
+    <div class="card-body">
+        {% if cat_data.fields %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Label</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Group</th>
+                        <th>Required</th>
+                        <th>Status</th>
+                        <th>Sort Order</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for field in cat_data.fields %}
+                    <tr class="{% if not field.is_active %}table-secondary{% endif %}">
+                        <td><strong>{{ field.label }}</strong></td>
+                        <td><code>{{ field.name }}</code></td>
+                        <td><span class="badge bg-info">{{ field.get_field_type_display }}</span></td>
+                        <td>{{ field.field_group|default:"General" }}</td>
+                        <td>
+                            {% if field.required %}
+                                <span class="badge bg-danger">Required</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Optional</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if field.is_active %}
+                                <span class="badge bg-success">Active</span>
+                            {% else %}
+                                <span class="badge bg-warning">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ field.sort_order }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editFieldModal" 
+                                        data-field-id="{{ field.id }}"
+                                        data-field-name="{{ field.name }}"
+                                        data-field-label="{{ field.label }}"
+                                        data-field-type="{{ field.field_type }}"
+                                        data-field-required="{% if field.required %}true{% else %}false{% endif %}"
+                                        data-field-help-text="{{ field.help_text }}"
+                                        data-field-default-value="{{ field.default_value }}"
+                                        data-field-choices="{{ field.choices }}"
+                                        data-field-group="{{ field.field_group }}"
+                                        data-field-sort-order="{{ field.sort_order }}"
+                                        data-field-min-value="{{ field.min_value|default:'' }}"
+                                        data-field-max-value="{{ field.max_value|default:'' }}"
+                                        data-field-max-length="{{ field.max_length|default:'' }}"
+                                        data-field-is-active="{% if field.is_active %}true{% else %}false{% endif %}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <form method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to {% if field.is_active %}disable{% else %}enable{% endif %} this field?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="toggle_field">
+                                    <input type="hidden" name="field_id" value="{{ field.id }}">
+                                    <button type="submit" class="btn btn-outline-{% if field.is_active %}warning{% else %}success{% endif %}" title="{% if field.is_active %}Disable{% else %}Enable{% endif %}">
+                                        <i class="fas fa-{% if field.is_active %}pause{% else %}play{% endif %}"></i>
+                                    </button>
+                                </form>
+                                <form method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this field? This action cannot be undone.');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_field">
+                                    <input type="hidden" name="field_id" value="{{ field.id }}">
+                                    <button type="submit" class="btn btn-outline-danger" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No custom fields defined for this category yet.</p>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addFieldModal" data-category-id="{{ cat_data.category.id }}" data-category-name="{{ cat_data.category.name }}">
+                <i class="fas fa-plus me-1"></i>
+                Add First Field
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% empty %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+        <p class="text-muted">No equipment categories found. Create categories first to add custom fields.</p>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Add Field Modal -->
+<div class="modal fade" id="addFieldModal" tabindex="-1" aria-labelledby="addFieldModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addFieldModalLabel">
+                    <i class="fas fa-plus me-2"></i>
+                    Add Custom Field
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_field">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="category_id" class="form-label">Category <span class="text-danger">*</span></label>
+                        <select class="form-select" id="category_id" name="category_id" required>
+                            <option value="">Select a category...</option>
+                            {% for cat_data in categories_with_fields %}
+                            <option value="{{ cat_data.category.id }}">{{ cat_data.category.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Field Name (Internal) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" required placeholder="e.g., oil_type">
+                                <small class="form-text text-muted">Internal identifier (lowercase, no spaces)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="label" class="form-label">Display Label <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="label" name="label" required placeholder="e.g., Oil Type">
+                                <small class="form-text text-muted">Label shown to users</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="field_type" class="form-label">Field Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="field_type" name="field_type" required>
+                                    {% for value, label in field_types %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="field_group" class="form-label">Field Group</label>
+                                <input type="text" class="form-control" id="field_group" name="field_group" value="General" placeholder="e.g., General, Technical, Maintenance">
+                                <small class="form-text text-muted">Group fields together in forms</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="sort_order" class="form-label">Sort Order</label>
+                                <input type="number" class="form-control" id="sort_order" name="sort_order" value="0" min="0">
+                                <small class="form-text text-muted">Lower numbers appear first</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3 form-check mt-4">
+                                <input type="checkbox" class="form-check-input" id="required" name="required">
+                                <label class="form-check-label" for="required">
+                                    Required Field
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="help_text" class="form-label">Help Text</label>
+                        <textarea class="form-control" id="help_text" name="help_text" rows="2" placeholder="Additional information shown to users"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="default_value" class="form-label">Default Value</label>
+                        <input type="text" class="form-control" id="default_value" name="default_value" placeholder="Default value for new equipment">
+                    </div>
+                    
+                    <div class="mb-3" id="choicesContainer" style="display: none;">
+                        <label for="choices" class="form-label">Choices (comma-separated)</label>
+                        <input type="text" class="form-control" id="choices" name="choices" placeholder="e.g., Option 1, Option 2, Option 3">
+                        <small class="form-text text-muted">Required for dropdown and multiple choice fields</small>
+                    </div>
+                    
+                    <div class="row" id="validationContainer" style="display: none;">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="min_value" class="form-label">Min Value</label>
+                                <input type="number" step="0.01" class="form-control" id="min_value" name="min_value">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="max_value" class="form-label">Max Value</label>
+                                <input type="number" step="0.01" class="form-control" id="max_value" name="max_value">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="max_length" class="form-label">Max Length</label>
+                                <input type="number" class="form-control" id="max_length" name="max_length">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Field</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Field Modal -->
+<div class="modal fade" id="editFieldModal" tabindex="-1" aria-labelledby="editFieldModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editFieldModalLabel">
+                    <i class="fas fa-edit me-2"></i>
+                    Edit Custom Field
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_field">
+                <input type="hidden" id="edit_field_id" name="field_id">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_name" class="form-label">Field Name (Internal) <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="edit_name" name="name" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_label" class="form-label">Display Label <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="edit_label" name="label" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_field_type" class="form-label">Field Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="edit_field_type" name="field_type" required>
+                                    {% for value, label in field_types %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_field_group" class="form-label">Field Group</label>
+                                <input type="text" class="form-control" id="edit_field_group" name="field_group" value="General">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_sort_order" class="form-label">Sort Order</label>
+                                <input type="number" class="form-control" id="edit_sort_order" name="sort_order" value="0" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3 form-check mt-4">
+                                <input type="checkbox" class="form-check-input" id="edit_required" name="required">
+                                <label class="form-check-label" for="edit_required">
+                                    Required Field
+                                </label>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="edit_is_active" name="is_active">
+                                <label class="form-check-label" for="edit_is_active">
+                                    Active
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_help_text" class="form-label">Help Text</label>
+                        <textarea class="form-control" id="edit_help_text" name="help_text" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_default_value" class="form-label">Default Value</label>
+                        <input type="text" class="form-control" id="edit_default_value" name="default_value">
+                    </div>
+                    
+                    <div class="mb-3" id="editChoicesContainer" style="display: none;">
+                        <label for="edit_choices" class="form-label">Choices (comma-separated)</label>
+                        <input type="text" class="form-control" id="edit_choices" name="choices">
+                    </div>
+                    
+                    <div class="row" id="editValidationContainer" style="display: none;">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="edit_min_value" class="form-label">Min Value</label>
+                                <input type="number" step="0.01" class="form-control" id="edit_min_value" name="min_value">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="edit_max_value" class="form-label">Max Value</label>
+                                <input type="number" step="0.01" class="form-control" id="edit_max_value" name="max_value">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="edit_max_length" class="form-label">Max Length</label>
+                                <input type="number" class="form-control" id="edit_max_length" name="max_length">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Field</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle field type changes to show/hide relevant options
+    const fieldTypeSelect = document.getElementById('field_type');
+    const choicesContainer = document.getElementById('choicesContainer');
+    const validationContainer = document.getElementById('validationContainer');
+    
+    if (fieldTypeSelect) {
+        fieldTypeSelect.addEventListener('change', function() {
+            const needsChoices = ['select', 'multiselect'].includes(this.value);
+            const needsValidation = ['number', 'decimal', 'text'].includes(this.value);
+            
+            choicesContainer.style.display = needsChoices ? 'block' : 'none';
+            if (needsChoices) {
+                document.getElementById('choices').required = true;
+            } else {
+                document.getElementById('choices').required = false;
+            }
+            
+            validationContainer.style.display = needsValidation ? 'block' : 'none';
+        });
+    }
+    
+    // Handle edit field type changes
+    const editFieldTypeSelect = document.getElementById('edit_field_type');
+    const editChoicesContainer = document.getElementById('editChoicesContainer');
+    const editValidationContainer = document.getElementById('editValidationContainer');
+    
+    if (editFieldTypeSelect) {
+        editFieldTypeSelect.addEventListener('change', function() {
+            const needsChoices = ['select', 'multiselect'].includes(this.value);
+            const needsValidation = ['number', 'decimal', 'text'].includes(this.value);
+            
+            editChoicesContainer.style.display = needsChoices ? 'block' : 'none';
+            editValidationContainer.style.display = needsValidation ? 'block' : 'none';
+        });
+    }
+    
+    // Handle add field modal category pre-selection
+    const addFieldModal = document.getElementById('addFieldModal');
+    if (addFieldModal) {
+        addFieldModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            if (button && button.dataset.categoryId) {
+                document.getElementById('category_id').value = button.dataset.categoryId;
+            }
+        });
+    }
+    
+    // Handle edit field modal population
+    const editFieldModal = document.getElementById('editFieldModal');
+    if (editFieldModal) {
+        editFieldModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            if (button && button.dataset.fieldId) {
+                document.getElementById('edit_field_id').value = button.dataset.fieldId;
+                document.getElementById('edit_name').value = button.dataset.fieldName || '';
+                document.getElementById('edit_label').value = button.dataset.fieldLabel || '';
+                document.getElementById('edit_field_type').value = button.dataset.fieldType || 'text';
+                document.getElementById('edit_required').checked = button.dataset.fieldRequired === 'true';
+                document.getElementById('edit_is_active').checked = button.dataset.fieldIsActive === 'true';
+                document.getElementById('edit_help_text').value = button.dataset.fieldHelpText || '';
+                document.getElementById('edit_default_value').value = button.dataset.fieldDefaultValue || '';
+                document.getElementById('edit_choices').value = button.dataset.fieldChoices || '';
+                document.getElementById('edit_field_group').value = button.dataset.fieldGroup || 'General';
+                document.getElementById('edit_sort_order').value = button.dataset.fieldSortOrder || '0';
+                document.getElementById('edit_min_value').value = button.dataset.fieldMinValue || '';
+                document.getElementById('edit_max_value').value = button.dataset.fieldMaxValue || '';
+                document.getElementById('edit_max_length').value = button.dataset.fieldMaxLength || '';
+                
+                // Trigger field type change to show/hide relevant fields
+                editFieldTypeSelect.dispatchEvent(new Event('change'));
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+
