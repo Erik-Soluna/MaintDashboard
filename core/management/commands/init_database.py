@@ -334,6 +334,29 @@ class Command(BaseCommand):
 
             self.stdout.write('   Creating default activity type categories...')
             
+            # Handle duplicate categories first
+            duplicate_map = {
+                'Preventive': 'Preventive Maintenance',
+                'Corrective': 'Corrective Maintenance',
+            }
+            
+            for short_name, full_name in duplicate_map.items():
+                short_cat = ActivityTypeCategory.objects.filter(name=short_name).first()
+                full_cat = ActivityTypeCategory.objects.filter(name=full_name).first()
+                
+                if short_cat and full_cat:
+                    # Both exist - merge short into full
+                    self.stdout.write(f'     Merging duplicate category "{short_name}" into "{full_name}"')
+                    MaintenanceActivityType.objects.filter(category=short_cat).update(category=full_cat)
+                    short_cat.delete()
+                    self.stdout.write(f'       Merged and deleted "{short_name}"')
+                elif short_cat and not full_cat:
+                    # Only short exists - rename it to full
+                    self.stdout.write(f'     Renaming category "{short_name}" to "{full_name}"')
+                    short_cat.name = full_name
+                    short_cat.save()
+                    self.stdout.write(f'       Renamed "{short_name}" to "{full_name}"')
+            
             # Create activity type categories
             category_data = [
                 {
@@ -393,9 +416,21 @@ class Command(BaseCommand):
                         'is_global': True,
                     }
                 )
+                # Update existing category properties for consistency
+                if not created:
+                    category.description = cat_data['description']
+                    category.color = cat_data['color']
+                    category.icon = cat_data['icon']
+                    category.sort_order = cat_data['sort_order']
+                    category.is_active = True
+                    category.is_global = True
+                    category.save()
+                
                 created_categories[cat_data['name']] = category
                 if created:
                     self.stdout.write(f'     Created activity category: {category.name}')
+                else:
+                    self.stdout.write(f'     Activity category already exists: {category.name}')
 
             # Create default activity types
             self.stdout.write('   Creating default activity types...')

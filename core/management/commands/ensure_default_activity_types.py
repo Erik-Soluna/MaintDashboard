@@ -99,9 +99,10 @@ class Command(BaseCommand):
             deleted_count = MaintenanceActivityType.objects.filter(name__in=default_names).delete()[0]
             self.stdout.write(f'  Deleted {deleted_count} default activity types')
             
-            # Delete default categories
+            # Delete default categories (including duplicates)
             default_categories = [
-                'Preventive Maintenance', 'Corrective Maintenance', 
+                'Preventive', 'Preventive Maintenance',
+                'Corrective', 'Corrective Maintenance',
                 'Inspection', 'Calibration', 'Testing', 'Safety'
             ]
             
@@ -112,9 +113,35 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING('Maintenance app not available, skipping clear operation'))
 
     def ensure_default_categories(self, admin_user):
-        """Ensure default activity type categories exist."""
+        """Ensure default activity type categories exist and merge duplicates."""
         try:
-            from maintenance.models import ActivityTypeCategory
+            from maintenance.models import ActivityTypeCategory, MaintenanceActivityType
+            
+            # Map of duplicate short names to full names
+            duplicate_map = {
+                'Preventive': 'Preventive Maintenance',
+                'Corrective': 'Corrective Maintenance',
+            }
+            
+            # First, handle duplicate categories - merge or rename as needed
+            for short_name, full_name in duplicate_map.items():
+                short_cat = ActivityTypeCategory.objects.filter(name=short_name).first()
+                full_cat = ActivityTypeCategory.objects.filter(name=full_name).first()
+                
+                if short_cat and full_cat:
+                    # Both exist - merge short into full
+                    self.stdout.write(f'  Merging duplicate category "{short_name}" into "{full_name}"')
+                    # Update all activity types using the short category
+                    MaintenanceActivityType.objects.filter(category=short_cat).update(category=full_cat)
+                    # Delete the short category
+                    short_cat.delete()
+                    self.stdout.write(f'    Merged and deleted "{short_name}"')
+                elif short_cat and not full_cat:
+                    # Only short exists - rename it to full
+                    self.stdout.write(f'  Renaming category "{short_name}" to "{full_name}"')
+                    short_cat.name = full_name
+                    short_cat.save()
+                    self.stdout.write(f'    Renamed "{short_name}" to "{full_name}"')
             
             categories_data = [
                 {
@@ -175,6 +202,19 @@ class Command(BaseCommand):
                         'created_by': admin_user,
                     }
                 )
+                # Update existing category if it was renamed from a short name
+                if not created:
+                    # Update properties to ensure consistency
+                    category.description = data['description']
+                    category.color = data['color']
+                    category.icon = data['icon']
+                    category.sort_order = data['sort_order']
+                    category.is_active = True
+                    category.is_global = True
+                    if not category.created_by:
+                        category.created_by = admin_user
+                    category.save()
+                
                 categories[data['name']] = category
                 if created:
                     self.stdout.write(f'  Created category: {category.name}')
