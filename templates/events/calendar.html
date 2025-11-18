@@ -1291,19 +1291,6 @@ function initializeCalendar() {
             // Open maintenance creation modal with selected date
             openCreateMaintenanceModal(info.dateStr);
         },
-        eventClick: function(info) {
-            // When clicking on an event, open modal with pre-filled equipment and activity type
-            const extendedProps = info.event.extendedProps;
-            const equipmentId = extendedProps.equipment_id || null;
-            const activityTypeId = extendedProps.activity_type_id ? `activity_${extendedProps.activity_type_id}` : null;
-            const eventDate = info.event.start ? info.event.start.toISOString().split('T')[0] : null;
-            
-            // Open modal with pre-filled data
-            openCreateMaintenanceModal(eventDate, equipmentId, activityTypeId);
-            
-            // Prevent default event navigation
-            info.jsEvent.preventDefault();
-        },
         eventMouseEnter: function(info) {
             var tooltip = document.createElement('div');
             tooltip.className = 'fc-tooltip';
