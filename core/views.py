@@ -947,16 +947,16 @@ def invalidate_dashboard_cache(user_id=None, site_id=None):
             cache_key = f"dashboard_data_all_{user_id}"
             cache.delete(cache_key)
         else:
-            # Invalidate all dashboard caches for this user (use with caution)
-            # Since Django cache doesn't support pattern deletion, we'll clear common cache keys
-            for i in range(100):  # Reasonable upper limit for user IDs
-                cache.delete(f"dashboard_data_all_{i}")
-                # Also clear some common site-specific caches
-                for site_id_val in range(1, 100):  # Reasonable upper limit for site IDs
-                    cache.delete(f"dashboard_data_{site_id_val}_{i}")
+            # Invalidate all dashboard caches for this specific user only
+            # Clear the 'all' cache and common site-specific caches for this user
+            cache.delete(f"dashboard_data_all_{user_id}")
+            # Clear site-specific caches for this user (limit to reasonable range)
+            for site_id_val in range(1, 100):  # Reasonable upper limit for site IDs
+                cache.delete(f"dashboard_data_{site_id_val}_{user_id}")
     else:
-        # Invalidate all dashboard caches (use with caution)
+        # Invalidate all dashboard caches (use with caution - can be slow)
         # Since Django cache doesn't support pattern deletion, we'll clear common cache keys
+        # This is expensive, so prefer passing user_id when possible
         for i in range(100):  # Reasonable upper limit for user IDs
             cache.delete(f"dashboard_data_all_{i}")
             # Also clear some common site-specific caches

@@ -1762,23 +1762,19 @@ def delete_activity(request, activity_id):
     if request.method == 'POST':
         activity_title = activity.title
         
-        # Delete associated calendar events before deleting the activity
+        # Count associated calendar events before deletion (signal will handle deletion)
         from events.models import CalendarEvent
-        associated_events = CalendarEvent.objects.filter(maintenance_activity=activity)
-        events_deleted = associated_events.count()
+        events_deleted = CalendarEvent.objects.filter(maintenance_activity=activity).count()
         
-        # Delete the calendar events first
-        associated_events.delete()
+        # Delete the maintenance activity (signal will handle calendar event deletion and cache invalidation)
+        activity.delete()
         
-        # Invalidate dashboard cache
+        # Invalidate dashboard cache for current user only (signal invalidates all, but this is more targeted)
         try:
             from core.views import invalidate_dashboard_cache
             invalidate_dashboard_cache(user_id=request.user.id)
         except Exception as cache_error:
             logger.warning(f"Could not invalidate dashboard cache: {cache_error}")
-        
-        # Now delete the maintenance activity
-        activity.delete()
         
         if events_deleted > 0:
             messages.success(request, f'Maintenance activity "{activity_title}" and {events_deleted} associated calendar event(s) deleted successfully!')
