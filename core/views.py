@@ -236,13 +236,14 @@ def dashboard(request):
     ).order_by('event_date')[:max_items])
     
     # Calculate upcoming items with single queries - only show maintenance activities to avoid duplication
-    # Upcoming items are those scheduled after today and within the upcoming window
-    # Items in urgent window (0-7 days) should go to urgent if they're overdue or in_progress
-    # Items in urgent window with pending/scheduled status should go to upcoming
+    # Upcoming items are those scheduled after today and within the upcoming window (0-30 days from dashboard settings)
+    # Items in urgent window (0-7 days) that are actually urgent (overdue, in_progress) go to urgent
+    # Items in urgent window (0-7 days) that are NOT urgent (pending, scheduled) go to upcoming
+    # Items beyond urgent window (7-30 days) go to upcoming
     # Use scheduled_end if available, otherwise fall back to scheduled_start
     upcoming_maintenance_all = list(maintenance_query.filter(
         Q(
-            # Items with scheduled_end in the upcoming window
+            # Items with scheduled_end in the upcoming window (today to 30 days)
             Q(scheduled_end__gte=today, scheduled_end__lte=upcoming_cutoff) |
             # Items with only scheduled_start in the upcoming window (if scheduled_end is null)
             Q(scheduled_end__isnull=True, scheduled_start__gte=today, scheduled_start__lte=upcoming_cutoff)
@@ -254,13 +255,16 @@ def dashboard(request):
         # Exclude items that are past their scheduled_end (they're overdue and go to urgent)
         Q(scheduled_end__lt=now, status__in=['pending', 'scheduled']) |
         # Exclude items that are past their scheduled_start if no scheduled_end (they're overdue)
-        Q(scheduled_end__isnull=True, scheduled_start__lt=now, status__in=['pending', 'scheduled'])
+        Q(scheduled_end__isnull=True, scheduled_start__lt=now, status__in=['pending', 'scheduled']) |
+        # Exclude in_progress items in urgent window (0-7 days) - they go to urgent
+        Q(scheduled_end__gte=today, scheduled_end__lte=urgent_cutoff, status='in_progress')
     ).order_by('scheduled_end', 'scheduled_start')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
+    # Upcoming calendar events are those from today to 30 days (respecting dashboard settings)
     upcoming_calendar_all = list(calendar_query.filter(
-        event_date__gt=urgent_cutoff,
-        event_date__lte=upcoming_cutoff,
+        event_date__gte=today,  # From today onwards
+        event_date__lte=upcoming_cutoff,  # Within upcoming window (up to 30 days from dashboard settings)
         is_completed=False,
         maintenance_activity__isnull=True  # Only show calendar events NOT synced with maintenance
     ).order_by('event_date')[:max_items])
