@@ -1229,7 +1229,8 @@ def locations_settings(request):
 def equipment_items_settings(request):
     """Equipment items management view."""
     equipment_items = Equipment.objects.select_related('location', 'category').order_by('name')
-    categories = EquipmentCategory.objects.filter(is_active=True).order_by('name')
+    # Show all categories (including inactive) so admins can edit them
+    categories = EquipmentCategory.objects.all().order_by('name')
     locations = Location.objects.filter(is_active=True).order_by('name')
     
     # Pagination
@@ -2193,6 +2194,51 @@ def edit_equipment_category(request, category_id):
         'title': 'Edit Equipment Category',
     }
     return render(request, 'core/edit_equipment_category.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+def edit_equipment_category_ajax(request, category_id):
+    """AJAX endpoint for editing equipment category via modal."""
+    from django.http import JsonResponse
+    
+    category = get_object_or_404(EquipmentCategory, id=category_id)
+    
+    if request.method == 'GET':
+        # Return category data as JSON
+        return JsonResponse({
+            'id': category.id,
+            'name': category.name,
+            'description': category.description or '',
+            'is_active': category.is_active,
+        })
+    
+    elif request.method == 'POST':
+        # Handle form submission
+        form = EquipmentCategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            category = form.save(commit=False)
+            category.updated_by = request.user
+            category.save()
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Equipment category "{category.name}" updated successfully!',
+                'category': {
+                    'id': category.id,
+                    'name': category.name,
+                    'description': category.description or '',
+                    'is_active': category.is_active,
+                }
+            })
+        else:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Please correct the errors below.',
+                'errors': form.errors
+            }, status=400)
+    
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
 @login_required
