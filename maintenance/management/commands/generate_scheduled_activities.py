@@ -126,20 +126,19 @@ class Command(BaseCommand):
             
             if not dry_run:
                 # Create the maintenance activity
+                # Use make_aware instead of replace to properly handle timezones
+                from datetime import datetime as dt
+                current_tz = timezone.get_current_timezone()
+                naive_start = dt.combine(next_date, dt.min.time())
+                naive_end = dt.combine(next_date, dt.min.time()) + timedelta(hours=schedule.activity_type.estimated_duration_hours)
+                
                 activity = MaintenanceActivity.objects.create(
                     equipment=schedule.equipment,
                     activity_type=schedule.activity_type,
                     title=f"{schedule.activity_type.name} - {schedule.equipment.name}",
                     description=schedule.activity_type.description,
-                    scheduled_start=timezone.datetime.combine(
-                        next_date, 
-                        timezone.datetime.min.time()
-                    ).replace(tzinfo=timezone.get_current_timezone()),
-                    scheduled_end=timezone.datetime.combine(
-                        next_date, 
-                        timezone.datetime.min.time()
-                    ).replace(tzinfo=timezone.get_current_timezone()) + 
-                    timedelta(hours=schedule.activity_type.estimated_duration_hours),
+                    scheduled_start=timezone.make_aware(naive_start, current_tz),
+                    scheduled_end=timezone.make_aware(naive_end, current_tz),
                     status='scheduled',
                     priority='medium' if schedule.activity_type.is_mandatory else 'low',
                     created_by=schedule.created_by,

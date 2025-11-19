@@ -524,20 +524,20 @@ class MaintenanceSchedule(TimeStampedModel):
             
             if not existing:
                 # Create the maintenance activity
+                # Use make_aware instead of replace to properly handle timezones
+                from datetime import datetime as dt
+                import pytz
+                current_tz = timezone.get_current_timezone()
+                naive_start = dt.combine(next_date, dt.min.time())
+                naive_end = dt.combine(next_date, dt.min.time()) + timedelta(hours=self.activity_type.estimated_duration_hours)
+                
                 activity = MaintenanceActivity.objects.create(
                     equipment=self.equipment,
                     activity_type=self.activity_type,
                     title=f"{self.activity_type.name} - {self.equipment.name}",
                     description=self.activity_type.description,
-                    scheduled_start=timezone.datetime.combine(
-                        next_date, 
-                        timezone.datetime.min.time()
-                    ).replace(tzinfo=timezone.get_current_timezone()),
-                    scheduled_end=timezone.datetime.combine(
-                        next_date, 
-                        timezone.datetime.min.time()
-                    ).replace(tzinfo=timezone.get_current_timezone()) + 
-                    timedelta(hours=self.activity_type.estimated_duration_hours),
+                    scheduled_start=timezone.make_aware(naive_start, current_tz),
+                    scheduled_end=timezone.make_aware(naive_end, current_tz),
                     status='scheduled',
                     priority='medium' if self.activity_type.is_mandatory else 'low',
                     created_by=self.created_by,

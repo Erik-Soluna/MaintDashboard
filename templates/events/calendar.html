@@ -2041,30 +2041,58 @@ function getPriorityBadge(priority) {
 
 function formatDateTime(dateTimeStr, timezoneStr) {
     if (!dateTimeStr) return 'N/A';
+    
+    // Parse the ISO string - the API sends times already converted to the activity's timezone
+    // So the ISO string represents the time in that timezone
     const date = new Date(dateTimeStr);
     
-    // If timezone is provided, format using that timezone; otherwise use browser's timezone
-    // Note: The dateTimeStr should already be in the correct timezone from the API
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+        return 'Invalid Date';
+    }
+    
+    // If timezone is provided, format using that timezone
+    // The API already converted the time to the activity's timezone, so we just format it
     if (timezoneStr) {
         try {
-            // Use the timezone to format, but the date should already be correct
-            // The API sends times in the activity's timezone, so we just format it
+            // Use Intl.DateTimeFormat for better timezone support
+            // The date object already represents the correct moment in time
+            // We format it to display in the specified timezone
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: timezoneStr,
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+                timeZoneName: 'short'
+            });
+            return formatter.format(date);
+        } catch (e) {
+            // Fallback to toLocaleString if Intl fails
             return date.toLocaleString('en-US', {
                 timeZone: timezoneStr,
                 year: 'numeric',
                 month: 'numeric',
                 day: 'numeric',
                 hour: 'numeric',
-                minute: 'numeric',
-                second: 'numeric',
-                hour12: true
+                minute: '2-digit',
+                hour12: true,
+                timeZoneName: 'short'
             });
-        } catch (e) {
-            // Fallback to default if timezone is invalid
-            return date.toLocaleString();
         }
+    } else {
+        // No timezone specified, use browser's local timezone
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
     }
-    return date.toLocaleString();
 }
 
 function deleteMaintenanceActivity(activityId) {
