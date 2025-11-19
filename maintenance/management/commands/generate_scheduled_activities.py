@@ -132,10 +132,21 @@ class Command(BaseCommand):
                 naive_start = dt.combine(next_date, dt.min.time())
                 naive_end = dt.combine(next_date, dt.min.time()) + timedelta(hours=schedule.activity_type.estimated_duration_hours)
                 
+                # Generate title using Dashboard Settings template
+                from maintenance.utils import generate_activity_title
+                activity_title = generate_activity_title(
+                    template=None,  # Will use Dashboard Settings template
+                    activity_type=schedule.activity_type,
+                    equipment=schedule.equipment,
+                    scheduled_start=timezone.make_aware(naive_start, current_tz),
+                    priority='medium' if schedule.activity_type.is_mandatory else 'low',
+                    status='scheduled'
+                )
+                
                 activity = MaintenanceActivity.objects.create(
                     equipment=schedule.equipment,
                     activity_type=schedule.activity_type,
-                    title=f"{schedule.activity_type.name} - {schedule.equipment.name}",
+                    title=activity_title,
                     description=schedule.activity_type.description,
                     scheduled_start=timezone.make_aware(naive_start, current_tz),
                     scheduled_end=timezone.make_aware(naive_end, current_tz),

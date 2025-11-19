@@ -545,10 +545,23 @@ class MaintenanceActivityForm(forms.ModelForm):
                         start_time = instance.scheduled_start.time() if instance.scheduled_start else datetime.min.time()
                         
                         # Create the maintenance activity
+                        # Generate title using Dashboard Settings template
+                        from maintenance.utils import generate_activity_title
+                        future_activity_title = generate_activity_title(
+                            template=None,  # Will use Dashboard Settings template
+                            activity_type=instance.activity_type,
+                            equipment=instance.equipment,
+                            scheduled_start=timezone.make_aware(
+                                datetime.combine(next_date, start_time)
+                            ),
+                            priority=instance.priority,
+                            status='scheduled'
+                        )
+                        
                         future_activity = MaintenanceActivity.objects.create(
                             equipment=instance.equipment,
                             activity_type=instance.activity_type,
-                            title=f"{instance.activity_type.name} - {instance.equipment.name}",
+                            title=future_activity_title,
                             description=instance.activity_type.description or instance.description,
                             scheduled_start=timezone.make_aware(
                                 datetime.combine(next_date, start_time)

@@ -19,7 +19,7 @@ def generate_activity_title(template, activity_type=None, equipment=None, schedu
     - {Status}: Status display name
     
     Args:
-        template: Template string with variables
+        template: Template string with variables. If None, uses Dashboard Settings template.
         activity_type: MaintenanceActivityType instance or name string
         equipment: Equipment instance or name string
         scheduled_start: datetime object
@@ -30,8 +30,17 @@ def generate_activity_title(template, activity_type=None, equipment=None, schedu
         Generated title string
     """
     if not template:
-        # Default template: Activity Type - POD # - equipment
-        template = "{Activity_Type} - {POD} - {Equipment}"
+        # Get default template from Dashboard Settings
+        try:
+            dashboard_settings = DashboardSettings.get_active()
+            if dashboard_settings and dashboard_settings.activity_title_template:
+                template = dashboard_settings.activity_title_template
+            else:
+                # Fallback to default template if no settings found
+                template = "{Activity_Type} - {POD} - {Equipment}"
+        except Exception:
+            # Fallback to default template if error getting settings
+            template = "{Activity_Type} - {POD} - {Equipment}"
     
     # Get activity type name
     activity_type_name = ""

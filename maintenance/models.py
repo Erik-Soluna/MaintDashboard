@@ -531,10 +531,21 @@ class MaintenanceSchedule(TimeStampedModel):
                 naive_start = dt.combine(next_date, dt.min.time())
                 naive_end = dt.combine(next_date, dt.min.time()) + timedelta(hours=self.activity_type.estimated_duration_hours)
                 
+                # Generate title using Dashboard Settings template
+                from maintenance.utils import generate_activity_title
+                activity_title = generate_activity_title(
+                    template=None,  # Will use Dashboard Settings template
+                    activity_type=self.activity_type,
+                    equipment=self.equipment,
+                    scheduled_start=timezone.make_aware(naive_start, current_tz),
+                    priority='medium' if self.activity_type.is_mandatory else 'low',
+                    status='scheduled'
+                )
+                
                 activity = MaintenanceActivity.objects.create(
                     equipment=self.equipment,
                     activity_type=self.activity_type,
-                    title=f"{self.activity_type.name} - {self.equipment.name}",
+                    title=activity_title,
                     description=self.activity_type.description,
                     scheduled_start=timezone.make_aware(naive_start, current_tz),
                     scheduled_end=timezone.make_aware(naive_end, current_tz),
