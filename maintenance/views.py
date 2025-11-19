@@ -497,7 +497,16 @@ def bulk_add_activity(request):
                             equipment = Equipment.objects.get(id=equipment_id, is_active=True)
                             
                             # Replace {equipment} placeholder in title
-                            activity_title = title_template.replace('{equipment}', equipment.name)
+                            # Use the proper title generation function that supports all variables
+                            from maintenance.utils import generate_activity_title
+                            activity_title = generate_activity_title(
+                                template=title_template,
+                                activity_type=activity_type,
+                                equipment=equipment,
+                                scheduled_start=scheduled_start_dt,
+                                priority=priority,
+                                status=status
+                            )
                             
                             activity = MaintenanceActivity.objects.create(
                                 equipment=equipment,
