@@ -564,20 +564,20 @@
             <!-- Grouped by Site, then by Activity Type -->
             {% for site_name, site_data in upcoming_maintenance_by_site_grouped.items %}
             <div class="site-group">
-                <div class="site-group-header expandable" onclick="toggleExpand('site-{{ site_name|slugify }}')">
-                    <i class="fas fa-chevron-right expand-icon" id="icon-site-{{ site_name|slugify }}"></i>
+                <div class="site-group-header expandable" onclick="toggleExpand('upcoming-site-{{ site_name|slugify }}')">
+                    <i class="fas fa-chevron-right expand-icon" id="icon-upcoming-site-{{ site_name|slugify }}"></i>
                     <strong>{{ site_name }}</strong>
                     <span class="badge badge-secondary">{{ site_data.total_count }}</span>
                 </div>
-                <div class="site-group-content" id="site-{{ site_name|slugify }}" style="display: none;">
+                <div class="site-group-content" id="upcoming-site-{{ site_name|slugify }}" style="display: none;">
                     {% for activity_type_name, items in site_data.activity_types.items %}
                     <div class="activity-type-group">
-                        <div class="activity-type-header expandable" onclick="toggleExpand('type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}')">
-                            <i class="fas fa-chevron-right expand-icon" id="icon-type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}"></i>
+                        <div class="activity-type-header expandable" onclick="toggleExpand('upcoming-type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}')">
+                            <i class="fas fa-chevron-right expand-icon" id="icon-upcoming-type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}"></i>
                             <strong>{{ activity_type_name }}</strong>
                             <span class="badge badge-info">{{ items|length }}</span>
                         </div>
-                        <div class="activity-type-content" id="type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}" style="display: none;">
+                        <div class="activity-type-content" id="upcoming-type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}" style="display: none;">
                             {% for item in items %}
                             <div class="maintenance-item scheduled" onclick="event.stopPropagation(); viewMaintenanceItem({{ item.id }})">
                                 <div class="item-title">{{ item.title|truncatechars:35 }}</div>
