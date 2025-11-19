@@ -13,6 +13,7 @@ def generate_activity_title(template, activity_type=None, equipment=None, schedu
     Available template variables:
     - {Activity_Type}: Activity type name
     - {Equipment}: Equipment name
+    - {POD}: POD number (location name) where equipment is located
     - {Date}: Scheduled start date (formatted as YYYY-MM-DD)
     - {Priority}: Priority display name
     - {Status}: Status display name
@@ -29,12 +30,8 @@ def generate_activity_title(template, activity_type=None, equipment=None, schedu
         Generated title string
     """
     if not template:
-        # Get default template from settings
-        try:
-            dashboard_settings = DashboardSettings.get_active()
-            template = dashboard_settings.activity_title_template
-        except Exception:
-            template = "{Activity_Type} - {Equipment}"
+        # Default template: Activity Type - POD # - equipment
+        template = "{Activity_Type} - {POD} - {Equipment}"
     
     # Get activity type name
     activity_type_name = ""
@@ -51,6 +48,13 @@ def generate_activity_title(template, activity_type=None, equipment=None, schedu
             equipment_name = equipment.name
         else:
             equipment_name = str(equipment)
+    
+    # Get POD (location) name
+    pod_name = ""
+    if equipment and hasattr(equipment, 'location') and equipment.location:
+        pod_name = equipment.location.name
+    elif not pod_name:
+        pod_name = "Unknown"
     
     # Format date
     date_str = ""
@@ -88,6 +92,7 @@ def generate_activity_title(template, activity_type=None, equipment=None, schedu
     title = template
     title = title.replace('{Activity_Type}', activity_type_name)
     title = title.replace('{Equipment}', equipment_name)
+    title = title.replace('{POD}', pod_name)
     title = title.replace('{Date}', date_str)
     title = title.replace('{Priority}', priority_display)
     title = title.replace('{Status}', status_display)

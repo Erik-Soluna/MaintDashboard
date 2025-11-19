@@ -103,6 +103,43 @@
     margin-left: 0.5rem;
 }
 
+.site-group-header.expandable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.site-group-header.expandable:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.expand-icon {
+    margin-right: 8px;
+    transition: transform 0.2s;
+}
+
+.activity-type-header {
+    padding: 10px 15px;
+    background-color: rgba(255, 255, 255, 0.02);
+    border-left: 3px solid #4299e1;
+    margin: 5px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.activity-type-header.expandable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.activity-type-header.expandable:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.activity-type-content {
+    margin-left: 20px;
+}
+
 .site-group-header {
     display: flex;
     justify-content: space-between;
@@ -509,25 +546,39 @@
             <span class="section-count">{% if upcoming_total_count %}{{ upcoming_total_count }}{% else %}{{ upcoming_maintenance|length|add:upcoming_calendar|length }}{% endif %}</span>
         </div>
         
-        {% if dashboard_settings.group_upcoming_by_site and is_all_sites and upcoming_maintenance_by_site %}
-            <!-- Grouped by Site -->
-            {% for site_name, items in upcoming_maintenance_by_site.items %}
+        {% if dashboard_settings.group_upcoming_by_site and is_all_sites and upcoming_maintenance_by_site_grouped %}
+            <!-- Grouped by Site, then by Activity Type -->
+            {% for site_name, site_data in upcoming_maintenance_by_site_grouped.items %}
             <div class="site-group">
-                <div class="site-group-header">
+                <div class="site-group-header expandable" onclick="toggleExpand('site-{{ site_name|slugify }}')">
+                    <i class="fas fa-chevron-right expand-icon" id="icon-site-{{ site_name|slugify }}"></i>
                     <strong>{{ site_name }}</strong>
-                    <span class="badge badge-secondary">{{ items|length }}</span>
+                    <span class="badge badge-secondary">{{ site_data.total_count }}</span>
                 </div>
-                {% for item in items %}
-                <div class="maintenance-item scheduled" onclick="viewMaintenanceItem({{ item.id }})">
-                    <div class="item-title">{{ item.title|truncatechars:35 }}</div>
-                    <div class="item-meta">
-                        <span class="status-dot {{ item.status }}"></span>
-                        {{ item.scheduled_end|date:"M d, H:i" }}
+                <div class="site-group-content" id="site-{{ site_name|slugify }}" style="display: none;">
+                    {% for activity_type_name, items in site_data.activity_types.items %}
+                    <div class="activity-type-group">
+                        <div class="activity-type-header expandable" onclick="toggleExpand('type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}')">
+                            <i class="fas fa-chevron-right expand-icon" id="icon-type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}"></i>
+                            <strong>{{ activity_type_name }}</strong>
+                            <span class="badge badge-info">{{ items|length }}</span>
+                        </div>
+                        <div class="activity-type-content" id="type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}" style="display: none;">
+                            {% for item in items %}
+                            <div class="maintenance-item scheduled" onclick="event.stopPropagation(); viewMaintenanceItem({{ item.id }})">
+                                <div class="item-title">{{ item.title|truncatechars:35 }}</div>
+                                <div class="item-meta">
+                                    <span class="status-dot {{ item.status }}"></span>
+                                    {% if item.scheduled_end %}{{ item.scheduled_end|date:"M d, H:i" }}{% elif item.scheduled_start %}{{ item.scheduled_start|date:"M d, H:i" }}{% endif %}
+                                </div>
+                                <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
+                                <div class="item-type-badge">MAINT</div>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
-                    <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
-                    <div class="item-type-badge">MAINT</div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
             {% endfor %}
             
@@ -768,6 +819,27 @@
 
 {% block extra_js %}
 <script>
+// Expand/collapse functionality for grouped items
+function toggleExpand(elementId) {
+    const element = document.getElementById(elementId);
+    const icon = document.getElementById('icon-' + elementId);
+    if (element) {
+        if (element.style.display === 'none') {
+            element.style.display = 'block';
+            if (icon) {
+                icon.classList.remove('fa-chevron-right');
+                icon.classList.add('fa-chevron-down');
+            }
+        } else {
+            element.style.display = 'none';
+            if (icon) {
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-right');
+            }
+        }
+    }
+}
+
 function viewMaintenanceItem(itemId) {
     // Navigate to maintenance item detail
     window.location.href = '/maintenance/activities/' + itemId + '/';
