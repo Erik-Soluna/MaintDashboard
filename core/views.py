@@ -216,8 +216,9 @@ def dashboard(request):
     upcoming_cutoff = today + timedelta(days=upcoming_days)
     
     # Calculate urgent items with single queries - only show maintenance activities to avoid duplication
-    # Include overdue items (scheduled_start < now) and all items within urgent window (0-7 days from dashboard settings)
-    # Items in urgent window (0-7 days) with pending/scheduled/in_progress status go to urgent
+    # Include overdue items (scheduled_start < now) and scheduled items within urgent window (0-7 days from dashboard settings)
+    # Items in urgent window (0-7 days) with scheduled status go to urgent
+    # Pending and in_progress items go to Active Items section
     # Items beyond urgent window (7-30 days) go to upcoming
     # Limit queries to prevent loading too much data
     max_items = 200  # Reasonable limit to prevent excessive memory usage
@@ -225,10 +226,10 @@ def dashboard(request):
     urgent_maintenance_all = list(maintenance_query.filter(
         Q(status='overdue') |  # Items explicitly marked as overdue
         (Q(scheduled_start__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past scheduled start date (overdue) - count on Day of Schedule start
-        # Items within urgent window (0-7 days) - includes in_progress, pending, and scheduled
-        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['in_progress', 'pending', 'scheduled'])) |
-        # Items with only scheduled_start in urgent window
-        (Q(scheduled_end__isnull=True, scheduled_start__lte=urgent_cutoff, scheduled_start__gte=today) & Q(status__in=['in_progress', 'pending', 'scheduled']))
+        # Items within urgent window (0-7 days) - only scheduled status (pending and in_progress go to Active Items)
+        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status='scheduled')) |
+        # Items with only scheduled_start in urgent window - only scheduled status
+        (Q(scheduled_end__isnull=True, scheduled_start__lte=urgent_cutoff, scheduled_start__gte=today) & Q(status='scheduled'))
     ).order_by('scheduled_end', 'scheduled_start')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
