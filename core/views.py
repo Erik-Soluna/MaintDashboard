@@ -419,9 +419,9 @@ def dashboard(request):
         overview_data = []
         
         # Get all equipment and maintenance data in bulk
+        # NOTE: Calendar events are deprecated - only use maintenance activities
         pod_equipment = {loc.id: [] for loc in locations}
         pod_maintenance = {loc.id: [] for loc in locations}
-        pod_calendar = {loc.id: [] for loc in locations}
         
         # Organize equipment by location - Limit to prevent excessive memory usage
         for equipment in equipment_query[:1000]:  # Limit to 1000 items
@@ -433,16 +433,10 @@ def dashboard(request):
             if maintenance.equipment and maintenance.equipment.location and maintenance.equipment.location.id in pod_maintenance:
                 pod_maintenance[maintenance.equipment.location.id].append(maintenance)
         
-        # Organize calendar by location - Limit to prevent excessive memory usage
-        for calendar_event in calendar_query[:1000]:  # Limit to 1000 items
-            if calendar_event.equipment and calendar_event.equipment.location and calendar_event.equipment.location.id in pod_calendar:
-                pod_calendar[calendar_event.equipment.location.id].append(calendar_event)
-        
         # Process each location with bulk data
         for location in locations:
             location_equipment = pod_equipment.get(location.id, [])
             location_maintenance = pod_maintenance.get(location.id, [])
-            location_calendar = pod_calendar.get(location.id, [])
             
             # Calculate counts from in-memory data
             equipment_in_maintenance = sum(1 for eq in location_equipment if eq.status == 'maintenance')
@@ -503,18 +497,32 @@ def dashboard(request):
             recent_activities.sort(key=lambda x: x.actual_end, reverse=True)
             recent_activities = recent_activities[:3]
             
-            # Get next events (filter out any that might have been deleted)
+            # Get next upcoming maintenance activities (replacing deprecated calendar events)
+            # Show upcoming maintenance activities scheduled in the future
             next_events = []
-            for ce in location_calendar:
+            for ma in location_maintenance:
                 try:
-                    # Verify the event still exists in the database
-                    if (ce.event_date >= today and not ce.is_completed):
-                        next_events.append(ce)
+                    # Verify the maintenance activity still exists in the database
+                    # Show scheduled/pending activities that are upcoming (within upcoming window)
+                    if (ma.status in ['scheduled', 'pending', 'in_progress'] and
+                        not ma.status == 'overdue'):
+                        # Check if it's in the upcoming window (after urgent cutoff, within upcoming cutoff)
+                        scheduled_date = None
+                        if ma.scheduled_end:
+                            scheduled_date = ma.scheduled_end.date()
+                        elif ma.scheduled_start:
+                            scheduled_date = ma.scheduled_start.date()
+                        
+                        if scheduled_date and scheduled_date >= today:
+                            # Include if it's in the upcoming window (7-30 days) or urgent window (0-7 days)
+                            if scheduled_date <= upcoming_cutoff:
+                                next_events.append(ma)
                 except Exception:
-                    # Event was deleted, skip it
+                    # Maintenance activity was deleted, skip it
                     continue
             
-            next_events.sort(key=lambda x: x.event_date)
+            # Sort by scheduled date (use scheduled_end if available, otherwise scheduled_start)
+            next_events.sort(key=lambda x: (x.scheduled_end.date() if x.scheduled_end else x.scheduled_start.date()) if (x.scheduled_end or x.scheduled_start) else today)
             next_events = next_events[:3]
             
             # Calculate pod health status

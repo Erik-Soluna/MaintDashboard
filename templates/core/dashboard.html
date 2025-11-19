@@ -689,7 +689,7 @@
                         <div class="pod-activity">✓ {{ activity.title|truncatechars:25 }} ({{ activity.actual_end|date:"M d" }})</div>
                         {% endfor %}
                         {% for event in item.next_events %}
-                        <div class="pod-activity">→ {{ event.title|truncatechars:25 }} ({{ event.event_date|date:"M d" }})</div>
+                        <div class="pod-activity">→ Maintenance: {{ event.title|truncatechars:25 }} ({% if event.scheduled_end %}{{ event.scheduled_end|date:"M d" }}{% elif event.scheduled_start %}{{ event.scheduled_start|date:"M d" }}{% endif %})</div>
                         {% endfor %}
                     </div>
                     {% endif %}
@@ -737,7 +737,7 @@
                         <div class="pod-activity">✓ {{ activity.title|truncatechars:25 }} ({{ activity.actual_end|date:"M d" }})</div>
                         {% endfor %}
                         {% for event in item.next_events %}
-                        <div class="pod-activity">→ {{ event.title|truncatechars:25 }} ({{ event.event_date|date:"M d" }})</div>
+                        <div class="pod-activity">→ Maintenance: {{ event.title|truncatechars:25 }} ({% if event.scheduled_end %}{{ event.scheduled_end|date:"M d" }}{% elif event.scheduled_start %}{{ event.scheduled_start|date:"M d" }}{% endif %})</div>
                         {% endfor %}
                     </div>
                     {% endif %}
