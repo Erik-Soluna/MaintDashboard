@@ -282,7 +282,9 @@ def dashboard(request):
     
     # Group items by site if enabled
     group_by_site = dashboard_settings.group_urgent_by_site if dashboard_settings else True
+    group_upcoming = dashboard_settings.group_upcoming_by_site if dashboard_settings else True
     urgent_maintenance_by_site = {}
+    urgent_maintenance_by_site_grouped = {}
     urgent_calendar_by_site = {}
     upcoming_maintenance_by_site = {}
     upcoming_maintenance_by_site_grouped = {}
@@ -317,16 +319,39 @@ def dashboard(request):
             site = loc.get_site_location()
             location_to_site[loc.id] = site.name if site else "Unknown Site"
         
-        # Group urgent maintenance by site
+        # Group urgent maintenance by site, then by activity type
+        urgent_maintenance_by_site_and_type = {}
         for item in urgent_maintenance_all:
             if item.equipment and item.equipment.location:
                 site_name = location_to_site.get(item.equipment.location.id, "Unknown Site")
             else:
                 site_name = "Unknown Site"
-            if site_name not in urgent_maintenance_by_site:
-                urgent_maintenance_by_site[site_name] = []
-            if len(urgent_maintenance_by_site[site_name]) < (dashboard_settings.max_urgent_items_per_site if dashboard_settings else 15):
-                urgent_maintenance_by_site[site_name].append(item)
+            
+            activity_type_name = item.activity_type.name if item.activity_type else "Unknown"
+            
+            if site_name not in urgent_maintenance_by_site_and_type:
+                urgent_maintenance_by_site_and_type[site_name] = {}
+            if activity_type_name not in urgent_maintenance_by_site_and_type[site_name]:
+                urgent_maintenance_by_site_and_type[site_name][activity_type_name] = []
+            
+            max_per_type = (dashboard_settings.max_urgent_items_per_site if dashboard_settings else 15) * 2
+            if len(urgent_maintenance_by_site_and_type[site_name][activity_type_name]) < max_per_type:
+                urgent_maintenance_by_site_and_type[site_name][activity_type_name].append(item)
+        
+        # Convert to flat structure for backwards compatibility
+        for site_name, activity_types in urgent_maintenance_by_site_and_type.items():
+            urgent_maintenance_by_site[site_name] = []
+            for activity_type_name, items in activity_types.items():
+                urgent_maintenance_by_site[site_name].extend(items)
+        
+        # Store the grouped structure for the template
+        urgent_maintenance_by_site_grouped = {}
+        for site_name, activity_types in urgent_maintenance_by_site_and_type.items():
+            total_count = sum(len(items) for items in activity_types.values())
+            urgent_maintenance_by_site_grouped[site_name] = {
+                'activity_types': activity_types,
+                'total_count': total_count
+            }
         
         # Group urgent calendar by site
         for event in urgent_calendar_all:
@@ -340,7 +365,6 @@ def dashboard(request):
                 urgent_calendar_by_site[site_name].append(event)
         
         # Group upcoming maintenance by site, then by activity type
-        group_upcoming = dashboard_settings.group_upcoming_by_site if dashboard_settings else True
         if group_upcoming:
             # Structure: {site_name: {activity_type_name: [items]}}
             upcoming_maintenance_by_site_and_type = {}
@@ -923,6 +947,7 @@ def dashboard(request):
         
         # Grouped by site (if enabled)
         'urgent_maintenance_by_site': urgent_maintenance_by_site,
+        'urgent_maintenance_by_site_grouped': urgent_maintenance_by_site_grouped if group_by_site and is_all_sites else {},
         'urgent_calendar_by_site': urgent_calendar_by_site,
         'upcoming_maintenance_by_site': upcoming_maintenance_by_site,
         'upcoming_maintenance_by_site_grouped': upcoming_maintenance_by_site_grouped if group_upcoming and is_all_sites else {},

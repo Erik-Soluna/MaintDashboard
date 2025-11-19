@@ -459,25 +459,39 @@
             <span class="section-count">{% if urgent_total_count %}{{ urgent_total_count }}{% else %}{{ urgent_maintenance|length|add:urgent_calendar|length }}{% endif %}</span>
         </div>
         
-        {% if dashboard_settings.group_urgent_by_site and is_all_sites and urgent_maintenance_by_site %}
-            <!-- Grouped by Site -->
-            {% for site_name, items in urgent_maintenance_by_site.items %}
+        {% if dashboard_settings.group_urgent_by_site and is_all_sites and urgent_maintenance_by_site_grouped %}
+            <!-- Grouped by Site, then by Activity Type -->
+            {% for site_name, site_data in urgent_maintenance_by_site_grouped.items %}
             <div class="site-group">
-                <div class="site-group-header">
+                <div class="site-group-header expandable" onclick="toggleExpand('urgent-site-{{ site_name|slugify }}')">
+                    <i class="fas fa-chevron-right expand-icon" id="icon-urgent-site-{{ site_name|slugify }}"></i>
                     <strong>{{ site_name }}</strong>
-                    <span class="badge badge-secondary">{{ items|length }}</span>
+                    <span class="badge badge-secondary">{{ site_data.total_count }}</span>
                 </div>
-                {% for item in items %}
-                <div class="maintenance-item urgent" onclick="viewMaintenanceItem({{ item.id }})">
-                    <div class="item-title">{{ item.title|truncatechars:35 }}</div>
-                    <div class="item-meta">
-                        <span class="status-dot {{ item.status }}"></span>
-                        {{ item.scheduled_end|date:"M d, H:i" }}
+                <div class="site-group-content" id="urgent-site-{{ site_name|slugify }}" style="display: none;">
+                    {% for activity_type_name, items in site_data.activity_types.items %}
+                    <div class="activity-type-group">
+                        <div class="activity-type-header expandable" onclick="toggleExpand('urgent-type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}')">
+                            <i class="fas fa-chevron-right expand-icon" id="icon-urgent-type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}"></i>
+                            <strong>{{ activity_type_name }}</strong>
+                            <span class="badge badge-info">{{ items|length }}</span>
+                        </div>
+                        <div class="activity-type-content" id="urgent-type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}" style="display: none;">
+                            {% for item in items %}
+                            <div class="maintenance-item urgent" onclick="event.stopPropagation(); viewMaintenanceItem({{ item.id }})">
+                                <div class="item-title">{{ item.title|truncatechars:35 }}</div>
+                                <div class="item-meta">
+                                    <span class="status-dot {{ item.status }}"></span>
+                                    {% if item.scheduled_end %}{{ item.scheduled_end|date:"M d, H:i" }}{% elif item.scheduled_start %}{{ item.scheduled_start|date:"M d, H:i" }}{% endif %}
+                                </div>
+                                <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
+                                <div class="item-type-badge">MAINT</div>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
-                    <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
-                    <div class="item-type-badge">MAINT</div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
             {% endfor %}
             
