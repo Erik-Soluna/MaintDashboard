@@ -216,20 +216,22 @@ def dashboard(request):
     upcoming_cutoff = today + timedelta(days=upcoming_days)
     
     # Calculate urgent items with single queries - only show maintenance activities to avoid duplication
-    # Include overdue items (scheduled_start < now) and scheduled items within urgent window (0-7 days from dashboard settings)
-    # Items in urgent window (0-7 days) with scheduled status go to urgent
-    # Pending and in_progress items go to Active Items section
-    # Items beyond urgent window (7-30 days) go to upcoming
-    # Limit queries to prevent loading too much data
+    # Use status filters from dashboard settings
     max_items = 200  # Reasonable limit to prevent excessive memory usage
     now = timezone.now()
+    
+    # Get status filters from dashboard settings
+    urgent_statuses = dashboard_settings.urgent_statuses if dashboard_settings and dashboard_settings.urgent_statuses else ['scheduled', 'overdue']
+    
     urgent_maintenance_all = list(maintenance_query.filter(
-        Q(status='overdue') |  # Items explicitly marked as overdue
-        (Q(scheduled_start__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past scheduled start date (overdue) - count on Day of Schedule start
-        # Items within urgent window (0-7 days) - only scheduled status (pending and in_progress go to Active Items)
-        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status='scheduled')) |
-        # Items with only scheduled_start in urgent window - only scheduled status
-        (Q(scheduled_end__isnull=True, scheduled_start__lte=urgent_cutoff, scheduled_start__gte=today) & Q(status='scheduled'))
+        Q(status__in=urgent_statuses) & (
+            Q(status='overdue') |  # Items explicitly marked as overdue
+            (Q(scheduled_start__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past scheduled start date (overdue)
+            # Items within urgent window (0-7 days)
+            (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today)) |
+            # Items with only scheduled_start in urgent window
+            Q(scheduled_end__isnull=True, scheduled_start__lte=urgent_cutoff, scheduled_start__gte=today)
+        )
     ).order_by('scheduled_end', 'scheduled_start')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
@@ -242,9 +244,9 @@ def dashboard(request):
     
     # Calculate upcoming items with single queries - only show maintenance activities to avoid duplication
     # Upcoming items are those scheduled AFTER the urgent window (7-30 days from dashboard settings)
-    # Items in urgent window (0-7 days) go to urgent
-    # Items beyond urgent window (7-30 days) go to upcoming
-    # Use scheduled_end if available, otherwise fall back to scheduled_start
+    # Use status filters from dashboard settings
+    upcoming_statuses = dashboard_settings.upcoming_statuses if dashboard_settings and dashboard_settings.upcoming_statuses else ['pending', 'scheduled', 'in_progress']
+    
     upcoming_maintenance_all = list(maintenance_query.filter(
         Q(
             # Items with scheduled_end AFTER urgent window but within upcoming window (7-30 days)
@@ -252,7 +254,7 @@ def dashboard(request):
             # Items with only scheduled_start AFTER urgent window but within upcoming window
             Q(scheduled_end__isnull=True, scheduled_start__gt=urgent_cutoff, scheduled_start__lte=upcoming_cutoff)
         ),
-        status__in=['pending', 'scheduled', 'in_progress']  # Include all active statuses
+        status__in=upcoming_statuses
     ).exclude(
         # Exclude overdue items (they go to urgent)
         Q(status='overdue') |
@@ -271,9 +273,11 @@ def dashboard(request):
         maintenance_activity__isnull=True  # Only show calendar events NOT synced with maintenance
     ).order_by('event_date')[:max_items])
     
-    # Calculate active items (in_progress and pending statuses) - all active items regardless of date
+    # Calculate active items - use status filters from dashboard settings
+    active_statuses = dashboard_settings.active_statuses if dashboard_settings and dashboard_settings.active_statuses else ['pending', 'in_progress']
+    
     active_maintenance_all = list(maintenance_query.filter(
-        status__in=['in_progress', 'pending']
+        status__in=active_statuses
     ).order_by('-scheduled_start', '-created_at')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication

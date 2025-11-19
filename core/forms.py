@@ -437,6 +437,28 @@ class BrandingSettingsForm(forms.ModelForm):
 class DashboardSettingsForm(forms.ModelForm):
     """Form for editing dashboard/overview page settings"""
     
+    # Status filter fields - these will be converted to JSONField
+    urgent_status_scheduled = forms.BooleanField(required=False, initial=True, label="Scheduled")
+    urgent_status_pending = forms.BooleanField(required=False, initial=False, label="Pending")
+    urgent_status_in_progress = forms.BooleanField(required=False, initial=False, label="In Progress")
+    urgent_status_completed = forms.BooleanField(required=False, initial=False, label="Completed")
+    urgent_status_cancelled = forms.BooleanField(required=False, initial=False, label="Cancelled")
+    urgent_status_overdue = forms.BooleanField(required=False, initial=True, label="Overdue")
+    
+    upcoming_status_scheduled = forms.BooleanField(required=False, initial=True, label="Scheduled")
+    upcoming_status_pending = forms.BooleanField(required=False, initial=True, label="Pending")
+    upcoming_status_in_progress = forms.BooleanField(required=False, initial=True, label="In Progress")
+    upcoming_status_completed = forms.BooleanField(required=False, initial=False, label="Completed")
+    upcoming_status_cancelled = forms.BooleanField(required=False, initial=False, label="Cancelled")
+    upcoming_status_overdue = forms.BooleanField(required=False, initial=False, label="Overdue")
+    
+    active_status_scheduled = forms.BooleanField(required=False, initial=False, label="Scheduled")
+    active_status_pending = forms.BooleanField(required=False, initial=True, label="Pending")
+    active_status_in_progress = forms.BooleanField(required=False, initial=True, label="In Progress")
+    active_status_completed = forms.BooleanField(required=False, initial=False, label="Completed")
+    active_status_cancelled = forms.BooleanField(required=False, initial=False, label="Cancelled")
+    active_status_overdue = forms.BooleanField(required=False, initial=False, label="Overdue")
+    
     class Meta:
         model = DashboardSettings
         fields = [
@@ -471,6 +493,34 @@ class DashboardSettingsForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        # Populate status checkboxes from JSONField if instance exists
+        if self.instance and self.instance.pk:
+            urgent_statuses = self.instance.urgent_statuses or []
+            upcoming_statuses = self.instance.upcoming_statuses or []
+            active_statuses = self.instance.active_statuses or []
+            
+            self.fields['urgent_status_scheduled'].initial = 'scheduled' in urgent_statuses
+            self.fields['urgent_status_pending'].initial = 'pending' in urgent_statuses
+            self.fields['urgent_status_in_progress'].initial = 'in_progress' in urgent_statuses
+            self.fields['urgent_status_completed'].initial = 'completed' in urgent_statuses
+            self.fields['urgent_status_cancelled'].initial = 'cancelled' in urgent_statuses
+            self.fields['urgent_status_overdue'].initial = 'overdue' in urgent_statuses
+            
+            self.fields['upcoming_status_scheduled'].initial = 'scheduled' in upcoming_statuses
+            self.fields['upcoming_status_pending'].initial = 'pending' in upcoming_statuses
+            self.fields['upcoming_status_in_progress'].initial = 'in_progress' in upcoming_statuses
+            self.fields['upcoming_status_completed'].initial = 'completed' in upcoming_statuses
+            self.fields['upcoming_status_cancelled'].initial = 'cancelled' in upcoming_statuses
+            self.fields['upcoming_status_overdue'].initial = 'overdue' in upcoming_statuses
+            
+            self.fields['active_status_scheduled'].initial = 'scheduled' in active_statuses
+            self.fields['active_status_pending'].initial = 'pending' in active_statuses
+            self.fields['active_status_in_progress'].initial = 'in_progress' in active_statuses
+            self.fields['active_status_completed'].initial = 'completed' in active_statuses
+            self.fields['active_status_cancelled'].initial = 'cancelled' in active_statuses
+            self.fields['active_status_overdue'].initial = 'overdue' in active_statuses
+        
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Fieldset(
@@ -521,12 +571,110 @@ class DashboardSettingsForm(forms.ModelForm):
                 ),
             ),
             Fieldset(
+                'Status Filters - Urgent Items',
+                HTML('<p class="text-muted small">Select which statuses should appear in the Urgent Items section:</p>'),
+                Row(
+                    Column('urgent_status_scheduled', css_class='form-group col-md-4 mb-0'),
+                    Column('urgent_status_pending', css_class='form-group col-md-4 mb-0'),
+                    Column('urgent_status_in_progress', css_class='form-group col-md-4 mb-0'),
+                ),
+                Row(
+                    Column('urgent_status_completed', css_class='form-group col-md-4 mb-0'),
+                    Column('urgent_status_cancelled', css_class='form-group col-md-4 mb-0'),
+                    Column('urgent_status_overdue', css_class='form-group col-md-4 mb-0'),
+                ),
+            ),
+            Fieldset(
+                'Status Filters - Upcoming Items',
+                HTML('<p class="text-muted small">Select which statuses should appear in the Upcoming Items section:</p>'),
+                Row(
+                    Column('upcoming_status_scheduled', css_class='form-group col-md-4 mb-0'),
+                    Column('upcoming_status_pending', css_class='form-group col-md-4 mb-0'),
+                    Column('upcoming_status_in_progress', css_class='form-group col-md-4 mb-0'),
+                ),
+                Row(
+                    Column('upcoming_status_completed', css_class='form-group col-md-4 mb-0'),
+                    Column('upcoming_status_cancelled', css_class='form-group col-md-4 mb-0'),
+                    Column('upcoming_status_overdue', css_class='form-group col-md-4 mb-0'),
+                ),
+            ),
+            Fieldset(
+                'Status Filters - Active Items',
+                HTML('<p class="text-muted small">Select which statuses should appear in the Active Items section:</p>'),
+                Row(
+                    Column('active_status_scheduled', css_class='form-group col-md-4 mb-0'),
+                    Column('active_status_pending', css_class='form-group col-md-4 mb-0'),
+                    Column('active_status_in_progress', css_class='form-group col-md-4 mb-0'),
+                ),
+                Row(
+                    Column('active_status_completed', css_class='form-group col-md-4 mb-0'),
+                    Column('active_status_cancelled', css_class='form-group col-md-4 mb-0'),
+                    Column('active_status_overdue', css_class='form-group col-md-4 mb-0'),
+                ),
+            ),
+            Fieldset(
                 'Maintenance Activity Title Template',
                 HTML('<p class="text-muted">Template for auto-generating maintenance activity titles when left empty. Available variables: <code>{Activity_Type}</code>, <code>{POD}</code>, <code>{Equipment}</code>, <code>{Date}</code>, <code>{Priority}</code>, <code>{Status}</code></p>'),
                 'activity_title_template',
             ),
             Submit('submit', 'Save Dashboard Settings', css_class='btn btn-primary')
         )
+    
+    def save(self, commit=True):
+        """Convert checkbox fields to JSONField lists"""
+        instance = super().save(commit=False)
+        
+        # Convert urgent status checkboxes to list
+        urgent_statuses = []
+        if self.cleaned_data.get('urgent_status_scheduled'):
+            urgent_statuses.append('scheduled')
+        if self.cleaned_data.get('urgent_status_pending'):
+            urgent_statuses.append('pending')
+        if self.cleaned_data.get('urgent_status_in_progress'):
+            urgent_statuses.append('in_progress')
+        if self.cleaned_data.get('urgent_status_completed'):
+            urgent_statuses.append('completed')
+        if self.cleaned_data.get('urgent_status_cancelled'):
+            urgent_statuses.append('cancelled')
+        if self.cleaned_data.get('urgent_status_overdue'):
+            urgent_statuses.append('overdue')
+        instance.urgent_statuses = urgent_statuses
+        
+        # Convert upcoming status checkboxes to list
+        upcoming_statuses = []
+        if self.cleaned_data.get('upcoming_status_scheduled'):
+            upcoming_statuses.append('scheduled')
+        if self.cleaned_data.get('upcoming_status_pending'):
+            upcoming_statuses.append('pending')
+        if self.cleaned_data.get('upcoming_status_in_progress'):
+            upcoming_statuses.append('in_progress')
+        if self.cleaned_data.get('upcoming_status_completed'):
+            upcoming_statuses.append('completed')
+        if self.cleaned_data.get('upcoming_status_cancelled'):
+            upcoming_statuses.append('cancelled')
+        if self.cleaned_data.get('upcoming_status_overdue'):
+            upcoming_statuses.append('overdue')
+        instance.upcoming_statuses = upcoming_statuses
+        
+        # Convert active status checkboxes to list
+        active_statuses = []
+        if self.cleaned_data.get('active_status_scheduled'):
+            active_statuses.append('scheduled')
+        if self.cleaned_data.get('active_status_pending'):
+            active_statuses.append('pending')
+        if self.cleaned_data.get('active_status_in_progress'):
+            active_statuses.append('in_progress')
+        if self.cleaned_data.get('active_status_completed'):
+            active_statuses.append('completed')
+        if self.cleaned_data.get('active_status_cancelled'):
+            active_statuses.append('cancelled')
+        if self.cleaned_data.get('active_status_overdue'):
+            active_statuses.append('overdue')
+        instance.active_statuses = active_statuses
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 class BrandingBasicForm(forms.ModelForm):
