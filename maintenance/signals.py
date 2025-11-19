@@ -2,7 +2,7 @@
 Django signals for maintenance app.
 """
 
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_delete
 from django.dispatch import receiver
 from django.utils import timezone
 from .models import MaintenanceActivity, MaintenanceActivityType, MaintenanceSchedule
@@ -56,19 +56,26 @@ logger = logging.getLogger(__name__)
 #         logger.error(f"Error creating/updating calendar event for maintenance activity {instance.id}: {str(e)}")
 
 
-@receiver(post_delete, sender=MaintenanceActivity)
+@receiver(pre_delete, sender=MaintenanceActivity)
 def delete_calendar_event(sender, instance, **kwargs):
-    """Delete the associated calendar event when a maintenance activity is deleted."""
+    """Delete all associated calendar events when a maintenance activity is deleted.
+    
+    Uses pre_delete instead of post_delete because CalendarEvent.maintenance_activity
+    has on_delete=SET_NULL, which would set the field to NULL before post_delete fires.
+    By using pre_delete, we can find and delete the calendar events before the cascade.
+    """
     try:
-        # Use get() instead of filter().first() for better performance
-        # If calendar event doesn't exist, that's fine - it may have been deleted already
-        try:
-            calendar_event = CalendarEvent.objects.get(maintenance_activity=instance)
-            calendar_event.delete()
-            logger.info(f"Deleted calendar event {calendar_event.id} for maintenance activity {instance.id}")
-        except CalendarEvent.DoesNotExist:
-            # Calendar event may have been deleted already or never existed
-            pass
+        # Find all calendar events linked to this maintenance activity
+        # Use filter() to catch all related events (in case there are duplicates)
+        calendar_events = CalendarEvent.objects.filter(maintenance_activity=instance)
+        count = calendar_events.count()
+        
+        if count > 0:
+            calendar_events.delete()
+            logger.info(f"Deleted {count} calendar event(s) for maintenance activity {instance.id}")
+        else:
+            # Calendar events may have been deleted already or never existed
+            logger.debug(f"No calendar events found for maintenance activity {instance.id}")
         
         # Note: Cache invalidation is handled in the view for better performance
         # (targeted to specific user rather than all users)

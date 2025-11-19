@@ -50,7 +50,12 @@ def send_event_reminders():
 
 @shared_task
 def cleanup_old_events():
-    """Clean up old completed events."""
+    """Clean up old completed events and orphaned calendar events.
+    
+    Orphaned calendar events are those with maintenance_activity=None, which can occur
+    when maintenance activities are deleted but the calendar event deletion fails or
+    when calendar events are created without proper linking.
+    """
     from .models import CalendarEvent
     from datetime import timedelta
     
@@ -64,8 +69,15 @@ def cleanup_old_events():
     deleted_count = old_events.count()
     old_events.delete()
     
-    logger.info(f"Cleaned up {deleted_count} old completed events")
-    return deleted_count
+    # Clean up orphaned calendar events (those with maintenance_activity=None)
+    # These are "ghost" events left behind when maintenance activities were deleted
+    orphaned_events = CalendarEvent.objects.filter(maintenance_activity__isnull=True)
+    orphaned_count = orphaned_events.count()
+    orphaned_events.delete()
+    
+    total_deleted = deleted_count + orphaned_count
+    logger.info(f"Cleaned up {deleted_count} old completed events and {orphaned_count} orphaned calendar events (total: {total_deleted})")
+    return total_deleted
 
 
 @shared_task  

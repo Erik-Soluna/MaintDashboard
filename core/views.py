@@ -70,7 +70,7 @@ def dashboard(request):
     
     if selected_site_id is not None:
         # If site_id is explicitly provided (even if empty), use it
-        if selected_site_id == '':
+        if selected_site_id == '' or selected_site_id == 'all':
             # Clear site selection (All Sites) - use special marker
             request.session['selected_site_id'] = 'all'
             selected_site_id = None
@@ -216,15 +216,23 @@ def dashboard(request):
     upcoming_cutoff = today + timedelta(days=upcoming_days)
     
     # Calculate urgent items with single queries - only show maintenance activities to avoid duplication
-    # Include overdue items (scheduled_start < now) and pending/in_progress/scheduled items due within configured days
-    # Limit queries to prevent loading too much data
+    # Use status filters from dashboard settings
     max_items = 200  # Reasonable limit to prevent excessive memory usage
     now = timezone.now()
+    
+    # Get status filters from dashboard settings
+    urgent_statuses = dashboard_settings.urgent_statuses if dashboard_settings and dashboard_settings.urgent_statuses else ['scheduled', 'overdue']
+    
     urgent_maintenance_all = list(maintenance_query.filter(
-        Q(status='overdue') |  # Items explicitly marked as overdue
-        (Q(scheduled_start__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past scheduled start date (overdue) - count on Day of Schedule start
-        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['pending', 'in_progress', 'scheduled']))  # Urgent pending/in_progress/scheduled items
-    ).order_by('scheduled_end')[:max_items])
+        Q(status__in=urgent_statuses) & (
+            Q(status='overdue') |  # Items explicitly marked as overdue
+            (Q(scheduled_start__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past scheduled start date (overdue)
+            # Items within urgent window (0-7 days)
+            (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today)) |
+            # Items with only scheduled_start in urgent window
+            Q(scheduled_end__isnull=True, scheduled_start__lte=urgent_cutoff, scheduled_start__gte=today)
+        )
+    ).order_by('scheduled_end', 'scheduled_start')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
     urgent_calendar_all = list(calendar_query.filter(
@@ -235,23 +243,41 @@ def dashboard(request):
     ).order_by('event_date')[:max_items])
     
     # Calculate upcoming items with single queries - only show maintenance activities to avoid duplication
+    # Upcoming items are those scheduled AFTER the urgent window (7-30 days from dashboard settings)
+    # Use status filters from dashboard settings
+    upcoming_statuses = dashboard_settings.upcoming_statuses if dashboard_settings and dashboard_settings.upcoming_statuses else ['pending', 'scheduled', 'in_progress']
+    
     upcoming_maintenance_all = list(maintenance_query.filter(
-        scheduled_end__gt=urgent_cutoff,
-        scheduled_end__lte=upcoming_cutoff,
-        status__in=['pending', 'scheduled', 'in_progress']  # Include scheduled and in_progress statuses
-    ).order_by('scheduled_end')[:max_items])
+        Q(
+            # Items with scheduled_end AFTER urgent window but within upcoming window (7-30 days)
+            Q(scheduled_end__gt=urgent_cutoff, scheduled_end__lte=upcoming_cutoff) |
+            # Items with only scheduled_start AFTER urgent window but within upcoming window
+            Q(scheduled_end__isnull=True, scheduled_start__gt=urgent_cutoff, scheduled_start__lte=upcoming_cutoff)
+        ),
+        status__in=upcoming_statuses
+    ).exclude(
+        # Exclude overdue items (they go to urgent)
+        Q(status='overdue') |
+        # Exclude items that are past their scheduled_end (they're overdue and go to urgent)
+        Q(scheduled_end__lt=now, status__in=['pending', 'scheduled']) |
+        # Exclude items that are past their scheduled_start if no scheduled_end (they're overdue)
+        Q(scheduled_end__isnull=True, scheduled_start__lt=now, status__in=['pending', 'scheduled'])
+    ).order_by('scheduled_end', 'scheduled_start')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
+    # Upcoming calendar events are those from today to 30 days (respecting dashboard settings)
     upcoming_calendar_all = list(calendar_query.filter(
-        event_date__gt=urgent_cutoff,
-        event_date__lte=upcoming_cutoff,
+        event_date__gte=today,  # From today onwards
+        event_date__lte=upcoming_cutoff,  # Within upcoming window (up to 30 days from dashboard settings)
         is_completed=False,
         maintenance_activity__isnull=True  # Only show calendar events NOT synced with maintenance
     ).order_by('event_date')[:max_items])
     
-    # Calculate active items (in_progress and pending statuses) - all active items regardless of date
+    # Calculate active items - use status filters from dashboard settings
+    active_statuses = dashboard_settings.active_statuses if dashboard_settings and dashboard_settings.active_statuses else ['pending', 'in_progress']
+    
     active_maintenance_all = list(maintenance_query.filter(
-        status__in=['in_progress', 'pending']
+        status__in=active_statuses
     ).order_by('-scheduled_start', '-created_at')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
@@ -260,11 +286,16 @@ def dashboard(request):
     
     # Group items by site if enabled
     group_by_site = dashboard_settings.group_urgent_by_site if dashboard_settings else True
+    group_upcoming = dashboard_settings.group_upcoming_by_site if dashboard_settings else True
+    group_active = dashboard_settings.group_active_by_site if dashboard_settings else True
     urgent_maintenance_by_site = {}
+    urgent_maintenance_by_site_grouped = {}
     urgent_calendar_by_site = {}
     upcoming_maintenance_by_site = {}
+    upcoming_maintenance_by_site_grouped = {}
     upcoming_calendar_by_site = {}
     active_maintenance_by_site = {}
+    active_maintenance_by_site_grouped = {}
     active_calendar_by_site = {}
     
     if group_by_site and is_all_sites:
@@ -294,16 +325,39 @@ def dashboard(request):
             site = loc.get_site_location()
             location_to_site[loc.id] = site.name if site else "Unknown Site"
         
-        # Group urgent maintenance by site
+        # Group urgent maintenance by site, then by activity type
+        urgent_maintenance_by_site_and_type = {}
         for item in urgent_maintenance_all:
             if item.equipment and item.equipment.location:
                 site_name = location_to_site.get(item.equipment.location.id, "Unknown Site")
             else:
                 site_name = "Unknown Site"
-            if site_name not in urgent_maintenance_by_site:
-                urgent_maintenance_by_site[site_name] = []
-            if len(urgent_maintenance_by_site[site_name]) < (dashboard_settings.max_urgent_items_per_site if dashboard_settings else 15):
-                urgent_maintenance_by_site[site_name].append(item)
+            
+            activity_type_name = item.activity_type.name if item.activity_type else "Unknown"
+            
+            if site_name not in urgent_maintenance_by_site_and_type:
+                urgent_maintenance_by_site_and_type[site_name] = {}
+            if activity_type_name not in urgent_maintenance_by_site_and_type[site_name]:
+                urgent_maintenance_by_site_and_type[site_name][activity_type_name] = []
+            
+            max_per_type = (dashboard_settings.max_urgent_items_per_site if dashboard_settings else 15) * 2
+            if len(urgent_maintenance_by_site_and_type[site_name][activity_type_name]) < max_per_type:
+                urgent_maintenance_by_site_and_type[site_name][activity_type_name].append(item)
+        
+        # Convert to flat structure for backwards compatibility
+        for site_name, activity_types in urgent_maintenance_by_site_and_type.items():
+            urgent_maintenance_by_site[site_name] = []
+            for activity_type_name, items in activity_types.items():
+                urgent_maintenance_by_site[site_name].extend(items)
+        
+        # Store the grouped structure for the template
+        urgent_maintenance_by_site_grouped = {}
+        for site_name, activity_types in urgent_maintenance_by_site_and_type.items():
+            total_count = sum(len(items) for items in activity_types.values())
+            urgent_maintenance_by_site_grouped[site_name] = {
+                'activity_types': activity_types,
+                'total_count': total_count
+            }
         
         # Group urgent calendar by site
         for event in urgent_calendar_all:
@@ -316,18 +370,42 @@ def dashboard(request):
             if len(urgent_calendar_by_site[site_name]) < (dashboard_settings.max_urgent_items_per_site if dashboard_settings else 15):
                 urgent_calendar_by_site[site_name].append(event)
         
-        # Group upcoming maintenance by site
-        group_upcoming = dashboard_settings.group_upcoming_by_site if dashboard_settings else True
+        # Group upcoming maintenance by site, then by activity type
         if group_upcoming:
+            # Structure: {site_name: {activity_type_name: [items]}}
+            upcoming_maintenance_by_site_and_type = {}
             for item in upcoming_maintenance_all:
                 if item.equipment and item.equipment.location:
                     site_name = location_to_site.get(item.equipment.location.id, "Unknown Site")
                 else:
                     site_name = "Unknown Site"
-                if site_name not in upcoming_maintenance_by_site:
-                    upcoming_maintenance_by_site[site_name] = []
-                if len(upcoming_maintenance_by_site[site_name]) < (dashboard_settings.max_upcoming_items_per_site if dashboard_settings else 15):
-                    upcoming_maintenance_by_site[site_name].append(item)
+                
+                activity_type_name = item.activity_type.name if item.activity_type else "Unknown"
+                
+                if site_name not in upcoming_maintenance_by_site_and_type:
+                    upcoming_maintenance_by_site_and_type[site_name] = {}
+                if activity_type_name not in upcoming_maintenance_by_site_and_type[site_name]:
+                    upcoming_maintenance_by_site_and_type[site_name][activity_type_name] = []
+                
+                max_per_type = (dashboard_settings.max_upcoming_items_per_site if dashboard_settings else 15) * 2  # Allow more per type
+                if len(upcoming_maintenance_by_site_and_type[site_name][activity_type_name]) < max_per_type:
+                    upcoming_maintenance_by_site_and_type[site_name][activity_type_name].append(item)
+            
+            # Convert to flat structure for backwards compatibility
+            for site_name, activity_types in upcoming_maintenance_by_site_and_type.items():
+                upcoming_maintenance_by_site[site_name] = []
+                for activity_type_name, items in activity_types.items():
+                    upcoming_maintenance_by_site[site_name].extend(items)
+            
+            # Store the grouped structure for the template
+            # Also calculate total counts per site for display
+            upcoming_maintenance_by_site_grouped = {}
+            for site_name, activity_types in upcoming_maintenance_by_site_and_type.items():
+                total_count = sum(len(items) for items in activity_types.values())
+                upcoming_maintenance_by_site_grouped[site_name] = {
+                    'activity_types': activity_types,
+                    'total_count': total_count
+                }
             
             # Group upcoming calendar by site
             for event in upcoming_calendar_all:
@@ -340,18 +418,42 @@ def dashboard(request):
                 if len(upcoming_calendar_by_site[site_name]) < (dashboard_settings.max_upcoming_items_per_site if dashboard_settings else 15):
                     upcoming_calendar_by_site[site_name].append(event)
         
-        # Group active maintenance by site
-        group_active = dashboard_settings.group_active_by_site if dashboard_settings else True
+        # Group active maintenance by site, then by activity type
         if group_active:
+            active_maintenance_by_site_and_type = {}
             for item in active_maintenance_all:
                 if item.equipment and item.equipment.location:
                     site_name = location_to_site.get(item.equipment.location.id, "Unknown Site")
                 else:
                     site_name = "Unknown Site"
-                if site_name not in active_maintenance_by_site:
-                    active_maintenance_by_site[site_name] = []
-                if len(active_maintenance_by_site[site_name]) < (dashboard_settings.max_active_items_per_site if dashboard_settings else 15):
-                    active_maintenance_by_site[site_name].append(item)
+                
+                activity_type_name = item.activity_type.name if item.activity_type else "Unknown"
+                
+                if site_name not in active_maintenance_by_site_and_type:
+                    active_maintenance_by_site_and_type[site_name] = {}
+                if activity_type_name not in active_maintenance_by_site_and_type[site_name]:
+                    active_maintenance_by_site_and_type[site_name][activity_type_name] = []
+                
+                max_per_type = (dashboard_settings.max_active_items_per_site if dashboard_settings else 15) * 2
+                if len(active_maintenance_by_site_and_type[site_name][activity_type_name]) < max_per_type:
+                    active_maintenance_by_site_and_type[site_name][activity_type_name].append(item)
+            
+            # Convert to flat structure for backwards compatibility
+            for site_name, activity_types in active_maintenance_by_site_and_type.items():
+                active_maintenance_by_site[site_name] = []
+                for activity_type_name, items in activity_types.items():
+                    active_maintenance_by_site[site_name].extend(items)
+            
+            # Store the grouped structure for the template
+            active_maintenance_by_site_grouped = {}
+            for site_name, activity_types in active_maintenance_by_site_and_type.items():
+                total_count = sum(len(items) for items in activity_types.values())
+                active_maintenance_by_site_grouped[site_name] = {
+                    'activity_types': activity_types,
+                    'total_count': total_count
+                }
+        else:
+            active_maintenance_by_site_grouped = {}
     
     # For backwards compatibility, keep flat lists
     urgent_maintenance = urgent_maintenance_all[:dashboard_settings.max_urgent_items_total if dashboard_settings else 50]
@@ -397,9 +499,9 @@ def dashboard(request):
         overview_data = []
         
         # Get all equipment and maintenance data in bulk
+        # NOTE: Calendar events are deprecated - only use maintenance activities
         pod_equipment = {loc.id: [] for loc in locations}
         pod_maintenance = {loc.id: [] for loc in locations}
-        pod_calendar = {loc.id: [] for loc in locations}
         
         # Organize equipment by location - Limit to prevent excessive memory usage
         for equipment in equipment_query[:1000]:  # Limit to 1000 items
@@ -411,16 +513,10 @@ def dashboard(request):
             if maintenance.equipment and maintenance.equipment.location and maintenance.equipment.location.id in pod_maintenance:
                 pod_maintenance[maintenance.equipment.location.id].append(maintenance)
         
-        # Organize calendar by location - Limit to prevent excessive memory usage
-        for calendar_event in calendar_query[:1000]:  # Limit to 1000 items
-            if calendar_event.equipment and calendar_event.equipment.location and calendar_event.equipment.location.id in pod_calendar:
-                pod_calendar[calendar_event.equipment.location.id].append(calendar_event)
-        
         # Process each location with bulk data
         for location in locations:
             location_equipment = pod_equipment.get(location.id, [])
             location_maintenance = pod_maintenance.get(location.id, [])
-            location_calendar = pod_calendar.get(location.id, [])
             
             # Calculate counts from in-memory data
             equipment_in_maintenance = sum(1 for eq in location_equipment if eq.status == 'maintenance')
@@ -434,15 +530,36 @@ def dashboard(request):
                 if ma.status == 'in_progress' and ma.equipment and ma.equipment.status != 'maintenance'
             )
             
-            # Calculate UPCOMING count: maintenance activities scheduled within upcoming_cutoff
+            # Calculate UPCOMING count: maintenance activities scheduled AFTER urgent window but within upcoming window
             # upcoming_cutoff is configured in Dashboard Settings (default: 30 days)
-            # This matches the same setting used for the "Upcoming Items" section on the overview page
-            upcoming_maintenance_count = sum(
-                1 for ma in location_maintenance
-                if (ma.scheduled_start and 
-                    today <= ma.scheduled_start.date() <= upcoming_cutoff and
-                    ma.status in ['scheduled', 'pending', 'in_progress'])
-            )
+            # urgent_cutoff is configured in Dashboard Settings (default: 7 days)
+            # This matches the same logic used for the "Upcoming Items" section on the overview page
+            # Items in urgent window (0-7 days) go to urgent, items after urgent window (7-30 days) go to upcoming
+            upcoming_maintenance_count = 0
+            for ma in location_maintenance:
+                if ma.status not in ['scheduled', 'pending', 'in_progress'] or ma.status == 'overdue':
+                    continue
+                
+                # Check if item is in upcoming window (after urgent cutoff, within upcoming cutoff)
+                is_upcoming = False
+                if ma.scheduled_end:
+                    scheduled_date = ma.scheduled_end.date()
+                    if scheduled_date > urgent_cutoff and scheduled_date <= upcoming_cutoff:
+                        is_upcoming = True
+                elif ma.scheduled_start:
+                    scheduled_date = ma.scheduled_start.date()
+                    if scheduled_date > urgent_cutoff and scheduled_date <= upcoming_cutoff:
+                        is_upcoming = True
+                
+                # Exclude items that are past their scheduled date (they're overdue)
+                if is_upcoming:
+                    if ma.scheduled_end and ma.scheduled_end.date() < today:
+                        is_upcoming = False
+                    elif not ma.scheduled_end and ma.scheduled_start and ma.scheduled_start.date() < today:
+                        is_upcoming = False
+                
+                if is_upcoming:
+                    upcoming_maintenance_count += 1
             
             # Get recent activities (filter out any that might have been deleted)
             recent_activities = []
@@ -460,18 +577,32 @@ def dashboard(request):
             recent_activities.sort(key=lambda x: x.actual_end, reverse=True)
             recent_activities = recent_activities[:3]
             
-            # Get next events (filter out any that might have been deleted)
+            # Get next upcoming maintenance activities (replacing deprecated calendar events)
+            # Show upcoming maintenance activities scheduled in the future
             next_events = []
-            for ce in location_calendar:
+            for ma in location_maintenance:
                 try:
-                    # Verify the event still exists in the database
-                    if (ce.event_date >= today and not ce.is_completed):
-                        next_events.append(ce)
+                    # Verify the maintenance activity still exists in the database
+                    # Show scheduled/pending activities that are upcoming (within upcoming window)
+                    if (ma.status in ['scheduled', 'pending', 'in_progress'] and
+                        not ma.status == 'overdue'):
+                        # Check if it's in the upcoming window (after urgent cutoff, within upcoming cutoff)
+                        scheduled_date = None
+                        if ma.scheduled_end:
+                            scheduled_date = ma.scheduled_end.date()
+                        elif ma.scheduled_start:
+                            scheduled_date = ma.scheduled_start.date()
+                        
+                        if scheduled_date and scheduled_date >= today:
+                            # Include if it's in the upcoming window (7-30 days) or urgent window (0-7 days)
+                            if scheduled_date <= upcoming_cutoff:
+                                next_events.append(ma)
                 except Exception:
-                    # Event was deleted, skip it
+                    # Maintenance activity was deleted, skip it
                     continue
             
-            next_events.sort(key=lambda x: x.event_date)
+            # Sort by scheduled date (use scheduled_end if available, otherwise scheduled_start)
+            next_events.sort(key=lambda x: (x.scheduled_end.date() if x.scheduled_end else x.scheduled_start.date()) if (x.scheduled_end or x.scheduled_start) else today)
             next_events = next_events[:3]
             
             # Calculate pod health status
@@ -530,12 +661,21 @@ def dashboard(request):
             status__in=['pending', 'scheduled']
         ).values('equipment__location__parent_location_id', 'equipment__location_id').annotate(count=Count('id'))
         
-        # Bulk upcoming maintenance counts
+        # Bulk upcoming maintenance counts - items AFTER urgent window but within upcoming window
+        # Use scheduled_end if available, otherwise scheduled_start
         upcoming_by_site = MaintenanceActivity.objects.filter(
             Q(equipment__location__parent_location_id__in=site_ids) | Q(equipment__location_id__in=site_ids),
-            scheduled_start__date__lte=urgent_cutoff,
-            scheduled_start__date__gte=today,
-            status__in=['scheduled', 'pending']
+            Q(
+                # Items with scheduled_end AFTER urgent window but within upcoming window
+                Q(scheduled_end__gt=urgent_cutoff, scheduled_end__lte=upcoming_cutoff) |
+                # Items with only scheduled_start AFTER urgent window but within upcoming window
+                Q(scheduled_end__isnull=True, scheduled_start__gt=urgent_cutoff, scheduled_start__lte=upcoming_cutoff)
+            ),
+            status__in=['scheduled', 'pending', 'in_progress']
+        ).exclude(
+            Q(status='overdue') |
+            Q(scheduled_end__lt=now, status__in=['pending', 'scheduled']) |
+            Q(scheduled_end__isnull=True, scheduled_start__lt=now, status__in=['pending', 'scheduled'])
         ).values('equipment__location__parent_location_id', 'equipment__location_id').annotate(count=Count('id'))
         
         # Build lookup dictionaries
@@ -826,6 +966,7 @@ def dashboard(request):
         'active_maintenance': active_maintenance,
         'active_calendar': active_calendar,
         'active_maintenance_by_site': active_maintenance_by_site,
+        'active_maintenance_by_site_grouped': active_maintenance_by_site_grouped if group_active and is_all_sites else {},
         'active_calendar_by_site': active_calendar_by_site,
         'active_total_count': active_total_count,
         
@@ -837,8 +978,10 @@ def dashboard(request):
         
         # Grouped by site (if enabled)
         'urgent_maintenance_by_site': urgent_maintenance_by_site,
+        'urgent_maintenance_by_site_grouped': urgent_maintenance_by_site_grouped if group_by_site and is_all_sites else {},
         'urgent_calendar_by_site': urgent_calendar_by_site,
         'upcoming_maintenance_by_site': upcoming_maintenance_by_site,
+        'upcoming_maintenance_by_site_grouped': upcoming_maintenance_by_site_grouped if group_upcoming and is_all_sites else {},
         'upcoming_calendar_by_site': upcoming_calendar_by_site,
         
         # Total counts (for display)

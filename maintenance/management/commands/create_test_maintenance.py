@@ -120,8 +120,10 @@ class Command(BaseCommand):
         
         # Create upcoming activities
         self.stdout.write('Creating upcoming maintenance activities...')
+        from django.utils import timezone as django_timezone
         for activity_data in upcoming_activities:
-            start_time = datetime.now() + timedelta(days=activity_data['days_from_now'])
+            # Use timezone-aware datetime
+            start_time = django_timezone.now() + timedelta(days=activity_data['days_from_now'])
             end_time = start_time + timedelta(hours=2)
             
             activity = MaintenanceActivity.objects.create(

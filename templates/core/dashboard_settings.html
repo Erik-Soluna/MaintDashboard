@@ -42,6 +42,89 @@
                         {% crispy form %}
                     </form>
                 </div>
+                
+                <style>
+                .template-help-icon {
+                    cursor: help;
+                    color: #4299e1;
+                    margin-left: 0.5rem;
+                    font-size: 0.9rem;
+                }
+                .template-help-icon:hover {
+                    color: #3182ce;
+                }
+                .template-tooltip {
+                    position: absolute;
+                    background-color: #2d3748;
+                    color: white;
+                    padding: 0.75rem;
+                    border-radius: 0.25rem;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+                    z-index: 1000;
+                    max-width: 400px;
+                    font-size: 0.875rem;
+                    line-height: 1.5;
+                    display: none;
+                }
+                .template-tooltip.show {
+                    display: block;
+                }
+                .template-tooltip code {
+                    background-color: #4a5568;
+                    padding: 0.125rem 0.25rem;
+                    border-radius: 0.125rem;
+                    color: #fbbf24;
+                }
+                </style>
+                
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Add help icon to activity_title_template field
+                    const titleField = document.getElementById('id_activity_title_template');
+                    if (titleField) {
+                        const fieldContainer = titleField.closest('.form-group') || titleField.parentElement;
+                        const label = fieldContainer.querySelector('label');
+                        
+                        if (label) {
+                            const helpIcon = document.createElement('i');
+                            helpIcon.className = 'fas fa-question-circle template-help-icon';
+                            helpIcon.title = 'Click for available variables';
+                            helpIcon.setAttribute('data-bs-toggle', 'tooltip');
+                            helpIcon.setAttribute('data-bs-placement', 'right');
+                            
+                            const tooltip = document.createElement('div');
+                            tooltip.className = 'template-tooltip';
+                            tooltip.innerHTML = `
+                                <strong>Available Template Variables:</strong><br>
+                                <code>{Activity_Type}</code> - Activity type name<br>
+                                <code>{POD}</code> - POD location name<br>
+                                <code>{Equipment}</code> - Equipment name<br>
+                                <code>{Date}</code> - Scheduled start date (YYYY-MM-DD)<br>
+                                <code>{Priority}</code> - Priority display name<br>
+                                <code>{Status}</code> - Status display name<br>
+                                <br>
+                                <strong>Example:</strong> <code>{Activity_Type} - {POD} - {Equipment}</code>
+                            `;
+                            
+                            label.appendChild(helpIcon);
+                            fieldContainer.style.position = 'relative';
+                            fieldContainer.appendChild(tooltip);
+                            
+                            helpIcon.addEventListener('click', function(e) {
+                                e.stopPropagation();
+                                tooltip.classList.toggle('show');
+                            });
+                            
+                            // Close tooltip when clicking outside
+                            document.addEventListener('click', function(e) {
+                                if (!fieldContainer.contains(e.target)) {
+                                    tooltip.classList.remove('show');
+                                }
+                            });
+                        }
+                    }
+                });
+                </script>
             </div>
         </div>
         <div class="col-lg-4">

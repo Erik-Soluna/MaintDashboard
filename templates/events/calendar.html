@@ -288,6 +288,73 @@
     color: #718096;
 }
 
+/* FullCalendar Popover (More Events) Styling - Dark Theme */
+.fc-popover {
+    background-color: #2d3748 !important;
+    border: 1px solid #4a5568 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+    color: white !important;
+}
+
+.fc-popover-header {
+    background-color: #1a2238 !important;
+    border-bottom: 1px solid #4a5568 !important;
+    color: white !important;
+    padding: 12px 16px !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+}
+
+.fc-popover-close {
+    color: #a0aec0 !important;
+    font-size: 18px !important;
+    opacity: 0.8 !important;
+}
+
+.fc-popover-close:hover {
+    color: white !important;
+    opacity: 1 !important;
+}
+
+.fc-popover-body {
+    background-color: #2d3748 !important;
+    color: white !important;
+    padding: 12px !important;
+    max-height: 400px !important;
+    overflow-y: auto !important;
+}
+
+.fc-popover-body .fc-event {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 8px 12px !important;
+    margin: 4px 0 !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s ease !important;
+    color: white !important;
+}
+
+.fc-popover-body .fc-event:hover {
+    background-color: #4a5568 !important;
+}
+
+.fc-popover-body .fc-event-title {
+    color: white !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+}
+
+.fc-more-link {
+    color: #4299e1 !important;
+    font-weight: 500 !important;
+}
+
+.fc-more-link:hover {
+    color: #63b3ed !important;
+}
+
 /* Action buttons */
 .add-event-btn {
     background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
@@ -979,17 +1046,38 @@
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
                                     <label for="maintenanceEquipment" class="text-white">Equipment *</label>
-                                    <div class="equipment-checkbox-container bg-dark border border-secondary rounded p-2" style="max-height: 200px; overflow-y: auto;">
-                                        {% for equipment in equipment_list %}
-                                        <div class="form-check">
-                                            <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids">
-                                            <label class="form-check-label text-white" for="equipment_{{ equipment.id }}">
-                                                {{ equipment.name }}
-                                            </label>
-                                        </div>
-                                        {% empty %}
-                                        <p class="text-muted mb-0">No equipment available</p>
-                                        {% endfor %}
+                                    <div class="equipment-checkbox-container bg-dark border border-secondary rounded p-2" style="max-height: 300px; overflow-y: auto;">
+                                        {% if equipment_by_category %}
+                                            {% for category_name, equipment_list in equipment_by_category.items %}
+                                            <div class="equipment-category-group mb-3">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <strong class="text-white">{{ category_name }}</strong>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary select-category-all" data-category="{{ category_name|slugify }}">
+                                                        Select All
+                                                    </button>
+                                                </div>
+                                                {% for equipment in equipment_list %}
+                                                <div class="form-check ml-3">
+                                                    <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids" data-category="{{ category_name|slugify }}" data-equipment-name="{{ equipment.name }}" data-location-path="{% if equipment.location %}{{ equipment.location.get_hierarchical_display }}{% endif %}">
+                                                    <label class="form-check-label text-white" for="equipment_{{ equipment.id }}">
+                                                        {{ equipment.name }}
+                                                    </label>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            {% for equipment in equipment_list %}
+                                            <div class="form-check">
+                                                <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids" data-equipment-name="{{ equipment.name }}" data-location-path="{% if equipment.location %}{{ equipment.location.get_hierarchical_display }}{% endif %}">
+                                                <label class="form-check-label text-white" for="equipment_{{ equipment.id }}">
+                                                    {{ equipment.name }}
+                                                </label>
+                                            </div>
+                                            {% empty %}
+                                            <p class="text-muted mb-0">No equipment available</p>
+                                            {% endfor %}
+                                        {% endif %}
                                     </div>
                                     <small class="text-muted">Select at least 1 equipment. Multiple selections will create one activity per equipment.</small>
                                 </div>
@@ -1953,30 +2041,58 @@ function getPriorityBadge(priority) {
 
 function formatDateTime(dateTimeStr, timezoneStr) {
     if (!dateTimeStr) return 'N/A';
+    
+    // Parse the ISO string - the API sends times already converted to the activity's timezone
+    // So the ISO string represents the time in that timezone
     const date = new Date(dateTimeStr);
     
-    // If timezone is provided, format using that timezone; otherwise use browser's timezone
-    // Note: The dateTimeStr should already be in the correct timezone from the API
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+        return 'Invalid Date';
+    }
+    
+    // If timezone is provided, format using that timezone
+    // The API already converted the time to the activity's timezone, so we just format it
     if (timezoneStr) {
         try {
-            // Use the timezone to format, but the date should already be correct
-            // The API sends times in the activity's timezone, so we just format it
+            // Use Intl.DateTimeFormat for better timezone support
+            // The date object already represents the correct moment in time
+            // We format it to display in the specified timezone
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: timezoneStr,
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+                timeZoneName: 'short'
+            });
+            return formatter.format(date);
+        } catch (e) {
+            // Fallback to toLocaleString if Intl fails
             return date.toLocaleString('en-US', {
                 timeZone: timezoneStr,
                 year: 'numeric',
                 month: 'numeric',
                 day: 'numeric',
                 hour: 'numeric',
-                minute: 'numeric',
-                second: 'numeric',
-                hour12: true
+                minute: '2-digit',
+                hour12: true,
+                timeZoneName: 'short'
             });
-        } catch (e) {
-            // Fallback to default if timezone is invalid
-            return date.toLocaleString();
         }
+    } else {
+        // No timezone specified, use browser's local timezone
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
     }
-    return date.toLocaleString();
 }
 
 function deleteMaintenanceActivity(activityId) {
@@ -2328,7 +2444,7 @@ function toggleDebugPanel() {
 }
 
 // Function to open maintenance creation modal
-function openCreateMaintenanceModal(selectedDate = null) {
+function openCreateMaintenanceModal(selectedDate = null, equipmentId = null, activityTypeId = null) {
     // Reset form
     document.getElementById('createMaintenanceForm').reset();
     
@@ -2368,8 +2484,77 @@ function openCreateMaintenanceModal(selectedDate = null) {
     const userTimezone = '{{ user_timezone|default:"America/Chicago" }}';
     document.getElementById('maintenanceTimezone').value = userTimezone;
     
+    // Auto-populate equipment if provided
+    if (equipmentId) {
+        const equipmentCheckbox = document.getElementById(`equipment_${equipmentId}`);
+        if (equipmentCheckbox) {
+            equipmentCheckbox.checked = true;
+        }
+    }
+    
+    // Auto-populate activity type if provided
+    if (activityTypeId) {
+        const activityTypeSelect = document.getElementById('maintenanceActivityType');
+        if (activityTypeSelect) {
+            // activityTypeId might be in format 'activity_123' or just '123'
+            const valueToSelect = activityTypeId.toString().startsWith('activity_') 
+                ? activityTypeId 
+                : `activity_${activityTypeId}`;
+            activityTypeSelect.value = valueToSelect;
+        }
+    }
+    
+    // Set up title auto-generation
+    setupTitleAutoGeneration();
+    
     // Show the modal
     $('#createMaintenanceModal').modal('show');
+}
+
+function setupTitleAutoGeneration() {
+    const activityTypeSelect = document.getElementById('maintenanceActivityType');
+    const titleInput = document.getElementById('maintenanceTitle');
+    const equipmentCheckboxes = document.querySelectorAll('input[name="equipment_ids"]');
+    
+    function generateTitle() {
+        const activityTypeValue = activityTypeSelect.value;
+        const selectedEquipment = Array.from(equipmentCheckboxes).filter(cb => cb.checked);
+        
+        if (!activityTypeValue || selectedEquipment.length === 0) {
+            return;
+        }
+        
+        // Get activity type name from the select option text
+        const activityTypeOption = activityTypeSelect.options[activityTypeSelect.selectedIndex];
+        const activityTypeName = activityTypeOption ? activityTypeOption.text : '';
+        
+        // If multiple equipment are selected, use template variables
+        // The backend will process each equipment individually
+        if (selectedEquipment.length > 1) {
+            // Use template variables so backend can process each item individually
+            const templateTitle = `{Activity_Type} - {POD} - {Equipment}`;
+            titleInput.value = templateTitle;
+        } else if (selectedEquipment.length === 1) {
+            // For single equipment, we can generate a preview title
+            // But it's better to use template variables so backend handles it consistently
+            const templateTitle = `{Activity_Type} - {POD} - {Equipment}`;
+            titleInput.value = templateTitle;
+        }
+    }
+    
+    // Add event listeners
+    if (activityTypeSelect) {
+        activityTypeSelect.addEventListener('change', generateTitle);
+    }
+    
+    equipmentCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', generateTitle);
+    });
+    
+    // Generate title immediately if fields are already populated
+    if (activityTypeSelect && activityTypeSelect.value) {
+        generateTitle();
+    }
 }
 
 function submitMaintenanceForm() {
@@ -2495,5 +2680,25 @@ function completeMaintenanceActivity(activityId) {
 }
 
 // Timezone display name is now provided by the API from the database
+
+// Handle "Select All" buttons for equipment categories
+document.addEventListener('DOMContentLoaded', function() {
+    // Add event listeners for category select all buttons
+    document.querySelectorAll('.select-category-all').forEach(button => {
+        button.addEventListener('click', function() {
+            const category = this.getAttribute('data-category');
+            const checkboxes = document.querySelectorAll(`input.equipment-checkbox-modal[data-category="${category}"]`);
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            
+            // Toggle all checkboxes in this category
+            checkboxes.forEach(cb => {
+                cb.checked = !allChecked;
+            });
+            
+            // Update button text
+            this.textContent = allChecked ? 'Select All' : 'Deselect All';
+        });
+    });
+});
 </script>
 {% endblock %}

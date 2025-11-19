@@ -779,6 +779,20 @@ class DashboardSettings(models.Model):
         help_text="Template for auto-generating maintenance activity titles. Available variables: {Activity_Type}, {Equipment}, {Date}, {Priority}, {Status}"
     )
     
+    # Status filters for each section
+    urgent_statuses = models.JSONField(
+        default=list,
+        help_text="Statuses to show in Urgent Items section. Options: scheduled, pending, in_progress, completed, cancelled, overdue"
+    )
+    upcoming_statuses = models.JSONField(
+        default=list,
+        help_text="Statuses to show in Upcoming Items section. Options: scheduled, pending, in_progress, completed, cancelled, overdue"
+    )
+    active_statuses = models.JSONField(
+        default=list,
+        help_text="Statuses to show in Active Items section. Options: scheduled, pending, in_progress, completed, cancelled, overdue"
+    )
+    
     # Meta settings
     is_active = models.BooleanField(default=True, help_text="Whether these dashboard settings are currently active")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -795,6 +809,15 @@ class DashboardSettings(models.Model):
         # Ensure only one active dashboard settings instance
         if self.is_active:
             DashboardSettings.objects.exclude(pk=self.pk).update(is_active=False)
+        
+        # Set default statuses if empty
+        if not self.urgent_statuses:
+            self.urgent_statuses = ['scheduled', 'overdue']
+        if not self.upcoming_statuses:
+            self.upcoming_statuses = ['pending', 'scheduled', 'in_progress']
+        if not self.active_statuses:
+            self.active_statuses = ['pending', 'in_progress']
+        
         super().save(*args, **kwargs)
     
     @classmethod

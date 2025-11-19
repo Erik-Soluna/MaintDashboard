@@ -217,20 +217,30 @@ class Command(BaseCommand):
                 # Generate initial activity
                 next_date = schedule.get_next_due_date()
                 if next_date:
+                    # Use make_aware instead of replace to properly handle timezones
+                    from datetime import datetime as dt
+                    current_tz = timezone.get_current_timezone()
+                    naive_start = dt.combine(next_date, dt.min.time())
+                    naive_end = dt.combine(next_date, dt.min.time()) + timedelta(hours=activity_type.estimated_duration_hours)
+                    
+                    # Generate title using Dashboard Settings template
+                    from maintenance.utils import generate_activity_title
+                    activity_title = generate_activity_title(
+                        template=None,  # Will use Dashboard Settings template
+                        activity_type=activity_type,
+                        equipment=equipment,
+                        scheduled_start=timezone.make_aware(naive_start, current_tz),
+                        priority='medium' if activity_type.is_mandatory else 'low',
+                        status='scheduled'
+                    )
+                    
                     activity = MaintenanceActivity.objects.create(
                         equipment=equipment,
                         activity_type=activity_type,
-                        title=f"{activity_type.name} - {equipment.name}",
+                        title=activity_title,
                         description=activity_type.description,
-                        scheduled_start=timezone.datetime.combine(
-                            next_date, 
-                            timezone.datetime.min.time()
-                        ).replace(tzinfo=timezone.get_current_timezone()),
-                        scheduled_end=timezone.datetime.combine(
-                            next_date, 
-                            timezone.datetime.min.time()
-                        ).replace(tzinfo=timezone.get_current_timezone()) + 
-                        timedelta(hours=activity_type.estimated_duration_hours),
+                        scheduled_start=timezone.make_aware(naive_start, current_tz),
+                        scheduled_end=timezone.make_aware(naive_end, current_tz),
                         status='scheduled',
                         priority='medium' if activity_type.is_mandatory else 'low',
                         created_by=admin_user,

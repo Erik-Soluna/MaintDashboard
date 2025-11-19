@@ -370,18 +370,19 @@ class MaintenanceActivityForm(forms.ModelForm):
     
     def _convert_to_timezone(self, naive_datetime, timezone_str):
         """Convert naive datetime to timezone-aware datetime."""
-        from zoneinfo import ZoneInfo
         from django.utils import timezone as django_timezone
+        import pytz
         
         if naive_datetime.tzinfo is None:
             # Convert naive datetime to the specified timezone
             try:
-                target_tz = ZoneInfo(timezone_str)
-                # Localize the naive datetime to the target timezone
-                localized_dt = naive_datetime.replace(tzinfo=target_tz)
+                # Convert timezone string to pytz timezone for proper DST handling
+                target_tz = pytz.timezone(timezone_str)
+                # Use make_aware which properly handles DST transitions
+                localized_dt = django_timezone.make_aware(naive_datetime, target_tz)
                 # Convert to UTC for storage
-                return localized_dt.astimezone(ZoneInfo('UTC'))
-            except (KeyError, AttributeError):
+                return localized_dt.astimezone(pytz.UTC)
+            except (pytz.exceptions.UnknownTimeZoneError, AttributeError):
                 # Fallback to default timezone if conversion fails
                 return django_timezone.make_aware(naive_datetime)
         
@@ -408,11 +409,22 @@ class MaintenanceActivityForm(forms.ModelForm):
         """Save the form and handle quick creation of categories and activity types."""
         instance = super().save(commit=False)
         
-        # Auto-generate title if empty using template
+        # Auto-generate title if empty using template, or process template variables if title contains them
         if not instance.title or instance.title.strip() == '':
             from maintenance.utils import generate_activity_title
             instance.title = generate_activity_title(
                 template=None,  # Will use default from settings
+                activity_type=instance.activity_type,
+                equipment=instance.equipment,
+                scheduled_start=instance.scheduled_start,
+                priority=instance.priority,
+                status=instance.status
+            )
+        elif instance.title and any(var in instance.title for var in ['{Activity_Type}', '{POD}', '{Equipment}', '{Date}', '{Priority}', '{Status}']):
+            # Title contains template variables, process them
+            from maintenance.utils import generate_activity_title
+            instance.title = generate_activity_title(
+                template=instance.title,
                 activity_type=instance.activity_type,
                 equipment=instance.equipment,
                 scheduled_start=instance.scheduled_start,
@@ -533,10 +545,23 @@ class MaintenanceActivityForm(forms.ModelForm):
                         start_time = instance.scheduled_start.time() if instance.scheduled_start else datetime.min.time()
                         
                         # Create the maintenance activity
+                        # Generate title using Dashboard Settings template
+                        from maintenance.utils import generate_activity_title
+                        future_activity_title = generate_activity_title(
+                            template=None,  # Will use Dashboard Settings template
+                            activity_type=instance.activity_type,
+                            equipment=instance.equipment,
+                            scheduled_start=timezone.make_aware(
+                                datetime.combine(next_date, start_time)
+                            ),
+                            priority=instance.priority,
+                            status='scheduled'
+                        )
+                        
                         future_activity = MaintenanceActivity.objects.create(
                             equipment=instance.equipment,
                             activity_type=instance.activity_type,
-                            title=f"{instance.activity_type.name} - {instance.equipment.name}",
+                            title=future_activity_title,
                             description=instance.activity_type.description or instance.description,
                             scheduled_start=timezone.make_aware(
                                 datetime.combine(next_date, start_time)

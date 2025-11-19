@@ -192,13 +192,27 @@
                         </div>
                         
                         <!-- Title Template -->
-                        <div class="mb-3">
-                            <label for="title" class="form-label">Activity Title Template <span class="text-danger">*</span></label>
+                        <div class="mb-3" style="position: relative;">
+                            <label for="title" class="form-label">
+                                Activity Title Template <span class="text-danger">*</span>
+                                <i class="fas fa-question-circle template-help-icon" style="cursor: help; color: #4299e1; margin-left: 0.5rem; font-size: 0.9rem;" title="Click for available variables"></i>
+                            </label>
                             <input type="text" class="form-control" id="title" name="title" required 
-                                   placeholder="e.g., Quarterly DGA Analysis - {equipment}">
+                                   placeholder="e.g., {Activity_Type} - {POD} - {Equipment}">
                             <div class="title-help">
                                 <i class="fas fa-info-circle"></i> 
-                                Use <code>{equipment}</code> as a placeholder - it will be replaced with each equipment name
+                                Available variables: <code>{Activity_Type}</code>, <code>{POD}</code>, <code>{Equipment}</code>, <code>{Date}</code>, <code>{Priority}</code>, <code>{Status}</code>
+                            </div>
+                            <div class="template-tooltip" style="display: none; position: absolute; background-color: #2d3748; color: white; padding: 0.75rem; border-radius: 0.25rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3); z-index: 1000; max-width: 400px; font-size: 0.875rem; line-height: 1.5; top: 0; left: 100%; margin-left: 1rem;">
+                                <strong>Available Template Variables:</strong><br>
+                                <code style="background-color: #4a5568; padding: 0.125rem 0.25rem; border-radius: 0.125rem; color: #fbbf24;">{Activity_Type}</code> - Activity type name<br>
+                                <code style="background-color: #4a5568; padding: 0.125rem 0.25rem; border-radius: 0.125rem; color: #fbbf24;">{POD}</code> - POD location name<br>
+                                <code style="background-color: #4a5568; padding: 0.125rem 0.25rem; border-radius: 0.125rem; color: #fbbf24;">{Equipment}</code> - Equipment name<br>
+                                <code style="background-color: #4a5568; padding: 0.125rem 0.25rem; border-radius: 0.125rem; color: #fbbf24;">{Date}</code> - Scheduled start date (YYYY-MM-DD)<br>
+                                <code style="background-color: #4a5568; padding: 0.125rem 0.25rem; border-radius: 0.125rem; color: #fbbf24;">{Priority}</code> - Priority display name<br>
+                                <code style="background-color: #4a5568; padding: 0.125rem 0.25rem; border-radius: 0.125rem; color: #fbbf24;">{Status}</code> - Status display name<br>
+                                <br>
+                                <strong>Example:</strong> <code style="background-color: #4a5568; padding: 0.125rem 0.25rem; border-radius: 0.125rem; color: #fbbf24;">{Activity_Type} - {POD} - {Equipment}</code>
                             </div>
                         </div>
                         
@@ -362,7 +376,7 @@ function updateActivityTypeInfo() {
         // Auto-populate title if empty
         const titleInput = document.getElementById('title');
         if (!titleInput.value) {
-            titleInput.value = `${option.text} - {equipment}`;
+            titleInput.value = `${option.text} - {POD} - {Equipment}`;
         }
         
         // Auto-calculate end time if start time is set
@@ -447,6 +461,26 @@ function validateForm() {
 
 // Initialize count on page load
 updateSelectedCount();
+
+// Template help icon functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const helpIcon = document.querySelector('.template-help-icon');
+    const tooltip = document.querySelector('.template-tooltip');
+    
+    if (helpIcon && tooltip) {
+        helpIcon.addEventListener('click', function(e) {
+            e.stopPropagation();
+            tooltip.style.display = tooltip.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        // Close tooltip when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!helpIcon.contains(e.target) && !tooltip.contains(e.target)) {
+                tooltip.style.display = 'none';
+            }
+        });
+    }
+});
 </script>
 {% endblock %}
 
