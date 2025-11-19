@@ -294,6 +294,7 @@ def dashboard(request):
     upcoming_maintenance_by_site_grouped = {}
     upcoming_calendar_by_site = {}
     active_maintenance_by_site = {}
+    active_maintenance_by_site_grouped = {}
     active_calendar_by_site = {}
     
     if group_by_site and is_all_sites:
@@ -416,18 +417,43 @@ def dashboard(request):
                 if len(upcoming_calendar_by_site[site_name]) < (dashboard_settings.max_upcoming_items_per_site if dashboard_settings else 15):
                     upcoming_calendar_by_site[site_name].append(event)
         
-        # Group active maintenance by site
+        # Group active maintenance by site, then by activity type
         group_active = dashboard_settings.group_active_by_site if dashboard_settings else True
         if group_active:
+            active_maintenance_by_site_and_type = {}
             for item in active_maintenance_all:
                 if item.equipment and item.equipment.location:
                     site_name = location_to_site.get(item.equipment.location.id, "Unknown Site")
                 else:
                     site_name = "Unknown Site"
-                if site_name not in active_maintenance_by_site:
-                    active_maintenance_by_site[site_name] = []
-                if len(active_maintenance_by_site[site_name]) < (dashboard_settings.max_active_items_per_site if dashboard_settings else 15):
-                    active_maintenance_by_site[site_name].append(item)
+                
+                activity_type_name = item.activity_type.name if item.activity_type else "Unknown"
+                
+                if site_name not in active_maintenance_by_site_and_type:
+                    active_maintenance_by_site_and_type[site_name] = {}
+                if activity_type_name not in active_maintenance_by_site_and_type[site_name]:
+                    active_maintenance_by_site_and_type[site_name][activity_type_name] = []
+                
+                max_per_type = (dashboard_settings.max_active_items_per_site if dashboard_settings else 15) * 2
+                if len(active_maintenance_by_site_and_type[site_name][activity_type_name]) < max_per_type:
+                    active_maintenance_by_site_and_type[site_name][activity_type_name].append(item)
+            
+            # Convert to flat structure for backwards compatibility
+            for site_name, activity_types in active_maintenance_by_site_and_type.items():
+                active_maintenance_by_site[site_name] = []
+                for activity_type_name, items in activity_types.items():
+                    active_maintenance_by_site[site_name].extend(items)
+            
+            # Store the grouped structure for the template
+            active_maintenance_by_site_grouped = {}
+            for site_name, activity_types in active_maintenance_by_site_and_type.items():
+                total_count = sum(len(items) for items in activity_types.values())
+                active_maintenance_by_site_grouped[site_name] = {
+                    'activity_types': activity_types,
+                    'total_count': total_count
+                }
+        else:
+            active_maintenance_by_site_grouped = {}
     
     # For backwards compatibility, keep flat lists
     urgent_maintenance = urgent_maintenance_all[:dashboard_settings.max_urgent_items_total if dashboard_settings else 50]
@@ -940,6 +966,7 @@ def dashboard(request):
         'active_maintenance': active_maintenance,
         'active_calendar': active_calendar,
         'active_maintenance_by_site': active_maintenance_by_site,
+        'active_maintenance_by_site_grouped': active_maintenance_by_site_grouped if group_active and is_all_sites else {},
         'active_calendar_by_site': active_calendar_by_site,
         'active_total_count': active_total_count,
         

@@ -661,25 +661,39 @@
             <span class="section-count">{% if active_total_count %}{{ active_total_count }}{% else %}{{ active_maintenance|length|add:active_calendar|length }}{% endif %}</span>
         </div>
         
-        {% if dashboard_settings.group_active_by_site and is_all_sites and active_maintenance_by_site %}
-            <!-- Grouped by Site -->
-            {% for site_name, items in active_maintenance_by_site.items %}
+        {% if dashboard_settings.group_active_by_site and is_all_sites and active_maintenance_by_site_grouped %}
+            <!-- Grouped by Site, then by Activity Type -->
+            {% for site_name, site_data in active_maintenance_by_site_grouped.items %}
             <div class="site-group">
-                <div class="site-group-header">
+                <div class="site-group-header expandable" onclick="toggleExpand('active-site-{{ site_name|slugify }}')">
+                    <i class="fas fa-chevron-right expand-icon" id="icon-active-site-{{ site_name|slugify }}"></i>
                     <strong>{{ site_name }}</strong>
-                    <span class="badge badge-secondary">{{ items|length }}</span>
+                    <span class="badge badge-secondary">{{ site_data.total_count }}</span>
                 </div>
-                {% for item in items %}
-                <div class="maintenance-item {% if item.status == 'in_progress' %}in-progress{% else %}pending{% endif %}" onclick="viewMaintenanceItem({{ item.id }})">
-                    <div class="item-title">{{ item.title|truncatechars:35 }}</div>
-                    <div class="item-meta">
-                        <span class="status-dot {{ item.status }}"></span>
-                        {% if item.scheduled_start %}{{ item.scheduled_start|date:"M d, H:i" }}{% else %}No date{% endif %}
+                <div class="site-group-content" id="active-site-{{ site_name|slugify }}" style="display: none;">
+                    {% for activity_type_name, items in site_data.activity_types.items %}
+                    <div class="activity-type-group">
+                        <div class="activity-type-header expandable" onclick="toggleExpand('active-type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}')">
+                            <i class="fas fa-chevron-right expand-icon" id="icon-active-type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}"></i>
+                            <strong>{{ activity_type_name }}</strong>
+                            <span class="badge badge-info">{{ items|length }}</span>
+                        </div>
+                        <div class="activity-type-content" id="active-type-{{ site_name|slugify }}-{{ activity_type_name|slugify }}" style="display: none;">
+                            {% for item in items %}
+                            <div class="maintenance-item {% if item.status == 'in_progress' %}in-progress{% else %}pending{% endif %}" onclick="event.stopPropagation(); viewMaintenanceItem({{ item.id }})">
+                                <div class="item-title">{{ item.title|truncatechars:35 }}</div>
+                                <div class="item-meta">
+                                    <span class="status-dot {{ item.status }}"></span>
+                                    {% if item.scheduled_start %}{{ item.scheduled_start|date:"M d, H:i" }}{% else %}No date{% endif %}
+                                </div>
+                                <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
+                                <div class="item-type-badge">MAINT</div>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
-                    <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
-                    <div class="item-type-badge">MAINT</div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
             {% endfor %}
         {% else %}
