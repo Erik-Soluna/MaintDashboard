@@ -409,11 +409,22 @@ class MaintenanceActivityForm(forms.ModelForm):
         """Save the form and handle quick creation of categories and activity types."""
         instance = super().save(commit=False)
         
-        # Auto-generate title if empty using template
+        # Auto-generate title if empty using template, or process template variables if title contains them
         if not instance.title or instance.title.strip() == '':
             from maintenance.utils import generate_activity_title
             instance.title = generate_activity_title(
                 template=None,  # Will use default from settings
+                activity_type=instance.activity_type,
+                equipment=instance.equipment,
+                scheduled_start=instance.scheduled_start,
+                priority=instance.priority,
+                status=instance.status
+            )
+        elif instance.title and any(var in instance.title for var in ['{Activity_Type}', '{POD}', '{Equipment}', '{Date}', '{Priority}', '{Status}']):
+            # Title contains template variables, process them
+            from maintenance.utils import generate_activity_title
+            instance.title = generate_activity_title(
+                template=instance.title,
                 activity_type=instance.activity_type,
                 equipment=instance.equipment,
                 scheduled_start=instance.scheduled_start,
