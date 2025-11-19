@@ -370,18 +370,19 @@ class MaintenanceActivityForm(forms.ModelForm):
     
     def _convert_to_timezone(self, naive_datetime, timezone_str):
         """Convert naive datetime to timezone-aware datetime."""
-        from zoneinfo import ZoneInfo
         from django.utils import timezone as django_timezone
+        import pytz
         
         if naive_datetime.tzinfo is None:
             # Convert naive datetime to the specified timezone
             try:
-                target_tz = ZoneInfo(timezone_str)
-                # Localize the naive datetime to the target timezone
-                localized_dt = naive_datetime.replace(tzinfo=target_tz)
+                # Convert timezone string to pytz timezone for proper DST handling
+                target_tz = pytz.timezone(timezone_str)
+                # Use make_aware which properly handles DST transitions
+                localized_dt = django_timezone.make_aware(naive_datetime, target_tz)
                 # Convert to UTC for storage
-                return localized_dt.astimezone(ZoneInfo('UTC'))
-            except (KeyError, AttributeError):
+                return localized_dt.astimezone(pytz.UTC)
+            except (pytz.exceptions.UnknownTimeZoneError, AttributeError):
                 # Fallback to default timezone if conversion fails
                 return django_timezone.make_aware(naive_datetime)
         

@@ -1058,7 +1058,7 @@
                                                 </div>
                                                 {% for equipment in equipment_list %}
                                                 <div class="form-check ml-3">
-                                                    <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids" data-category="{{ category_name|slugify }}">
+                                                    <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids" data-category="{{ category_name|slugify }}" data-equipment-name="{{ equipment.name }}" data-location-path="{% if equipment.location %}{{ equipment.location.get_hierarchical_display }}{% endif %}">
                                                     <label class="form-check-label text-white" for="equipment_{{ equipment.id }}">
                                                         {{ equipment.name }}
                                                     </label>
@@ -1069,7 +1069,7 @@
                                         {% else %}
                                             {% for equipment in equipment_list %}
                                             <div class="form-check">
-                                                <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids">
+                                                <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids" data-equipment-name="{{ equipment.name }}" data-location-path="{% if equipment.location %}{{ equipment.location.get_hierarchical_display }}{% endif %}">
                                                 <label class="form-check-label text-white" for="equipment_{{ equipment.id }}">
                                                     {{ equipment.name }}
                                                 </label>
@@ -2504,8 +2504,84 @@ function openCreateMaintenanceModal(selectedDate = null, equipmentId = null, act
         }
     }
     
+    // Set up title auto-generation
+    setupTitleAutoGeneration();
+    
     // Show the modal
     $('#createMaintenanceModal').modal('show');
+}
+
+function setupTitleAutoGeneration() {
+    const activityTypeSelect = document.getElementById('maintenanceActivityType');
+    const titleInput = document.getElementById('maintenanceTitle');
+    const equipmentCheckboxes = document.querySelectorAll('input[name="equipment_ids"]');
+    
+    function generateTitle() {
+        const activityTypeValue = activityTypeSelect.value;
+        const selectedEquipment = Array.from(equipmentCheckboxes).filter(cb => cb.checked);
+        
+        if (!activityTypeValue || selectedEquipment.length === 0) {
+            return;
+        }
+        
+        // Get activity type name from the select option text
+        const activityTypeOption = activityTypeSelect.options[activityTypeSelect.selectedIndex];
+        const activityTypeName = activityTypeOption ? activityTypeOption.text : '';
+        
+        // For now, generate title for first selected equipment
+        // The backend will create one activity per equipment anyway
+        if (selectedEquipment.length > 0) {
+            const firstEquipment = selectedEquipment[0];
+            const equipmentName = firstEquipment.getAttribute('data-equipment-name') || 
+                                (firstEquipment.nextElementSibling ? firstEquipment.nextElementSibling.textContent.trim() : '');
+            const locationPath = firstEquipment.getAttribute('data-location-path') || '';
+            
+            // Extract POD number from location path or equipment name
+            let podNumber = '';
+            // Try to find POD in location path first (e.g., "Sophie > Pod 1 > ...")
+            const locationPodMatch = locationPath.match(/pod\s*(\d+)/i);
+            if (locationPodMatch) {
+                podNumber = `Pod ${locationPodMatch[1]}`;
+            } else {
+                // Try to find POD in equipment name
+                const namePodMatch = equipmentName.match(/pod\s*(\d+)/i) || 
+                                   equipmentName.match(/p(\d+)/i);
+                if (namePodMatch) {
+                    podNumber = `Pod ${namePodMatch[1]}`;
+                } else {
+                    // Extract from location path if it contains a number that might be POD
+                    // Look for patterns like "> Pod 1" or "Pod 1" or "P1"
+                    const pathMatch = locationPath.match(/>\s*pod\s*(\d+)/i) || 
+                                    locationPath.match(/pod\s*(\d+)/i) ||
+                                    locationPath.match(/>\s*p(\d+)/i);
+                    if (pathMatch) {
+                        podNumber = `Pod ${pathMatch[1]}`;
+                    } else {
+                        // If we can't find POD, the backend will handle it
+                        podNumber = 'Pod #';
+                    }
+                }
+            }
+            
+            // Generate title: Activity Type - POD # - Equipment
+            const generatedTitle = `${activityTypeName} - ${podNumber} - ${equipmentName}`;
+            titleInput.value = generatedTitle;
+        }
+    }
+    
+    // Add event listeners
+    if (activityTypeSelect) {
+        activityTypeSelect.addEventListener('change', generateTitle);
+    }
+    
+    equipmentCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', generateTitle);
+    });
+    
+    // Generate title immediately if fields are already populated
+    if (activityTypeSelect && activityTypeSelect.value) {
+        generateTitle();
+    }
 }
 
 function submitMaintenanceForm() {
