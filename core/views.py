@@ -287,6 +287,7 @@ def dashboard(request):
     # Group items by site if enabled
     group_by_site = dashboard_settings.group_urgent_by_site if dashboard_settings else True
     group_upcoming = dashboard_settings.group_upcoming_by_site if dashboard_settings else True
+    group_active = dashboard_settings.group_active_by_site if dashboard_settings else True
     urgent_maintenance_by_site = {}
     urgent_maintenance_by_site_grouped = {}
     urgent_calendar_by_site = {}
@@ -418,7 +419,6 @@ def dashboard(request):
                     upcoming_calendar_by_site[site_name].append(event)
         
         # Group active maintenance by site, then by activity type
-        group_active = dashboard_settings.group_active_by_site if dashboard_settings else True
         if group_active:
             active_maintenance_by_site_and_type = {}
             for item in active_maintenance_all:
