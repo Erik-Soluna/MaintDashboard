@@ -216,16 +216,20 @@ def dashboard(request):
     upcoming_cutoff = today + timedelta(days=upcoming_days)
     
     # Calculate urgent items with single queries - only show maintenance activities to avoid duplication
-    # Include overdue items (scheduled_start < now) and in_progress items due within configured days
-    # Note: Pending items are shown in Active Items section, not Urgent Items
+    # Include overdue items (scheduled_start < now) and all items within urgent window (0-7 days from dashboard settings)
+    # Items in urgent window (0-7 days) with pending/scheduled/in_progress status go to urgent
+    # Items beyond urgent window (7-30 days) go to upcoming
     # Limit queries to prevent loading too much data
     max_items = 200  # Reasonable limit to prevent excessive memory usage
     now = timezone.now()
     urgent_maintenance_all = list(maintenance_query.filter(
         Q(status='overdue') |  # Items explicitly marked as overdue
         (Q(scheduled_start__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past scheduled start date (overdue) - count on Day of Schedule start
-        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['in_progress']))  # Urgent in_progress items only (pending items go to Active Items)
-    ).order_by('scheduled_end')[:max_items])
+        # Items within urgent window (0-7 days) - includes in_progress, pending, and scheduled
+        (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today) & Q(status__in=['in_progress', 'pending', 'scheduled'])) |
+        # Items with only scheduled_start in urgent window
+        (Q(scheduled_end__isnull=True, scheduled_start__lte=urgent_cutoff, scheduled_start__gte=today) & Q(status__in=['in_progress', 'pending', 'scheduled']))
+    ).order_by('scheduled_end', 'scheduled_start')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
     urgent_calendar_all = list(calendar_query.filter(
@@ -236,17 +240,16 @@ def dashboard(request):
     ).order_by('event_date')[:max_items])
     
     # Calculate upcoming items with single queries - only show maintenance activities to avoid duplication
-    # Upcoming items are those scheduled after today and within the upcoming window (0-30 days from dashboard settings)
-    # Items in urgent window (0-7 days) that are actually urgent (overdue, in_progress) go to urgent
-    # Items in urgent window (0-7 days) that are NOT urgent (pending, scheduled) go to upcoming
+    # Upcoming items are those scheduled AFTER the urgent window (7-30 days from dashboard settings)
+    # Items in urgent window (0-7 days) go to urgent
     # Items beyond urgent window (7-30 days) go to upcoming
     # Use scheduled_end if available, otherwise fall back to scheduled_start
     upcoming_maintenance_all = list(maintenance_query.filter(
         Q(
-            # Items with scheduled_end in the upcoming window (today to 30 days)
-            Q(scheduled_end__gte=today, scheduled_end__lte=upcoming_cutoff) |
-            # Items with only scheduled_start in the upcoming window (if scheduled_end is null)
-            Q(scheduled_end__isnull=True, scheduled_start__gte=today, scheduled_start__lte=upcoming_cutoff)
+            # Items with scheduled_end AFTER urgent window but within upcoming window (7-30 days)
+            Q(scheduled_end__gt=urgent_cutoff, scheduled_end__lte=upcoming_cutoff) |
+            # Items with only scheduled_start AFTER urgent window but within upcoming window
+            Q(scheduled_end__isnull=True, scheduled_start__gt=urgent_cutoff, scheduled_start__lte=upcoming_cutoff)
         ),
         status__in=['pending', 'scheduled', 'in_progress']  # Include all active statuses
     ).exclude(
@@ -255,9 +258,7 @@ def dashboard(request):
         # Exclude items that are past their scheduled_end (they're overdue and go to urgent)
         Q(scheduled_end__lt=now, status__in=['pending', 'scheduled']) |
         # Exclude items that are past their scheduled_start if no scheduled_end (they're overdue)
-        Q(scheduled_end__isnull=True, scheduled_start__lt=now, status__in=['pending', 'scheduled']) |
-        # Exclude in_progress items in urgent window (0-7 days) - they go to urgent
-        Q(scheduled_end__gte=today, scheduled_end__lte=urgent_cutoff, status='in_progress')
+        Q(scheduled_end__isnull=True, scheduled_start__lt=now, status__in=['pending', 'scheduled'])
     ).order_by('scheduled_end', 'scheduled_start')[:max_items])
     
     # Filter out calendar events that are synced with maintenance activities to avoid duplication
@@ -454,17 +455,36 @@ def dashboard(request):
                 if ma.status == 'in_progress' and ma.equipment and ma.equipment.status != 'maintenance'
             )
             
-            # Calculate UPCOMING count: maintenance activities scheduled within upcoming_cutoff
+            # Calculate UPCOMING count: maintenance activities scheduled AFTER urgent window but within upcoming window
             # upcoming_cutoff is configured in Dashboard Settings (default: 30 days)
-            # This matches the same setting used for the "Upcoming Items" section on the overview page
-            # Use scheduled_end to match the logic in upcoming_maintenance_all query
-            upcoming_maintenance_count = sum(
-                1 for ma in location_maintenance
-                if (ma.scheduled_end and 
-                    ma.scheduled_end.date() > urgent_cutoff and
-                    ma.scheduled_end.date() <= upcoming_cutoff and
-                    ma.status in ['scheduled', 'pending', 'in_progress'])
-            )
+            # urgent_cutoff is configured in Dashboard Settings (default: 7 days)
+            # This matches the same logic used for the "Upcoming Items" section on the overview page
+            # Items in urgent window (0-7 days) go to urgent, items after urgent window (7-30 days) go to upcoming
+            upcoming_maintenance_count = 0
+            for ma in location_maintenance:
+                if ma.status not in ['scheduled', 'pending', 'in_progress'] or ma.status == 'overdue':
+                    continue
+                
+                # Check if item is in upcoming window (after urgent cutoff, within upcoming cutoff)
+                is_upcoming = False
+                if ma.scheduled_end:
+                    scheduled_date = ma.scheduled_end.date()
+                    if scheduled_date > urgent_cutoff and scheduled_date <= upcoming_cutoff:
+                        is_upcoming = True
+                elif ma.scheduled_start:
+                    scheduled_date = ma.scheduled_start.date()
+                    if scheduled_date > urgent_cutoff and scheduled_date <= upcoming_cutoff:
+                        is_upcoming = True
+                
+                # Exclude items that are past their scheduled date (they're overdue)
+                if is_upcoming:
+                    if ma.scheduled_end and ma.scheduled_end.date() < today:
+                        is_upcoming = False
+                    elif not ma.scheduled_end and ma.scheduled_start and ma.scheduled_start.date() < today:
+                        is_upcoming = False
+                
+                if is_upcoming:
+                    upcoming_maintenance_count += 1
             
             # Get recent activities (filter out any that might have been deleted)
             recent_activities = []
@@ -552,12 +572,21 @@ def dashboard(request):
             status__in=['pending', 'scheduled']
         ).values('equipment__location__parent_location_id', 'equipment__location_id').annotate(count=Count('id'))
         
-        # Bulk upcoming maintenance counts
+        # Bulk upcoming maintenance counts - items AFTER urgent window but within upcoming window
+        # Use scheduled_end if available, otherwise scheduled_start
         upcoming_by_site = MaintenanceActivity.objects.filter(
             Q(equipment__location__parent_location_id__in=site_ids) | Q(equipment__location_id__in=site_ids),
-            scheduled_start__date__lte=urgent_cutoff,
-            scheduled_start__date__gte=today,
-            status__in=['scheduled', 'pending']
+            Q(
+                # Items with scheduled_end AFTER urgent window but within upcoming window
+                Q(scheduled_end__gt=urgent_cutoff, scheduled_end__lte=upcoming_cutoff) |
+                # Items with only scheduled_start AFTER urgent window but within upcoming window
+                Q(scheduled_end__isnull=True, scheduled_start__gt=urgent_cutoff, scheduled_start__lte=upcoming_cutoff)
+            ),
+            status__in=['scheduled', 'pending', 'in_progress']
+        ).exclude(
+            Q(status='overdue') |
+            Q(scheduled_end__lt=now, status__in=['pending', 'scheduled']) |
+            Q(scheduled_end__isnull=True, scheduled_start__lt=now, status__in=['pending', 'scheduled'])
         ).values('equipment__location__parent_location_id', 'equipment__location_id').annotate(count=Count('id'))
         
         # Build lookup dictionaries
