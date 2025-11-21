@@ -1,11 +1,2 @@
 User-agent: *
-Allow: /
-
-# Disallow admin and sensitive areas
-Disallow: /admin/
-Disallow: /auth/
-Disallow: /settings/
-Disallow: /health/
-
-# Sitemap (if you have one)
-# Sitemap: https://maintenance.errorlog.app/sitemap.xml 
+Disallow: /
