@@ -962,48 +962,120 @@
                 </div>
                 <div class="modal-body">
                     <form id="createMaintenanceForm">
+                        <!-- Hidden status field - forced to "Scheduled" for new activities -->
+                        <input type="hidden" id="maintenanceStatus" name="status" value="scheduled">
+                        
+                        <!-- Activity Type and Equipment at TOP (per WORK-001) -->
                         <div class="row">
-                            <div class="col-md-8">
+                            <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label for="maintenanceTitle" class="text-white">Title *</label>
-                                    <input type="text" class="form-control bg-dark text-white border-secondary" id="maintenanceTitle" name="title" required>
-                                </div>
-                                <div class="form-group mb-3">
-                                    <label for="maintenanceDescription" class="text-white">Description</label>
-                                    <textarea class="form-control bg-dark text-white border-secondary" id="maintenanceDescription" name="description" rows="3"></textarea>
+                                    <label for="maintenanceActivityType" class="text-white">Activity Type *</label>
+                                    <select class="form-control bg-dark text-white border-secondary" id="maintenanceActivityType" name="activity_type" required>
+                                        <option value="">Select Activity Type</option>
+                                        {% for value, label in event_types %}
+                                            <option value="{{ value }}" data-priority="{{ value|default:'' }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="text-muted">Priority will be auto-assigned based on activity type</small>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label for="maintenancePriority" class="text-white">Priority *</label>
-                                    <select class="form-control bg-dark text-white border-secondary" id="maintenancePriority" name="priority" required>
-                                        <option value="">Select Priority</option>
+                                    <label for="maintenanceEquipment" class="text-white">Equipment * <small class="text-info">(Site | Location format)</small></label>
+                                    <div class="equipment-checkbox-container bg-dark border border-secondary rounded p-2" style="max-height: 300px; overflow-y: auto;">
+                                        {% if equipment_by_category %}
+                                            {% for category_name, equipment_list in equipment_by_category.items %}
+                                            <div class="equipment-category-group mb-3">
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <strong class="text-white">{{ category_name }}</strong>
+                                                    <button type="button" class="btn btn-sm btn-outline-primary select-category-all" data-category="{{ category_name|slugify }}">
+                                                        Select All
+                                                    </button>
+                                                </div>
+                                                {% for equipment in equipment_list %}
+                                                <div class="form-check ml-3">
+                                                    <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids" data-category="{{ category_name|slugify }}" data-equipment-name="{{ equipment.name }}" data-location-path="{% if equipment.location %}{{ equipment.location.get_hierarchical_display }}{% endif %}">
+                                                    <label class="form-check-label text-white" for="equipment_{{ equipment.id }}">
+                                                        {% if equipment.location %}{{ equipment.location.get_hierarchical_display }}{% else %}{{ equipment.name }}{% endif %}
+                                                    </label>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            {% for equipment in equipment_list %}
+                                            <div class="form-check">
+                                                <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids" data-equipment-name="{{ equipment.name }}" data-location-path="{% if equipment.location %}{{ equipment.location.get_hierarchical_display }}{% endif %}">
+                                                <label class="form-check-label text-white" for="equipment_{{ equipment.id }}">
+                                                    {% if equipment.location %}{{ equipment.location.get_hierarchical_display }}{% else %}{{ equipment.name }}{% endif %}
+                                                </label>
+                                            </div>
+                                            {% empty %}
+                                            <p class="text-muted mb-0">No equipment available</p>
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                    <small class="text-muted">Select at least 1 equipment. Multiple selections will create one activity per equipment.</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- De-energization Required field (per WORK-001) -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="maintenanceDeenergizationRequired" class="text-white">De-energization Required *</label>
+                                    <select class="form-control bg-dark text-white border-secondary" id="maintenanceDeenergizationRequired" name="deenergization_required" required>
+                                        <option value="false">FALSE - No de-energization needed</option>
+                                        <option value="true">TRUE - De-energization required</option>
+                                    </select>
+                                    <small class="text-muted">Indicates if equipment must be de-energized for this maintenance</small>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="maintenancePriority" class="text-white">Priority <small class="text-info">(Auto-assigned)</small></label>
+                                    <select class="form-control bg-dark text-white border-secondary" id="maintenancePriority" name="priority" disabled>
+                                        <option value="">Auto-assigned</option>
                                         <option value="low">Low</option>
                                         <option value="medium">Medium</option>
                                         <option value="high">High</option>
                                         <option value="critical">Critical</option>
                                     </select>
-                                </div>
-                                <div class="form-group mb-3">
-                                    <label for="maintenanceStatus" class="text-white">Status *</label>
-                                    <select class="form-control bg-dark text-white border-secondary" id="maintenanceStatus" name="status" required>
-                                        <option value="">Select Status</option>
-                                        <option value="scheduled">Scheduled</option>
-                                        <option value="pending">Pending</option>
-                                    </select>
+                                    <input type="hidden" id="maintenancePriorityHidden" name="priority_value" value="">
+                                    <small class="text-muted">Priority is set automatically based on Activity Type</small>
                                 </div>
                             </div>
                         </div>
                         
+                        <!-- Title and Notes (renamed from Description per WORK-001) -->
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-md-12">
+                                <div class="form-group mb-3">
+                                    <label for="maintenanceTitle" class="text-white">Title *</label>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" id="maintenanceTitle" name="title" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group mb-3">
+                                    <label for="maintenanceNotes" class="text-white">Notes</label>
+                                    <textarea class="form-control bg-dark text-white border-secondary" id="maintenanceNotes" name="description" rows="3" placeholder="Optional notes about this maintenance activity"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Scheduling section -->
+                        <div class="row">
+                            <div class="col-md-4">
                                 <div class="form-group mb-3">
                                     <label for="maintenanceScheduledStart" class="text-white">Scheduled Start *</label>
                                     <input type="datetime-local" class="form-control bg-dark text-white border-secondary" id="maintenanceScheduledStart" name="scheduled_start" required>
                                     <small class="text-muted">Scheduled start date and time</small>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <div class="form-group mb-3">
                                     <label for="maintenanceScheduledEnd" class="text-white">Scheduled End *</label>
                                     <input type="datetime-local" class="form-control bg-dark text-white border-secondary" id="maintenanceScheduledEnd" name="scheduled_end" required>
@@ -1027,59 +1099,6 @@
                                         <option value="Australia/Sydney">Sydney (AEST)</option>
                                     </select>
                                     <small class="text-muted">Timezone for the scheduled times</small>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="maintenanceActivityType" class="text-white">Activity Type *</label>
-                                    <select class="form-control bg-dark text-white border-secondary" id="maintenanceActivityType" name="activity_type" required>
-                                        <option value="">Select Activity Type</option>
-                                        {% for value, label in event_types %}
-                                            <option value="{{ value }}">{{ label }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group mb-3">
-                                    <label for="maintenanceEquipment" class="text-white">Equipment *</label>
-                                    <div class="equipment-checkbox-container bg-dark border border-secondary rounded p-2" style="max-height: 300px; overflow-y: auto;">
-                                        {% if equipment_by_category %}
-                                            {% for category_name, equipment_list in equipment_by_category.items %}
-                                            <div class="equipment-category-group mb-3">
-                                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                                    <strong class="text-white">{{ category_name }}</strong>
-                                                    <button type="button" class="btn btn-sm btn-outline-primary select-category-all" data-category="{{ category_name|slugify }}">
-                                                        Select All
-                                                    </button>
-                                                </div>
-                                                {% for equipment in equipment_list %}
-                                                <div class="form-check ml-3">
-                                                    <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids" data-category="{{ category_name|slugify }}" data-equipment-name="{{ equipment.name }}" data-location-path="{% if equipment.location %}{{ equipment.location.get_hierarchical_display }}{% endif %}">
-                                                    <label class="form-check-label text-white" for="equipment_{{ equipment.id }}">
-                                                        {{ equipment.name }}
-                                                    </label>
-                                                </div>
-                                                {% endfor %}
-                                            </div>
-                                            {% endfor %}
-                                        {% else %}
-                                            {% for equipment in equipment_list %}
-                                            <div class="form-check">
-                                                <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids" data-equipment-name="{{ equipment.name }}" data-location-path="{% if equipment.location %}{{ equipment.location.get_hierarchical_display }}{% endif %}">
-                                                <label class="form-check-label text-white" for="equipment_{{ equipment.id }}">
-                                                    {{ equipment.name }}
-                                                </label>
-                                            </div>
-                                            {% empty %}
-                                            <p class="text-muted mb-0">No equipment available</p>
-                                            {% endfor %}
-                                        {% endif %}
-                                    </div>
-                                    <small class="text-muted">Select at least 1 equipment. Multiple selections will create one activity per equipment.</small>
                                 </div>
                             </div>
                         </div>
@@ -2507,6 +2526,9 @@ function openCreateMaintenanceModal(selectedDate = null, equipmentId = null, act
     // Set up title auto-generation
     setupTitleAutoGeneration();
     
+    // Set up priority auto-assignment based on activity type (per WORK-001)
+    setupPriorityAutoAssignment();
+    
     // Show the modal
     $('#createMaintenanceModal').modal('show');
 }
@@ -2557,6 +2579,72 @@ function setupTitleAutoGeneration() {
     }
 }
 
+// Auto-assign priority based on activity type (per WORK-001 requirements)
+// Priority mapping based on activity type name
+const ACTIVITY_TYPE_PRIORITY_MAP = {
+    // Low priority activities
+    'thermal imaging': 'low',
+    'operational inspection': 'low',
+    
+    // Medium priority activities
+    '3 year torque check': 'medium',
+    'annual torque check': 'medium',
+    'dga sample': 'medium',
+    
+    // High priority activities  
+    'corrective maintenance': 'high',
+    
+    // Default fallback
+    'default': 'medium'
+};
+
+function setupPriorityAutoAssignment() {
+    const activityTypeSelect = document.getElementById('maintenanceActivityType');
+    const prioritySelect = document.getElementById('maintenancePriority');
+    const priorityHidden = document.getElementById('maintenancePriorityHidden');
+    
+    if (!activityTypeSelect || !prioritySelect || !priorityHidden) {
+        return;
+    }
+    
+    function updatePriority() {
+        const selectedOption = activityTypeSelect.options[activityTypeSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) {
+            // Reset to empty if no activity type selected
+            prioritySelect.value = '';
+            priorityHidden.value = '';
+            return;
+        }
+        
+        // Get activity type name and normalize it for lookup
+        const activityTypeName = selectedOption.text.toLowerCase().trim();
+        
+        // Look up priority from mapping
+        let priority = ACTIVITY_TYPE_PRIORITY_MAP['default']; // Default to medium
+        
+        for (const [key, value] of Object.entries(ACTIVITY_TYPE_PRIORITY_MAP)) {
+            if (key !== 'default' && activityTypeName.includes(key)) {
+                priority = value;
+                break;
+            }
+        }
+        
+        // Update both the visible select and hidden input
+        prioritySelect.value = priority;
+        priorityHidden.value = priority;
+        
+        console.log(`Auto-assigned priority '${priority}' for activity type '${activityTypeName}'`);
+    }
+    
+    // Add event listener for activity type change
+    activityTypeSelect.addEventListener('change', updatePriority);
+    
+    // Set initial priority if activity type is already selected
+    if (activityTypeSelect.value) {
+        updatePriority();
+    }
+}
+
 function submitMaintenanceForm() {
     const form = document.getElementById('createMaintenanceForm');
     const formData = new FormData(form);
@@ -2576,18 +2664,26 @@ function submitMaintenanceForm() {
         return;
     }
     
+    // Get the auto-assigned priority from hidden field
+    const priorityHidden = document.getElementById('maintenancePriorityHidden');
+    const priority = priorityHidden ? priorityHidden.value : 'medium';
+    
+    // Get de-energization required value
+    const deenergizationRequired = formData.get('deenergization_required') === 'true';
+    
     // Prepare the data for submission
     const maintenanceData = {
         title: formData.get('title') || '',  // Empty title will trigger auto-generation
         description: formData.get('description'),
-        priority: formData.get('priority'),
-        status: formData.get('status'),
+        priority: priority,  // Use auto-assigned priority from WORK-001 mapping
+        status: formData.get('status'),  // Always 'scheduled' from hidden field
         scheduled_start: scheduledStart,
         scheduled_end: scheduledEnd,
         timezone: formData.get('timezone'),
         activity_type: formData.get('activity_type'),
         equipment_ids: equipmentIds,  // Multiple equipment IDs
-        assigned_to: formData.get('assigned_to') || null
+        assigned_to: formData.get('assigned_to') || null,
+        deenergization_required: deenergizationRequired  // WORK-001: De-energization field
     };
     
     // Show loading state

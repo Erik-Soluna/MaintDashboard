@@ -283,7 +283,7 @@ class MaintenanceActivityForm(forms.ModelForm):
             'equipment', 'activity_type', 'title', 'description',
             'status', 'priority', 'assigned_to',
             'scheduled_start', 'scheduled_end', 'timezone',
-            'required_status', 'tools_required', 'parts_required',
+            'deenergization_required', 'required_status', 'tools_required', 'parts_required',
             'safety_notes'
         ]
         widgets = {

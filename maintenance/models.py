@@ -220,6 +220,12 @@ class MaintenanceActivity(TimeStampedModel):
         help_text="User assigned to perform this maintenance"
     )
     
+    # De-energization requirement (per WORK-001)
+    deenergization_required = models.BooleanField(
+        default=False,
+        help_text="Whether de-energization is required for this maintenance activity"
+    )
+    
     # Requirements and results
     required_status = models.CharField(
         max_length=100,
