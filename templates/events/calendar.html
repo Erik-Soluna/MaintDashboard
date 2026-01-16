@@ -1005,7 +1005,7 @@
                                         {% else %}
                                             {% for equipment in equipment_list %}
                                             <div class="form-check">
-                                                <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids" data-equipment-name="{{ equipment.name }}" data-location-path="{% if equipment.location %}{{ equipment.location.get_hierarchical_display }}{% endif %}">
+                                                <input class="form-check-input equipment-checkbox-modal" type="checkbox" value="{{ equipment.id }}" id="equipment_{{ equipment.id }}" name="equipment_ids" data-category="{% if equipment.category %}{{ equipment.category.name|slugify }}{% else %}uncategorized{% endif %}" data-equipment-name="{{ equipment.name }}" data-location-path="{% if equipment.location %}{{ equipment.location.get_hierarchical_display }}{% endif %}">
                                                 <label class="form-check-label text-white" for="equipment_{{ equipment.id }}">
                                                     {% if equipment.location %}{{ equipment.location.get_hierarchical_display }}{% else %}{{ equipment.name }}{% endif %}
                                                 </label>
@@ -1034,16 +1034,15 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group mb-3">
-                                    <label for="maintenancePriority" class="text-white">Priority <small class="text-info">(Auto-assigned)</small></label>
-                                    <select class="form-control bg-dark text-white border-secondary" id="maintenancePriority" name="priority" disabled>
-                                        <option value="">Auto-assigned</option>
+                                    <label for="maintenancePriority" class="text-white">Priority <small class="text-info">(Auto-filled, adjustable)</small></label>
+                                    <select class="form-control bg-dark text-white border-secondary" id="maintenancePriority" name="priority">
+                                        <option value="">Select Priority</option>
                                         <option value="low">Low</option>
                                         <option value="medium">Medium</option>
                                         <option value="high">High</option>
                                         <option value="critical">Critical</option>
                                     </select>
-                                    <input type="hidden" id="maintenancePriorityHidden" name="priority_value" value="">
-                                    <small class="text-muted">Priority is set automatically based on Activity Type. De-energization required = HIGH priority.</small>
+                                    <small class="text-muted">Auto-filled based on Activity Type. Adjustable at your discretion. De-energization on Switchgear/Transformers = HIGH priority.</small>
                                 </div>
                             </div>
                         </div>
@@ -2600,34 +2599,68 @@ const ACTIVITY_TYPE_PRIORITY_MAP = {
     'default': 'medium'
 };
 
+// Equipment categories that require HIGH priority when de-energization is needed
+const DEENERGIZATION_HIGH_PRIORITY_CATEGORIES = ['switchgear', 'transformer', 'transformers'];
+
 function setupPriorityAutoAssignment() {
     const activityTypeSelect = document.getElementById('maintenanceActivityType');
     const prioritySelect = document.getElementById('maintenancePriority');
-    const priorityHidden = document.getElementById('maintenancePriorityHidden');
     const deenergizationSelect = document.getElementById('maintenanceDeenergizationRequired');
     
-    if (!activityTypeSelect || !prioritySelect || !priorityHidden) {
+    if (!activityTypeSelect || !prioritySelect) {
         return;
     }
     
+    // Track if user has manually changed priority
+    let userManuallyChangedPriority = false;
+    
+    // Listen for manual priority changes by user
+    prioritySelect.addEventListener('change', function(e) {
+        // If user clicks/changes the priority, mark it as manually changed
+        if (e.isTrusted) {
+            userManuallyChangedPriority = true;
+            console.log('User manually changed priority to:', prioritySelect.value);
+        }
+    });
+    
     function updatePriority() {
-        const selectedOption = activityTypeSelect.options[activityTypeSelect.selectedIndex];
-        
-        // Check if de-energization is required - this takes priority over activity type
-        const deenergizationRequired = deenergizationSelect && deenergizationSelect.value === 'true';
-        
-        if (deenergizationRequired) {
-            // De-energization required always sets priority to HIGH (per WORK-001)
-            prioritySelect.value = 'high';
-            priorityHidden.value = 'high';
-            console.log('Priority set to HIGH due to de-energization requirement');
+        // If user has manually changed priority, don't auto-update
+        if (userManuallyChangedPriority) {
+            console.log('Skipping auto-priority update - user has manually set priority');
             return;
         }
         
+        const selectedOption = activityTypeSelect.options[activityTypeSelect.selectedIndex];
+        
+        // Check if de-energization is required
+        const deenergizationRequired = deenergizationSelect && deenergizationSelect.value === 'true';
+        
+        // Check if any selected equipment is in the categories that require HIGH priority for de-energization
+        if (deenergizationRequired) {
+            const selectedEquipment = document.querySelectorAll('input[name="equipment_ids"]:checked');
+            let hasHighPriorityCategory = false;
+            
+            selectedEquipment.forEach(checkbox => {
+                const categoryAttr = checkbox.getAttribute('data-category');
+                if (categoryAttr) {
+                    const categoryLower = categoryAttr.toLowerCase();
+                    if (DEENERGIZATION_HIGH_PRIORITY_CATEGORIES.some(cat => categoryLower.includes(cat))) {
+                        hasHighPriorityCategory = true;
+                    }
+                }
+            });
+            
+            if (hasHighPriorityCategory) {
+                // De-energization required on Switchgear/Transformers sets priority to HIGH
+                prioritySelect.value = 'high';
+                console.log('Priority set to HIGH due to de-energization on Switchgear/Transformer');
+                return;
+            }
+        }
+        
         if (!selectedOption || !selectedOption.value) {
-            // Reset to empty if no activity type selected
-            prioritySelect.value = '';
-            priorityHidden.value = '';
+            // Reset to default if no activity type selected
+            prioritySelect.value = 'medium';
             return;
         }
         
@@ -2644,20 +2677,37 @@ function setupPriorityAutoAssignment() {
             }
         }
         
-        // Update both the visible select and hidden input
+        // Update the visible select
         prioritySelect.value = priority;
-        priorityHidden.value = priority;
         
         console.log(`Auto-assigned priority '${priority}' for activity type '${activityTypeName}'`);
     }
     
-    // Add event listener for activity type change
-    activityTypeSelect.addEventListener('change', updatePriority);
+    // Reset userManuallyChangedPriority when activity type changes (new selection = new auto-assignment)
+    activityTypeSelect.addEventListener('change', function() {
+        userManuallyChangedPriority = false;
+        updatePriority();
+    });
     
-    // Add event listener for de-energization change (updates priority immediately)
+    // Add event listener for de-energization change
     if (deenergizationSelect) {
-        deenergizationSelect.addEventListener('change', updatePriority);
+        deenergizationSelect.addEventListener('change', function() {
+            userManuallyChangedPriority = false;
+            updatePriority();
+        });
     }
+    
+    // Add event listener for equipment selection changes
+    const equipmentCheckboxes = document.querySelectorAll('input[name="equipment_ids"]');
+    equipmentCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            // Only trigger if de-energization is required
+            if (deenergizationSelect && deenergizationSelect.value === 'true') {
+                userManuallyChangedPriority = false;
+                updatePriority();
+            }
+        });
+    });
     
     // Set initial priority if activity type is already selected
     if (activityTypeSelect.value) {
@@ -2687,12 +2737,13 @@ function submitMaintenanceForm() {
     // Get de-energization required value
     const deenergizationRequired = formData.get('deenergization_required') === 'true';
     
-    // Get the auto-assigned priority from hidden field
-    // De-energization required always forces HIGH priority (per WORK-001)
-    const priorityHidden = document.getElementById('maintenancePriorityHidden');
-    let priority = priorityHidden ? priorityHidden.value : 'medium';
-    if (deenergizationRequired) {
-        priority = 'high';  // Override: de-energization always means HIGH priority
+    // Get priority from the dropdown (now user-adjustable)
+    const prioritySelect = document.getElementById('maintenancePriority');
+    let priority = prioritySelect ? prioritySelect.value : 'medium';
+    
+    // Default to medium if no priority selected
+    if (!priority) {
+        priority = 'medium';
     }
     
     // Prepare the data for submission

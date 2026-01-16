@@ -208,12 +208,22 @@ def calendar_view(request):
                 pass
 
     # Get equipment for filtering - include category for grouping
-    equipment_list = Equipment.objects.filter(is_active=True).select_related('category').order_by('category__name', 'name')
+    # Use natural sorting to handle alphanumeric names correctly (MDC 1, MDC 2, ... MDC 11)
+    from core.models import natural_sort_key
+    
+    equipment_list = Equipment.objects.filter(is_active=True).select_related('category', 'location')
     if selected_site and not is_all_sites:
         # Get all descendant location IDs (handles nested locations at any depth)
         from maintenance.views import get_all_descendant_location_ids
         location_ids = get_all_descendant_location_ids(selected_site)
         equipment_list = equipment_list.filter(location_id__in=location_ids)
+    
+    # Convert to list and sort naturally within categories
+    equipment_list = list(equipment_list)
+    equipment_list.sort(key=lambda e: (
+        e.category.name if e.category else 'Uncategorized',
+        natural_sort_key(e.name)
+    ))
     
     # Group equipment by category for the modal
     equipment_by_category = {}
@@ -798,6 +808,15 @@ def fetch_unified_events(request):
                     except pytz.exceptions.UnknownTimeZoneError:
                         activity_tz = pytz.timezone('America/Chicago')
                     
+                    # Helper to format datetime without timezone offset for FullCalendar
+                    # This prevents double-conversion when FullCalendar uses timeZone: 'local'
+                    def format_for_calendar(dt):
+                        """Format datetime as ISO string without timezone offset."""
+                        if dt is None:
+                            return None
+                        # Format as YYYY-MM-DDTHH:MM:SS (no timezone offset)
+                        return dt.strftime('%Y-%m-%dT%H:%M:%S')
+                    
                     if activity.scheduled_start:
                         # Ensure timezone-aware, then convert to activity's timezone
                         if timezone.is_naive(activity.scheduled_start):
@@ -830,8 +849,8 @@ def fetch_unified_events(request):
                     calendar_event = {
                         'id': f'activity_{activity.id}',
                         'title': title,
-                        'start': scheduled_start_local.isoformat() if scheduled_start_local else None,
-                        'end': scheduled_end_local.isoformat() if scheduled_end_local else None,
+                        'start': format_for_calendar(scheduled_start_local),
+                        'end': format_for_calendar(scheduled_end_local),
                         'allDay': False,
                         'backgroundColor': bg_color,
                         'borderColor': '#2d3748',
