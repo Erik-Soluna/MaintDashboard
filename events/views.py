@@ -790,25 +790,35 @@ def fetch_unified_events(request):
                     else:
                         bg_color = '#6c757d'
                     
-                    # FullCalendar expects UTC times when timeZone is set - it will convert for display
-                    # So we send UTC times and let FullCalendar handle the timezone conversion
+                    # Convert times to the activity's stored timezone for consistent display
+                    # This ensures the calendar and detail views show the same time
+                    activity_tz_str = getattr(activity, 'timezone', None) or 'America/Chicago'
+                    try:
+                        activity_tz = pytz.timezone(activity_tz_str)
+                    except pytz.exceptions.UnknownTimeZoneError:
+                        activity_tz = pytz.timezone('America/Chicago')
+                    
                     if activity.scheduled_start:
-                        # Ensure timezone-aware, then convert to UTC
+                        # Ensure timezone-aware, then convert to activity's timezone
                         if timezone.is_naive(activity.scheduled_start):
-                            scheduled_start_utc = timezone.make_aware(activity.scheduled_start, pytz.UTC)
+                            scheduled_start_aware = timezone.make_aware(activity.scheduled_start, pytz.UTC)
                         else:
-                            scheduled_start_utc = activity.scheduled_start.astimezone(pytz.UTC)
+                            scheduled_start_aware = activity.scheduled_start
+                        # Convert to activity's timezone for display
+                        scheduled_start_local = scheduled_start_aware.astimezone(activity_tz)
                     else:
-                        scheduled_start_utc = None
+                        scheduled_start_local = None
                     
                     if activity.scheduled_end:
-                        # Ensure timezone-aware, then convert to UTC
+                        # Ensure timezone-aware, then convert to activity's timezone
                         if timezone.is_naive(activity.scheduled_end):
-                            scheduled_end_utc = timezone.make_aware(activity.scheduled_end, pytz.UTC)
+                            scheduled_end_aware = timezone.make_aware(activity.scheduled_end, pytz.UTC)
                         else:
-                            scheduled_end_utc = activity.scheduled_end.astimezone(pytz.UTC)
+                            scheduled_end_aware = activity.scheduled_end
+                        # Convert to activity's timezone for display
+                        scheduled_end_local = scheduled_end_aware.astimezone(activity_tz)
                     else:
-                        scheduled_end_utc = None
+                        scheduled_end_local = None
                     
                     # Get customer ID from equipment location
                     customer_id = None
@@ -820,8 +830,8 @@ def fetch_unified_events(request):
                     calendar_event = {
                         'id': f'activity_{activity.id}',
                         'title': title,
-                        'start': scheduled_start_utc.isoformat() if scheduled_start_utc else None,
-                        'end': scheduled_end_utc.isoformat() if scheduled_end_utc else None,
+                        'start': scheduled_start_local.isoformat() if scheduled_start_local else None,
+                        'end': scheduled_end_local.isoformat() if scheduled_end_local else None,
                         'allDay': False,
                         'backgroundColor': bg_color,
                         'borderColor': '#2d3748',
@@ -839,7 +849,7 @@ def fetch_unified_events(request):
                             'assigned_to': activity.assigned_to.get_full_name() if activity.assigned_to else 'Unassigned',
                             'is_completed': activity.status == 'completed',
                             'status': activity.status,
-                            'timezone': activity.timezone if hasattr(activity, 'timezone') else 'UTC',
+                            'timezone': activity_tz_str,
                         }
                     }
                     
