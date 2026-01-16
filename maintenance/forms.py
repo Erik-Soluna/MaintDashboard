@@ -368,25 +368,41 @@ class MaintenanceActivityForm(forms.ModelForm):
         
         return cleaned_data
     
-    def _convert_to_timezone(self, naive_datetime, timezone_str):
-        """Convert naive datetime to timezone-aware datetime."""
-        from django.utils import timezone as django_timezone
+    def _convert_to_timezone(self, dt, timezone_str):
+        """Convert datetime to UTC for storage.
+        
+        The user enters a time in their selected timezone (e.g., 7:00 AM Central).
+        We need to store this as UTC (e.g., 13:00 UTC for Central time in winter).
+        
+        Args:
+            dt: A datetime object (naive or aware)
+            timezone_str: The timezone the user intends the time to be in (e.g., "America/Chicago")
+        
+        Returns:
+            A timezone-aware datetime in UTC
+        """
         import pytz
+        from django.utils import timezone as django_timezone
         
-        if naive_datetime.tzinfo is None:
-            # Convert naive datetime to the specified timezone
-            try:
-                # Convert timezone string to pytz timezone for proper DST handling
-                target_tz = pytz.timezone(timezone_str)
-                # Use make_aware which properly handles DST transitions
-                localized_dt = django_timezone.make_aware(naive_datetime, target_tz)
-                # Convert to UTC for storage
-                return localized_dt.astimezone(pytz.UTC)
-            except (pytz.exceptions.UnknownTimeZoneError, AttributeError):
-                # Fallback to default timezone if conversion fails
-                return django_timezone.make_aware(naive_datetime)
+        try:
+            target_tz = pytz.timezone(timezone_str)
+        except (pytz.exceptions.UnknownTimeZoneError, AttributeError):
+            # Fallback to UTC if timezone is invalid
+            target_tz = pytz.UTC
         
-        return naive_datetime
+        if dt.tzinfo is None:
+            # Naive datetime - interpret as being in the user's selected timezone
+            # Use localize() for proper pytz handling (not make_aware which can have issues)
+            localized_dt = target_tz.localize(dt)
+            # Convert to UTC for storage
+            return localized_dt.astimezone(pytz.UTC)
+        else:
+            # Already timezone-aware
+            # Check if it's already in UTC
+            if dt.tzinfo == pytz.UTC or str(dt.tzinfo) == 'UTC':
+                return dt
+            # Otherwise, convert to UTC for storage
+            return dt.astimezone(pytz.UTC)
     
     def _convert_from_utc(self, utc_datetime, timezone_str):
         """Convert UTC datetime to naive datetime in specified timezone for display."""

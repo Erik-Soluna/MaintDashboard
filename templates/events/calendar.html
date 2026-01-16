@@ -1043,7 +1043,7 @@
                                         <option value="critical">Critical</option>
                                     </select>
                                     <input type="hidden" id="maintenancePriorityHidden" name="priority_value" value="">
-                                    <small class="text-muted">Priority is set automatically based on Activity Type</small>
+                                    <small class="text-muted">Priority is set automatically based on Activity Type. De-energization required = HIGH priority.</small>
                                 </div>
                             </div>
                         </div>
@@ -2604,6 +2604,7 @@ function setupPriorityAutoAssignment() {
     const activityTypeSelect = document.getElementById('maintenanceActivityType');
     const prioritySelect = document.getElementById('maintenancePriority');
     const priorityHidden = document.getElementById('maintenancePriorityHidden');
+    const deenergizationSelect = document.getElementById('maintenanceDeenergizationRequired');
     
     if (!activityTypeSelect || !prioritySelect || !priorityHidden) {
         return;
@@ -2611,6 +2612,18 @@ function setupPriorityAutoAssignment() {
     
     function updatePriority() {
         const selectedOption = activityTypeSelect.options[activityTypeSelect.selectedIndex];
+        
+        // Check if de-energization is required - this takes priority over activity type
+        const deenergizationRequired = deenergizationSelect && deenergizationSelect.value === 'true';
+        
+        if (deenergizationRequired) {
+            // De-energization required always sets priority to HIGH (per WORK-001)
+            prioritySelect.value = 'high';
+            priorityHidden.value = 'high';
+            console.log('Priority set to HIGH due to de-energization requirement');
+            return;
+        }
+        
         if (!selectedOption || !selectedOption.value) {
             // Reset to empty if no activity type selected
             prioritySelect.value = '';
@@ -2641,6 +2654,11 @@ function setupPriorityAutoAssignment() {
     // Add event listener for activity type change
     activityTypeSelect.addEventListener('change', updatePriority);
     
+    // Add event listener for de-energization change (updates priority immediately)
+    if (deenergizationSelect) {
+        deenergizationSelect.addEventListener('change', updatePriority);
+    }
+    
     // Set initial priority if activity type is already selected
     if (activityTypeSelect.value) {
         updatePriority();
@@ -2666,12 +2684,16 @@ function submitMaintenanceForm() {
         return;
     }
     
-    // Get the auto-assigned priority from hidden field
-    const priorityHidden = document.getElementById('maintenancePriorityHidden');
-    const priority = priorityHidden ? priorityHidden.value : 'medium';
-    
     // Get de-energization required value
     const deenergizationRequired = formData.get('deenergization_required') === 'true';
+    
+    // Get the auto-assigned priority from hidden field
+    // De-energization required always forces HIGH priority (per WORK-001)
+    const priorityHidden = document.getElementById('maintenancePriorityHidden');
+    let priority = priorityHidden ? priorityHidden.value : 'medium';
+    if (deenergizationRequired) {
+        priority = 'high';  // Override: de-energization always means HIGH priority
+    }
     
     // Prepare the data for submission
     const maintenanceData = {
