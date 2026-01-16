@@ -3634,6 +3634,12 @@ def create_activity_api(request):
                 'error': 'One or more equipment IDs are invalid or inactive.'
             }, status=400)
         
+        # Handle deenergization_required field (per WORK-001)
+        deenergization_required = processed_data.get('deenergization_required', False)
+        if isinstance(deenergization_required, str):
+            deenergization_required = deenergization_required.lower() in ('true', '1', 'yes')
+        processed_data['deenergization_required'] = deenergization_required
+        
         # Create one activity per equipment
         created_activities = []
         errors = []
