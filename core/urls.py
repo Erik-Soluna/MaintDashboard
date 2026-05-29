@@ -80,13 +80,12 @@ urlpatterns = [
     path('api/endpoint-metrics/', views.endpoint_metrics_api, name='endpoint_metrics_api'),
     path('api/categories/<int:category_id>/fields/', views.category_fields_api, name='category_fields_api'),
     path('api/database-stats/', views.database_stats_api, name='database_stats_api'),
-    path('api/clear-maintenance/', views.clear_maintenance_activities_api, name='clear_maintenance_activities_api'),
-    path('api/reorganize-activity-types/', views.reorganize_activity_types_api, name='reorganize_activity_types_api'),
     path('api/test-health/', views.test_health, name='test_health'),
     path('api/toggle-monitoring/', views.toggle_monitoring, name='toggle_monitoring'),
-    path('api/migrations/', views.run_migrations_api, name='run_migrations_api'),
-    path('api/create-admin/', views.create_admin_user_api, name='create_admin_user_api'),
-    path('api/reset-admin-password/', views.reset_admin_password_api, name='reset_admin_password_api'),
+    # Removed for security (PR1): unauthenticated /api/create-admin, /api/reset-admin-password,
+    # /api/migrations, /api/clear-maintenance, /api/reorganize-activity-types allowed remote
+    # superuser creation, password reset, migrations, and data wipes. Use management commands
+    # inside the container instead (manage.py create_admin_user / migrate / clear_maintenance_data).
     
     # Other utility URLs
     path('bulk-locations/', views.bulk_locations_view, name='bulk_locations'),

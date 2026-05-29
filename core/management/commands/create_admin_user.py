@@ -2,9 +2,12 @@
 Django management command to create an admin user quickly.
 """
 
+import secrets
+
 from django.core.management.base import BaseCommand
 from django.contrib.auth.models import User
 from django.db import transaction
+from decouple import config
 
 
 class Command(BaseCommand):
@@ -23,8 +26,10 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             '--password',
-            default='temppass123',
-            help='Admin password (default: temppass123)'
+            default=None,
+            help='Admin password. If omitted, falls back to the ADMIN_PASSWORD '
+                 'environment variable, otherwise a strong random password is '
+                 'generated and printed once.'
         )
         parser.add_argument(
             '--force',
@@ -35,8 +40,14 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         username = options['username']
         email = options['email']
-        password = options['password']
         force = options['force']
+
+        # Resolve password: explicit flag > ADMIN_PASSWORD env > generated random.
+        password = options['password'] or config('ADMIN_PASSWORD', default=None)
+        generated_password = False
+        if not password:
+            password = secrets.token_urlsafe(16)
+            generated_password = True
 
         self.stdout.write('🚀 Creating Admin User for Maintenance Dashboard')
         self.stdout.write('=' * 50)
@@ -87,7 +98,6 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(f'   - Username: {username}')
                 self.stdout.write(f'   - Email: {email}')
-                self.stdout.write(f'   - Password: {password}')
                 self.stdout.write(f'   - Is superuser: {admin_user.is_superuser}')
                 self.stdout.write(f'   - Is active: {admin_user.is_active}')
 
@@ -102,7 +112,11 @@ class Command(BaseCommand):
                 self.stdout.write(f'   - URL: http://localhost:8000/')
                 self.stdout.write(f'   - Admin: http://localhost:8000/admin/')
                 self.stdout.write(f'   - Username: {username}')
-                self.stdout.write(f'   - Password: {password}')
+
+                if generated_password:
+                    self.stdout.write(self.style.WARNING(
+                        f'\n🔑 Generated password (shown once, store it now): {password}'
+                    ))
 
                 self.stdout.write(f'\n⚠️  SECURITY NOTE:')
                 self.stdout.write(f'   Please change the password after first login!')

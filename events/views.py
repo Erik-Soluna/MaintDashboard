@@ -126,7 +126,17 @@ def generate_ical_feed(request):
 def google_calendar_webhook(request):
     """Handle Google Calendar webhook notifications."""
     try:
-        # Verify webhook (basic implementation - you may want to add proper verification)
+        # Verify the webhook against a shared channel token when one is configured.
+        # Set GOOGLE_WEBHOOK_TOKEN in the environment and pass the same value as the
+        # channel token when creating the Google watch; unverified requests are rejected.
+        from decouple import config
+        expected_token = config('GOOGLE_WEBHOOK_TOKEN', default=None)
+        if expected_token:
+            provided_token = request.headers.get('X-Goog-Channel-Token')
+            if provided_token != expected_token:
+                logger.warning("Google Calendar webhook rejected: invalid channel token")
+                return HttpResponse('Forbidden', status=403)
+
         channel_id = request.headers.get('X-Goog-Channel-ID')
         resource_id = request.headers.get('X-Goog-Resource-ID')
         resource_state = request.headers.get('X-Goog-Resource-State')
