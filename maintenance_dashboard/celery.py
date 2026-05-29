@@ -26,9 +26,10 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.conf.worker_disable_rate_limits = False
 app.conf.worker_send_task_events = True
 app.conf.task_send_sent_event = True
-# Disable superuser privileges - workers should not run as root
+# Disable superuser privileges - workers should not run as root.
+# os.geteuid only exists on Unix; guard so imports don't crash on Windows dev.
 import os
-if os.geteuid() == 0:
+if hasattr(os, 'geteuid') and os.geteuid() == 0:
     logging.warning("Celery worker is running as root. This is not recommended for security.")
     # Try to switch to non-root user if available
     try:

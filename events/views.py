@@ -64,7 +64,10 @@ def generate_ical_feed(request):
     ical_content += "METHOD:PUBLISH\r\n"
     ical_content += f"X-WR-CALNAME:SOLUNA Maintenance Events\r\n"
     ical_content += f"X-WR-CALDESC:Maintenance and equipment events from SOLUNA Dashboard\r\n"
-    ical_content += f"X-WR-TIMEZONE:UTC\r\n"
+    # event_date/start_time are stored in the activity's local timezone, so DTSTART
+    # below is emitted as floating local time. Do NOT advertise X-WR-TIMEZONE:UTC
+    # (that previously mislabeled local times as UTC). TODO: emit TZID + VTIMEZONE
+    # per event for fully unambiguous cross-client behavior.
     
     for event in events:
         ical_content += "BEGIN:VEVENT\r\n"

@@ -310,22 +310,16 @@ class MaintenanceActivityForm(forms.ModelForm):
         scheduled_end = cleaned_data.get('scheduled_end')
         timezone_str = cleaned_data.get('timezone')
         
-        # Handle timezone conversion for datetime-local inputs
-        # Always make datetimes timezone-aware to avoid naive datetime warnings
+        # Handle timezone conversion for datetime-local inputs. The user enters a
+        # wall-clock time in their selected timezone; store it as UTC. When no
+        # timezone is provided, parse_wallclock_to_utc falls back to UTC.
+        from maintenance.utils import parse_wallclock_to_utc
         if scheduled_start:
-            if timezone_str:
-                scheduled_start = self._convert_to_timezone(scheduled_start, timezone_str)
-            elif timezone.is_naive(scheduled_start):
-                # If no timezone provided, assume UTC
-                scheduled_start = timezone.make_aware(scheduled_start, timezone.utc)
+            scheduled_start = parse_wallclock_to_utc(scheduled_start, timezone_str)
             cleaned_data['scheduled_start'] = scheduled_start
-            
+
         if scheduled_end:
-            if timezone_str:
-                scheduled_end = self._convert_to_timezone(scheduled_end, timezone_str)
-            elif timezone.is_naive(scheduled_end):
-                # If no timezone provided, assume UTC
-                scheduled_end = timezone.make_aware(scheduled_end, timezone.utc)
+            scheduled_end = parse_wallclock_to_utc(scheduled_end, timezone_str)
             cleaned_data['scheduled_end'] = scheduled_end
         
         if scheduled_start and scheduled_end:
@@ -381,28 +375,9 @@ class MaintenanceActivityForm(forms.ModelForm):
         Returns:
             A timezone-aware datetime in UTC
         """
-        import pytz
-        from django.utils import timezone as django_timezone
-        
-        try:
-            target_tz = pytz.timezone(timezone_str)
-        except (pytz.exceptions.UnknownTimeZoneError, AttributeError):
-            # Fallback to UTC if timezone is invalid
-            target_tz = pytz.UTC
-        
-        if dt.tzinfo is None:
-            # Naive datetime - interpret as being in the user's selected timezone
-            # Use localize() for proper pytz handling (not make_aware which can have issues)
-            localized_dt = target_tz.localize(dt)
-            # Convert to UTC for storage
-            return localized_dt.astimezone(pytz.UTC)
-        else:
-            # Already timezone-aware
-            # Check if it's already in UTC
-            if dt.tzinfo == pytz.UTC or str(dt.tzinfo) == 'UTC':
-                return dt
-            # Otherwise, convert to UTC for storage
-            return dt.astimezone(pytz.UTC)
+        # Delegate to the shared helper (single source of truth for tz conversion).
+        from maintenance.utils import parse_wallclock_to_utc
+        return parse_wallclock_to_utc(dt, timezone_str)
     
     def _convert_from_utc(self, utc_datetime, timezone_str):
         """Convert UTC datetime to naive datetime in specified timezone for display."""
@@ -544,49 +519,49 @@ class MaintenanceActivityForm(forms.ModelForm):
                     target_date = advance_target_date
                 
                 # Generate all future activities starting from the next occurrence
-                # (skip the first one since it's already created)
-                next_date = instance.scheduled_start.date() + timedelta(days=frequency_days)
+                # (skip the first one since it's already created). Step over LOCAL
+                # dates and keep the seed's local time-of-day, then store UTC, so
+                # occurrences land on the correct calendar day in the activity's tz.
+                from maintenance.utils import generate_activity_title, parse_wallclock_to_utc
+                activity_tz = instance.timezone
+                seed_local = instance.get_scheduled_start_in_timezone()
+                seed_local_date = seed_local.date() if seed_local else instance.scheduled_start.date()
+                seed_local_time = seed_local.time() if seed_local else datetime.min.time()
+                duration_hours = instance.activity_type.estimated_duration_hours or 1
+
+                next_date = seed_local_date + timedelta(days=frequency_days)
                 last_generated_date = None
-                
+
                 while next_date <= target_date:
+                    occurrence_start = parse_wallclock_to_utc(
+                        datetime.combine(next_date, seed_local_time), activity_tz
+                    )
                     # Check if activity already exists for this date
                     existing = MaintenanceActivity.objects.filter(
                         equipment=instance.equipment,
                         activity_type=instance.activity_type,
-                        scheduled_start__date=next_date
+                        scheduled_start__date=occurrence_start.date()
                     ).exists()
-                    
+
                     if not existing:
-                        # Get the time from the original activity, or use a default
-                        start_time = instance.scheduled_start.time() if instance.scheduled_start else datetime.min.time()
-                        
-                        # Create the maintenance activity
                         # Generate title using Dashboard Settings template
-                        from maintenance.utils import generate_activity_title
                         future_activity_title = generate_activity_title(
                             template=None,  # Will use Dashboard Settings template
                             activity_type=instance.activity_type,
                             equipment=instance.equipment,
-                            scheduled_start=timezone.make_aware(
-                                datetime.combine(next_date, start_time)
-                            ),
+                            scheduled_start=occurrence_start,
                             priority=instance.priority,
                             status='scheduled'
                         )
-                        
+
                         future_activity = MaintenanceActivity.objects.create(
                             equipment=instance.equipment,
                             activity_type=instance.activity_type,
                             title=future_activity_title,
                             description=instance.activity_type.description or instance.description,
-                            scheduled_start=timezone.make_aware(
-                                datetime.combine(next_date, start_time)
-                            ),
-                            scheduled_end=timezone.make_aware(
-                                datetime.combine(next_date, start_time)
-                            ) + timedelta(
-                                hours=instance.activity_type.estimated_duration_hours if instance.activity_type.estimated_duration_hours else 1
-                            ),
+                            scheduled_start=occurrence_start,
+                            scheduled_end=occurrence_start + timedelta(hours=duration_hours),
+                            timezone=activity_tz,
                             status='scheduled',
                             priority=instance.priority,
                             assigned_to=instance.assigned_to,
@@ -596,22 +571,22 @@ class MaintenanceActivityForm(forms.ModelForm):
                         # Track the last date we generated an activity for
                         last_generated_date = next_date
                         
-                        # Create corresponding calendar event
+                        # Create corresponding calendar event (times projected into
+                        # the activity's local timezone via set_times_from_activity).
                         try:
                             from events.models import CalendarEvent
-                            CalendarEvent.objects.create(
+                            calendar_event = CalendarEvent(
                                 title=f"Maintenance: {future_activity.title}",
                                 description=future_activity.description,
                                 event_type='maintenance',
                                 equipment=future_activity.equipment,
                                 maintenance_activity=future_activity,
-                                event_date=future_activity.scheduled_start.date(),
-                                start_time=future_activity.scheduled_start.time(),
-                                end_time=future_activity.scheduled_end.time() if future_activity.scheduled_end else None,
                                 assigned_to=future_activity.assigned_to,
                                 priority=future_activity.priority,
                                 created_by=future_activity.created_by
                             )
+                            calendar_event.set_times_from_activity(future_activity)
+                            calendar_event.save()
                         except Exception as e:
                             import logging
                             logger = logging.getLogger(__name__)

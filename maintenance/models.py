@@ -529,32 +529,40 @@ class MaintenanceSchedule(TimeStampedModel):
             ).exists()
             
             if not existing:
-                # Create the maintenance activity
-                # Use make_aware instead of replace to properly handle timezones
-                from datetime import datetime as dt
-                import pytz
-                current_tz = timezone.get_current_timezone()
-                naive_start = dt.combine(next_date, dt.min.time())
-                naive_end = dt.combine(next_date, dt.min.time()) + timedelta(hours=self.activity_type.estimated_duration_hours)
-                
+                # Build the start at a sensible local wall-clock (08:00) in the
+                # activity's timezone, then store UTC. Previously this combined the
+                # due date with 00:00 and made it aware in the server zone (UTC),
+                # so generated activities displayed on the previous local day.
+                from datetime import datetime as dt, time as dt_time
+                from maintenance.utils import (
+                    generate_activity_title,
+                    parse_wallclock_to_utc,
+                    DEFAULT_ACTIVITY_TIMEZONE,
+                )
+                activity_tz = DEFAULT_ACTIVITY_TIMEZONE
+                duration_hours = self.activity_type.estimated_duration_hours or 1
+                naive_start = dt.combine(next_date, dt_time(8, 0))
+                scheduled_start = parse_wallclock_to_utc(naive_start, activity_tz)
+                scheduled_end = scheduled_start + timedelta(hours=duration_hours)
+
                 # Generate title using Dashboard Settings template
-                from maintenance.utils import generate_activity_title
                 activity_title = generate_activity_title(
                     template=None,  # Will use Dashboard Settings template
                     activity_type=self.activity_type,
                     equipment=self.equipment,
-                    scheduled_start=timezone.make_aware(naive_start, current_tz),
+                    scheduled_start=scheduled_start,
                     priority='medium' if self.activity_type.is_mandatory else 'low',
                     status='scheduled'
                 )
-                
+
                 activity = MaintenanceActivity.objects.create(
                     equipment=self.equipment,
                     activity_type=self.activity_type,
                     title=activity_title,
                     description=self.activity_type.description,
-                    scheduled_start=timezone.make_aware(naive_start, current_tz),
-                    scheduled_end=timezone.make_aware(naive_end, current_tz),
+                    scheduled_start=scheduled_start,
+                    scheduled_end=scheduled_end,
+                    timezone=activity_tz,
                     status='scheduled',
                     priority='medium' if self.activity_type.is_mandatory else 'low',
                     created_by=self.created_by,
