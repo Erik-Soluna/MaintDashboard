@@ -523,13 +523,16 @@ class MaintenanceActivityForm(forms.ModelForm):
                 # dates and keep the seed's local time-of-day, then store UTC, so
                 # occurrences land on the correct calendar day in the activity's tz.
                 from maintenance.utils import generate_activity_title, parse_wallclock_to_utc
+                from maintenance.scheduling import add_one_period
                 activity_tz = instance.timezone
                 seed_local = instance.get_scheduled_start_in_timezone()
                 seed_local_date = seed_local.date() if seed_local else instance.scheduled_start.date()
                 seed_local_time = seed_local.time() if seed_local else datetime.min.time()
                 duration_hours = instance.activity_type.estimated_duration_hours or 1
 
-                next_date = seed_local_date + timedelta(days=frequency_days)
+                # Step over real calendar periods (monthly/quarterly/annual handled
+                # correctly) rather than fixed day counts.
+                next_date = add_one_period(seed_local_date, recurrence_frequency, frequency_days)
                 last_generated_date = None
 
                 while next_date <= target_date:
@@ -593,7 +596,7 @@ class MaintenanceActivityForm(forms.ModelForm):
                             logger.error(f"Error creating calendar event for future activity: {str(e)}")
                     
                     # Calculate next occurrence
-                    next_date = next_date + timedelta(days=frequency_days)
+                    next_date = add_one_period(next_date, recurrence_frequency, frequency_days)
                     
                     # Check if we've exceeded the end date
                     if recurrence_end_date and next_date > recurrence_end_date:

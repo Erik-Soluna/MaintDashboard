@@ -982,12 +982,37 @@ def edit_schedule(request, schedule_id):
     schedule = get_object_or_404(MaintenanceSchedule, id=schedule_id)
     
     if request.method == 'POST':
+        # Capture the pre-edit frequency to detect a manual periodicity change (#82).
+        old_frequency = schedule.frequency
+        old_frequency_days = schedule.frequency_days
         form = MaintenanceScheduleForm(request.POST, instance=schedule, request=request)
         if form.is_valid():
             schedule = form.save(commit=False)
             schedule.updated_by = request.user
+            frequency_changed = (
+                schedule.frequency != old_frequency
+                or schedule.frequency_days != old_frequency_days
+            )
+            if frequency_changed:
+                # Mark as manually overridden so the activity-type signal won't revert it.
+                schedule.frequency_overridden = True
             schedule.save()
-            
+
+            if frequency_changed:
+                # Re-lay future occurrences on the new cadence: delete not-yet-started
+                # future activities (never started/completed) and regenerate.
+                today = timezone.now().date()
+                MaintenanceActivity.objects.filter(
+                    equipment=schedule.equipment,
+                    activity_type=schedule.activity_type,
+                    status='scheduled',
+                    scheduled_start__date__gt=today,
+                ).delete()
+                schedule.last_generated = None
+                schedule.save(update_fields=['last_generated'])
+                if schedule.auto_generate:
+                    schedule.generate_next_activity()
+
             messages.success(request, 'Maintenance schedule updated successfully!')
             return redirect('maintenance:schedule_detail', schedule_id=schedule.id)
     else:
