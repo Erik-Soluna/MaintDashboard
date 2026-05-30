@@ -1,9 +1,72 @@
 """
 Utility functions for maintenance app.
+
+Timezone convention (see also CalendarEvent.set_times_from_activity):
+- All DateTimeFields are stored UTC-aware (USE_TZ=True, TIME_ZONE='UTC').
+- ``MaintenanceActivity.timezone`` is the display timezone for that activity.
+- User-entered wall-clock times are interpreted in the activity's timezone and
+  converted to UTC for storage via ``parse_wallclock_to_utc``; display converts
+  the stored UTC instant back to the activity/user timezone.
 """
+
+import pytz
+from datetime import datetime, timedelta
 
 from django.utils import timezone
 from core.models import DashboardSettings
+
+# Fallback timezone for activities/schedules that don't carry an explicit one.
+# Matches MaintenanceActivity.timezone's model default.
+DEFAULT_ACTIVITY_TIMEZONE = 'America/Chicago'
+
+
+def parse_wallclock_to_utc(value, timezone_str):
+    """Interpret a wall-clock time as being in ``timezone_str`` and return it as
+    a UTC-aware datetime for storage.
+
+    - ``value`` may be a naive/aware ``datetime`` or a string from a
+      ``datetime-local`` input (e.g. ``'2026-05-29T19:00'``).
+    - Naive values are localized to ``timezone_str`` (DST-safe via pytz
+      ``localize``); aware values are converted to UTC.
+    - Returns ``None`` when ``value`` is falsy.
+    """
+    if not value:
+        return None
+
+    if isinstance(value, str):
+        parsed = None
+        for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M',
+                    '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+            try:
+                parsed = datetime.strptime(value, fmt)
+                break
+            except ValueError:
+                continue
+        if parsed is None:
+            from django.utils.dateparse import parse_datetime
+            parsed = parse_datetime(value)
+        if parsed is None:
+            raise ValueError(f"Could not parse datetime string: {value!r}")
+        value = parsed
+
+    try:
+        target_tz = pytz.timezone(timezone_str) if timezone_str else pytz.UTC
+    except Exception:
+        target_tz = pytz.UTC
+
+    if timezone.is_naive(value):
+        # Interpret the wall-clock time as being in the target timezone.
+        return target_tz.localize(value).astimezone(pytz.UTC)
+    return value.astimezone(pytz.UTC)
+
+
+def local_date_tomorrow(timezone_str):
+    """Return the date that is 'tomorrow' in ``timezone_str`` (DST-aware)."""
+    try:
+        tz = pytz.timezone(timezone_str) if timezone_str else pytz.UTC
+    except Exception:
+        tz = pytz.UTC
+    return (timezone.now().astimezone(tz) + timedelta(days=1)).date()
 
 
 def generate_activity_title(template, activity_type=None, equipment=None, scheduled_start=None, priority=None, status=None):

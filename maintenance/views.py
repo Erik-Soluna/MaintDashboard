@@ -982,12 +982,37 @@ def edit_schedule(request, schedule_id):
     schedule = get_object_or_404(MaintenanceSchedule, id=schedule_id)
     
     if request.method == 'POST':
+        # Capture the pre-edit frequency to detect a manual periodicity change (#82).
+        old_frequency = schedule.frequency
+        old_frequency_days = schedule.frequency_days
         form = MaintenanceScheduleForm(request.POST, instance=schedule, request=request)
         if form.is_valid():
             schedule = form.save(commit=False)
             schedule.updated_by = request.user
+            frequency_changed = (
+                schedule.frequency != old_frequency
+                or schedule.frequency_days != old_frequency_days
+            )
+            if frequency_changed:
+                # Mark as manually overridden so the activity-type signal won't revert it.
+                schedule.frequency_overridden = True
             schedule.save()
-            
+
+            if frequency_changed:
+                # Re-lay future occurrences on the new cadence: delete not-yet-started
+                # future activities (never started/completed) and regenerate.
+                today = timezone.now().date()
+                MaintenanceActivity.objects.filter(
+                    equipment=schedule.equipment,
+                    activity_type=schedule.activity_type,
+                    status='scheduled',
+                    scheduled_start__date__gt=today,
+                ).delete()
+                schedule.last_generated = None
+                schedule.save(update_fields=['last_generated'])
+                if schedule.auto_generate:
+                    schedule.generate_next_activity()
+
             messages.success(request, 'Maintenance schedule updated successfully!')
             return redirect('maintenance:schedule_detail', schedule_id=schedule.id)
     else:
@@ -3894,35 +3919,28 @@ def change_activity_status(request, activity_id):
             actual_start_str = request.POST.get('actual_start', '').strip()
             actual_end_str = request.POST.get('actual_end', '').strip()
             
+            # Wall-clock times entered by the user are in the activity's timezone;
+            # interpret them there and store UTC (do NOT make_aware in the server
+            # zone, which previously saved e.g. "2pm Central" as "2pm UTC").
+            from maintenance.utils import parse_wallclock_to_utc
+
             if new_status == 'in_progress' or new_status == 'completed':
                 # Use custom start time if provided, otherwise use current time or existing value
                 if actual_start_str:
                     try:
-                        from django.utils.dateparse import parse_datetime
-                        activity.actual_start = parse_datetime(actual_start_str)
-                        if not activity.actual_start:
-                            # Try parsing as local datetime
-                            from datetime import datetime
-                            activity.actual_start = datetime.strptime(actual_start_str, '%Y-%m-%dT%H:%M')
-                            activity.actual_start = timezone.make_aware(activity.actual_start)
+                        activity.actual_start = parse_wallclock_to_utc(actual_start_str, activity.timezone)
                     except (ValueError, TypeError):
                         # If parsing fails, use current time
                         if not activity.actual_start:
                             activity.actual_start = timezone.now()
                 elif not activity.actual_start:
                     activity.actual_start = timezone.now()
-            
+
             if new_status == 'completed':
                 # Use custom end time if provided, otherwise use current time or existing value
                 if actual_end_str:
                     try:
-                        from django.utils.dateparse import parse_datetime
-                        activity.actual_end = parse_datetime(actual_end_str)
-                        if not activity.actual_end:
-                            # Try parsing as local datetime
-                            from datetime import datetime
-                            activity.actual_end = datetime.strptime(actual_end_str, '%Y-%m-%dT%H:%M')
-                            activity.actual_end = timezone.make_aware(activity.actual_end)
+                        activity.actual_end = parse_wallclock_to_utc(actual_end_str, activity.timezone)
                     except (ValueError, TypeError):
                         # If parsing fails, use current time
                         if not activity.actual_end:

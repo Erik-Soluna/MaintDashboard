@@ -39,25 +39,32 @@ def generate_scheduled_maintenance():
 def send_maintenance_reminders():
     """Send reminders for upcoming maintenance activities."""
     from .models import MaintenanceActivity
+    from .utils import local_date_tomorrow
     from datetime import timedelta
-    
-    tomorrow = timezone.now().date() + timedelta(days=1)
-    upcoming_activities = MaintenanceActivity.objects.filter(
-        scheduled_start__date=tomorrow,
+
+    # scheduled_start is UTC; "tomorrow" must be evaluated in each activity's
+    # local timezone. Query a small UTC window, then match the local date.
+    now = timezone.now()
+    candidate_activities = MaintenanceActivity.objects.filter(
+        scheduled_start__gte=now - timedelta(days=1),
+        scheduled_start__lt=now + timedelta(days=2),
         status='scheduled',
         assigned_to__isnull=False
     ).select_related('assigned_to', 'equipment')
-    
+
     reminders_sent = 0
-    for activity in upcoming_activities:
+    for activity in candidate_activities:
         try:
+            start_local = activity.get_scheduled_start_in_timezone()
+            if not start_local or start_local.date() != local_date_tomorrow(activity.timezone):
+                continue
             if activity.assigned_to.email:
                 send_mail(
                     subject=f"Maintenance Reminder: {activity.title}",
                     message=f"You have a maintenance activity scheduled for tomorrow:\n\n"
                            f"Title: {activity.title}\n"
                            f"Equipment: {activity.equipment.name}\n"
-                           f"Scheduled: {activity.scheduled_start}\n",
+                           f"Scheduled: {start_local.strftime('%Y-%m-%d %I:%M %p')} ({activity.timezone})\n",
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[activity.assigned_to.email],
                     fail_silently=False,

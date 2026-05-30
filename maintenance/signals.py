@@ -192,6 +192,89 @@ def maintenance_activity_post_save(sender, instance, created, **kwargs):
                 )
 
 
+def _is_dga_activity(activity):
+    """Heuristic: is this completed activity a DGA (dissolved gas analysis)?"""
+    try:
+        if activity.reports.filter(report_type='dga').exists():
+            return True
+    except Exception:
+        pass
+    name = (getattr(activity.activity_type, 'name', '') or '').lower()
+    title = (activity.title or '').lower()
+    return 'dga' in name or 'dga' in title
+
+
+def _refresh_equipment_due_dates(equipment, completed_activity=None):
+    """Recompute Equipment.next_maintenance_date (soonest upcoming due across the
+    equipment's active schedules) and, when the just-completed activity is a DGA,
+    Equipment.dga_due_date. Fields stay denormalized; only persisted if changed."""
+    from .scheduling import add_one_period
+    update_fields = []
+
+    due_dates = []
+    for sch in MaintenanceSchedule.objects.filter(equipment=equipment, is_active=True):
+        d = sch.get_next_due_date()
+        if d:
+            due_dates.append(d)
+    if due_dates:
+        soonest = min(due_dates)
+        if equipment.next_maintenance_date != soonest:
+            equipment.next_maintenance_date = soonest
+            update_fields.append('next_maintenance_date')
+
+    if completed_activity is not None and _is_dga_activity(completed_activity):
+        base = (completed_activity.actual_end or timezone.now()).date()
+        sch = MaintenanceSchedule.objects.filter(
+            equipment=equipment, activity_type=completed_activity.activity_type, is_active=True
+        ).first()
+        if sch:
+            dga_due = add_one_period(base, sch.frequency, sch.frequency_days)
+        else:
+            dga_due = add_one_period(base, 'annual', None)  # default DGA cadence
+        if equipment.dga_due_date != dga_due:
+            equipment.dga_due_date = dga_due
+            update_fields.append('dga_due_date')
+
+    if update_fields:
+        equipment.save(update_fields=update_fields)
+
+
+@receiver(post_save, sender=MaintenanceActivity)
+def advance_schedule_on_completion(sender, instance, created, **kwargs):
+    """When an activity transitions to 'completed', advance its schedule (#86),
+    populate next_due_date, and refresh the equipment's DGA/next-maintenance dates
+    (#84). Guarded so it runs once per transition and never blocks the save."""
+    if created:
+        return
+    old_status = getattr(instance, '_old_status', None)
+    if old_status == 'completed' or instance.status != 'completed':
+        return
+    try:
+        from .models import MaintenanceSchedule
+        from .scheduling import add_one_period
+
+        completed_on = (instance.actual_end or instance.scheduled_end or timezone.now()).date()
+        schedule = MaintenanceSchedule.objects.filter(
+            equipment=instance.equipment,
+            activity_type=instance.activity_type,
+            is_active=True,
+        ).first()
+
+        if schedule:
+            next_due = add_one_period(completed_on, schedule.frequency, schedule.frequency_days)
+            if instance.next_due_date != next_due:
+                # update() avoids re-triggering this post_save (no recursion).
+                MaintenanceActivity.objects.filter(pk=instance.pk).update(next_due_date=next_due)
+            if schedule.auto_generate:
+                # Only generates if within the advance-notice window; otherwise the
+                # periodic task picks it up later. Existence check prevents dupes.
+                schedule.generate_next_activity()
+
+        _refresh_equipment_due_dates(instance.equipment, completed_activity=instance)
+    except Exception as e:
+        logger.error(f"Error advancing schedule on completion for activity {instance.id}: {str(e)}")
+
+
 @receiver(post_save, sender=MaintenanceReport)
 def maintenance_report_post_save(sender, instance, created, **kwargs):
     """Create timeline entry when maintenance report is uploaded."""
@@ -326,6 +409,10 @@ def update_maintenance_schedules_for_activity_type(sender, instance, created, **
             updated_schedules = []
             existing_schedules = MaintenanceSchedule.objects.filter(activity_type=instance)
             for schedule in existing_schedules:
+                # Respect per-schedule manual frequency overrides (issue #82): don't
+                # clobber a frequency the user set on an individual schedule.
+                if schedule.frequency_overridden:
+                    continue
                 # Convert frequency_days to frequency choice
                 frequency = 'custom'
                 if instance.frequency_days == 1:

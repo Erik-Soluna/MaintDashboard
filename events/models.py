@@ -102,6 +102,21 @@ class CalendarEvent(TimeStampedModel):
             self.start_time = None
             self.end_time = None
 
+    def set_times_from_activity(self, activity):
+        """Populate event_date/start_time/end_time from a maintenance activity.
+
+        These split fields are a derived projection of the activity's UTC
+        datetimes expressed in the activity's local timezone; the activity
+        (read via events:fetch_unified_events) remains the source of truth for
+        the live calendar. Reuses MaintenanceActivity.get_scheduled_*_in_timezone.
+        """
+        start_local = activity.get_scheduled_start_in_timezone()
+        if start_local is not None:
+            self.event_date = start_local.date()
+            self.start_time = start_local.time()
+        end_local = activity.get_scheduled_end_in_timezone()
+        self.end_time = end_local.time() if end_local is not None else None
+
     def is_past_due(self):
         """Check if event is past due."""
         from django.utils import timezone
