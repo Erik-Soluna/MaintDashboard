@@ -51,63 +51,9 @@ from core.models import Location
 logger = logging.getLogger(__name__)
 
 
-def get_all_descendant_location_ids(site, include_inactive=False):
-    """
-    Get all location IDs that belong to a site (including nested children).
-    Returns a set of location IDs including the site itself and all its descendants.
-    
-    Uses a more reliable recursive CTE approach via raw SQL for better performance
-    and to avoid any Python-level recursion issues.
-    
-    Args:
-        site: The site Location object
-        include_inactive: If True, include inactive locations in the hierarchy
-    """
-    from django.db import connection
-    
-    location_ids = {site.id}
-    
-    # Use raw SQL with recursive CTE for reliable traversal
-    with connection.cursor() as cursor:
-        if include_inactive:
-            cursor.execute("""
-                WITH RECURSIVE location_tree AS (
-                    -- Base case: start with the site
-                    SELECT id, parent_location_id, 0 as depth
-                    FROM core_location
-                    WHERE id = %s
-                    UNION ALL
-                    -- Recursive case: get all children
-                    SELECT l.id, l.parent_location_id, lt.depth + 1
-                    FROM core_location l
-                    INNER JOIN location_tree lt ON l.parent_location_id = lt.id
-                    WHERE lt.depth < 20  -- Prevent infinite loops
-                )
-                SELECT DISTINCT id FROM location_tree;
-            """, [site.id])
-        else:
-            cursor.execute("""
-                WITH RECURSIVE location_tree AS (
-                    -- Base case: start with the site
-                    SELECT id, parent_location_id, 0 as depth
-                    FROM core_location
-                    WHERE id = %s AND is_active = true
-                    UNION ALL
-                    -- Recursive case: get all active children
-                    SELECT l.id, l.parent_location_id, lt.depth + 1
-                    FROM core_location l
-                    INNER JOIN location_tree lt ON l.parent_location_id = lt.id
-                    WHERE l.is_active = true AND lt.depth < 20  -- Prevent infinite loops
-                )
-                SELECT DISTINCT id FROM location_tree;
-            """, [site.id])
-        
-        results = cursor.fetchall()
-        for (location_id,) in results:
-            location_ids.add(location_id)
-    
-    logger.info(f"get_all_descendant_location_ids: Site {site.name} (ID: {site.id}) has {len(location_ids)} total location IDs: {sorted(location_ids)}")
-    return location_ids
+# get_all_descendant_location_ids moved to core.utils (shared across apps);
+# re-exported here so existing `from maintenance.views import ...` callers keep working.
+from core.utils import get_all_descendant_location_ids  # noqa: F401
 
 
 
@@ -530,19 +476,10 @@ def bulk_add_activity(request):
                             if make_recurring and recurrence_frequency:
                                 from maintenance.models import MaintenanceSchedule
                                 
-                                # Calculate frequency_days based on the frequency choice
-                                if recurrence_frequency == 'custom':
-                                    frequency_days = int(recurrence_frequency_days) if recurrence_frequency_days else 30
-                                else:
-                                    frequency_map = {
-                                        'daily': 1,
-                                        'weekly': 7,
-                                        'monthly': 30,
-                                        'quarterly': 90,
-                                        'semi_annual': 180,
-                                        'annual': 365,
-                                    }
-                                    frequency_days = frequency_map.get(recurrence_frequency, 30)
+                                # Calculate frequency_days for the stored schedule field
+                                from maintenance.scheduling import frequency_to_days
+                                _custom_days = int(recurrence_frequency_days) if recurrence_frequency_days else None
+                                frequency_days = frequency_to_days(recurrence_frequency, _custom_days)
                                 
                                 # Parse end date if provided
                                 recurrence_end_date_obj = None

@@ -472,19 +472,9 @@ class MaintenanceActivityForm(forms.ModelForm):
                 recurrence_end_date = self.cleaned_data.get('recurrence_end_date')
                 recurrence_advance_notice_days = self.cleaned_data.get('recurrence_advance_notice_days', 7)
                 
-                # Calculate frequency_days based on the frequency choice
-                if recurrence_frequency == 'custom':
-                    frequency_days = recurrence_frequency_days
-                else:
-                    frequency_map = {
-                        'daily': 1,
-                        'weekly': 7,
-                        'monthly': 30,
-                        'quarterly': 90,
-                        'semi_annual': 180,
-                        'annual': 365,
-                    }
-                    frequency_days = frequency_map.get(recurrence_frequency, 30)
+                # Calculate frequency_days for the stored schedule field
+                from maintenance.scheduling import frequency_to_days
+                frequency_days = frequency_to_days(recurrence_frequency, recurrence_frequency_days)
                 
                 # Create or update the maintenance schedule
                 schedule, created = MaintenanceSchedule.objects.update_or_create(

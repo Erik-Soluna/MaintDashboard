@@ -5,8 +5,10 @@ This command can be run manually or via cron to generate upcoming maintenance ac
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from datetime import date, timedelta
+from datetime import date, time, timedelta
 from maintenance.models import MaintenanceSchedule
+from maintenance.scheduling import add_one_period
+from maintenance.utils import generate_activity_title, parse_wallclock_to_utc, DEFAULT_ACTIVITY_TIMEZONE
 
 
 class Command(BaseCommand):
@@ -121,56 +123,56 @@ class Command(BaseCommand):
             
             if existing:
                 # Activity already exists, move to next occurrence
-                next_date = next_date + timedelta(days=schedule.get_frequency_in_days())
+                next_date = add_one_period(next_date, schedule.frequency, schedule.frequency_days)
                 continue
             
             if not dry_run:
-                # Create the maintenance activity
-                # Use make_aware instead of replace to properly handle timezones
+                # Build the start at 08:00 local in the activity timezone, stored UTC
+                # (consistent with MaintenanceSchedule.generate_next_activity).
                 from datetime import datetime as dt
-                current_tz = timezone.get_current_timezone()
-                naive_start = dt.combine(next_date, dt.min.time())
-                naive_end = dt.combine(next_date, dt.min.time()) + timedelta(hours=schedule.activity_type.estimated_duration_hours)
-                
+                activity_tz = DEFAULT_ACTIVITY_TIMEZONE
+                duration_hours = schedule.activity_type.estimated_duration_hours or 1
+                scheduled_start = parse_wallclock_to_utc(dt.combine(next_date, time(8, 0)), activity_tz)
+                scheduled_end = scheduled_start + timedelta(hours=duration_hours)
+
                 # Generate title using Dashboard Settings template
-                from maintenance.utils import generate_activity_title
                 activity_title = generate_activity_title(
                     template=None,  # Will use Dashboard Settings template
                     activity_type=schedule.activity_type,
                     equipment=schedule.equipment,
-                    scheduled_start=timezone.make_aware(naive_start, current_tz),
+                    scheduled_start=scheduled_start,
                     priority='medium' if schedule.activity_type.is_mandatory else 'low',
                     status='scheduled'
                 )
-                
+
                 activity = MaintenanceActivity.objects.create(
                     equipment=schedule.equipment,
                     activity_type=schedule.activity_type,
                     title=activity_title,
                     description=schedule.activity_type.description,
-                    scheduled_start=timezone.make_aware(naive_start, current_tz),
-                    scheduled_end=timezone.make_aware(naive_end, current_tz),
+                    scheduled_start=scheduled_start,
+                    scheduled_end=scheduled_end,
+                    timezone=activity_tz,
                     status='scheduled',
                     priority='medium' if schedule.activity_type.is_mandatory else 'low',
                     created_by=schedule.created_by,
                 )
-                
-                # Create corresponding calendar event
+
+                # Create corresponding calendar event (times projected to activity tz)
                 try:
                     from events.models import CalendarEvent
-                    calendar_event = CalendarEvent.objects.create(
+                    calendar_event = CalendarEvent(
                         title=f"Maintenance: {activity.title}",
                         description=activity.description,
                         event_type='maintenance',
                         equipment=activity.equipment,
                         maintenance_activity=activity,
-                        event_date=activity.scheduled_start.date(),
-                        start_time=activity.scheduled_start.time(),
-                        end_time=activity.scheduled_end.time() if activity.scheduled_end else None,
                         assigned_to=activity.assigned_to,
                         priority=activity.priority,
                         created_by=activity.created_by
                     )
+                    calendar_event.set_times_from_activity(activity)
+                    calendar_event.save()
                 except Exception as e:
                     self.stdout.write(f'     ⚠️  Warning: Could not create calendar event: {str(e)}')
                 
@@ -181,7 +183,7 @@ class Command(BaseCommand):
             generated_count += 1
             
             # Calculate next occurrence
-            next_date = next_date + timedelta(days=schedule.get_frequency_in_days())
+            next_date = add_one_period(next_date, schedule.frequency, schedule.frequency_days)
             
             # Check if we've exceeded the end date
             if schedule.end_date and next_date > schedule.end_date:

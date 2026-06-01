@@ -47,7 +47,7 @@ def generate_ical_feed(request):
         try:
             selected_site = Location.objects.get(id=site_id, is_site=True)
             # Get all descendant location IDs (handles nested locations at any depth)
-            from maintenance.views import get_all_descendant_location_ids
+            from core.utils import get_all_descendant_location_ids
             location_ids = get_all_descendant_location_ids(selected_site)
             events = events.filter(equipment__location_id__in=location_ids)
         except Location.DoesNotExist:
@@ -227,7 +227,7 @@ def calendar_view(request):
     equipment_list = Equipment.objects.filter(is_active=True).select_related('category', 'location')
     if selected_site and not is_all_sites:
         # Get all descendant location IDs (handles nested locations at any depth)
-        from maintenance.views import get_all_descendant_location_ids
+        from core.utils import get_all_descendant_location_ids
         location_ids = get_all_descendant_location_ids(selected_site)
         equipment_list = equipment_list.filter(location_id__in=location_ids)
     
@@ -600,7 +600,7 @@ def fetch_events(request):
             try:
                 selected_site = Location.objects.get(id=site_id, is_site=True)
                 # Get all descendant location IDs (handles nested locations at any depth)
-                from maintenance.views import get_all_descendant_location_ids
+                from core.utils import get_all_descendant_location_ids
                 location_ids = get_all_descendant_location_ids(selected_site)
                 events = events.filter(equipment__location_id__in=location_ids)
             except Location.DoesNotExist:
@@ -718,19 +718,6 @@ def fetch_unified_events(request):
         # Always use user's timezone from profile (no override needed)
         target_timezone = user_timezone_str
         
-        # Helper function to convert datetime to target timezone
-        def convert_to_timezone(dt, tz_name):
-            if not dt:
-                return dt
-            try:
-                import pytz
-                target_tz = pytz.timezone(tz_name)
-                if timezone.is_naive(dt):
-                    dt = timezone.make_aware(dt)
-                return dt.astimezone(target_tz)
-            except Exception:
-                return dt
-        
         calendar_events = []
         
         # Only fetch Maintenance Activities - calendar events are now just a view of maintenance activities
@@ -761,7 +748,7 @@ def fetch_unified_events(request):
                 try:
                     selected_site = Location.objects.get(id=site_id, is_site=True)
                     # Get all descendant location IDs (handles nested locations at any depth)
-                    from maintenance.views import get_all_descendant_location_ids
+                    from core.utils import get_all_descendant_location_ids
                     location_ids = get_all_descendant_location_ids(selected_site)
                     activities = activities.filter(equipment__location_id__in=location_ids)
                 except Location.DoesNotExist:
@@ -997,7 +984,7 @@ def get_form_data(request):
             # Use recursive location filtering (same as bulk activities and calendar)
             try:
                 selected_site = Location.objects.get(id=site_id, is_site=True)
-                from maintenance.views import get_all_descendant_location_ids
+                from core.utils import get_all_descendant_location_ids
                 location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
                 equipment_list = equipment_list.filter(location_id__in=location_ids)
             except Location.DoesNotExist:

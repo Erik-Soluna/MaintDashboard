@@ -23,6 +23,25 @@ _FREQUENCY_STEP = {
     'annual': relativedelta(years=1),
 }
 
+# Approximate day counts per frequency — for the stored frequency_days field and
+# display only. Do NOT use these for date arithmetic (they drift); use
+# add_one_period() for stepping dates.
+FREQUENCY_DAYS = {
+    'daily': 1,
+    'weekly': 7,
+    'monthly': 30,
+    'quarterly': 90,
+    'semi_annual': 180,
+    'annual': 365,
+}
+
+
+def frequency_to_days(frequency, frequency_days=None):
+    """Approximate number of days for a frequency (storage/display only)."""
+    if frequency == 'custom':
+        return frequency_days or 365
+    return FREQUENCY_DAYS.get(frequency, 365)
+
 
 def _step(frequency, frequency_days):
     """Return the relativedelta for one period of the given frequency."""
