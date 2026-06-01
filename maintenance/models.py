@@ -499,19 +499,9 @@ class MaintenanceSchedule(TimeStampedModel):
         return f"{self.equipment.name} - {self.activity_type.name} ({self.get_frequency_display()})"
 
     def get_frequency_in_days(self):
-        """Convert frequency to days."""
-        frequency_map = {
-            'daily': 1,
-            'weekly': 7,
-            'monthly': 30,
-            'quarterly': 90,
-            'semi_annual': 180,
-            'annual': 365,
-        }
-        
-        if self.frequency == 'custom':
-            return self.frequency_days or 365
-        return frequency_map.get(self.frequency, 365)
+        """Approximate frequency in days (storage/display only; not for stepping)."""
+        from maintenance.scheduling import frequency_to_days
+        return frequency_to_days(self.frequency, self.frequency_days)
 
     def generate_next_activity(self):
         """Generate the next maintenance activity for this schedule."""
@@ -1023,19 +1013,9 @@ class EquipmentCategorySchedule(TimeStampedModel):
         return f"{self.equipment_category.name} - {self.activity_type.name} ({self.get_frequency_display()})"
 
     def get_frequency_in_days(self):
-        """Convert frequency to days."""
-        frequency_map = {
-            'daily': 1,
-            'weekly': 7,
-            'monthly': 30,
-            'quarterly': 90,
-            'semi_annual': 180,
-            'annual': 365,
-        }
-        
-        if self.frequency == 'custom':
-            return self.frequency_days or 365
-        return frequency_map.get(self.frequency, 365)
+        """Approximate frequency in days (storage/display only; not for stepping)."""
+        from maintenance.scheduling import frequency_to_days
+        return frequency_to_days(self.frequency, self.frequency_days)
 
 
 class GlobalSchedule(TimeStampedModel):
@@ -1122,19 +1102,9 @@ class GlobalSchedule(TimeStampedModel):
         return f"{self.name} ({self.get_frequency_display()})"
 
     def get_frequency_in_days(self):
-        """Convert frequency to days."""
-        frequency_map = {
-            'daily': 1,
-            'weekly': 7,
-            'monthly': 30,
-            'quarterly': 90,
-            'semi_annual': 180,
-            'annual': 365,
-        }
-        
-        if self.frequency == 'custom':
-            return self.frequency_days or 365
-        return frequency_map.get(self.frequency, 365)
+        """Approximate frequency in days (storage/display only; not for stepping)."""
+        from maintenance.scheduling import frequency_to_days
+        return frequency_to_days(self.frequency, self.frequency_days)
 
 
 class ScheduleOverride(TimeStampedModel):
