@@ -881,6 +881,38 @@ def delete_activity(request, activity_id):
 
 
 @login_required
+def bulk_delete_activities(request):
+    """Delete multiple maintenance activities selected on the activity list."""
+    if request.method != 'POST':
+        return redirect('maintenance:activity_list')
+
+    ids = request.POST.getlist('activity_ids')
+    if not ids:
+        messages.warning(request, 'No activities were selected for deletion.')
+    else:
+        qs = MaintenanceActivity.objects.filter(id__in=ids)
+        count = qs.count()
+        # QuerySet.delete() sends pre_delete per object, so the calendar-event
+        # cleanup signal runs for each deleted activity.
+        qs.delete()
+        try:
+            from core.views import invalidate_dashboard_cache
+            invalidate_dashboard_cache(user_id=request.user.id)
+        except Exception as cache_error:
+            logger.warning(f"Could not invalidate dashboard cache: {cache_error}")
+        messages.success(
+            request,
+            f"Deleted {count} maintenance activit{'y' if count == 1 else 'ies'}."
+        )
+
+    # Return to the same filtered/paginated view the user came from, if safe.
+    next_url = request.POST.get('next')
+    if next_url and next_url.startswith('/maintenance/activities'):
+        return redirect(next_url)
+    return redirect('maintenance:activity_list')
+
+
+@login_required
 def get_activities_data(request):
     """AJAX endpoint to get maintenance activities data."""
     activities = MaintenanceActivity.objects.select_related(
@@ -1426,4 +1458,4 @@ def attach_related_activity(request, activity_id):
     }
     return render(request, 'maintenance/attach_related.html', context)
 
-__all__ = ["maintenance_list", "activity_list", "bulk_add_activity", "activity_detail", "add_activity", "edit_activity", "complete_activity", "overdue_maintenance", "delete_activity", "get_activities_data", "fetch_activities", "get_activity_details", "create_activity_api", "upload_activity_document", "change_activity_status", "attach_related_activity"]
+__all__ = ["maintenance_list", "activity_list", "bulk_add_activity", "activity_detail", "add_activity", "edit_activity", "complete_activity", "overdue_maintenance", "delete_activity", "bulk_delete_activities", "get_activities_data", "fetch_activities", "get_activity_details", "create_activity_api", "upload_activity_document", "change_activity_status", "attach_related_activity"]
