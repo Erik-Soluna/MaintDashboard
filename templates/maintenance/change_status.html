@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load tz %}
 
 {% block title %}Change Status - {{ activity.title }}{% endblock %}
 
@@ -33,7 +34,7 @@
                         </div>
                         <div class="col-md-6">
                             <strong>Scheduled:</strong>
-                            <span class="ms-2">{{ activity.scheduled_start|date:"M d, Y H:i" }} - {{ activity.scheduled_end|date:"M d, Y H:i" }}</span>
+                            <span class="ms-2">{% localtime off %}{{ activity.get_scheduled_start_in_timezone|date:"M d, Y H:i" }}{% endlocaltime %} - {% localtime off %}{{ activity.get_scheduled_end_in_timezone|date:"M d, Y H:i" }}{% endlocaltime %}</span>
                         </div>
                     </div>
                 </div>
@@ -63,14 +64,14 @@
                         <div id="startTimeFields" class="mb-3" style="display: none;">
                             <label for="actual_start" class="form-label">Actual Start Time</label>
                             <input type="datetime-local" class="form-control" id="actual_start" name="actual_start"
-                                   value="{% if activity.actual_start %}{{ activity.actual_start|date:'Y-m-d\TH:i' }}{% endif %}">
+                                   value="{% if activity.actual_start %}{% localtime off %}{{ activity.get_actual_start_in_timezone|date:'Y-m-d\TH:i' }}{% endlocaltime %}{% endif %}">
                             <small class="form-text text-muted">Leave blank to use current time, or select a specific date/time</small>
                         </div>
                         
                         <div id="endTimeFields" class="mb-3" style="display: none;">
                             <label for="actual_end" class="form-label">Actual End Time</label>
                             <input type="datetime-local" class="form-control" id="actual_end" name="actual_end"
-                                   value="{% if activity.actual_end %}{{ activity.actual_end|date:'Y-m-d\TH:i' }}{% endif %}">
+                                   value="{% if activity.actual_end %}{% localtime off %}{{ activity.get_actual_end_in_timezone|date:'Y-m-d\TH:i' }}{% endlocaltime %}{% endif %}">
                             <small class="form-text text-muted">Leave blank to use current time, or select a specific date/time (useful for backdating)</small>
                         </div>
                         

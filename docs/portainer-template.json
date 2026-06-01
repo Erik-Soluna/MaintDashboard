@@ -11,7 +11,7 @@
       "logo": "https://raw.githubusercontent.com/docker-library/docs/master/django/logo.png",
       "repository": {
         "url": "https://github.com/your-username/maintenance-dashboard",
-        "stackfile": "docker-compose.yml"
+        "stackfile": "portainer-stack-dev.yml"
       },
       "env": [
         {
@@ -60,8 +60,7 @@
       "logo": "https://raw.githubusercontent.com/docker-library/docs/master/django/logo.png",
       "repository": {
         "url": "https://github.com/your-username/maintenance-dashboard",
-        "stackfile": "docker-compose.yml",
-        "composeFilePathInRepository": "docker-compose.prod.yml"
+        "stackfile": "portainer-stack.yml"
       },
       "env": [
         {

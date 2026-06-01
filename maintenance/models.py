@@ -294,6 +294,30 @@ class MaintenanceActivity(TimeStampedModel):
         except Exception:
             return self.scheduled_end
     
+    def get_actual_start_in_timezone(self, target_timezone=None):
+        """Get actual start time in the specified timezone (defaults to activity tz)."""
+        if not self.actual_start:
+            return None
+        if target_timezone is None:
+            target_timezone = self.timezone
+        try:
+            import pytz
+            return self.actual_start.astimezone(pytz.timezone(target_timezone))
+        except Exception:
+            return self.actual_start
+
+    def get_actual_end_in_timezone(self, target_timezone=None):
+        """Get actual end time in the specified timezone (defaults to activity tz)."""
+        if not self.actual_end:
+            return None
+        if target_timezone is None:
+            target_timezone = self.timezone
+        try:
+            import pytz
+            return self.actual_end.astimezone(pytz.timezone(target_timezone))
+        except Exception:
+            return self.actual_end
+
     def get_timezone_display_name(self):
         """Get human-readable timezone name."""
         timezone_display_names = {
@@ -461,6 +485,11 @@ class MaintenanceSchedule(TimeStampedModel):
         blank=True,
         help_text="Custom frequency in days (for custom frequency type)"
     )
+    frequency_overridden = models.BooleanField(
+        default=False,
+        help_text="Frequency was set manually for this schedule; do not overwrite "
+                  "it when the activity type's default frequency changes."
+    )
     start_date = models.DateField(help_text="When this schedule starts")
     end_date = models.DateField(
         null=True,
@@ -494,19 +523,9 @@ class MaintenanceSchedule(TimeStampedModel):
         return f"{self.equipment.name} - {self.activity_type.name} ({self.get_frequency_display()})"
 
     def get_frequency_in_days(self):
-        """Convert frequency to days."""
-        frequency_map = {
-            'daily': 1,
-            'weekly': 7,
-            'monthly': 30,
-            'quarterly': 90,
-            'semi_annual': 180,
-            'annual': 365,
-        }
-        
-        if self.frequency == 'custom':
-            return self.frequency_days or 365
-        return frequency_map.get(self.frequency, 365)
+        """Approximate frequency in days (storage/display only; not for stepping)."""
+        from maintenance.scheduling import frequency_to_days
+        return frequency_to_days(self.frequency, self.frequency_days)
 
     def generate_next_activity(self):
         """Generate the next maintenance activity for this schedule."""
@@ -529,32 +548,40 @@ class MaintenanceSchedule(TimeStampedModel):
             ).exists()
             
             if not existing:
-                # Create the maintenance activity
-                # Use make_aware instead of replace to properly handle timezones
-                from datetime import datetime as dt
-                import pytz
-                current_tz = timezone.get_current_timezone()
-                naive_start = dt.combine(next_date, dt.min.time())
-                naive_end = dt.combine(next_date, dt.min.time()) + timedelta(hours=self.activity_type.estimated_duration_hours)
-                
+                # Build the start at a sensible local wall-clock (08:00) in the
+                # activity's timezone, then store UTC. Previously this combined the
+                # due date with 00:00 and made it aware in the server zone (UTC),
+                # so generated activities displayed on the previous local day.
+                from datetime import datetime as dt, time as dt_time
+                from maintenance.utils import (
+                    generate_activity_title,
+                    parse_wallclock_to_utc,
+                    DEFAULT_ACTIVITY_TIMEZONE,
+                )
+                activity_tz = DEFAULT_ACTIVITY_TIMEZONE
+                duration_hours = self.activity_type.estimated_duration_hours or 1
+                naive_start = dt.combine(next_date, dt_time(8, 0))
+                scheduled_start = parse_wallclock_to_utc(naive_start, activity_tz)
+                scheduled_end = scheduled_start + timedelta(hours=duration_hours)
+
                 # Generate title using Dashboard Settings template
-                from maintenance.utils import generate_activity_title
                 activity_title = generate_activity_title(
                     template=None,  # Will use Dashboard Settings template
                     activity_type=self.activity_type,
                     equipment=self.equipment,
-                    scheduled_start=timezone.make_aware(naive_start, current_tz),
+                    scheduled_start=scheduled_start,
                     priority='medium' if self.activity_type.is_mandatory else 'low',
                     status='scheduled'
                 )
-                
+
                 activity = MaintenanceActivity.objects.create(
                     equipment=self.equipment,
                     activity_type=self.activity_type,
                     title=activity_title,
                     description=self.activity_type.description,
-                    scheduled_start=timezone.make_aware(naive_start, current_tz),
-                    scheduled_end=timezone.make_aware(naive_end, current_tz),
+                    scheduled_start=scheduled_start,
+                    scheduled_end=scheduled_end,
+                    timezone=activity_tz,
                     status='scheduled',
                     priority='medium' if self.activity_type.is_mandatory else 'low',
                     created_by=self.created_by,
@@ -580,26 +607,29 @@ class MaintenanceSchedule(TimeStampedModel):
             actual_end__isnull=False
         ).order_by('-actual_end').first()
         
+        from maintenance.scheduling import add_one_period
+
         if last_completed_activity and last_completed_activity.actual_end:
-            # Calculate next date based on last completion date
-            next_date = last_completed_activity.actual_end.date() + timedelta(days=self.get_frequency_in_days())
+            # One period after the last completion (calendar-correct).
+            next_date = add_one_period(
+                last_completed_activity.actual_end.date(),
+                self.frequency, self.frequency_days
+            )
         else:
             # No completed activities, calculate from schedule start date
             if self.start_date:
-                # Calculate how many cycles have passed since start date
-                days_since_start = (timezone.now().date() - self.start_date).days
-                if days_since_start < 0:
-                    # Start date is in the future, use start date
+                today = timezone.now().date()
+                if self.start_date >= today:
+                    # Start date is today or in the future, use start date
                     next_date = self.start_date
                 else:
-                    # Calculate next occurrence based on frequency
-                    frequency_days = self.get_frequency_in_days()
-                    if frequency_days > 0:
-                        cycles_passed = days_since_start // frequency_days
-                        next_date = self.start_date + timedelta(days=(cycles_passed + 1) * frequency_days)
-                    else:
-                        # No frequency set, use start date
-                        next_date = self.start_date
+                    # Step forward one period at a time until we pass today.
+                    next_date = self.start_date
+                    while next_date <= today:
+                        stepped = add_one_period(next_date, self.frequency, self.frequency_days)
+                        if stepped <= next_date:  # guard against a zero-length step
+                            break
+                        next_date = stepped
             else:
                 # No start date, use today
                 next_date = timezone.now().date()
@@ -866,15 +896,15 @@ class MaintenanceReport(TimeStampedModel):
         return self.get_file_size_display()
 
     def get_file_extension(self):
-        """Get the file extension of the uploaded document."""
-        if self.document:
-            return self.document.name.split('.')[-1].lower()
+        """Get the file extension of the uploaded file."""
+        if self.file:
+            return self.file.name.split('.')[-1].lower()
         return ''
 
     def get_file_size(self):
         """Get the file size in bytes."""
-        if self.document and self.document.storage.exists(self.document.name):
-            return self.document.size
+        if self.file and self.file.storage.exists(self.file.name):
+            return self.file.size
         return 0
 
     def get_file_size_display(self):
@@ -890,16 +920,17 @@ class MaintenanceReport(TimeStampedModel):
             return f"{size / (1024 * 1024):.1f} MB"
 
     def extract_issues(self):
-        """Extract issues from analyzed data."""
-        return self.analyzed_data.get('issues', [])
+        """Issues parsed from the report. No structured analysis is stored yet,
+        so this returns an empty list (was referencing a nonexistent field)."""
+        return []
 
     def extract_parts_replaced(self):
-        """Extract parts replaced from analyzed data."""
-        return self.analyzed_data.get('parts_replaced', [])
+        """Parts replaced parsed from the report (no structured data stored yet)."""
+        return []
 
     def extract_measurements(self):
-        """Extract measurements from analyzed data."""
-        return self.analyzed_data.get('measurements', [])
+        """Measurements parsed from the report (no structured data stored yet)."""
+        return []
 
     def has_critical_issues(self):
         """Check if the report contains critical issues."""
@@ -1006,19 +1037,9 @@ class EquipmentCategorySchedule(TimeStampedModel):
         return f"{self.equipment_category.name} - {self.activity_type.name} ({self.get_frequency_display()})"
 
     def get_frequency_in_days(self):
-        """Convert frequency to days."""
-        frequency_map = {
-            'daily': 1,
-            'weekly': 7,
-            'monthly': 30,
-            'quarterly': 90,
-            'semi_annual': 180,
-            'annual': 365,
-        }
-        
-        if self.frequency == 'custom':
-            return self.frequency_days or 365
-        return frequency_map.get(self.frequency, 365)
+        """Approximate frequency in days (storage/display only; not for stepping)."""
+        from maintenance.scheduling import frequency_to_days
+        return frequency_to_days(self.frequency, self.frequency_days)
 
 
 class GlobalSchedule(TimeStampedModel):
@@ -1105,19 +1126,9 @@ class GlobalSchedule(TimeStampedModel):
         return f"{self.name} ({self.get_frequency_display()})"
 
     def get_frequency_in_days(self):
-        """Convert frequency to days."""
-        frequency_map = {
-            'daily': 1,
-            'weekly': 7,
-            'monthly': 30,
-            'quarterly': 90,
-            'semi_annual': 180,
-            'annual': 365,
-        }
-        
-        if self.frequency == 'custom':
-            return self.frequency_days or 365
-        return frequency_map.get(self.frequency, 365)
+        """Approximate frequency in days (storage/display only; not for stepping)."""
+        from maintenance.scheduling import frequency_to_days
+        return frequency_to_days(self.frequency, self.frequency_days)
 
 
 class ScheduleOverride(TimeStampedModel):

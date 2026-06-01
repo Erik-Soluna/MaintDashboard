@@ -47,7 +47,7 @@ def generate_ical_feed(request):
         try:
             selected_site = Location.objects.get(id=site_id, is_site=True)
             # Get all descendant location IDs (handles nested locations at any depth)
-            from maintenance.views import get_all_descendant_location_ids
+            from core.utils import get_all_descendant_location_ids
             location_ids = get_all_descendant_location_ids(selected_site)
             events = events.filter(equipment__location_id__in=location_ids)
         except Location.DoesNotExist:
@@ -64,7 +64,10 @@ def generate_ical_feed(request):
     ical_content += "METHOD:PUBLISH\r\n"
     ical_content += f"X-WR-CALNAME:SOLUNA Maintenance Events\r\n"
     ical_content += f"X-WR-CALDESC:Maintenance and equipment events from SOLUNA Dashboard\r\n"
-    ical_content += f"X-WR-TIMEZONE:UTC\r\n"
+    # event_date/start_time are stored in the activity's local timezone, so DTSTART
+    # below is emitted as floating local time. Do NOT advertise X-WR-TIMEZONE:UTC
+    # (that previously mislabeled local times as UTC). TODO: emit TZID + VTIMEZONE
+    # per event for fully unambiguous cross-client behavior.
     
     for event in events:
         ical_content += "BEGIN:VEVENT\r\n"
@@ -126,7 +129,17 @@ def generate_ical_feed(request):
 def google_calendar_webhook(request):
     """Handle Google Calendar webhook notifications."""
     try:
-        # Verify webhook (basic implementation - you may want to add proper verification)
+        # Verify the webhook against a shared channel token when one is configured.
+        # Set GOOGLE_WEBHOOK_TOKEN in the environment and pass the same value as the
+        # channel token when creating the Google watch; unverified requests are rejected.
+        from decouple import config
+        expected_token = config('GOOGLE_WEBHOOK_TOKEN', default=None)
+        if expected_token:
+            provided_token = request.headers.get('X-Goog-Channel-Token')
+            if provided_token != expected_token:
+                logger.warning("Google Calendar webhook rejected: invalid channel token")
+                return HttpResponse('Forbidden', status=403)
+
         channel_id = request.headers.get('X-Goog-Channel-ID')
         resource_id = request.headers.get('X-Goog-Resource-ID')
         resource_state = request.headers.get('X-Goog-Resource-State')
@@ -214,7 +227,7 @@ def calendar_view(request):
     equipment_list = Equipment.objects.filter(is_active=True).select_related('category', 'location')
     if selected_site and not is_all_sites:
         # Get all descendant location IDs (handles nested locations at any depth)
-        from maintenance.views import get_all_descendant_location_ids
+        from core.utils import get_all_descendant_location_ids
         location_ids = get_all_descendant_location_ids(selected_site)
         equipment_list = equipment_list.filter(location_id__in=location_ids)
     
@@ -587,7 +600,7 @@ def fetch_events(request):
             try:
                 selected_site = Location.objects.get(id=site_id, is_site=True)
                 # Get all descendant location IDs (handles nested locations at any depth)
-                from maintenance.views import get_all_descendant_location_ids
+                from core.utils import get_all_descendant_location_ids
                 location_ids = get_all_descendant_location_ids(selected_site)
                 events = events.filter(equipment__location_id__in=location_ids)
             except Location.DoesNotExist:
@@ -705,19 +718,6 @@ def fetch_unified_events(request):
         # Always use user's timezone from profile (no override needed)
         target_timezone = user_timezone_str
         
-        # Helper function to convert datetime to target timezone
-        def convert_to_timezone(dt, tz_name):
-            if not dt:
-                return dt
-            try:
-                import pytz
-                target_tz = pytz.timezone(tz_name)
-                if timezone.is_naive(dt):
-                    dt = timezone.make_aware(dt)
-                return dt.astimezone(target_tz)
-            except Exception:
-                return dt
-        
         calendar_events = []
         
         # Only fetch Maintenance Activities - calendar events are now just a view of maintenance activities
@@ -748,7 +748,7 @@ def fetch_unified_events(request):
                 try:
                     selected_site = Location.objects.get(id=site_id, is_site=True)
                     # Get all descendant location IDs (handles nested locations at any depth)
-                    from maintenance.views import get_all_descendant_location_ids
+                    from core.utils import get_all_descendant_location_ids
                     location_ids = get_all_descendant_location_ids(selected_site)
                     activities = activities.filter(equipment__location_id__in=location_ids)
                 except Location.DoesNotExist:
@@ -969,102 +969,6 @@ def equipment_events(request, equipment_id):
 
 
 @login_required
-@require_http_methods(["POST"])
-def create_event_ajax(request):
-    """AJAX endpoint to create a new event from calendar popup."""
-    try:
-        # Get form data
-        title = request.POST.get('title')
-        description = request.POST.get('description', '')
-        event_type = request.POST.get('event_type')
-        equipment_id = request.POST.get('equipment')
-        event_date = request.POST.get('event_date')
-        start_time = request.POST.get('start_time') or None
-        end_time = request.POST.get('end_time') or None
-        all_day = request.POST.get('all_day') == 'on'
-        priority = request.POST.get('priority', 'medium')
-        assigned_to_id = request.POST.get('assigned_to') or None
-        
-        # Validate required fields
-        if not title or not equipment_id or not event_date:
-            return JsonResponse({
-                'success': False,
-                'error': 'Title, equipment, and event date are required.'
-            })
-        
-        # Create the event
-        event = CalendarEvent.objects.create(
-            title=title,
-            description=description,
-            event_type=event_type,
-            equipment_id=equipment_id,
-            event_date=event_date,
-            start_time=start_time,
-            end_time=end_time,
-            all_day=all_day,
-            priority=priority,
-            assigned_to_id=assigned_to_id,
-            created_by=request.user
-        )
-        
-        # Note: Calendar events no longer automatically create maintenance activities
-        # to prevent duplication. Maintenance activities should be created directly
-        # and will automatically create calendar events.
-        message = f'Event "{title}" created successfully!'
-        
-        return JsonResponse({
-            'success': True,
-            'message': message,
-            'event_id': event.id
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': f'Error creating event: {str(e)}'
-        })
-
-
-@login_required
-@require_http_methods(["POST"])
-def update_event_ajax(request, event_id):
-    """AJAX endpoint to update an existing event from calendar popup."""
-    try:
-        event = get_object_or_404(CalendarEvent, id=event_id)
-        
-        # Update event fields
-        event.title = request.POST.get('title')
-        event.description = request.POST.get('description', '')
-        event.event_type = request.POST.get('event_type')
-        event.equipment_id = request.POST.get('equipment')
-        event.event_date = request.POST.get('event_date')
-        event.start_time = request.POST.get('start_time') or None
-        event.end_time = request.POST.get('end_time') or None
-        event.all_day = request.POST.get('all_day') == 'on'
-        event.priority = request.POST.get('priority', 'medium')
-        event.assigned_to_id = request.POST.get('assigned_to') or None
-        event.updated_by = request.user
-        event.save()
-        
-        # Note: Calendar events no longer automatically create maintenance activities
-        # to prevent duplication. Maintenance activities should be created directly
-        # and will automatically create calendar events.
-        message = f'Event "{event.title}" updated successfully!'
-        
-        return JsonResponse({
-            'success': True,
-            'message': message,
-            'event_id': event.id
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': f'Error updating event: {str(e)}'
-        })
-
-
-@login_required
 @require_http_methods(["GET"])
 def get_form_data(request):
     """AJAX endpoint to get form data for event creation/editing."""
@@ -1080,7 +984,7 @@ def get_form_data(request):
             # Use recursive location filtering (same as bulk activities and calendar)
             try:
                 selected_site = Location.objects.get(id=site_id, is_site=True)
-                from maintenance.views import get_all_descendant_location_ids
+                from core.utils import get_all_descendant_location_ids
                 location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
                 equipment_list = equipment_list.filter(location_id__in=location_ids)
             except Location.DoesNotExist:

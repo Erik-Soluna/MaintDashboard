@@ -385,3 +385,40 @@ body .dark-form .btn-primary:hover {
   color: #e2e8f0;
 }
 /* End System Health Panel Dark Mode Fixes */
+
+/* ===================== Mobile responsiveness ===================== */
+@media (max-width: 768px) {
+  /* Map page: stack the map and legend instead of forcing 70/25 columns */
+  .map-content {
+    flex-direction: column;
+  }
+  #map {
+    width: 100%;
+    height: 320px;
+  }
+  .legend {
+    width: 100%;
+  }
+
+  /* Filter bars: let controls wrap and go full-width instead of overflowing */
+  .equipment-filters,
+  .filters,
+  .filter-bar,
+  .filters-and-legend {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .equipment-filters .form-control,
+  .equipment-filters select,
+  .filters .form-control,
+  .filter-bar .form-control {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* Dashboard card grid: allow narrower cards on phones */
+  .dashboard-content {
+    grid-template-columns: 1fr;
+  }
+}
+

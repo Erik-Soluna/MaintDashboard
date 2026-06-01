@@ -15,18 +15,26 @@ logger = logging.getLogger(__name__)
 def send_event_reminders():
     """Send reminders for upcoming events."""
     from .models import CalendarEvent
+    from maintenance.utils import local_date_tomorrow, DEFAULT_ACTIVITY_TIMEZONE
     from datetime import timedelta
-    
-    tomorrow = timezone.now().date() + timedelta(days=1)
-    upcoming_events = CalendarEvent.objects.filter(
-        event_date=tomorrow,
+
+    # event_date is stored in the activity's local timezone, so query a small
+    # window in UTC-date terms and then match the exact local "tomorrow" per event.
+    now = timezone.now()
+    candidate_events = CalendarEvent.objects.filter(
+        event_date__gte=(now - timedelta(days=1)).date(),
+        event_date__lte=(now + timedelta(days=2)).date(),
         is_completed=False,
         assigned_to__isnull=False
-    ).select_related('assigned_to', 'equipment')
-    
+    ).select_related('assigned_to', 'equipment', 'maintenance_activity')
+
     reminders_sent = 0
-    for event in upcoming_events:
+    for event in candidate_events:
         try:
+            event_tz = (event.maintenance_activity.timezone
+                        if event.maintenance_activity else DEFAULT_ACTIVITY_TIMEZONE)
+            if event.event_date != local_date_tomorrow(event_tz):
+                continue
             if event.assigned_to.email:
                 send_mail(
                     subject=f"Event Reminder: {event.title}",
@@ -96,19 +104,19 @@ def generate_maintenance_events():
     
     for activity in activities:
         try:
-            event = CalendarEvent.objects.create(
+            event = CalendarEvent(
                 title=f"Maintenance: {activity.title}",
                 description=activity.description,
                 event_type='maintenance',
                 equipment=activity.equipment,
                 maintenance_activity=activity,
-                event_date=activity.scheduled_start.date(),
-                start_time=activity.scheduled_start.time(),
-                end_time=activity.scheduled_end.time() if activity.scheduled_end else None,
                 assigned_to=activity.assigned_to,
                 priority=activity.priority,
                 created_by_id=1  # System user
             )
+            # Project the activity's UTC times into the activity's local timezone.
+            event.set_times_from_activity(activity)
+            event.save()
             created_count += 1
             logger.info(f"Created calendar event for maintenance activity: {activity.title}")
         except Exception as e:

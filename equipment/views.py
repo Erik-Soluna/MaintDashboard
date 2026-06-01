@@ -41,88 +41,6 @@ from .forms import EquipmentForm, DynamicEquipmentForm, EquipmentComponentForm, 
 logger = logging.getLogger(__name__)
 
 
-def create_default_maintenance_schedules(equipment, user):
-    """Create default maintenance schedules for imported equipment."""
-    from maintenance.models import MaintenanceSchedule, MaintenanceActivityType
-    from datetime import date, timedelta
-    
-    try:
-        # Get or create default activity types based on equipment category
-        category_name = equipment.category.name.lower() if equipment.category else ''
-        
-        # Define default maintenance types based on category
-        default_schedules = []
-        
-        if 'transformer' in category_name:
-            default_schedules = [
-                {'name': 'Annual Inspection', 'frequency': 'annual', 'frequency_days': 365},
-                {'name': 'Oil Sampling', 'frequency': 'semi_annual', 'frequency_days': 180},
-                {'name': 'Visual Inspection', 'frequency': 'quarterly', 'frequency_days': 90},
-            ]
-        elif 'protection' in category_name or 'relay' in category_name:
-            default_schedules = [
-                {'name': 'Annual Testing', 'frequency': 'annual', 'frequency_days': 365},
-                {'name': 'Quarterly Inspection', 'frequency': 'quarterly', 'frequency_days': 90},
-            ]
-        elif 'breaker' in category_name or 'switch' in category_name:
-            default_schedules = [
-                {'name': 'Annual Maintenance', 'frequency': 'annual', 'frequency_days': 365},
-                {'name': 'Semi-Annual Inspection', 'frequency': 'semi_annual', 'frequency_days': 180},
-            ]
-        else:
-            # Generic maintenance for other equipment
-            default_schedules = [
-                {'name': 'Annual Inspection', 'frequency': 'annual', 'frequency_days': 365},
-                {'name': 'Quarterly Check', 'frequency': 'quarterly', 'frequency_days': 90},
-            ]
-        
-        created_schedules = []
-        
-        for schedule_def in default_schedules:
-            # Patch: Always set category when creating MaintenanceActivityType
-            if not equipment.category or not equipment.category.activitytypecategory_set.exists():
-                logger.error(f"Cannot create MaintenanceActivityType for '{schedule_def['name']}' because equipment category is missing or has no linked ActivityTypeCategory.")
-                continue
-            # Use the first ActivityTypeCategory as default (or customize as needed)
-            activity_type_category = equipment.category.activitytypecategory_set.first()
-            activity_type, created = MaintenanceActivityType.objects.get_or_create(
-                name=schedule_def['name'],
-                category=activity_type_category,
-                defaults={
-                    'description': f'Default {schedule_def["name"]} for {equipment.category.name if equipment.category else "equipment"}',
-                    'estimated_duration_hours': 2,
-                    'frequency_days': schedule_def['frequency_days'],
-                    'is_mandatory': True,
-                    'created_by': user,
-                }
-            )
-            
-            # Check if schedule already exists for this equipment and activity type
-            existing_schedule = MaintenanceSchedule.objects.filter(
-                equipment=equipment,
-                activity_type=activity_type
-            ).first()
-            
-            if not existing_schedule:
-                # Create maintenance schedule
-                schedule = MaintenanceSchedule.objects.create(
-                    equipment=equipment,
-                    activity_type=activity_type,
-                    frequency=schedule_def['frequency'],
-                    frequency_days=schedule_def['frequency_days'],
-                    start_date=date.today(),
-                    auto_generate=True,
-                    advance_notice_days=30,
-                    created_by=user
-                )
-                created_schedules.append(schedule)
-                logger.info(f"Created maintenance schedule: {schedule_def['name']} for {equipment.name}")
-        
-        return created_schedules
-        
-    except Exception as e:
-        logger.error(f"Error creating maintenance schedules for equipment {equipment.name}: {str(e)}")
-        return []
 
 
 @login_required
@@ -145,7 +63,7 @@ def equipment_list(request):
             try:
                 selected_site = Location.objects.get(id=selected_site_id, is_site=True)
                 # Use recursive location filtering (same as bulk activities and calendar)
-                from maintenance.views import get_all_descendant_location_ids
+                from core.utils import get_all_descendant_location_ids
                 location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
                 queryset = queryset.filter(location_id__in=location_ids)
             except (Location.DoesNotExist, ValueError):
@@ -265,7 +183,7 @@ def manage_equipment(request):
             try:
                 selected_site = Location.objects.get(id=selected_site_id, is_site=True)
                 # Use recursive location filtering (same as bulk activities and calendar)
-                from maintenance.views import get_all_descendant_location_ids
+                from core.utils import get_all_descendant_location_ids
                 location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
                 equipment_queryset = equipment_queryset.filter(location_id__in=location_ids)
             except (Location.DoesNotExist, ValueError):
@@ -942,110 +860,6 @@ def delete_document(request, equipment_id, document_id):
     return render(request, 'equipment/delete_document.html', context)
 
 
-@login_required
-def import_equipment_csv(request):
-    """Import equipment from CSV file."""
-    if request.method == 'POST':
-        if 'csv_file' not in request.FILES:
-            messages.error(request, 'No file uploaded.')
-            return redirect('equipment:import_equipment_csv')
-        
-        csv_file = request.FILES['csv_file']
-        if not csv_file.name.endswith('.csv'):
-            messages.error(request, 'Please upload a CSV file.')
-            return redirect('equipment:import_equipment_csv')
-        
-        try:
-            file_data = csv_file.read().decode('utf-8')
-            io_string = io.StringIO(file_data)
-            reader = csv.DictReader(io_string)
-            
-            created_count = 0
-            errors = []
-            
-            for row_num, row in enumerate(reader, start=2):
-                try:
-                    # Required fields
-                    name = row.get('name', '').strip()
-                    category_name = row.get('category', '').strip()
-                    manufacturer_serial = row.get('manufacturer_serial', '').strip()
-                    asset_tag = row.get('asset_tag', '').strip()
-                    location_name = row.get('location', '').strip()
-                    
-                    if not all([name, category_name, manufacturer_serial, asset_tag, location_name]):
-                        errors.append(f"Row {row_num}: Missing required fields")
-                        continue
-                    
-                    # Get or create category
-                    category, created = EquipmentCategory.objects.get_or_create(
-                        name=category_name,
-                        defaults={'created_by': request.user}
-                    )
-                    
-                    # Get or create location
-                    location, created = Location.objects.get_or_create(
-                        name=location_name,
-                        defaults={
-                            'created_by': request.user,
-                            'is_active': True,
-                            'is_site': False
-                        }
-                    )
-                    
-                    # Check if equipment already exists
-                    if Equipment.objects.filter(
-                        Q(name=name) | Q(manufacturer_serial=manufacturer_serial) | Q(asset_tag=asset_tag)
-                    ).exists():
-                        errors.append(f"Row {row_num}: Equipment with this name, serial, or asset tag already exists")
-                        continue
-                    
-                    # Create equipment
-                    equipment = Equipment.objects.create(
-                        name=name,
-                        category=category,
-                        manufacturer_serial=manufacturer_serial,
-                        asset_tag=asset_tag,
-                        location=location,
-                        manufacturer=row.get('manufacturer', '').strip(),
-                        model_number=row.get('model_number', '').strip(),
-                        power_ratings=row.get('power_ratings', '').strip(),
-                        trip_setpoints=row.get('trip_setpoints', '').strip(),
-                        warranty_details=row.get('warranty_details', '').strip(),
-                        status=row.get('status', 'active').strip(),
-                        created_by=request.user,
-                        updated_by=request.user
-                    )
-                    
-                    # Create default maintenance schedules for imported equipment
-                    try:
-                        schedules_created = create_default_maintenance_schedules(equipment, request.user)
-                        if schedules_created:
-                            logger.info(f"Created {len(schedules_created)} maintenance schedules for imported equipment: {equipment.name}")
-                    except Exception as e:
-                        logger.error(f"Error creating maintenance schedules for imported equipment {equipment.name}: {str(e)}")
-                    
-                    created_count += 1
-                    
-                except Exception as e:
-                    errors.append(f"Row {row_num}: {str(e)}")
-                    continue
-            
-            if created_count > 0:
-                messages.success(request, f'Successfully imported {created_count} equipment items.')
-            
-            if errors:
-                error_msg = "Errors occurred during import:\n" + "\n".join(errors[:10])
-                if len(errors) > 10:
-                    error_msg += f"\n... and {len(errors) - 10} more errors"
-                messages.error(request, error_msg)
-            
-            return redirect('equipment:equipment_list')
-            
-        except Exception as e:
-            messages.error(request, f'Error processing CSV file: {str(e)}')
-            return redirect('equipment:import_equipment_csv')
-    
-    return render(request, 'equipment/import_equipment_csv.html')
 
 
 @login_required
@@ -1181,7 +995,7 @@ def export_equipment_csv(request):
             site = Location.objects.filter(id=site_id_int, is_site=True).first()
             if site:
                 # Use recursive location filtering (same as bulk activities and calendar)
-                from maintenance.views import get_all_descendant_location_ids
+                from core.utils import get_all_descendant_location_ids
                 location_ids = get_all_descendant_location_ids(site, include_inactive=True)
                 equipment_list = equipment_list.filter(location_id__in=location_ids)
                 logger.info(f"CSV export filtered to site: {site.name} ({equipment_list.count()} items)")

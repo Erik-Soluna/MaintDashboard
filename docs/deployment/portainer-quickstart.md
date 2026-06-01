@@ -1,5 +1,9 @@
 # Portainer Quick Start Guide
 
+> **Note:** The standalone `docker-compose.yml` files have been removed; the canonical
+> stacks are `portainer-stack.yml` (prod) and `portainer-stack-dev.yml` (dev). Treat any
+> `docker-compose` commands below as illustrative.
+
 This guide will get you up and running with Portainer for managing your Maintenance Dashboard containers in just a few minutes.
 
 ## Prerequisites

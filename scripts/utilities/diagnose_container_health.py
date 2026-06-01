@@ -62,7 +62,6 @@ def check_api_endpoints():
     print("\nChecking API endpoints...")
     
     endpoints = [
-        "/api/migrations/",
         "/version/",
         "/health/"
     ]
@@ -95,23 +94,18 @@ def test_database_connection():
     print("\nTesting database connection...")
     
     try:
-        # Try to get migration status
-        api_url = f"{BASE_URL}/api/migrations/"
-        payload = {"command": "showmigrations"}
-        
-        response = requests.post(api_url, json=payload, timeout=30)
-        
+        # The /api/migrations/ endpoint was removed for security; use the
+        # read-only health endpoint to confirm the app (and its DB) are up.
+        api_url = f"{BASE_URL}/health/"
+
+        response = requests.get(api_url, timeout=30)
+
         if response.status_code == 200:
-            result = response.json()
-            if result.get('success'):
-                print("SUCCESS: Database connection is working")
-                print("Migration status retrieved successfully")
-                return True
-            else:
-                print(f"FAIL: Database API error: {result.get('error')}")
-                return False
+            print("SUCCESS: Database connection is working")
+            print("Health endpoint reports the application is up")
+            return True
         else:
-            print(f"FAIL: Database API returned status {response.status_code}")
+            print(f"FAIL: Health endpoint returned status {response.status_code}")
             return False
             
     except requests.exceptions.RequestException as e:

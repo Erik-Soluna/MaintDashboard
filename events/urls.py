@@ -32,9 +32,10 @@ urlpatterns = [
     path('api/test-events/', views.test_events_api, name='test_events_api'),
     path('api/health/', views.test_application_health, name='test_application_health'),
     
-    # New AJAX endpoints for popup functionality
-    path('api/events/create/', views.create_event_ajax, name='create_event_ajax'),
-    path('api/events/<int:event_id>/update/', views.update_event_ajax, name='update_event_ajax'),
+    # Removed for consolidation: create_event_ajax / update_event_ajax created
+    # standalone CalendarEvents with no edit path. Calendar events are now a view
+    # of maintenance activities; create/edit happens via the maintenance flow.
+    # Convert existing stranded events: manage.py convert_calendar_events_to_activities
     path('api/events/<int:event_id>/delete/', views.delete_event_ajax, name='delete_event_ajax'),
     path('api/form-data/', views.get_form_data, name='get_form_data'),
     

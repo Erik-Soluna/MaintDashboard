@@ -5,6 +5,7 @@ Django settings for maintenance_dashboard project.
 import os
 from pathlib import Path
 from decouple import config
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,19 +44,38 @@ except (ImportError, Exception) as e:
     VERSION_FULL = 'v0.0.0 (Development)'
     print(f"Warning: Could not load version info: {e}")
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
-
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+# Default OFF — production must be safe even if the env var is missing.
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*')
+# SECURITY WARNING: keep the secret key used in production secret!
+# No insecure default in production: require SECRET_KEY from the environment.
+# Only fall back to a throwaway key when DEBUG is on (local/dev).
+SECRET_KEY = config('SECRET_KEY', default=None)
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-dev-only-do-not-use-in-production'
+    else:
+        raise ImproperlyConfigured(
+            "SECRET_KEY environment variable must be set when DEBUG is off. "
+            "Set SECRET_KEY in the Portainer stack environment."
+        )
+
+# SECURITY WARNING: don't allow all hosts in production!
+# Default '*' only when DEBUG; production must set ALLOWED_HOSTS explicitly.
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*' if DEBUG else '')
 if not isinstance(ALLOWED_HOSTS, list):
     if isinstance(ALLOWED_HOSTS, bool):
         ALLOWED_HOSTS = ['*']
     else:
         ALLOWED_HOSTS = str(ALLOWED_HOSTS)
-        ALLOWED_HOSTS = [s.strip() for s in ALLOWED_HOSTS.split(',')]
+        ALLOWED_HOSTS = [s.strip() for s in ALLOWED_HOSTS.split(',') if s.strip()]
+if not ALLOWED_HOSTS and not DEBUG:
+    raise ImproperlyConfigured(
+        "ALLOWED_HOSTS must be set when DEBUG is off. "
+        "Set ALLOWED_HOSTS (comma-separated) in the Portainer stack environment, "
+        "e.g. ALLOWED_HOSTS=maintenance.errorlog.app"
+    )
 
 # Add testserver for Playwright testing
 if 'testserver' not in ALLOWED_HOSTS and '*' not in ALLOWED_HOSTS:
@@ -144,7 +164,8 @@ else:
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': config('DB_NAME', default='maintenance_dashboard'),
             'USER': config('DB_USER', default='postgres'),
-            'PASSWORD': config('DB_PASSWORD', default='postgres'),
+            # No insecure default in production: require DB_PASSWORD from the env.
+            'PASSWORD': config('DB_PASSWORD', default='postgres' if DEBUG else None),
             'HOST': config('DB_HOST', default='localhost'),
             'PORT': config('DB_PORT', default='5432'),
             'CONN_MAX_AGE': int(os.environ.get('DJANGO_DB_CONN_MAX_AGE', 300)),  # Allow override for celery (0) vs web (300)

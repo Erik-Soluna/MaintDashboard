@@ -198,4 +198,57 @@ def get_or_create_default_activity_type():
         return None
     except Exception as e:
         logger.error(f"Error getting default activity type: {str(e)}")
-        return None 
+        return None
+
+
+def get_all_descendant_location_ids(site, include_inactive=False):
+    """
+    Get all location IDs that belong to a site (including nested children).
+    Returns a set of location IDs including the site itself and all its descendants.
+
+    Uses a recursive CTE via raw SQL for reliable traversal. Shared utility
+    (previously defined in maintenance.views) used across the equipment, events,
+    and maintenance apps.
+
+    Args:
+        site: The site Location object
+        include_inactive: If True, include inactive locations in the hierarchy
+    """
+    from django.db import connection
+
+    location_ids = {site.id}
+
+    with connection.cursor() as cursor:
+        if include_inactive:
+            cursor.execute("""
+                WITH RECURSIVE location_tree AS (
+                    SELECT id, parent_location_id, 0 as depth
+                    FROM core_location
+                    WHERE id = %s
+                    UNION ALL
+                    SELECT l.id, l.parent_location_id, lt.depth + 1
+                    FROM core_location l
+                    INNER JOIN location_tree lt ON l.parent_location_id = lt.id
+                    WHERE lt.depth < 20
+                )
+                SELECT DISTINCT id FROM location_tree;
+            """, [site.id])
+        else:
+            cursor.execute("""
+                WITH RECURSIVE location_tree AS (
+                    SELECT id, parent_location_id, 0 as depth
+                    FROM core_location
+                    WHERE id = %s AND is_active = true
+                    UNION ALL
+                    SELECT l.id, l.parent_location_id, lt.depth + 1
+                    FROM core_location l
+                    INNER JOIN location_tree lt ON l.parent_location_id = lt.id
+                    WHERE l.is_active = true AND lt.depth < 20
+                )
+                SELECT DISTINCT id FROM location_tree;
+            """, [site.id])
+
+        for (location_id,) in cursor.fetchall():
+            location_ids.add(location_id)
+
+    return location_ids 

@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load tz %}
 
 {% block title %}{{ equipment.name }} - Equipment Details{% endblock %}
 
@@ -321,7 +322,7 @@
                                                     <span class="badge badge-secondary">{{ activity.get_status_display }}</span>
                                                 {% endif %}
                                             </td>
-                                            <td>{{ activity.scheduled_start|date:"M d, Y" }}</td>
+                                            <td>{% localtime off %}{{ activity.get_scheduled_start_in_timezone|date:"M d, Y" }}{% endlocaltime %}</td>
                                             <td>{% if activity.assigned_to %}{{ activity.assigned_to.get_full_name|default:activity.assigned_to.username }}{% else %}Unassigned{% endif %}</td>
                                             <td>
                                                 <a href="{% url 'maintenance:activity_detail' activity.id %}" class="btn btn-sm btn-outline-primary">

@@ -1905,8 +1905,9 @@ function displayMaintenanceDetails(activity) {
         window.open(`/maintenance/activities/${activity.id}/`, '_blank');
     };
     
-    // Show/hide action buttons based on status
-    if (activity.status === 'Scheduled' || activity.status === 'Pending') {
+    // Edit is available unless the activity is completed or cancelled (includes
+    // Scheduled, Pending, Overdue, In Progress) — matches the detail page.
+    if (activity.status !== 'Completed' && activity.status !== 'Cancelled') {
         editMaintenanceBtn.style.display = 'inline-block';
         editMaintenanceBtn.onclick = function() {
             window.open(`/maintenance/activities/${activity.id}/edit/`, '_blank');
