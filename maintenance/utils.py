@@ -26,8 +26,12 @@ def parse_wallclock_to_utc(value, timezone_str):
 
     - ``value`` may be a naive/aware ``datetime`` or a string from a
       ``datetime-local`` input (e.g. ``'2026-05-29T19:00'``).
-    - Naive values are localized to ``timezone_str`` (DST-safe via pytz
-      ``localize``); aware values are converted to UTC.
+    - The value is treated as a WALL-CLOCK in ``timezone_str``. Any tzinfo already
+      attached is dropped first: under ``USE_TZ`` a Django form ``DateTimeField``
+      makes datetime-local input aware in the server zone (UTC), and that spurious
+      tzinfo must NOT be honored — otherwise "8:00 AM Central" would be stored as
+      8:00 UTC and display as 3:00 AM. The naive wall-clock is then localized
+      (DST-safe via pytz ``localize``) and converted to UTC.
     - Returns ``None`` when ``value`` is falsy.
     """
     if not value:
@@ -54,10 +58,11 @@ def parse_wallclock_to_utc(value, timezone_str):
     except Exception:
         target_tz = pytz.UTC
 
-    if timezone.is_naive(value):
-        # Interpret the wall-clock time as being in the target timezone.
-        return target_tz.localize(value).astimezone(pytz.UTC)
-    return value.astimezone(pytz.UTC)
+    # Drop any tzinfo (see docstring) and treat the components as a wall-clock
+    # in the target timezone.
+    if timezone.is_aware(value):
+        value = value.replace(tzinfo=None)
+    return target_tz.localize(value).astimezone(pytz.UTC)
 
 
 def local_date_tomorrow(timezone_str):
