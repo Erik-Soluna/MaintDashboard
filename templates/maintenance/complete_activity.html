@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load tz %}
 
 {% block title %}Complete Activity - {{ activity.title }}{% endblock %}
 
@@ -64,10 +65,10 @@
                         <strong>Activity Type:</strong> {{ activity.activity_type.name }}
                     </div>
                     <div class="mb-2">
-                        <strong>Scheduled Start:</strong> {{ activity.scheduled_start|date:"Y-m-d H:i" }}
+                        <strong>Scheduled Start:</strong> {% localtime off %}{{ activity.get_scheduled_start_in_timezone|date:"Y-m-d H:i" }}{% endlocaltime %}
                     </div>
                     <div class="mb-2">
-                        <strong>Scheduled End:</strong> {{ activity.scheduled_end|date:"Y-m-d H:i" }}
+                        <strong>Scheduled End:</strong> {% localtime off %}{{ activity.get_scheduled_end_in_timezone|date:"Y-m-d H:i" }}{% endlocaltime %}
                     </div>
                     <div class="mb-2">
                         <strong>Priority:</strong> 

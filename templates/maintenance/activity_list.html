@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load tz %}
 
 {% block title %}Maintenance Activities{% endblock %}
 
@@ -64,7 +65,7 @@
                                     </td>
                                     <td>{{ activity.equipment.name }}</td>
                                     <td>{{ activity.activity_type.name }}</td>
-                                    <td>{{ activity.scheduled_start|date:"Y-m-d H:i" }}</td>
+                                    <td>{% localtime off %}{{ activity.get_scheduled_start_in_timezone|date:"Y-m-d H:i" }}{% endlocaltime %}</td>
                                     <td>
                                         <span class="badge {% if activity.status == 'completed' %}bg-success{% elif activity.status == 'in_progress' %}bg-warning{% elif activity.status == 'overdue' %}bg-danger{% else %}bg-secondary{% endif %}">
                                             {{ activity.get_status_display }}

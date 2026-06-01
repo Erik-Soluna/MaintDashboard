@@ -383,7 +383,7 @@
                     </div>
                     {% if next_maintenance %}
                     <div class="mb-2">
-                        <strong>Next Maintenance:</strong> {{ next_maintenance.scheduled_start|date:"M d, Y" }}
+                        <strong>Next Maintenance:</strong> {% localtime off %}{{ next_maintenance.get_scheduled_start_in_timezone|date:"M d, Y" }}{% endlocaltime %}
                     </div>
                     {% endif %}
                 </div>
@@ -401,7 +401,7 @@
                             {{ related.title }}
                         </a>
                         <br>
-                        <small class="text-muted">{{ related.scheduled_start|date:"M d, Y" }} - {{ related.get_status_display }}</small>
+                        <small class="text-muted">{% localtime off %}{{ related.get_scheduled_start_in_timezone|date:"M d, Y" }}{% endlocaltime %} - {{ related.get_status_display }}</small>
                     </div>
                     {% empty %}
                     <p class="text-muted mb-0">No related activities.</p>
@@ -419,7 +419,7 @@
                     <div class="mb-2">
                         <div class="d-flex justify-content-between">
                             <span>{{ history.title }}</span>
-                            <small class="text-muted">{{ history.actual_end|date:"M d" }}</small>
+                            <small class="text-muted">{% localtime off %}{{ history.get_actual_end_in_timezone|date:"M d" }}{% endlocaltime %}</small>
                         </div>
                         <small class="text-muted">{{ history.activity_type.name }}</small>
                     </div>
