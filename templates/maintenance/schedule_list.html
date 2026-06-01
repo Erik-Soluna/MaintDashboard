@@ -76,6 +76,9 @@
                                             <a href="{% url 'maintenance:edit_schedule' schedule.id %}" class="btn btn-sm btn-outline-secondary">
                                                 <i class="fas fa-edit"></i>
                                             </a>
+                                            <a href="{% url 'maintenance:delete_schedule' schedule.id %}" class="btn btn-sm btn-outline-danger" title="Delete schedule">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
                                         </div>
                                     </td>
                                 </tr>

@@ -211,7 +211,7 @@ def delete_schedule(request, schedule_id):
         schedule_name = f"{schedule.equipment.name} - {schedule.activity_type.name}"
         schedule.delete()
         messages.success(request, f'Maintenance schedule "{schedule_name}" deleted successfully!')
-        return redirect('maintenance:schedules')
+        return redirect('maintenance:schedule_list')
     
     context = {'schedule': schedule}
     return render(request, 'maintenance/delete_schedule.html', context)
