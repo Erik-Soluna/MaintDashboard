@@ -285,9 +285,6 @@
         </div>
         
         <div class="action-buttons">
-            <button type="submit" class="btn btn-primary btn-sm">
-                <i class="fas fa-search me-1"></i> Search
-            </button>
             <a href="{% url 'equipment:equipment_list' %}" class="btn btn-outline-secondary btn-sm">
                 <i class="fas fa-times me-1"></i> Clear
             </a>
@@ -515,6 +512,34 @@ $(document).ready(function() {
     $('#category, #location, #status').on('change', function() {
         $(this).closest('form').submit();
     });
+
+    // Search-as-you-type: debounce the search box so it submits shortly after
+    // the user stops typing (no Search button needed). Server-side filtering +
+    // pagination is unchanged — this just auto-fires the same GET request.
+    var $search = $('#search');
+    var searchTimer = null;
+    $search.on('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(function() {
+            $search.closest('form').submit();
+        }, 400);
+    });
+    // Submit immediately on Enter (don't wait for the debounce).
+    $search.on('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(searchTimer);
+            $(this).closest('form').submit();
+        }
+    });
+    // After the page reloads with a search term, restore focus and put the
+    // cursor at the end so the user can keep typing seamlessly.
+    if ($search.val()) {
+        var el = $search.get(0);
+        el.focus();
+        var len = el.value.length;
+        el.setSelectionRange(len, len);
+    }
 });
 
 // CSV Import confirmation
