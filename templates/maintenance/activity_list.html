@@ -41,10 +41,19 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    <form id="bulkDeleteForm" method="post" action="{% url 'maintenance:bulk_delete_activities' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <div class="mb-3">
+                            <button type="submit" id="bulkDeleteBtn" class="btn btn-danger btn-sm" disabled>
+                                <i class="fas fa-trash"></i> Delete Selected (<span id="bulkSelectedCount">0</span>)
+                            </button>
+                        </div>
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
                                 <tr>
+                                    <th style="width:32px;"><input type="checkbox" id="bulkSelectAll" title="Select all on this page"></th>
                                     <th>Title</th>
                                     <th>Equipment</th>
                                     <th>Activity Type</th>
@@ -58,6 +67,7 @@
                             <tbody>
                                 {% for activity in page_obj %}
                                 <tr>
+                                    <td><input type="checkbox" class="bulk-select-item" name="activity_ids" value="{{ activity.id }}"></td>
                                     <td>
                                         <a href="{% url 'maintenance:activity_detail' activity.id %}">
                                             {{ activity.title }}
@@ -95,12 +105,13 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="8" class="text-center">No activities found</td>
+                                    <td colspan="9" class="text-center">No activities found</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    </form>
 
                     {% if page_obj.has_other_pages %}
                     <nav aria-label="Page navigation">
@@ -136,4 +147,39 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var selectAll = document.getElementById('bulkSelectAll');
+    var btn = document.getElementById('bulkDeleteBtn');
+    var countEl = document.getElementById('bulkSelectedCount');
+    var form = document.getElementById('bulkDeleteForm');
+    function items() { return Array.prototype.slice.call(document.querySelectorAll('.bulk-select-item')); }
+    function update() {
+        var all = items();
+        var checked = all.filter(function (c) { return c.checked; }).length;
+        if (countEl) countEl.textContent = checked;
+        if (btn) btn.disabled = checked === 0;
+        if (selectAll) {
+            selectAll.checked = checked > 0 && checked === all.length;
+            selectAll.indeterminate = checked > 0 && checked < all.length;
+        }
+    }
+    if (selectAll) selectAll.addEventListener('change', function () {
+        items().forEach(function (c) { c.checked = selectAll.checked; });
+        update();
+    });
+    items().forEach(function (c) { c.addEventListener('change', update); });
+    if (form) form.addEventListener('submit', function (e) {
+        var n = items().filter(function (c) { return c.checked; }).length;
+        if (n === 0) { e.preventDefault(); return; }
+        if (!confirm('Delete ' + n + ' selected maintenance activit' + (n === 1 ? 'y' : 'ies') + '? This cannot be undone.')) {
+            e.preventDefault();
+        }
+    });
+    update();
+});
+</script>
 {% endblock %}
