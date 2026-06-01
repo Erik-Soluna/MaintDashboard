@@ -572,7 +572,7 @@ def activity_detail(request, activity_id):
         timeline_events.append({
             'type': 'status_change',
             'title': 'Activity Started',
-            'description': f'Maintenance activity started at {activity.actual_start.strftime("%Y-%m-%d %H:%M")}',
+            'description': f'Maintenance activity started at {activity.get_actual_start_in_timezone().strftime("%Y-%m-%d %H:%M")}',
             'timestamp': activity.actual_start,
             'created_by': None,
             'icon': 'fa-play',
@@ -583,7 +583,7 @@ def activity_detail(request, activity_id):
         timeline_events.append({
             'type': 'status_change',
             'title': 'Activity Completed',
-            'description': f'Maintenance activity completed at {activity.actual_end.strftime("%Y-%m-%d %H:%M")}',
+            'description': f'Maintenance activity completed at {activity.get_actual_end_in_timezone().strftime("%Y-%m-%d %H:%M")}',
             'timestamp': activity.actual_end,
             'created_by': None,
             'icon': 'fa-check',

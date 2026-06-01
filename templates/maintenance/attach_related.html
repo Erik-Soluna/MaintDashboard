@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load tz %}
 
 {% block title %}Attach Related Activity - {{ activity.title }}{% endblock %}
 
@@ -37,7 +38,7 @@
                     </div>
                     <div class="row mt-2">
                         <div class="col-md-6">
-                            <strong>Scheduled:</strong> {{ activity.scheduled_start|date:"M d, Y H:i" }}
+                            <strong>Scheduled:</strong> {% localtime off %}{{ activity.get_scheduled_start_in_timezone|date:"M d, Y H:i" }}{% endlocaltime %}
                         </div>
                         <div class="col-md-6">
                             <strong>Type:</strong> {{ activity.activity_type.name }}
@@ -61,7 +62,7 @@
                                 <option value="">--- Select Related Activity ---</option>
                                 {% for related in potential_related %}
                                 <option value="{{ related.id }}">
-                                    {{ related.title }} ({{ related.scheduled_start|date:"M d, Y" }} - {{ related.get_status_display }})
+                                    {{ related.title }} ({% localtime off %}{{ related.get_scheduled_start_in_timezone|date:"M d, Y" }}{% endlocaltime %} - {{ related.get_status_display }})
                                 </option>
                                 {% endfor %}
                             </select>

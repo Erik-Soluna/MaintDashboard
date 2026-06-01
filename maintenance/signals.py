@@ -116,7 +116,7 @@ def maintenance_activity_post_save(sender, instance, created, **kwargs):
             activity=instance,
             entry_type='created',
             title='Activity Created',
-            description=f'Maintenance activity "{instance.title}" was created and scheduled for {instance.scheduled_start.strftime("%Y-%m-%d %H:%M")}',
+            description=f'Maintenance activity "{instance.title}" was created and scheduled for {instance.get_scheduled_start_in_timezone().strftime("%Y-%m-%d %H:%M")}',
             created_by=instance.created_by
         )
     else:
@@ -146,7 +146,7 @@ def maintenance_activity_post_save(sender, instance, created, **kwargs):
                 entry_type='started',
                 defaults={
                     'title': 'Activity Started',
-                    'description': f'Maintenance activity started at {instance.actual_start.strftime("%Y-%m-%d %H:%M")}',
+                    'description': f'Maintenance activity started at {instance.get_actual_start_in_timezone().strftime("%Y-%m-%d %H:%M")}',
                     'created_by': instance.updated_by or instance.created_by
                 }
             )
@@ -160,7 +160,7 @@ def maintenance_activity_post_save(sender, instance, created, **kwargs):
                 entry_type='completed',
                 defaults={
                     'title': 'Activity Completed',
-                    'description': f'Maintenance activity completed at {instance.actual_end.strftime("%Y-%m-%d %H:%M")}',
+                    'description': f'Maintenance activity completed at {instance.get_actual_end_in_timezone().strftime("%Y-%m-%d %H:%M")}',
                     'created_by': instance.updated_by or instance.created_by
                 }
             )

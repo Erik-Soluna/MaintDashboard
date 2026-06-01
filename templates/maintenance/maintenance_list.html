@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load tz %}
 
 {% block title %}Maintenance Activities - Maintenance Dashboard{% endblock %}
 
@@ -125,7 +126,7 @@
                                             {{ activity.title }}
                                         </a>
                                     </td>
-                                    <td>{{ activity.scheduled_start|date:"M d, Y" }}</td>
+                                    <td>{% localtime off %}{{ activity.get_scheduled_start_in_timezone|date:"M d, Y" }}{% endlocaltime %}</td>
                                     <td>
                                         <span class="badge badge-{% if activity.status == 'scheduled' %}secondary{% elif activity.status == 'pending' %}warning{% else %}info{% endif %}">
                                             {{ activity.get_status_display }}
@@ -177,7 +178,7 @@
                                             {{ activity.title }}
                                         </a>
                                     </td>
-                                    <td>{{ activity.scheduled_end|date:"M d, Y" }}</td>
+                                    <td>{% localtime off %}{{ activity.get_scheduled_end_in_timezone|date:"M d, Y" }}{% endlocaltime %}</td>
                                     <td>
                                         <span class="badge badge-danger">
                                             {{ activity.scheduled_end|timesince }} ago
@@ -239,7 +240,7 @@
                                         <span class="text-muted">Unassigned</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ activity.actual_start|date:"M d, Y H:i" }}</td>
+                                <td>{% localtime off %}{{ activity.get_actual_start_in_timezone|date:"M d, Y H:i" }}{% endlocaltime %}</td>
                                 <td>
                                     <a href="{% url 'maintenance:activity_detail' activity.id %}" class="btn btn-sm btn-outline-primary">
                                         <i class="fas fa-eye"></i> View
