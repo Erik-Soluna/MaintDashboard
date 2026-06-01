@@ -9,6 +9,13 @@ permissions:
   contents: write
   pull-requests: write
 
+# Serialize runs per branch so two quick merges don't race on the version.json
+# push (the non-fast-forward failures). Queue, don't cancel — every merge still
+# gets its version bump.
+concurrency:
+  group: auto-version-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   auto-version:
     runs-on: ubuntu-latest
@@ -81,23 +88,41 @@ jobs:
         # Check if there are changes
         if git diff --staged --quiet; then
           echo "✅ No version changes to commit"
-        else
-          # Commit changes
-          git commit -m "🤖 Auto-update version to v${{ steps.version.outputs.commit_count }}.${{ steps.version.outputs.commit_hash }}"
-          
-          # Push changes with better error handling
-          echo "🔄 Pushing changes to ${{ steps.version.outputs.branch }}..."
-          if git push origin ${{ steps.version.outputs.branch }}; then
-            echo "✅ Version files committed and pushed successfully"
-          else
-            echo "❌ Failed to push changes"
-            echo "Git status:"
-            git status
-            echo "Git remote:"
-            git remote -v
-            exit 1
-          fi
+          exit 0
         fi
+
+        # Commit changes
+        git commit -m "🤖 Auto-update version to v${{ steps.version.outputs.commit_count }}.${{ steps.version.outputs.commit_hash }}"
+
+        BRANCH="${{ steps.version.outputs.branch }}"
+
+        # Push with rebase+retry. If another run (or a human) pushed in the
+        # meantime, the branch tip moves and a plain push is rejected
+        # non-fast-forward. Rebase our single version commit on top of the new
+        # tip and retry. version.json is the only file we touch, and the rebase
+        # regenerates it cleanly, so this converges.
+        for attempt in 1 2 3 4 5; do
+          echo "🔄 Push attempt $attempt to $BRANCH..."
+          if git push origin "HEAD:$BRANCH"; then
+            echo "✅ Version files committed and pushed successfully"
+            exit 0
+          fi
+          echo "⚠️  Push rejected — fetching and rebasing, then retrying..."
+          git fetch origin "$BRANCH"
+          # Drop our commit, take theirs, recompute version on top.
+          git reset --hard "origin/$BRANCH"
+          python version.py --update
+          if git diff --quiet -- version.json; then
+            echo "✅ Version already current on remote — nothing to push"
+            exit 0
+          fi
+          git add version.json
+          git commit -m "🤖 Auto-update version to v${{ steps.version.outputs.commit_count }}.${{ steps.version.outputs.commit_hash }}"
+        done
+
+        echo "❌ Failed to push after retries"
+        git status
+        exit 1
     
     - name: Create summary
       run: |
