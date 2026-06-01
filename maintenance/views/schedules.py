@@ -81,8 +81,13 @@ def add_schedule(request):
         if form.is_valid():
             schedule = form.save(commit=False)
             schedule.created_by = request.user
+            # The add template doesn't render the is_active checkbox, so it would
+            # otherwise post as False (BooleanField) and the new schedule would be
+            # hidden from schedule_list (which filters is_active=True). New
+            # schedules are active by default.
+            schedule.is_active = True
             schedule.save()
-            
+
             messages.success(request, f'Maintenance schedule created successfully!')
             return redirect('maintenance:schedule_detail', schedule_id=schedule.id)
     else:
@@ -473,8 +478,11 @@ def add_schedule_override(request):
         if form.is_valid():
             override = form.save(commit=False)
             override.created_by = request.user
+            # The add template doesn't render is_active; default new overrides to
+            # active so they actually take effect.
+            override.is_active = True
             override.save()
-            
+
             messages.success(request, 'Schedule override created successfully!')
             return redirect('maintenance:schedule_override_list')
     else:
