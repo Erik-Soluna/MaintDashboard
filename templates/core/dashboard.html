@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load tz %}
 
 {% block title %}Overview - SOLUNA Maintenance Dashboard{% endblock %}
 
@@ -482,7 +483,7 @@
                                 <div class="item-title">{{ item.title|truncatechars:35 }}</div>
                                 <div class="item-meta">
                                     <span class="status-dot {{ item.status }}"></span>
-                                    {% if item.scheduled_end %}{{ item.scheduled_end|date:"M d, H:i" }}{% elif item.scheduled_start %}{{ item.scheduled_start|date:"M d, H:i" }}{% endif %}
+                                    {% if item.scheduled_end %}{% localtime off %}{{ item.get_scheduled_end_in_timezone|date:"M d, H:i" }}{% endlocaltime %}{% elif item.scheduled_start %}{% localtime off %}{{ item.get_scheduled_start_in_timezone|date:"M d, H:i" }}{% endlocaltime %}{% endif %}
                                 </div>
                                 <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
                                 <div class="item-type-badge">MAINT</div>
@@ -522,7 +523,7 @@
                 <div class="item-title">{{ item.title|truncatechars:35 }}</div>
                 <div class="item-meta">
                     <span class="status-dot {{ item.status }}"></span>
-                    {{ item.scheduled_end|date:"M d, H:i" }}
+                    {% localtime off %}{{ item.get_scheduled_end_in_timezone|date:"M d, H:i" }}{% endlocaltime %}
                 </div>
                 <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
                 <div class="item-type-badge">MAINT</div>
@@ -583,7 +584,7 @@
                                 <div class="item-title">{{ item.title|truncatechars:35 }}</div>
                                 <div class="item-meta">
                                     <span class="status-dot {{ item.status }}"></span>
-                                    {% if item.scheduled_end %}{{ item.scheduled_end|date:"M d, H:i" }}{% elif item.scheduled_start %}{{ item.scheduled_start|date:"M d, H:i" }}{% endif %}
+                                    {% if item.scheduled_end %}{% localtime off %}{{ item.get_scheduled_end_in_timezone|date:"M d, H:i" }}{% endlocaltime %}{% elif item.scheduled_start %}{% localtime off %}{{ item.get_scheduled_start_in_timezone|date:"M d, H:i" }}{% endlocaltime %}{% endif %}
                                 </div>
                                 <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
                                 <div class="item-type-badge">MAINT</div>
@@ -623,7 +624,7 @@
                 <div class="item-title">{{ item.title|truncatechars:35 }}</div>
                 <div class="item-meta">
                     <span class="status-dot {{ item.status }}"></span>
-                    {{ item.scheduled_end|date:"M d, H:i" }}
+                    {% localtime off %}{{ item.get_scheduled_end_in_timezone|date:"M d, H:i" }}{% endlocaltime %}
                 </div>
                 <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
                 <div class="item-type-badge">MAINT</div>
@@ -684,7 +685,7 @@
                                 <div class="item-title">{{ item.title|truncatechars:35 }}</div>
                                 <div class="item-meta">
                                     <span class="status-dot {{ item.status }}"></span>
-                                    {% if item.scheduled_start %}{{ item.scheduled_start|date:"M d, H:i" }}{% else %}No date{% endif %}
+                                    {% if item.scheduled_start %}{% localtime off %}{{ item.get_scheduled_start_in_timezone|date:"M d, H:i" }}{% endlocaltime %}{% else %}No date{% endif %}
                                 </div>
                                 <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
                                 <div class="item-type-badge">MAINT</div>
@@ -704,7 +705,7 @@
                 <div class="item-title">{{ item.title|truncatechars:35 }}</div>
                 <div class="item-meta">
                     <span class="status-dot {{ item.status }}"></span>
-                    {% if item.scheduled_start %}{{ item.scheduled_start|date:"M d, H:i" }}{% else %}No date{% endif %}
+                    {% if item.scheduled_start %}{% localtime off %}{{ item.get_scheduled_start_in_timezone|date:"M d, H:i" }}{% endlocaltime %}{% else %}No date{% endif %}
                 </div>
                 <div class="item-equipment">{{ item.equipment.name|truncatechars:25 }}</div>
                 <div class="item-type-badge">MAINT</div>
