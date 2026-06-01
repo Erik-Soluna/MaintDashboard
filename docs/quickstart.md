@@ -1,5 +1,10 @@
 # Quick Start Guide
 
+> **Note:** The standalone `docker-compose.yml` files have been removed. Deployment
+> is via the Portainer stacks `portainer-stack.yml` (prod) / `portainer-stack-dev.yml`
+> (dev). The `docker-compose` commands below are illustrative — run the equivalents
+> against the deployed stack (e.g. `docker exec <web-container> ...`).
+
 Get the Maintenance Dashboard up and running in under 10 minutes with this step-by-step guide.
 
 ## 🎯 Prerequisites

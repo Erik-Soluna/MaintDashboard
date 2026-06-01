@@ -1,5 +1,9 @@
 # Portainer Stack Management
 
+> **Note:** The standalone `docker-compose.yml` files have been removed; the canonical
+> stacks are `portainer-stack.yml` (prod) and `portainer-stack-dev.yml` (dev). Treat any
+> `docker-compose` commands below as illustrative.
+
 Portainer is a lightweight management UI that allows you to easily manage your Docker environments. It has been integrated into the Maintenance Dashboard stack to provide an intuitive interface for container management, monitoring, and stack operations.
 
 > **🚀 Quick Start**: If you want to get started immediately, see the [Portainer Quick Start Guide](PORTAINER_QUICKSTART.md) for a step-by-step walkthrough.

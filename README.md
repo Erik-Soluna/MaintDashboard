@@ -4,9 +4,10 @@ A comprehensive Django-based maintenance management system with unified calendar
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Docker Desktop
-- Git
+The app is deployed via **Portainer** using the stack files in this repo:
+
+- **Production:** `portainer-stack.yml`
+- **Development:** `portainer-stack-dev.yml`
 
 ### Setup
 1. **Clone the repository**
@@ -15,15 +16,19 @@ A comprehensive Django-based maintenance management system with unified calendar
    cd MaintDashboard
    ```
 
-2. **Start the system**
+2. **Deploy the stack in Portainer**
+   - Create a stack from `portainer-stack-dev.yml` (dev) or `portainer-stack.yml` (prod).
+   - Set the required environment variables (see `env.example`) — at minimum
+     `SECRET_KEY`, `ALLOWED_HOSTS`, and the database credentials.
+
+3. **Create the admin user** (in the running `web` container)
    ```bash
-   docker compose up -d
+   python manage.py create_admin_user --username admin --force
    ```
 
-3. **Access the application**
-   - URL: http://localhost:8000/
-   - Username: `admin`
-   - Password: `temppass123`
+> Need a quick local instance for development? Run with Postgres via the dev
+> stack; a SQLite-only run is not currently supported (a Postgres-specific
+> migration is required).
 
 ## 📁 Project Structure
 
@@ -45,13 +50,10 @@ MaintDashboard/
 ├── 📂 tests/                   # Test files and test suites
 ├── 📂 docs/                    # Documentation and guides
 ├── 📂 deployment/              # Environment configurations
-├── 📂 debug/                   # Debug files and logs
 ├── 📂 images/                  # Screenshots and images
-├── 📂 playwright/              # Playwright testing
 ├── 🐳 Dockerfile               # Main Docker configuration
-├── 🐳 docker-compose.yml       # Docker Compose configuration
-├── 🐳 portainer-stack.yml      # Production Portainer stack
-├── 🐳 portainer-stack-dev.yml  # Development Portainer stack
+├── 🐳 portainer-stack.yml      # Production Portainer stack (canonical)
+├── 🐳 portainer-stack-dev.yml  # Development Portainer stack (canonical)
 ├── 📄 manage.py                # Django management script
 └── 📄 README.md                # This file
 ```
@@ -81,13 +83,12 @@ MaintDashboard/
 ## 🧪 Testing
 
 ### Automated Tests
+Run inside the running `web` container (e.g. via the Portainer console or
+`docker exec <web-container> ...`):
 ```bash
-# Run comprehensive test suite
-docker compose exec web python tests/test_unified_system.py
-
-# Run specific test categories
-docker compose exec web python tests/test_maintenance_reports.py
-docker compose exec web python tests/test_web_interface.py
+python tests/test_unified_system.py
+python tests/test_maintenance_reports.py
+python tests/test_web_interface.py
 ```
 
 ### Manual Testing
@@ -113,25 +114,15 @@ docker compose exec web python tests/test_web_interface.py
 
 See `scripts/README.md` for complete documentation.
 
-### Debug Directory
-- Debug scripts and utilities
-- Log files and JSON outputs
-- Performance optimization tools
-
 ## 🚀 Deployment
 
-### Docker Compose
-```bash
-# Development
-docker compose up -d
+Deployment is via **Portainer stacks** (the canonical compose files):
+- `portainer-stack.yml` — production
+- `portainer-stack-dev.yml` — development
 
-# Production
-docker compose -f deployment/docker-compose.prod.yml up -d
-```
-
-### Portainer Stack
-- `portainer-stack.yml` - Production stack
-- `portainer-stack-dev.yml` - Development stack
+Create/update the stack in Portainer and set the required environment variables
+(see `env.example`). Pushing to the `latest` branch builds the dev image; redeploy
+the dev stack to pick it up.
 
 ## 🔒 Security
 
