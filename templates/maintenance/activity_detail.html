@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load maintenance_filters %}
+{% load tz %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -63,7 +64,7 @@
                                 <strong>Scheduled Start:</strong>
                                 <span class="ms-2">
                                     {% if activity.scheduled_start %}
-                                        {{ activity.get_scheduled_start_in_timezone|date:"Y-m-d H:i" }}
+                                        {% localtime off %}{{ activity.get_scheduled_start_in_timezone|date:"Y-m-d H:i" }}{% endlocaltime %}
                                         {% if activity.timezone %}
                                             <small class="text-muted">({{ activity.get_timezone_display_name }})</small>
                                         {% endif %}
@@ -76,7 +77,7 @@
                                 <strong>Scheduled End:</strong>
                                 <span class="ms-2">
                                     {% if activity.scheduled_end %}
-                                        {{ activity.get_scheduled_end_in_timezone|date:"Y-m-d H:i" }}
+                                        {% localtime off %}{{ activity.get_scheduled_end_in_timezone|date:"Y-m-d H:i" }}{% endlocaltime %}
                                         {% if activity.timezone %}
                                             <small class="text-muted">({{ activity.get_timezone_display_name }})</small>
                                         {% endif %}
@@ -89,7 +90,7 @@
                             <div class="mb-3">
                                 <strong>Actual Start:</strong>
                                 <span class="ms-2">
-                                    {{ activity.actual_start|date:"Y-m-d H:i" }}
+                                    {% localtime off %}{{ activity.get_actual_start_in_timezone|date:"Y-m-d H:i" }}{% endlocaltime %}
                                     {% if activity.timezone %}
                                         <small class="text-muted">({{ activity.get_timezone_display_name }})</small>
                                     {% endif %}
@@ -100,7 +101,7 @@
                             <div class="mb-3">
                                 <strong>Actual End:</strong>
                                 <span class="ms-2">
-                                    {{ activity.actual_end|date:"Y-m-d H:i" }}
+                                    {% localtime off %}{{ activity.get_actual_end_in_timezone|date:"Y-m-d H:i" }}{% endlocaltime %}
                                     {% if activity.timezone %}
                                         <small class="text-muted">({{ activity.get_timezone_display_name }})</small>
                                     {% endif %}

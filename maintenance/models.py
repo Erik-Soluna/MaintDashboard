@@ -294,6 +294,30 @@ class MaintenanceActivity(TimeStampedModel):
         except Exception:
             return self.scheduled_end
     
+    def get_actual_start_in_timezone(self, target_timezone=None):
+        """Get actual start time in the specified timezone (defaults to activity tz)."""
+        if not self.actual_start:
+            return None
+        if target_timezone is None:
+            target_timezone = self.timezone
+        try:
+            import pytz
+            return self.actual_start.astimezone(pytz.timezone(target_timezone))
+        except Exception:
+            return self.actual_start
+
+    def get_actual_end_in_timezone(self, target_timezone=None):
+        """Get actual end time in the specified timezone (defaults to activity tz)."""
+        if not self.actual_end:
+            return None
+        if target_timezone is None:
+            target_timezone = self.timezone
+        try:
+            import pytz
+            return self.actual_end.astimezone(pytz.timezone(target_timezone))
+        except Exception:
+            return self.actual_end
+
     def get_timezone_display_name(self):
         """Get human-readable timezone name."""
         timezone_display_names = {
