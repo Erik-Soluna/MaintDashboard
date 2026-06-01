@@ -657,11 +657,15 @@ class MaintenanceActivityForm(forms.ModelForm):
         if self.instance and self.instance.pk:
             timezone_str = self.instance.timezone
             if timezone_str:
-                # Convert UTC datetimes to the activity's timezone for display
+                # Convert UTC datetimes to the activity's timezone for the
+                # datetime-local fields. NOTE: for a ModelForm bound to an
+                # instance, the widget renders from self.initial (populated from
+                # the instance), NOT self.fields[...].initial — so we must set
+                # self.initial here or the raw UTC value would be shown.
                 if self.instance.scheduled_start:
-                    self.fields['scheduled_start'].initial = self._convert_from_utc(self.instance.scheduled_start, timezone_str)
+                    self.initial['scheduled_start'] = self._convert_from_utc(self.instance.scheduled_start, timezone_str)
                 if self.instance.scheduled_end:
-                    self.fields['scheduled_end'].initial = self._convert_from_utc(self.instance.scheduled_end, timezone_str)
+                    self.initial['scheduled_end'] = self._convert_from_utc(self.instance.scheduled_end, timezone_str)
         
         # Add quick creation options to activity type field
         self.fields['activity_type'].widget.attrs.update({
