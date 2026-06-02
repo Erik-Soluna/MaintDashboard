@@ -290,11 +290,19 @@ def locations_settings(request):
             child.child_locations_sorted = sorted(child.child_locations.all(), key=lambda loc: natural_sort_key(loc.name))
     
     customers = Customer.objects.filter(is_active=True).order_by('name')
-    
+
+    # MDC-level locations (children of PODs) — targets for the Generate PDUs modal.
+    mdc_locations = sorted(
+        Location.objects.filter(is_site=False, parent_location__is_site=False, is_active=True)
+            .select_related('parent_location', 'parent_location__parent_location'),
+        key=lambda l: natural_sort_key(l.get_hierarchical_display()),
+    )
+
     context = {
         'locations': locations,
         'sites': sites,
         'customers': customers,
+        'mdc_locations': mdc_locations,
     }
     return render(request, 'core/locations_settings.html', context)
 
