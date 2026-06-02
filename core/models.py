@@ -159,6 +159,15 @@ class Location(TimeStampedModel):
     address = models.TextField(blank=True, help_text="Physical address")
     is_active = models.BooleanField(default=True)
 
+    # Facility-map layout (per-site floor plan, blank-grid canvas).
+    # For a SITE: layout_width/layout_height define the canvas size; layout_x/y unused.
+    # For a child location (e.g. a POD): the zone's rectangle in its site's canvas
+    # coordinate space (pixels). All null until placed via the map editor.
+    layout_x = models.FloatField(null=True, blank=True, help_text="Facility-map X (site canvas units)")
+    layout_y = models.FloatField(null=True, blank=True, help_text="Facility-map Y (site canvas units)")
+    layout_width = models.FloatField(null=True, blank=True, help_text="Facility-map width (or canvas width for a site)")
+    layout_height = models.FloatField(null=True, blank=True, help_text="Facility-map height (or canvas height for a site)")
+
     # Custom manager for natural sorting
     objects = NaturalSortManager()
 
