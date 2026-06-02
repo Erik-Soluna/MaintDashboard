@@ -96,6 +96,13 @@ class Equipment(TimeStampedModel):
         help_text="Next scheduled maintenance date",
         db_column='item_due_date'  # Keep original column name
     )
+
+    # Facility-map layout — position within the site canvas (same coordinate space
+    # as Location zones, pixels). Null until placed via the map editor.
+    layout_x = models.FloatField(null=True, blank=True, help_text="Facility-map X (site canvas units)")
+    layout_y = models.FloatField(null=True, blank=True, help_text="Facility-map Y (site canvas units)")
+    layout_width = models.FloatField(null=True, blank=True, help_text="Facility-map box width (site canvas units)")
+    layout_height = models.FloatField(null=True, blank=True, help_text="Facility-map box height (site canvas units)")
     
     # Additional tracking fields
     commissioning_date = models.DateField(null=True, blank=True)
