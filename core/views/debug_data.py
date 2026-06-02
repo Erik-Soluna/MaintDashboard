@@ -106,6 +106,52 @@ def clear_maintenance_data(request):
 @login_required
 @user_passes_test(is_staff_or_superuser)
 @require_http_methods(["POST"])
+def generate_pdus(request):
+    """Generate PDU equipment ("PDU {building}-{n}") under an MDC location.
+    Wraps the create_pdus management command (always --apply from the UI)."""
+    try:
+        location_id = request.POST.get('location_id', '').strip()
+        building_map = request.POST.get('map', '').strip()
+        building = request.POST.get('building', '').strip()
+        count = request.POST.get('count', '').strip()
+
+        if not location_id:
+            return JsonResponse({'success': False, 'error': 'Select a target MDC location.'}, status=400)
+        if not building_map and not (building and count):
+            return JsonResponse({'success': False, 'error': 'Provide a building:count map, or a building and count.'}, status=400)
+
+        args = ['create_pdus', '--location-id', location_id, '--apply']
+        if building_map:
+            args += ['--map', building_map]
+        else:
+            args += ['--building', building, '--count', count]
+
+        output = StringIO()
+        call_command(*args, stdout=output, stderr=output, verbosity=2)
+        result = output.getvalue()
+        output.close()
+
+        m = re.search(r'Created (\d+)', result)
+        created_count = int(m.group(1)) if m else 0
+
+        return JsonResponse({
+            'success': True,
+            'message': f'PDU generation complete! Created: {created_count} PDU(s).',
+            'created_count': created_count,
+            'output': result,
+        })
+    except Exception as e:
+        import traceback
+        return JsonResponse({
+            'success': False,
+            'error': f'Error generating PDUs: {str(e)}',
+            'details': traceback.format_exc(),
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_http_methods(["POST"])
 def generate_pods(request):
     """Generate PODs for selected sites or all sites."""
     try:
@@ -528,4 +574,4 @@ def clear_database(request):
         }, status=500)
 
 
-__all__ = ["clear_maintenance_data", "generate_pods", "generate_mdcs", "populate_demo_data", "clear_maintenance_activities", "clear_database"]
+__all__ = ["clear_maintenance_data", "generate_pods", "generate_mdcs", "generate_pdus", "populate_demo_data", "clear_maintenance_activities", "clear_database"]

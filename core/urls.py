@@ -52,6 +52,7 @@ urlpatterns = [
     path('debug/populate-demo/', views.populate_demo_data, name='populate_demo_data'),
     path('debug/generate-pods/', views.generate_pods, name='generate_pods'),
     path('debug/generate-mdcs/', views.generate_mdcs, name='generate_mdcs'),
+    path('debug/generate-pdus/', views.generate_pdus, name='generate_pdus'),
     path('docker/containers/', views.get_docker_containers_api, name='get_docker_containers'),
     path('docker/logs/', views.get_docker_logs_api, name='get_docker_logs'),
     path('docker/aggregated-logs/', views.get_aggregated_logs_api, name='get_aggregated_logs'),
