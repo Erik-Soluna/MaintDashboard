@@ -195,10 +195,18 @@
                             <td><small>{% localtime off %}{{ issue.created_at|date:"Y-m-d" }}{% endlocaltime %}</small></td>
                             <td><small>{{ issue.created_by.get_full_name|default:issue.created_by.username|default:"—" }}</small></td>
                             <td>
-                                <a href="{% url 'equipment:equipment_detail' issue.equipment.id %}#issues"
-                                   class="btn btn-sm btn-outline-primary" title="View on equipment">
-                                    <i class="fas fa-arrow-right"></i>
-                                </a>
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-primary create-maintenance-btn"
+                                            data-issue-id="{{ issue.id }}"
+                                            data-equipment-id="{{ issue.equipment.id }}"
+                                            title="Create Maintenance Activity">
+                                        <i class="fas fa-wrench"></i>
+                                    </button>
+                                    <a href="{% url 'equipment:equipment_detail' issue.equipment.id %}#issues"
+                                       class="btn btn-sm btn-outline-primary" title="View on equipment">
+                                        <i class="fas fa-arrow-right"></i>
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -235,6 +243,29 @@
         </div>
     </div>
 </div>
+
+<!-- Create Maintenance Activity modal (loaded per-issue via AJAX) -->
+<div class="modal fade" id="createMaintenanceModal" tabindex="-1" aria-labelledby="createMaintenanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createMaintenanceModalLabel">
+                    <i class="fas fa-wrench me-2"></i>Create Maintenance Activity
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body" id="createMaintenanceModalBody">
+                <div class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Loading form...</p></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submitCreateMaintenance">
+                    <i class="fas fa-wrench me-1"></i> Create Activity
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -242,6 +273,56 @@
 $(document).ready(function() {
     // Auto-submit on filter change
     $('#status, #severity').on('change', function() { $(this).closest('form').submit(); });
+
+    // Create maintenance activity from an issue (same flow as the equipment
+    // detail Issues tab): load the form into the modal, then submit via AJAX.
+    $('.create-maintenance-btn').on('click', function() {
+        var issueId = $(this).data('issue-id');
+        var equipmentId = $(this).data('equipment-id');
+        var modalBody = $('#createMaintenanceModalBody');
+        $('#createMaintenanceModal').modal('show');
+        modalBody.html('<div class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Loading form...</p></div>');
+        $.ajax({
+            url: '/equipment/' + equipmentId + '/issues/' + issueId + '/create-maintenance/',
+            type: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(response) {
+                modalBody.html(response.success ? response.form_html : '<div class="alert alert-danger">Error loading form. Please try again.</div>');
+            },
+            error: function() { modalBody.html('<div class="alert alert-danger">Error loading form. Please try again.</div>'); }
+        });
+    });
+
+    $(document).on('submit', '#createMaintenanceFromIssueForm', function(e) { e.preventDefault(); submitCreateMaintenance(); });
+    $('#submitCreateMaintenance').on('click', function() { $('#createMaintenanceFromIssueForm').submit(); });
+
+    function submitCreateMaintenance() {
+        var form = $('#createMaintenanceFromIssueForm');
+        var submitBtn = $('#submitCreateMaintenance');
+        var originalText = submitBtn.html();
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Creating...');
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(response) {
+                if (response.success) {
+                    $('#createMaintenanceModal').modal('hide');
+                    if (response.redirect_url) { window.location.href = response.redirect_url; }
+                    else { alert(response.message || 'Maintenance activity created successfully!'); }
+                } else {
+                    alert('Error: ' + (response.errors ? JSON.stringify(response.errors) : 'Failed to create maintenance activity'));
+                    submitBtn.prop('disabled', false).html(originalText);
+                }
+            },
+            error: function(xhr) {
+                var errorMsg = xhr.responseJSON && xhr.responseJSON.errors ? JSON.stringify(xhr.responseJSON.errors) : 'Failed to create maintenance activity';
+                alert('Error: ' + errorMsg);
+                submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    }
 
     // Search-as-you-type (debounced), consistent with the equipment list.
     var $search = $('#search');
