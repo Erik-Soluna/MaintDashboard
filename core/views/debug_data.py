@@ -110,21 +110,20 @@ def generate_pdus(request):
     """Generate PDU equipment ("PDU {building}-{n}") under an MDC location.
     Wraps the create_pdus management command (always --apply from the UI)."""
     try:
+        site_id = request.POST.get('site_id', '').strip()
         location_id = request.POST.get('location_id', '').strip()
-        building_map = request.POST.get('map', '').strip()
-        building = request.POST.get('building', '').strip()
         count = request.POST.get('count', '').strip()
 
-        if not location_id:
-            return JsonResponse({'success': False, 'error': 'Select a target MDC location.'}, status=400)
-        if not building_map and not (building and count):
-            return JsonResponse({'success': False, 'error': 'Provide a building:count map, or a building and count.'}, status=400)
+        if not count:
+            return JsonResponse({'success': False, 'error': 'Enter how many PDUs per MDC.'}, status=400)
+        if not site_id and not location_id:
+            return JsonResponse({'success': False, 'error': 'Select a site (or a single MDC).'}, status=400)
 
-        args = ['create_pdus', '--location-id', location_id, '--apply']
-        if building_map:
-            args += ['--map', building_map]
+        args = ['create_pdus', '--count', count, '--apply']
+        if location_id:
+            args += ['--location-id', location_id]   # single MDC overrides site
         else:
-            args += ['--building', building, '--count', count]
+            args += ['--site-id', site_id]
 
         output = StringIO()
         call_command(*args, stdout=output, stderr=output, verbosity=2)

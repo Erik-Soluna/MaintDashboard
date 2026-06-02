@@ -1,137 +1,127 @@
 """
-Create PDU equipment under an MDC location, following the naming schema
-"PDU {building}-{n}" (e.g. PDU 10-1 = building 10, PDU 1) — SSDEV-26 #2.
+Create PDU equipment under MDC locations, named "PDU {building}-{n}"
+(e.g. PDU 10-1 = building 10, PDU 1) — SSDEV-26 #2.
 
-Idempotent (skips PDUs that already exist by name) and dry-run by default.
+An MDC *is* a building: the building number is taken from the MDC's name
+(the integer in "MDC 10"). You choose a whole site (every MDC under it) or a
+single MDC, and how many PDUs per MDC.
+
+Idempotent: PDUs that already exist (by name) are skipped — re-running never
+duplicates or recreates them. Dry-run by default; pass --apply to write.
 
 Examples:
-  # building 10, PDUs 1..6 under the MDC location named "MDC 1" (dry-run)
-  python manage.py create_pdus --map "10:6" --location-name "MDC 1"
-
-  # multiple buildings, then actually write
-  python manage.py create_pdus --map "10:6,11:6" --location-name "MDC 1" --apply
-
-  # target an exact location id (skips name lookup)
-  python manage.py create_pdus --building 10 --count 6 --location-id 42 --apply
+  # every MDC under a site, 36 PDUs each (preview)
+  python manage.py create_pdus --site-id 3 --count 36
+  # just one MDC, 36 PDUs, write for real
+  python manage.py create_pdus --location-id 42 --count 36 --apply
 """
 
+import re
+
 from django.core.management.base import BaseCommand, CommandError
-from django.contrib.auth.models import User
 
 from core.models import EquipmentCategory, Location
+from core.utils import get_all_descendant_location_ids
 from equipment.models import Equipment
 
 
 class Command(BaseCommand):
-    help = ('Create PDU equipment ("PDU {building}-{n}") under an MDC location. '
-            'Dry-run unless --apply.')
+    help = ('Create "PDU {building}-{n}" equipment under MDC locations '
+            '(building number derived from the MDC name). Dry-run unless --apply.')
 
     def add_arguments(self, parser):
-        parser.add_argument('--map', dest='map',
-                            help='Comma-separated building:count pairs, e.g. "10:6,11:6".')
-        parser.add_argument('--building', type=int, help='Single building number (with --count).')
-        parser.add_argument('--count', type=int, help='PDUs per building (1..count), with --building.')
-        parser.add_argument('--location-id', type=int, help='Target location id (the MDC).')
-        parser.add_argument('--location-name', help='Target location name, e.g. "MDC 1".')
-        parser.add_argument('--site', help='Site name to disambiguate --location-name.')
+        parser.add_argument('--site-id', type=int, help='Generate for every MDC under this site.')
+        parser.add_argument('--site', help='Site name (alternative to --site-id).')
+        parser.add_argument('--location-id', type=int, help='Generate for a single MDC location id.')
+        parser.add_argument('--count', type=int, required=True, help='PDUs per MDC/building (1..count).')
+        parser.add_argument('--building', type=int,
+                            help='Override the building number (only valid with a single --location-id).')
         parser.add_argument('--category', default='PDU', help='Equipment category name (default: PDU).')
         parser.add_argument('--apply', action='store_true', help='Persist changes (otherwise report only).')
 
-    # ----- helpers -----
-    def _parse_buildings(self, options):
-        """Return an ordered list of (building, count) from --map or --building/--count."""
-        pairs = []
-        if options.get('map'):
-            for chunk in options['map'].split(','):
-                chunk = chunk.strip()
-                if not chunk:
-                    continue
-                try:
-                    b, c = chunk.split(':')
-                    pairs.append((int(b), int(c)))
-                except ValueError:
-                    raise CommandError(f'Bad --map entry "{chunk}"; expected building:count.')
-        if options.get('building') is not None:
-            if options.get('count') is None:
-                raise CommandError('--building requires --count.')
-            pairs.append((options['building'], options['count']))
-        if not pairs:
-            raise CommandError('Provide --map "10:6,11:6" or --building N --count M.')
-        for _, c in pairs:
-            if c < 1:
-                raise CommandError('count must be >= 1.')
-        return pairs
-
-    def _resolve_location(self, options):
+    def _resolve_mdcs(self, options):
+        """Return the list of target MDC locations."""
         if options.get('location_id'):
             try:
-                return Location.objects.get(id=options['location_id'])
+                return [Location.objects.get(id=options['location_id'])]
             except Location.DoesNotExist:
                 raise CommandError(f"No location with id {options['location_id']}.")
-        name = options.get('location_name')
-        if not name:
-            raise CommandError('Provide --location-id or --location-name (the MDC).')
-        qs = Location.objects.filter(name=name)
-        matches = list(qs)
-        if options.get('site'):
-            matches = [m for m in matches if (m.get_site_location() and m.get_site_location().name == options['site'])]
-        if not matches:
-            raise CommandError(f'No location named "{name}"' + (f' under site "{options["site"]}".' if options.get('site') else '.'))
-        if len(matches) > 1:
-            paths = "\n  ".join(f'id={m.id}: {m.get_hierarchical_display()}' for m in matches)
-            raise CommandError(f'Multiple locations named "{name}". Use --site or --location-id:\n  {paths}')
-        return matches[0]
 
-    # ----- main -----
+        site = None
+        if options.get('site_id'):
+            try:
+                site = Location.objects.get(id=options['site_id'], is_site=True)
+            except Location.DoesNotExist:
+                raise CommandError(f"No site with id {options['site_id']}.")
+        elif options.get('site'):
+            matches = list(Location.objects.filter(name=options['site'], is_site=True))
+            if not matches:
+                raise CommandError(f'No site named "{options["site"]}".')
+            if len(matches) > 1:
+                raise CommandError(f'Multiple sites named "{options["site"]}"; use --site-id.')
+            site = matches[0]
+        else:
+            raise CommandError('Provide --site-id / --site (whole site) or --location-id (single MDC).')
+
+        # MDCs = locations under the site whose parent is a POD (i.e. not the site itself).
+        descendant_ids = get_all_descendant_location_ids(site, include_inactive=True)
+        mdcs = list(Location.objects.filter(
+            id__in=descendant_ids, is_site=False, parent_location__is_site=False, is_active=True))
+        if not mdcs:
+            raise CommandError(f'No MDC-level locations found under site "{site.name}".')
+        return mdcs
+
+    def _building_for(self, mdc, override, single):
+        if override is not None and single:
+            return override
+        m = re.search(r'\d+', mdc.name or '')
+        return int(m.group()) if m else None
+
     def handle(self, *args, **options):
         apply_changes = options['apply']
-        buildings = self._parse_buildings(options)
-        location = self._resolve_location(options)
-        system_user = User.objects.filter(is_superuser=True).order_by('id').first()
+        count = options['count']
+        if count < 1:
+            raise CommandError('--count must be >= 1.')
+
+        mdcs = self._resolve_mdcs(options)
+        single = bool(options.get('location_id'))
+        if options.get('building') is not None and not single:
+            raise CommandError('--building is only valid with a single --location-id.')
 
         mode = 'APPLY' if apply_changes else 'DRY-RUN'
-        self.stdout.write(f"Create PDUs [{mode}]")
-        self.stdout.write(f"  Location : {location.get_hierarchical_display()} (id={location.id})")
-        self.stdout.write(f"  Category : {options['category']}")
+        self.stdout.write(f"Create PDUs [{mode}] — {len(mdcs)} MDC(s), {count} per MDC, category '{options['category']}'")
 
         category = None
         if apply_changes:
-            category, cat_created = EquipmentCategory.objects.get_or_create(
+            category, _ = EquipmentCategory.objects.get_or_create(
                 name=options['category'], defaults={'is_active': True})
-            if cat_created:
-                self.stdout.write(self.style.SUCCESS(f"  + created category '{options['category']}'"))
-        else:
-            existing_cat = EquipmentCategory.objects.filter(name=options['category']).first()
-            if not existing_cat:
-                self.stdout.write(f"  (would create category '{options['category']}')")
 
         created = skipped = 0
-        for building, count in buildings:
+        for mdc in sorted(mdcs, key=lambda m: m.name):
+            building = self._building_for(mdc, options.get('building'), single)
+            if building is None:
+                self.stdout.write(self.style.WARNING(
+                    f"  ! skipping {mdc.get_hierarchical_display()} — no building number in name"))
+                continue
+            self.stdout.write(f"  {mdc.get_hierarchical_display()} -> building {building}")
             for i in range(1, count + 1):
                 name = f"PDU {building}-{i}"
                 tag = f"PDU-{building}-{i}"
                 if Equipment.objects.filter(name=name).exists():
-                    self.stdout.write(f"  = exists: {name}")
                     skipped += 1
                     continue
-                self.stdout.write(self.style.SUCCESS(f"  + {name}  (asset_tag={tag})"))
                 created += 1
+                self.stdout.write(self.style.SUCCESS(f"    + {name}"))
                 if apply_changes:
                     Equipment.objects.create(
-                        name=name,
-                        category=category,
-                        location=location,
-                        manufacturer_serial=tag,
-                        asset_tag=tag,
-                        status='active',
-                        is_active=True,
-                        created_by=system_user,
-                        updated_by=system_user,
+                        name=name, category=category, location=mdc,
+                        manufacturer_serial=tag, asset_tag=tag,
+                        status='active', is_active=True,
                     )
 
-        summary = f"{created} PDU(s) to create, {skipped} already present."
+        summary = f"{created} PDU(s) to create, {skipped} already present (skipped)."
         if apply_changes:
-            summary = f"Created {created} PDU(s); {skipped} already present."
+            summary = f"Created {created} PDU(s); {skipped} already present (skipped)."
         elif created:
             summary += " Re-run with --apply to persist."
         self.stdout.write(self.style.SUCCESS(summary))
