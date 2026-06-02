@@ -860,6 +860,7 @@
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
             </div>
             <form id="generatePdusForm">
+                {% csrf_token %}
                 <div class="modal-body">
                     <div class="alert alert-info">
                         Creates PDU equipment named <code>PDU {building}-{n}</code> (e.g. <code>PDU 10-1</code>)
