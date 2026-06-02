@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load tz %}
+
+{% block title %}Issues - Maintenance Dashboard{% endblock %}
+
+{% block breadcrumb %}
+<li class="breadcrumb-item active">Issues</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.issues-header {
+    background-color: #2d3748;
+    border-bottom: 1px solid #4a5568;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+}
+.issues-filters { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+.filter-group { display: flex; align-items: center; gap: 8px; }
+.filter-group label { color: #e2e8f0; font-size: 14px; font-weight: 500; white-space: nowrap; margin: 0; }
+.filter-select, .search-input {
+    background-color: #1a2238; color: white; border: 1px solid #4a5568;
+    border-radius: 6px; padding: 6px 12px; font-size: 14px;
+}
+.filter-select { min-width: 130px; }
+.search-input { min-width: 240px; }
+.filter-select:focus, .search-input:focus {
+    background-color: #1a2238; border-color: #4299e1;
+    box-shadow: 0 0 0 0.2rem rgba(66, 153, 225, 0.25); color: white;
+}
+.search-input::placeholder { color: #a0aec0; }
+.action-buttons { margin-left: auto; display: flex; gap: 10px; }
+
+/* Stat cards */
+.issue-stats { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; }
+.issue-stat-card {
+    flex: 1; min-width: 150px; background-color: #2d3748; border: 1px solid #4a5568;
+    border-radius: 8px; padding: 16px 20px; text-align: center;
+}
+.issue-stat-card .num { font-size: 28px; font-weight: 700; line-height: 1; }
+.issue-stat-card .lbl { color: #a0aec0; font-size: 13px; margin-top: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.issue-stat-card.open .num { color: #f56565; }
+.issue-stat-card.progress .num { color: #ed8936; }
+.issue-stat-card.resolved .num { color: #48bb78; }
+.issue-stat-card.total .num { color: #4299e1; }
+
+.issues-table-container { background-color: #2d3748; border-radius: 8px; border: 1px solid #4a5568; overflow: hidden; }
+.issues-table-header {
+    background-color: #1a2238; padding: 15px 20px; border-bottom: 1px solid #4a5568;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.issues-table-header h5 { color: #e2e8f0; margin: 0; }
+.table thead th { background-color: #1a2238; color: #e2e8f0; border-bottom: 2px solid #4a5568; padding: 12px 15px; font-weight: 600; }
+.table tbody td { padding: 12px 15px; color: #e2e8f0; border-bottom: 1px solid #4a5568; vertical-align: middle; }
+.table tbody tr:hover { background-color: #374151; }
+.badge { font-size: 11px; padding: 4px 8px; }
+.pagination { justify-content: center; margin: 0; }
+.page-link { background-color: #2d3748; border-color: #4a5568; color: #e2e8f0; }
+.page-link:hover { background-color: #4299e1; border-color: #4299e1; color: white; }
+.page-item.active .page-link { background-color: #4299e1; border-color: #4299e1; }
+.empty-state { text-align: center; padding: 60px 20px; color: #a0aec0; }
+.empty-state i { font-size: 48px; margin-bottom: 20px; color: #4a5568; }
+.issue-title-link { color: #e2e8f0; font-weight: 600; text-decoration: none; }
+.issue-title-link:hover { color: #4299e1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="issues-header">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3 class="mb-0 text-white">
+                <i class="fas fa-exclamation-triangle me-2"></i> Issues
+            </h3>
+            <p class="text-muted mb-0">
+                What needs to be repaired across
+                {% if selected_site %}{{ selected_site.name }}{% else %}all sites{% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="issue-stats">
+        <div class="issue-stat-card open">
+            <div class="num">{{ stats.open }}</div>
+            <div class="lbl">Open{% if stats.critical_open %} &middot; {{ stats.critical_open }} critical{% endif %}</div>
+        </div>
+        <div class="issue-stat-card progress">
+            <div class="num">{{ stats.in_progress }}</div>
+            <div class="lbl">In Progress</div>
+        </div>
+        <div class="issue-stat-card resolved">
+            <div class="num">{{ stats.resolved }}</div>
+            <div class="lbl">Resolved</div>
+        </div>
+        <div class="issue-stat-card total">
+            <div class="num">{{ stats.total }}</div>
+            <div class="lbl">Total</div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form method="get" class="issues-filters" id="issuesFilterForm">
+        {% if selected_site_id %}<input type="hidden" name="site_id" value="{{ selected_site_id }}">{% endif %}
+        <div class="filter-group">
+            <label for="search">Search:</label>
+            <input type="text" id="search" name="search" class="search-input"
+                   value="{{ search_term }}" placeholder="Search by issue title, description, equipment, tag...">
+        </div>
+        <div class="filter-group">
+            <label for="status">Status:</label>
+            <select id="status" name="status" class="filter-select">
+                <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active (open + in progress)</option>
+                {% for value, display in statuses %}
+                <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ display }}</option>
+                {% endfor %}
+                <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All</option>
+            </select>
+        </div>
+        <div class="filter-group">
+            <label for="severity">Severity:</label>
+            <select id="severity" name="severity" class="filter-select">
+                <option value="">All Severities</option>
+                {% for value, display in severities %}
+                <option value="{{ value }}" {% if selected_severity == value %}selected{% endif %}>{{ display }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="action-buttons">
+            <a href="{% url 'equipment:issues_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-times me-1"></i> Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="issues-table-container">
+            <div class="issues-table-header">
+                <h5>Issue List</h5>
+                <span class="badge badge-primary">{{ page_obj.paginator.count }} shown</span>
+            </div>
+            <div class="table-responsive">
+                {% if page_obj %}
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Issue</th>
+                            <th>Equipment</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Reported</th>
+                            <th>By</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for issue in page_obj %}
+                        <tr>
+                            <td>
+                                {% if issue.severity == 'critical' %}<span class="badge badge-danger">Critical</span>
+                                {% elif issue.severity == 'high' %}<span class="badge badge-warning">High</span>
+                                {% elif issue.severity == 'medium' %}<span class="badge badge-info">Medium</span>
+                                {% else %}<span class="badge badge-secondary">Low</span>{% endif %}
+                            </td>
+                            <td>
+                                <a class="issue-title-link" href="{% url 'equipment:equipment_detail' issue.equipment.id %}#issues">
+                                    {{ issue.title }}
+                                </a>
+                                {% if issue.description %}
+                                <small class="text-muted d-block text-truncate" style="max-width: 360px;">{{ issue.description }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a class="issue-title-link" href="{% url 'equipment:equipment_detail' issue.equipment.id %}">
+                                    {{ issue.equipment.name }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if issue.equipment.location %}
+                                    <small>{{ issue.equipment.location.get_hierarchical_display }}</small>
+                                {% else %}
+                                    <small class="text-muted">—</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if issue.status == 'open' %}<span class="badge badge-danger">Open</span>
+                                {% elif issue.status == 'in_progress' %}<span class="badge badge-warning">In Progress</span>
+                                {% elif issue.status == 'resolved' %}<span class="badge badge-success">Resolved</span>
+                                {% else %}<span class="badge badge-secondary">Closed</span>{% endif %}
+                            </td>
+                            <td><small>{% localtime off %}{{ issue.created_at|date:"Y-m-d" }}{% endlocaltime %}</small></td>
+                            <td><small>{{ issue.created_by.get_full_name|default:issue.created_by.username|default:"—" }}</small></td>
+                            <td>
+                                <a href="{% url 'equipment:equipment_detail' issue.equipment.id %}#issues"
+                                   class="btn btn-sm btn-outline-primary" title="View on equipment">
+                                    <i class="fas fa-arrow-right"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                {% if page_obj.has_other_pages %}
+                <nav aria-label="Issues pagination" class="p-3">
+                    <ul class="pagination">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_term %}&search={{ search_term }}{% endif %}&status={{ selected_status }}{% if selected_severity %}&severity={{ selected_severity }}{% endif %}{% if selected_site_id %}&site_id={{ selected_site_id }}{% endif %}"><i class="fas fa-angle-left"></i></a></li>
+                        {% endif %}
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item"><a class="page-link" href="?page={{ num }}{% if search_term %}&search={{ search_term }}{% endif %}&status={{ selected_status }}{% if selected_severity %}&severity={{ selected_severity }}{% endif %}{% if selected_site_id %}&site_id={{ selected_site_id }}{% endif %}">{{ num }}</a></li>
+                            {% endif %}
+                        {% endfor %}
+                        {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_term %}&search={{ search_term }}{% endif %}&status={{ selected_status }}{% if selected_severity %}&severity={{ selected_severity }}{% endif %}{% if selected_site_id %}&site_id={{ selected_site_id }}{% endif %}"><i class="fas fa-angle-right"></i></a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-check-circle"></i>
+                    <h5 class="text-muted">No issues found</h5>
+                    <p class="text-muted">Nothing matches the current filters — no outstanding repairs here.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Auto-submit on filter change
+    $('#status, #severity').on('change', function() { $(this).closest('form').submit(); });
+
+    // Search-as-you-type (debounced), consistent with the equipment list.
+    var $search = $('#search');
+    var t = null;
+    $search.on('input', function() {
+        clearTimeout(t);
+        t = setTimeout(function() { $search.closest('form').submit(); }, 400);
+    });
+    $search.on('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); clearTimeout(t); $(this).closest('form').submit(); }
+    });
+    if ($search.val()) {
+        var el = $search.get(0); el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+    }
+});
+</script>
+{% endblock %}

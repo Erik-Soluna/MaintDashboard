@@ -161,6 +161,101 @@ def equipment_list(request):
 
 
 @login_required
+def issues_list(request):
+    """
+    Site-wide issues overview — every EquipmentIssue across all equipment in one
+    place, so a technician/manager can see what needs to be repaired at a glance.
+    Respects the global site selector (session 'selected_site_id').
+    """
+    log_view_access('issues_list', request, request.user)
+
+    from django.db.models import Case, When, IntegerField, Value
+
+    queryset = EquipmentIssue.objects.select_related(
+        'equipment', 'equipment__location', 'equipment__category',
+        'created_by', 'resolved_by',
+    ).prefetch_related('tags')
+
+    # Filter by selected site (same pattern as equipment_list).
+    selected_site_id = request.GET.get('site_id')
+    if selected_site_id is None:
+        selected_site_id = request.session.get('selected_site_id')
+
+    selected_site = None
+    if selected_site_id and selected_site_id != 'all':
+        try:
+            selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+            from core.utils import get_all_descendant_location_ids
+            location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
+            queryset = queryset.filter(equipment__location_id__in=location_ids)
+        except (Location.DoesNotExist, ValueError):
+            logger.warning(f"Selected site with ID {selected_site_id} not found")
+        except Exception as e:
+            log_error(e, f"filtering issues by site {selected_site_id}", request=request)
+
+    # Stat cards are computed over the site-filtered set BEFORE status/severity
+    # filtering, so the overview always reflects the true totals.
+    stats = {
+        'open': queryset.filter(status='open').count(),
+        'in_progress': queryset.filter(status='in_progress').count(),
+        'resolved': queryset.filter(status__in=['resolved', 'closed']).count(),
+        'total': queryset.count(),
+        'critical_open': queryset.filter(severity='critical', status__in=['open', 'in_progress']).count(),
+    }
+
+    # Status filter. Default ('active') shows actionable issues (open + in
+    # progress) — what still needs work. 'all' shows everything.
+    status = request.GET.get('status', 'active')
+    if status == 'active':
+        queryset = queryset.filter(status__in=['open', 'in_progress'])
+    elif status and status != 'all':
+        queryset = queryset.filter(status=status)
+
+    # Severity filter.
+    severity = request.GET.get('severity', '')
+    if severity:
+        queryset = queryset.filter(severity=severity)
+
+    # Search across issue + equipment identity.
+    search_term = request.GET.get('search', '')
+    if search_term:
+        queryset = queryset.filter(
+            Q(title__icontains=search_term) |
+            Q(description__icontains=search_term) |
+            Q(equipment__name__icontains=search_term) |
+            Q(equipment__asset_tag__icontains=search_term)
+        )
+
+    # Order by severity (critical first), then newest.
+    queryset = queryset.annotate(
+        severity_rank=Case(
+            When(severity='critical', then=Value(0)),
+            When(severity='high', then=Value(1)),
+            When(severity='medium', then=Value(2)),
+            When(severity='low', then=Value(3)),
+            default=Value(4),
+            output_field=IntegerField(),
+        )
+    ).order_by('severity_rank', '-created_at')
+
+    paginator = Paginator(queryset, 25)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_term': search_term,
+        'selected_status': status,
+        'selected_severity': severity,
+        'statuses': EquipmentIssue.STATUS_CHOICES,
+        'severities': EquipmentIssue.SEVERITY_CHOICES,
+        'selected_site': selected_site,
+        'selected_site_id': selected_site_id,
+    }
+    return render(request, 'equipment/issues_list.html', context)
+
+
+@login_required
 def manage_equipment(request):
     """
     Equipment management view (replicates original web2py functionality).
