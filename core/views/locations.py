@@ -297,6 +297,9 @@ def locations_settings(request):
             .select_related('parent_location', 'parent_location__parent_location'),
         key=lambda l: natural_sort_key(l.get_hierarchical_display()),
     )
+    for mdc in mdc_locations:
+        site_loc = mdc.get_site_location()
+        mdc.site_id = site_loc.id if site_loc else ''
 
     context = {
         'locations': locations,

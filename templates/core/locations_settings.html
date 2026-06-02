@@ -863,35 +863,33 @@
                 {% csrf_token %}
                 <div class="modal-body">
                     <div class="alert alert-info">
-                        Creates PDU equipment named <code>PDU {building}-{n}</code> (e.g. <code>PDU 10-1</code>)
-                        under the selected MDC location. Re-running is safe — existing PDUs are skipped.
+                        Creates PDUs for each <strong>MDC (building)</strong> — named <code>PDU {building}-{n}</code>,
+                        where the building number comes from the MDC's name (e.g. <em>MDC 10</em> → <code>PDU 10-1</code>, <code>PDU 10-2</code>…).
+                        <br>Existing PDUs are <strong>skipped</strong>, so re-running never duplicates or recreates them.
                     </div>
                     <div class="mb-3">
-                        <label for="pduLocationSelect" class="form-label">Target MDC <span class="text-danger">*</span></label>
-                        <select id="pduLocationSelect" name="location_id" class="form-control" required>
-                            <option value="">Select an MDC…</option>
-                            {% for mdc in mdc_locations %}
-                            <option value="{{ mdc.id }}">{{ mdc.get_hierarchical_display }}</option>
+                        <label for="pduSiteSelect" class="form-label">Site <span class="text-danger">*</span></label>
+                        <select id="pduSiteSelect" name="site_id" class="form-control" required>
+                            <option value="">Select a site…</option>
+                            {% for site in sites %}
+                            <option value="{{ site.id }}">{{ site.name }}</option>
                             {% endfor %}
                         </select>
+                        <small class="form-text text-muted">Generates PDUs for <strong>every MDC</strong> under this site.</small>
                     </div>
                     <div class="mb-3">
-                        <label for="pduMap" class="form-label">Buildings &amp; counts</label>
-                        <input type="text" id="pduMap" name="map" class="form-control" placeholder="e.g. 10:6, 11:6">
-                        <small class="form-text text-muted">
-                            Comma-separated <code>building:count</code> pairs. <code>10:6</code> = building 10, PDUs 1–6.
-                            Or use the single-building fields below.
-                        </small>
+                        <label for="pduMdcSelect" class="form-label">Limit to one MDC (optional)</label>
+                        <select id="pduMdcSelect" name="location_id" class="form-control" disabled>
+                            <option value="">All MDCs in the site</option>
+                            {% for mdc in mdc_locations %}
+                            <option value="{{ mdc.id }}" data-site-id="{{ mdc.site_id }}">{{ mdc.get_hierarchical_display }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Leave as “All MDCs” to do the whole site at once.</small>
                     </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="pduBuilding" class="form-label">Building #</label>
-                            <input type="number" id="pduBuilding" name="building" class="form-control" min="1">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="pduCount" class="form-label">PDUs in building</label>
-                            <input type="number" id="pduCount" name="count" class="form-control" min="1">
-                        </div>
+                    <div class="mb-3">
+                        <label for="pduCount" class="form-label">PDUs per MDC (building) <span class="text-danger">*</span></label>
+                        <input type="number" id="pduCount" name="count" class="form-control" min="1" placeholder="e.g. 36" required>
                     </div>
                     <div id="generatePdusOutput" class="mt-3" style="display: none;">
                         <label class="form-label">Output</label>
@@ -1374,6 +1372,20 @@ $(document).ready(function() {
         });
     });
     
+    // Generate PDUs: filter the optional MDC dropdown to the chosen site.
+    $('#pduSiteSelect').on('change', function() {
+        var siteId = $(this).val();
+        var $mdc = $('#pduMdcSelect');
+        $mdc.val('');
+        $mdc.find('option').each(function() {
+            var opt = $(this);
+            if (opt.val() === '') return; // keep the "All MDCs" option
+            var match = String(opt.data('site-id')) === String(siteId);
+            opt.prop('hidden', !match).prop('disabled', !match);
+        });
+        $mdc.prop('disabled', !siteId);
+    });
+
     // Generate PDUs Form
     $('#generatePdusForm').on('submit', function(e) {
         e.preventDefault();
