@@ -13,26 +13,26 @@
 .equipment-header {
     background-color: #2d3748;
     border-bottom: 1px solid #4a5568;
-    padding: 15px 20px;
-    margin-bottom: 20px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
 }
 
 .equipment-filters {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 10px;
     flex-wrap: wrap;
 }
 
 .filter-group {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .filter-group label {
-    color: #e2e8f0;
-    font-size: 14px;
+    color: #a0aec0;
+    font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
     margin: 0;
@@ -43,9 +43,9 @@
     color: white;
     border: 1px solid #4a5568;
     border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 14px;
-    min-width: 120px;
+    padding: 4px 10px;
+    font-size: 13px;
+    min-width: 110px;
 }
 
 .filter-select:focus {
@@ -60,9 +60,9 @@
     color: white;
     border: 1px solid #4a5568;
     border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 14px;
-    min-width: 200px;
+    padding: 4px 10px;
+    font-size: 13px;
+    min-width: 240px;
 }
 
 .search-input:focus {
@@ -102,10 +102,10 @@
 
 .equipment-table-header {
     background-color: #1a2238;
-    padding: 15px 20px;
+    padding: 8px 16px;
     border-bottom: 1px solid #4a5568;
     display: flex;
-    justify-content: between;
+    justify-content: space-between;
     align-items: center;
 }
 
@@ -200,20 +200,17 @@
 {% block content %}
 <!-- Equipment Filters Header -->
 <div class="equipment-header">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <h3 class="mb-0 text-white">
-                <i class="fas fa-cogs me-2"></i>
-                Equipment Management
-            </h3>
-            <p class="text-muted mb-0">Manage and monitor all equipment</p>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0 text-white">
+            <i class="fas fa-cogs me-2"></i>
+            Equipment Management
+        </h5>
         <div class="d-flex gap-2">
-            <a href="{% url 'equipment:add_equipment' %}" class="btn btn-primary">
+            <a href="{% url 'equipment:add_equipment' %}" class="btn btn-primary btn-sm">
                 <i class="fas fa-plus me-1"></i> Add Equipment
             </a>
             <div class="dropdown">
-                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
                     <i class="fas fa-download me-1"></i> Import/Export
                 </button>
                 <div class="dropdown-menu">
@@ -238,14 +235,9 @@
     <!-- Filters -->
     <form method="get" class="equipment-filters">
         <div class="filter-group">
-            <label for="search">Search:</label>
-            <div>
-                <input type="text" id="search" name="search" class="search-input"
-                       value="{{ search_term }}" placeholder="Search by name, category, location, serial, tag...">
-                <small class="text-muted d-block" style="font-size: 11px; margin-top: 2px;">
-                    Searches: Equipment Name, Category, Location, Serial Number, Asset Tag, Manufacturer, Model
-                </small>
-            </div>
+            <input type="text" id="search" name="search" class="search-input"
+                   value="{{ search_term }}" placeholder="Search equipment…"
+                   title="Searches: Equipment Name, Category, Location, Serial Number, Asset Tag, Manufacturer, Model">
         </div>
         
         <div class="filter-group">

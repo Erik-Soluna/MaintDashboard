@@ -13,17 +13,17 @@
 .issues-header {
     background-color: #2d3748;
     border-bottom: 1px solid #4a5568;
-    padding: 15px 20px;
-    margin-bottom: 20px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
 }
-.issues-filters { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
-.filter-group { display: flex; align-items: center; gap: 8px; }
-.filter-group label { color: #e2e8f0; font-size: 14px; font-weight: 500; white-space: nowrap; margin: 0; }
+.issues-filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.filter-group { display: flex; align-items: center; gap: 6px; }
+.filter-group label { color: #a0aec0; font-size: 12px; font-weight: 500; white-space: nowrap; margin: 0; }
 .filter-select, .search-input {
     background-color: #1a2238; color: white; border: 1px solid #4a5568;
-    border-radius: 6px; padding: 6px 12px; font-size: 14px;
+    border-radius: 6px; padding: 4px 10px; font-size: 13px;
 }
-.filter-select { min-width: 130px; }
+.filter-select { min-width: 120px; }
 .search-input { min-width: 240px; }
 .filter-select:focus, .search-input:focus {
     background-color: #1a2238; border-color: #4299e1;
@@ -32,14 +32,15 @@
 .search-input::placeholder { color: #a0aec0; }
 .action-buttons { margin-left: auto; display: flex; gap: 10px; }
 
-/* Stat cards */
-.issue-stats { display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 20px; }
+/* Stat cards (compact) */
+.issue-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
 .issue-stat-card {
-    flex: 1; min-width: 150px; background-color: #2d3748; border: 1px solid #4a5568;
-    border-radius: 8px; padding: 16px 20px; text-align: center;
+    flex: 1; min-width: 120px; background-color: #2d3748; border: 1px solid #4a5568;
+    border-radius: 8px; padding: 8px 14px; text-align: center;
+    display: flex; align-items: baseline; justify-content: center; gap: 8px;
 }
-.issue-stat-card .num { font-size: 28px; font-weight: 700; line-height: 1; }
-.issue-stat-card .lbl { color: #a0aec0; font-size: 13px; margin-top: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.issue-stat-card .num { font-size: 20px; font-weight: 700; line-height: 1; }
+.issue-stat-card .lbl { color: #a0aec0; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
 .issue-stat-card.open .num { color: #f56565; }
 .issue-stat-card.inprog .num { color: #ed8936; }
 .issue-stat-card.resolved .num { color: #48bb78; }
@@ -47,7 +48,7 @@
 
 .issues-table-container { background-color: #2d3748; border-radius: 8px; border: 1px solid #4a5568; overflow: hidden; }
 .issues-table-header {
-    background-color: #1a2238; padding: 15px 20px; border-bottom: 1px solid #4a5568;
+    background-color: #1a2238; padding: 8px 16px; border-bottom: 1px solid #4a5568;
     display: flex; justify-content: space-between; align-items: center;
 }
 .issues-table-header h5 { color: #e2e8f0; margin: 0; }
@@ -68,16 +69,13 @@
 
 {% block content %}
 <div class="issues-header">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <h3 class="mb-0 text-white">
-                <i class="fas fa-exclamation-triangle me-2"></i> Issues
-            </h3>
-            <p class="text-muted mb-0">
-                What needs to be repaired across
-                {% if selected_site %}{{ selected_site.name }}{% else %}all sites{% endif %}
-            </p>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0 text-white">
+            <i class="fas fa-exclamation-triangle me-2"></i> Issues
+            <small class="text-muted" style="font-size:12px; font-weight:400;">
+                — what needs repair across {% if selected_site %}{{ selected_site.name }}{% else %}all sites{% endif %}
+            </small>
+        </h5>
     </div>
 
     <!-- Stat cards -->
