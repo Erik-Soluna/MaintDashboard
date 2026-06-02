@@ -23,45 +23,57 @@
     -webkit-overflow-scrolling: touch; background:#1a2238;
     border: 1px solid #4a5568; border-radius: 8px; }
 #canvasWrap.editing { outline: 2px dashed #4299e1; outline-offset: -2px; }
-/* Sizer holds the scaled footprint so the wrapper scrolls correctly; the
-   canvas is visually scaled on top of it. */
 #canvasSizer { position: relative;
     background-image: linear-gradient(#2a3550 1px, transparent 1px), linear-gradient(90deg, #2a3550 1px, transparent 1px);
     background-size: 40px 40px; }
 #facilityCanvas { position: absolute; top: 0; left: 0; transform-origin: top left; }
 
+/* health palette (zones, tiles, chips, dots) */
+.h-critical { background:#9b2c2c; border-color:#f56565; }
+.h-warning { background:#9c4221; border-color:#ed8936; }
+.h-maintenance { background:#2c5282; border-color:#4299e1; }
+.h-ok { background:#276749; border-color:#48bb78; }
+.h-idle { background:#3a4456; border-color:#718096; }
+
 .pod-zone { position: absolute; border: 1px solid #5a6987; border-radius: 8px;
     background: rgba(45,55,72,0.45); box-sizing: border-box; }
-.pod-header { position: absolute; top: 0; left: 0; right: 0; height: 26px; padding: 4px 8px;
-    font-size: 12px; font-weight: 600; color: #e2e8f0; border-bottom: 1px solid #4a5568;
+.pod-header { position: absolute; top: 0; left: 0; right: 0; height: 26px; padding: 4px 10px;
+    font-size: 12px; font-weight: 700; color: #e2e8f0; border-bottom: 1px solid #4a5568;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pod-header .pod-counts { float: right; font-weight: 400; color: #a0aec0; }
 #canvasWrap.editing .pod-header { cursor: move; }
 
-.eq-box { position: absolute; border-radius: 5px; box-sizing: border-box; cursor: pointer;
-    border: 2px solid; padding: 3px 5px; font-size: 11px; line-height: 1.15; color: #fff;
-    overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; z-index: 2; }
-.eq-box:hover { filter: brightness(1.18); outline: 2px solid #fff; }
-#canvasWrap.editing .eq-box { cursor: move; }
-.eq-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.eq-critical { background:#9b2c2c; border-color:#f56565; }
-.eq-warning { background:#9c4221; border-color:#ed8936; }
-.eq-maintenance { background:#2c5282; border-color:#4299e1; }
-.eq-ok { background:#276749; border-color:#48bb78; }
-.eq-idle { background:#3a4456; border-color:#718096; }
-.eq-badge { position:absolute; top:-6px; right:-6px; background:#f56565; color:#fff; border-radius:9px;
-    font-size:9px; font-weight:700; padding:0 5px; line-height:14px; min-width:14px; z-index:3; }
+.mdc-tile { position: absolute; border: 1px solid #5a6987; border-radius: 6px;
+    background: #222c40; box-sizing: border-box; }
+.mdc-tile-header { padding: 4px 8px; font-size: 11px; font-weight: 600; color: #e2e8f0;
+    display: flex; justify-content: space-between; align-items: center; gap: 6px; cursor: pointer;
+    white-space: nowrap; overflow: hidden; }
+.mdc-tile-header:hover { background: #2a3550; border-radius: 6px 6px 0 0; }
+#canvasWrap.editing .mdc-tile-header { cursor: move; }
+.mdc-tile-name { overflow: hidden; text-overflow: ellipsis; }
+.mdc-count { color: #a0aec0; font-weight: 400; font-size: 10px; white-space: nowrap; }
+.mdc-summary { display: flex; gap: 6px; padding: 0 8px 5px; flex-wrap: wrap; font-size: 10px; }
+.mdc-summary .dot { font-weight: 700; }
+.mdc-caret { color: #718096; font-size: 9px; margin-left: 2px; }
 
-.resize-handle { position:absolute; right:-3px; bottom:-3px; width:14px; height:14px; cursor:se-resize;
-    display:none; background:#fff; border:2px solid #4299e1; border-radius:3px; z-index:6; }
-#canvasWrap.editing .resize-handle { display:block; }
-.dragging { opacity:.85; z-index:20 !important; }
+.mdc-body { display: none; position: absolute; left: -1px; top: 100%; min-width: calc(100% + 2px);
+    max-width: 320px; max-height: 220px; overflow: auto; background: #1a2238;
+    border: 1px solid #4299e1; border-top: none; border-radius: 0 0 6px 6px; padding: 6px;
+    flex-wrap: wrap; gap: 4px; z-index: 25; }
+.mdc-tile.expanded { z-index: 30; }
+.mdc-tile.expanded .mdc-body { display: flex; }
+.mdc-tile.expanded .mdc-caret { transform: rotate(90deg); }
+.mdc-empty { color: #718096; font-size: 11px; padding: 2px 4px; }
+
+.eq-chip { font-size: 10px; line-height: 1.2; padding: 2px 5px; border-radius: 3px;
+    border: 1px solid; color: #fff; cursor: pointer; white-space: nowrap; }
+.eq-chip:hover { filter: brightness(1.2); outline: 1px solid #fff; }
 
 .map-empty { text-align:center; padding:60px 20px; color:#a0aec0; }
 .map-empty i { font-size:46px; color:#4a5568; margin-bottom:16px; }
-.unzoned-wrap { margin-top:18px; }
-.unzoned-grid { display:flex; flex-wrap:wrap; gap:8px; }
-.unzoned-grid .eq-box { position: static; width: 150px; height: 42px; }
+.resize-handle { position:absolute; right:-3px; bottom:-3px; width:14px; height:14px; cursor:se-resize;
+    display:none; background:#fff; border:2px solid #4299e1; border-radius:3px; z-index:6; }
+#canvasWrap.editing .resize-handle { display:block; }
+.dragging { opacity:.85; z-index:40 !important; }
 </style>
 {% endblock %}
 
@@ -71,21 +83,15 @@
         <div>
             <h3 class="mb-0 text-white"><i class="fas fa-map me-2"></i> Facility Map</h3>
             <p class="text-muted mb-0">
-                {% if selected_site %}{{ selected_site.name }} — equipment by zone, color-coded by health{% else %}Select a site{% endif %}
+                {% if selected_site %}{{ selected_site.name }} — zones by POD &rsaquo; MDC; click an MDC to reveal its equipment{% else %}Select a site{% endif %}
             </p>
         </div>
         {% if can_edit_map and selected_site %}
         <div class="map-toolbar">
             {% csrf_token %}
-            <button type="button" id="editLayoutBtn" class="btn btn-outline-light btn-sm">
-                <i class="fas fa-arrows-alt me-1"></i> Edit Layout
-            </button>
-            <button type="button" id="saveLayoutBtn" class="btn btn-success btn-sm" style="display:none;">
-                <i class="fas fa-save me-1"></i> Save
-            </button>
-            <button type="button" id="cancelLayoutBtn" class="btn btn-secondary btn-sm" style="display:none;">
-                Cancel
-            </button>
+            <button type="button" id="editLayoutBtn" class="btn btn-outline-light btn-sm"><i class="fas fa-arrows-alt me-1"></i> Edit Layout</button>
+            <button type="button" id="saveLayoutBtn" class="btn btn-success btn-sm" style="display:none;"><i class="fas fa-save me-1"></i> Save</button>
+            <button type="button" id="cancelLayoutBtn" class="btn btn-secondary btn-sm" style="display:none;">Cancel</button>
         </div>
         {% endif %}
     </div>
@@ -118,7 +124,7 @@
     </div>
 {% else %}
     <div id="editHint" class="text-info small mb-2" style="display:none;">
-        <i class="fas fa-info-circle me-1"></i> Drag zone headers and equipment to arrange; drag the corner handle to resize. Moving a zone moves its equipment. Click <strong>Save</strong> when done.
+        <i class="fas fa-info-circle me-1"></i> Drag POD or MDC headers to arrange; drag a POD corner to resize. Moving a POD moves its MDCs. Click <strong>Save</strong> when done.
     </div>
     <div id="canvasWrap">
         <div id="canvasSizer">
@@ -127,12 +133,8 @@
     </div>
     <div id="mapEmpty" class="map-empty" style="display:none;">
         <i class="fas fa-vector-square"></i>
-        <h5 class="text-muted">No equipment to map for this site</h5>
-        <p>Once this site has zones and equipment, they'll appear here.</p>
-    </div>
-    <div id="unzonedWrap" class="unzoned-wrap" style="display:none;">
-        <h6 class="text-muted"><i class="fas fa-layer-group me-1"></i> Not assigned to a zone</h6>
-        <div id="unzonedGrid" class="unzoned-grid"></div>
+        <h5 class="text-muted">No zones to map for this site</h5>
+        <p>Once this site has PODs/MDCs and equipment, they'll appear here.</p>
     </div>
 {% endif %}
 {% endblock %}
@@ -147,103 +149,110 @@
     var sizer = document.getElementById('canvasSizer');
     var wrap = document.getElementById('canvasWrap');
     var empty = document.getElementById('mapEmpty');
-    var MIN_SCALE = 0.45;  // below this the map is unreadable — scroll instead of shrink
     var canEdit = {{ can_edit_map|yesno:"true,false" }};
     var saveUrl = "{% url 'core:save_map_layout' %}";
+    var DOT = { critical:'#f56565', warning:'#ed8936', maintenance:'#4299e1', ok:'#48bb78', idle:'#718096' };
 
     var scale = 1, editing = false, dirty = false;
-    var eqByPod = {};   // podId -> [equipment box elements]
+    var MIN_SCALE = 0.45;
+    var tilesByPod = {};
 
-    function eqHref(id) { return '/equipment/' + id + '/'; }
-    function px(el, prop) { return parseFloat(el.style[prop]) || 0; }
+    function px(el, p) { return parseFloat(el.style[p]) || 0; }
 
-    function addResizeHandle(el) {
-        var h = document.createElement('div');
-        h.className = 'resize-handle';
-        h.addEventListener('pointerdown', function (e) { beginResize(e, el); });
-        el.appendChild(h);
-        return h;
-    }
-
-    function makeEqBox(eq, absolute) {
-        var box = document.createElement('div');
-        box.className = 'eq-box eq-' + eq.health;
-        box.title = eq.tooltip;
-        box.dataset.id = eq.id;
-        if (absolute && eq.x !== null && eq.x !== undefined) {
-            box.style.left = eq.x + 'px'; box.style.top = eq.y + 'px';
-            box.style.width = (eq.w || 90) + 'px'; box.style.height = (eq.h || 40) + 'px';
-        }
-        var name = document.createElement('span');
-        name.className = 'eq-name';
-        name.textContent = eq.name;
-        box.appendChild(name);
-        if (eq.open_issues > 0) {
-            var b = document.createElement('span');
-            b.className = 'eq-badge';
-            b.textContent = eq.open_issues;
-            box.appendChild(b);
-        }
-        box.addEventListener('click', function () { if (!editing) window.location.href = eqHref(eq.id); });
-        if (absolute) {
-            box.addEventListener('pointerdown', function (e) {
-                if (!editing || e.target.classList.contains('resize-handle')) return;
-                beginDrag(e, [box]);
-            });
-            addResizeHandle(box);
-        }
-        return box;
-    }
-
-    var hasContent = (layout.pods && layout.pods.length) || (layout.unzoned && layout.unzoned.length);
+    var hasContent = layout.pods && layout.pods.length;
     if (!hasContent) {
         wrap.style.display = 'none';
         if (empty) empty.style.display = 'block';
-        var et = document.querySelector('.map-toolbar'); if (et) et.style.display = 'none';
+        var tb = document.querySelector('.map-toolbar'); if (tb) tb.style.display = 'none';
         return;
     }
 
     canvas.style.width = layout.site.width + 'px';
     canvas.style.height = layout.site.height + 'px';
 
-    (layout.pods || []).forEach(function (pod) {
+    function addResizeHandle(el) {
+        var h = document.createElement('div');
+        h.className = 'resize-handle';
+        h.addEventListener('pointerdown', function (e) { beginResize(e, el); });
+        el.appendChild(h);
+    }
+
+    layout.pods.forEach(function (pod) {
         var zone = document.createElement('div');
         zone.className = 'pod-zone';
         zone.dataset.id = pod.id;
         zone.style.left = pod.x + 'px'; zone.style.top = pod.y + 'px';
         zone.style.width = pod.w + 'px'; zone.style.height = pod.h + 'px';
-
-        var header = document.createElement('div');
-        header.className = 'pod-header';
-        var counts = '';
-        if (pod.counts.critical) counts += '<span style="color:#f56565">●</span>' + pod.counts.critical + ' ';
-        if (pod.counts.warning) counts += '<span style="color:#ed8936">●</span>' + pod.counts.warning + ' ';
-        header.innerHTML = '<span class="pod-counts">' + counts + '</span>' + pod.name;
-        header.addEventListener('pointerdown', function (e) {
+        var ph = document.createElement('div');
+        ph.className = 'pod-header';
+        ph.textContent = pod.name;
+        ph.addEventListener('pointerdown', function (e) {
             if (!editing) return;
-            beginDrag(e, [zone].concat(eqByPod[pod.id] || []));
+            beginDrag(e, [zone].concat(tilesByPod[pod.id] || []));
         });
-        zone.appendChild(header);
+        zone.appendChild(ph);
         addResizeHandle(zone);
         canvas.appendChild(zone);
 
-        // Equipment sit ON the canvas (single coordinate space), not inside the
-        // zone div — keeps coords absolute and dragging simple.
-        eqByPod[pod.id] = [];
-        (pod.equipment || []).forEach(function (eq) {
-            var box = makeEqBox(eq, true);
-            box.dataset.podId = pod.id;
-            canvas.appendChild(box);
-            eqByPod[pod.id].push(box);
+        tilesByPod[pod.id] = [];
+        (pod.mdcs || []).forEach(function (mdc) {
+            var tile = document.createElement('div');
+            tile.className = 'mdc-tile';
+            if (mdc.id != null) tile.dataset.id = mdc.id;
+            tile.dataset.podId = pod.id;
+            tile.style.left = mdc.x + 'px'; tile.style.top = mdc.y + 'px';
+            tile.style.width = mdc.w + 'px'; tile.style.height = mdc.h + 'px';
+
+            var hdr = document.createElement('div');
+            hdr.className = 'mdc-tile-header';
+            hdr.innerHTML = '<span class="mdc-tile-name">' + escapeHtml(mdc.name) +
+                '</span><span class="mdc-count">' + mdc.count + ' <span class="mdc-caret">&#9656;</span></span>';
+            hdr.addEventListener('pointerdown', function (e) {
+                if (editing) { beginDrag(e, [tile]); }
+            });
+            hdr.addEventListener('click', function () {
+                if (!editing) tile.classList.toggle('expanded');
+            });
+            tile.appendChild(hdr);
+
+            // summary dots
+            var sum = document.createElement('div');
+            sum.className = 'mdc-summary';
+            ['critical','warning','maintenance','ok','idle'].forEach(function (lvl) {
+                if (mdc.counts[lvl]) {
+                    var s = document.createElement('span');
+                    s.innerHTML = '<span class="dot" style="color:' + DOT[lvl] + '">&#9679;</span> ' + mdc.counts[lvl];
+                    sum.appendChild(s);
+                }
+            });
+            tile.appendChild(sum);
+
+            // body (equipment chips, revealed on expand)
+            var body = document.createElement('div');
+            body.className = 'mdc-body';
+            if (!mdc.equipment.length) {
+                body.innerHTML = '<span class="mdc-empty">No equipment</span>';
+            } else {
+                mdc.equipment.forEach(function (eq) {
+                    var chip = document.createElement('div');
+                    chip.className = 'eq-chip h-' + eq.health;
+                    chip.title = eq.tooltip;
+                    chip.textContent = eq.name + (eq.open_issues ? ' (' + eq.open_issues + ')' : '');
+                    chip.addEventListener('click', function (ev) {
+                        ev.stopPropagation();
+                        window.location.href = '/equipment/' + eq.id + '/';
+                    });
+                    body.appendChild(chip);
+                });
+            }
+            tile.appendChild(body);
+
+            canvas.appendChild(tile);
+            tilesByPod[pod.id].push(tile);
         });
     });
 
-    if (layout.unzoned && layout.unzoned.length) {
-        var uw = document.getElementById('unzonedWrap');
-        var ug = document.getElementById('unzonedGrid');
-        uw.style.display = 'block';
-        layout.unzoned.forEach(function (eq) { ug.appendChild(makeEqBox(eq, false)); });
-    }
+    function escapeHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
     // ----- drag / resize (account for canvas scale) -----
     function beginDrag(e, els) {
@@ -269,9 +278,8 @@
         var sx = e.clientX, sy = e.clientY;
         var w0 = px(el, 'width') || el.offsetWidth, h0 = px(el, 'height') || el.offsetHeight;
         function move(ev) {
-            var dw = (ev.clientX - sx) / scale, dh = (ev.clientY - sy) / scale;
-            el.style.width = Math.max(30, w0 + dw) + 'px';
-            el.style.height = Math.max(20, h0 + dh) + 'px';
+            el.style.width = Math.max(60, w0 + (ev.clientX - sx) / scale) + 'px';
+            el.style.height = Math.max(40, h0 + (ev.clientY - sy) / scale) + 'px';
         }
         function up() {
             document.removeEventListener('pointermove', move);
@@ -282,11 +290,8 @@
         document.addEventListener('pointerup', up);
     }
 
-    // ----- fit to width -----
+    // ----- fit to width (scroll when too large) -----
     function fit() {
-        // Fit to width, but never shrink below MIN_SCALE — if the site is too
-        // large for the viewport (e.g. on mobile) keep it readable and let the
-        // wrapper scroll/pan instead.
         var fitScale = wrap.clientWidth / layout.site.width;
         scale = Math.min(1, Math.max(fitScale, MIN_SCALE));
         canvas.style.transform = 'scale(' + scale + ')';
@@ -296,7 +301,7 @@
     fit();
     window.addEventListener('resize', fit);
 
-    // ----- editor controls -----
+    // ----- editor -----
     if (canEdit) {
         var editBtn = document.getElementById('editLayoutBtn');
         var saveBtn = document.getElementById('saveLayoutBtn');
@@ -310,6 +315,9 @@
             saveBtn.style.display = on ? '' : 'none';
             cancelBtn.style.display = on ? '' : 'none';
             if (hint) hint.style.display = on ? 'block' : 'none';
+            if (on) { // collapse all tiles while editing
+                Array.prototype.forEach.call(canvas.querySelectorAll('.mdc-tile.expanded'), function (t) { t.classList.remove('expanded'); });
+            }
         }
 
         editBtn && editBtn.addEventListener('click', function () { setEditing(true); });
@@ -319,18 +327,16 @@
         });
 
         saveBtn && saveBtn.addEventListener('click', function () {
-            var pods = Array.prototype.map.call(canvas.querySelectorAll('.pod-zone'), function (z) {
-                return { id: parseInt(z.dataset.id, 10), x: px(z, 'left'), y: px(z, 'top'), w: px(z, 'width'), h: px(z, 'height') };
-            });
-            var equipment = Array.prototype.map.call(canvas.querySelectorAll('.eq-box'), function (b) {
-                return { id: parseInt(b.dataset.id, 10), x: px(b, 'left'), y: px(b, 'top'), w: px(b, 'width'), h: px(b, 'height') };
+            var zones = [];
+            Array.prototype.forEach.call(canvas.querySelectorAll('.pod-zone[data-id], .mdc-tile[data-id]'), function (el) {
+                zones.push({ id: parseInt(el.dataset.id, 10), x: px(el, 'left'), y: px(el, 'top'), w: px(el, 'width'), h: px(el, 'height') });
             });
             var token = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
             saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
             fetch(saveUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token, 'X-Requested-With': 'XMLHttpRequest' },
-                body: JSON.stringify({ site_id: layout.site.id, canvas: { width: layout.site.width, height: layout.site.height }, pods: pods, equipment: equipment })
+                body: JSON.stringify({ site_id: layout.site.id, canvas: { width: layout.site.width, height: layout.site.height }, zones: zones })
             }).then(function (r) { return r.json(); }).then(function (resp) {
                 if (resp.success) { dirty = false; window.location.reload(); }
                 else { alert('Save failed: ' + (resp.error || 'unknown error')); saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save'; }

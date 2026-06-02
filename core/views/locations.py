@@ -78,23 +78,26 @@ def _equipment_health(status, open_issues, has_critical_issue, maint):
 
 
 def _build_site_layout(site):
-    """Build the facility floor-plan data for one site: POD zones with the
-    equipment placed inside, color-coded by status / open issues / maintenance.
-    Saved layout_* coordinates are used when present; otherwise an auto-grid is
-    computed so the map is useful before anything has been hand-placed."""
+    """Build the facility floor-plan for one site as a nested hierarchy:
+    POD zones -> MDC tiles -> equipment (collapsed behind each MDC).
+
+    POD and MDC zones are positioned from saved layout_* coords when present,
+    otherwise auto-flowed so the map is usable before anything is hand-placed.
+    Equipment is NOT individually positioned — it flows inside its MDC tile and
+    is revealed on click (there can be dozens of PDUs per MDC)."""
+    import math
     from equipment.models import Equipment, EquipmentIssue
     from core.utils import get_all_descendant_location_ids
 
+    PAD, HEADER, TILE_W, TILE_H, TPAD = 24, 28, 156, 58, 10
     canvas_w = site.layout_width or 1280
-    canvas_h = site.layout_height or 800
 
-    # Direct children of the site are the top-level zones (PODs/containers).
     pods = sorted(
         Location.objects.filter(parent_location=site, is_active=True),
         key=lambda l: natural_sort_key(l.name),
     )
+    pod_ids = {p.id for p in pods}
 
-    # All equipment under the site (active), with the per-equipment overlays.
     site_loc_ids = get_all_descendant_location_ids(site, include_inactive=True)
     equipment = list(
         Equipment.objects.filter(location_id__in=site_loc_ids, is_active=True)
@@ -102,7 +105,6 @@ def _build_site_layout(site):
     )
     eq_ids = [e.id for e in equipment]
 
-    # Open-issue counts (+ critical flag) per equipment.
     issues_by_eq = {}
     for row in (EquipmentIssue.objects
                 .filter(equipment_id__in=eq_ids, status__in=['open', 'in_progress'])
@@ -110,7 +112,6 @@ def _build_site_layout(site):
                 .annotate(total=Count('id'), crit=Count('id', filter=Q(severity='critical')))):
         issues_by_eq[row['equipment']] = (row['total'], row['crit'])
 
-    # Maintenance flags per equipment.
     now = timezone.now()
     soon = now + timedelta(days=14)
     overdue_ids = set(MaintenanceActivity.objects
@@ -120,21 +121,6 @@ def _build_site_layout(site):
                   .filter(equipment_id__in=eq_ids, status__in=['scheduled', 'pending'],
                           scheduled_start__lte=soon)
                   .values_list('equipment_id', flat=True))
-
-    # Which top-level POD does each equipment belong to? (itself or an ancestor
-    # that is a direct child of the site).
-    pod_id_set = {p.id for p in pods}
-    eq_by_pod = {p.id: [] for p in pods}
-    unzoned = []
-    for e in equipment:
-        loc = e.location
-        owner = None
-        while loc is not None:
-            if loc.id in pod_id_set:
-                owner = loc.id
-                break
-            loc = loc.parent_location
-        (eq_by_pod[owner] if owner else unzoned).append(e)
 
     def eq_payload(e):
         total, crit = issues_by_eq.get(e.id, (0, 0))
@@ -147,47 +133,87 @@ def _build_site_layout(site):
             tip.append("Maintenance overdue")
         elif maint == 'due':
             tip.append("Maintenance due soon")
-        return {
-            'id': e.id, 'name': e.name, 'health': health,
-            'status': e.status, 'open_issues': total, 'maint': maint,
-            'tooltip': " • ".join(tip),
-            'x': e.layout_x, 'y': e.layout_y, 'w': e.layout_width, 'h': e.layout_height,
-        }
+        return {'id': e.id, 'name': e.name, 'health': health, 'open_issues': total,
+                'tooltip': " • ".join(tip)}
 
-    # Auto-grid the PODs across the canvas (used where saved coords are absent).
-    pod_rects = _auto_grid(len(pods), 0, 0, canvas_w, canvas_h, 24)
+    # Group equipment by (pod, mdc). The MDC is the chain element directly below
+    # the POD; equipment sitting directly on the POD goes to an "Unzoned" group.
+    groups = {p.id: {} for p in pods}   # pod_id -> { mdc_id|None: {'mdc': loc|None, 'eq': []} }
+    for e in equipment:
+        chain, loc = [], e.location
+        while loc is not None:
+            chain.append(loc)
+            loc = loc.parent_location
+        pod = next((l for l in chain if l.id in pod_ids), None)
+        if not pod:
+            continue
+        idx = chain.index(pod)
+        mdc = chain[idx - 1] if idx > 0 else None
+        mid = mdc.id if mdc else None
+        groups[pod.id].setdefault(mid, {'mdc': mdc, 'eq': []})['eq'].append(e)
+
+    # Include every MDC under each POD even if it has no equipment yet.
+    mdc_by_pod = {}
+    for p in pods:
+        mdcs = sorted(Location.objects.filter(parent_location=p, is_active=True),
+                      key=lambda l: natural_sort_key(l.name))
+        mdc_by_pod[p.id] = mdcs
+        for m in mdcs:
+            groups[p.id].setdefault(m.id, {'mdc': m, 'eq': []})
+
+    # Flow PODs left-to-right, wrapping; grid MDC tiles inside each POD.
+    x_cur, y_cur, row_h = PAD, PAD, 0
     pods_payload = []
-    for idx, pod in enumerate(pods):
-        ax, ay, aw, ah = pod_rects[idx] if idx < len(pod_rects) else (0, 0, 200, 150)
-        px = pod.layout_x if pod.layout_x is not None else ax
-        py = pod.layout_y if pod.layout_y is not None else ay
-        pw = pod.layout_width or aw
-        ph = pod.layout_height or ah
+    for p in pods:
+        g = groups[p.id]
+        ordered = [(m.id, g.get(m.id) or {'mdc': m, 'eq': []}) for m in mdc_by_pod[p.id]]
+        if None in g:
+            ordered.append((None, g[None]))
+        n = max(1, len(ordered))
+        cols = max(1, int(math.ceil(math.sqrt(n))))
+        rows = int(math.ceil(n / cols))
+        comp_w = cols * TILE_W + (cols + 1) * TPAD
+        comp_h = HEADER + rows * TILE_H + (rows + 1) * TPAD
 
-        members = eq_by_pod.get(pod.id, [])
-        # Inner area for equipment (leave room for the zone header).
-        inner = _auto_grid(len(members), px, py + 30, pw, ph - 38, 8)
-        eq_list = []
-        for j, e in enumerate(members):
-            payload = eq_payload(e)
-            if payload['x'] is None and j < len(inner):
-                payload['x'], payload['y'], payload['w'], payload['h'] = inner[j]
-            eq_list.append(payload)
+        if x_cur + comp_w > canvas_w and x_cur > PAD:
+            x_cur, y_cur, row_h = PAD, y_cur + row_h + PAD, 0
+        px = p.layout_x if p.layout_x is not None else x_cur
+        py = p.layout_y if p.layout_y is not None else y_cur
+        pw = p.layout_width or comp_w
+        ph = p.layout_height or comp_h
+        x_cur += comp_w + PAD
+        row_h = max(row_h, comp_h)
 
-        counts = {'critical': 0, 'warning': 0, 'maintenance': 0, 'ok': 0, 'idle': 0}
-        for eq in eq_list:
-            counts[eq['health']] += 1
+        mdcs_payload = []
+        for i, (mid, data) in enumerate(ordered):
+            r, c = divmod(i, cols)
+            mdc = data['mdc']
+            tx = px + TPAD + c * (TILE_W + TPAD)
+            ty = py + HEADER + TPAD + r * (TILE_H + TPAD)
+            if mdc is not None and mdc.layout_x is not None:
+                tx, ty = mdc.layout_x, mdc.layout_y
+            tw = (mdc.layout_width if mdc and mdc.layout_width else TILE_W)
+            th = (mdc.layout_height if mdc and mdc.layout_height else TILE_H)
+            eqs = [eq_payload(e) for e in sorted(data['eq'], key=lambda e: natural_sort_key(e.name))]
+            counts = {lvl: 0 for lvl in ('critical', 'warning', 'maintenance', 'ok', 'idle')}
+            for e in eqs:
+                counts[e['health']] += 1
+            mdcs_payload.append({
+                'id': mid, 'name': (mdc.name if mdc else 'Unzoned'),
+                'x': round(tx, 1), 'y': round(ty, 1), 'w': round(tw, 1), 'h': round(th, 1),
+                'count': len(eqs), 'counts': counts, 'equipment': eqs,
+            })
 
         pods_payload.append({
-            'id': pod.id, 'name': pod.name,
+            'id': p.id, 'name': p.name,
             'x': round(px, 1), 'y': round(py, 1), 'w': round(pw, 1), 'h': round(ph, 1),
-            'equipment': eq_list, 'counts': counts,
+            'mdcs': mdcs_payload,
         })
 
+    canvas_h = site.layout_height or (y_cur + row_h + PAD)
     return {
         'site': {'id': site.id, 'name': site.name, 'width': canvas_w, 'height': canvas_h},
         'pods': pods_payload,
-        'unzoned': [eq_payload(e) for e in unzoned],
         'equipment_total': len(equipment),
     }
 
@@ -225,9 +251,9 @@ def map_view(request):
 @user_passes_test(is_staff_or_superuser)
 @require_POST
 def save_map_layout(request):
-    """Persist facility-map positions from the drag editor. Accepts JSON:
-    {site_id, canvas:{width,height}, pods:[{id,x,y,w,h}], equipment:[{id,x,y,w,h}]}.
-    Pods must be direct children of the site; equipment must live under it."""
+    """Persist facility-map zone positions from the drag editor. Accepts JSON:
+    {site_id, canvas:{width,height}, zones:[{id,x,y,w,h}]}.
+    Zones are POD/MDC locations under the site (validated)."""
     from core.utils import get_all_descendant_location_ids
     try:
         data = json.loads(request.body or b'{}')
@@ -252,22 +278,22 @@ def save_map_layout(request):
     if fields:
         site.save(update_fields=fields)
 
-    pods_saved = 0
-    for p in data.get('pods', []):
-        pods_saved += Location.objects.filter(id=p.get('id'), parent_location=site).update(
-            layout_x=num(p.get('x')), layout_y=num(p.get('y')),
-            layout_width=num(p.get('w')), layout_height=num(p.get('h')),
+    # Zones are POD/MDC locations under this site. Restrict updates to that set.
+    allowed_ids = set(get_all_descendant_location_ids(site, include_inactive=True))
+    zones_saved = 0
+    for z in data.get('zones', []):
+        try:
+            zid = int(z.get('id'))
+        except (TypeError, ValueError):
+            continue
+        if zid not in allowed_ids:
+            continue
+        zones_saved += Location.objects.filter(id=zid).update(
+            layout_x=num(z.get('x')), layout_y=num(z.get('y')),
+            layout_width=num(z.get('w')), layout_height=num(z.get('h')),
         )
 
-    site_loc_ids = get_all_descendant_location_ids(site, include_inactive=True)
-    eq_saved = 0
-    for e in data.get('equipment', []):
-        eq_saved += Equipment.objects.filter(id=e.get('id'), location_id__in=site_loc_ids).update(
-            layout_x=num(e.get('x')), layout_y=num(e.get('y')),
-            layout_width=num(e.get('w')), layout_height=num(e.get('h')),
-        )
-
-    return JsonResponse({'success': True, 'pods_saved': pods_saved, 'equipment_saved': eq_saved})
+    return JsonResponse({'success': True, 'zones_saved': zones_saved})
 
 
 @login_required
