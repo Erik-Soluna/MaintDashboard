@@ -194,6 +194,18 @@
     background-color: #4a5568;
     color: white;
 }
+
+/* Compact mobile filters: hide redundant labels, search on its own row,
+   dropdowns flow across one row. */
+@media (max-width: 768px) {
+    .equipment-header { padding: 8px 12px; }
+    .equipment-filters { gap: 8px; }
+    .filter-group { flex: 1 1 30%; }
+    .filter-group.filter-search { flex-basis: 100%; }
+    .filter-group label { display: none; }
+    .filter-select, .search-input { min-width: 0; width: 100%; }
+    .action-buttons { margin-left: auto; }
+}
 </style>
 {% endblock %}
 
@@ -234,7 +246,7 @@
     
     <!-- Filters -->
     <form method="get" class="equipment-filters">
-        <div class="filter-group">
+        <div class="filter-group filter-search">
             <input type="text" id="search" name="search" class="search-input"
                    value="{{ search_term }}" placeholder="Search equipment…"
                    title="Searches: Equipment Name, Category, Location, Serial Number, Asset Tag, Manufacturer, Model">
