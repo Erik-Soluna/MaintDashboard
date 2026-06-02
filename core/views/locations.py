@@ -216,8 +216,58 @@ def map_view(request):
         'selected_site': selected_site,
         'selected_site_id': str(selected_site.id) if selected_site else '',
         'site_layout_json': json.dumps(site_layout) if site_layout else 'null',
+        'can_edit_map': request.user.is_staff or request.user.is_superuser,
     }
     return render(request, 'core/map.html', context)
+
+
+@login_required
+@user_passes_test(is_staff_or_superuser)
+@require_POST
+def save_map_layout(request):
+    """Persist facility-map positions from the drag editor. Accepts JSON:
+    {site_id, canvas:{width,height}, pods:[{id,x,y,w,h}], equipment:[{id,x,y,w,h}]}.
+    Pods must be direct children of the site; equipment must live under it."""
+    from core.utils import get_all_descendant_location_ids
+    try:
+        data = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+
+    site = get_object_or_404(Location, id=data.get('site_id'), is_site=True)
+
+    def num(v):
+        try:
+            return round(float(v), 1)
+        except (TypeError, ValueError):
+            return None
+
+    canvas = data.get('canvas') or {}
+    cw, ch = num(canvas.get('width')), num(canvas.get('height'))
+    fields = []
+    if cw:
+        site.layout_width = cw; fields.append('layout_width')
+    if ch:
+        site.layout_height = ch; fields.append('layout_height')
+    if fields:
+        site.save(update_fields=fields)
+
+    pods_saved = 0
+    for p in data.get('pods', []):
+        pods_saved += Location.objects.filter(id=p.get('id'), parent_location=site).update(
+            layout_x=num(p.get('x')), layout_y=num(p.get('y')),
+            layout_width=num(p.get('w')), layout_height=num(p.get('h')),
+        )
+
+    site_loc_ids = get_all_descendant_location_ids(site, include_inactive=True)
+    eq_saved = 0
+    for e in data.get('equipment', []):
+        eq_saved += Equipment.objects.filter(id=e.get('id'), location_id__in=site_loc_ids).update(
+            layout_x=num(e.get('x')), layout_y=num(e.get('y')),
+            layout_width=num(e.get('w')), layout_height=num(e.get('h')),
+        )
+
+    return JsonResponse({'success': True, 'pods_saved': pods_saved, 'equipment_saved': eq_saved})
 
 
 @login_required
@@ -1050,4 +1100,4 @@ def bulk_locations_view(request):
     return render(request, 'core/bulk_locations.html', context)
 
 
-__all__ = ["map_view", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]
+__all__ = ["map_view", "save_map_layout", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]
