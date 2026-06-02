@@ -1062,6 +1062,11 @@
                 </div>
             </li>
             <li class="nav-item">
+                                 <a class="nav-link {% if request.resolver_match.url_name == 'issues_list' %}active{% endif %}" href="{% url 'equipment:issues_list' %}">
+                     <i class="fas fa-exclamation-triangle me-1"></i> Issues
+                 </a>
+            </li>
+            <li class="nav-item">
                                  <a class="nav-link" href="{% url 'events:calendar_view' %}">
                      <i class="fas fa-calendar me-1"></i> {{ navigation_calendar_label }}
                  </a>
