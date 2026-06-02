@@ -64,6 +64,18 @@
 .empty-state i { font-size: 48px; margin-bottom: 20px; color: #4a5568; }
 .issue-title-link { color: #e2e8f0; font-weight: 600; text-decoration: none; }
 .issue-title-link:hover { color: #4299e1; }
+
+/* Compact mobile filters */
+@media (max-width: 768px) {
+    .issues-header { padding: 8px 12px; }
+    .issues-filters { gap: 8px; }
+    .filter-group { flex: 1 1 45%; }
+    .filter-group.filter-search { flex-basis: 100%; }
+    .filter-group label { display: none; }
+    .filter-select, .search-input { min-width: 0; width: 100%; }
+    .issue-stats { gap: 6px; }
+    .issue-stat-card { min-width: 0; flex: 1 1 40%; }
+}
 </style>
 {% endblock %}
 
@@ -101,10 +113,10 @@
     <!-- Filters -->
     <form method="get" class="issues-filters" id="issuesFilterForm">
         {% if selected_site_id %}<input type="hidden" name="site_id" value="{{ selected_site_id }}">{% endif %}
-        <div class="filter-group">
+        <div class="filter-group filter-search">
             <label for="search">Search:</label>
             <input type="text" id="search" name="search" class="search-input"
-                   value="{{ search_term }}" placeholder="Search by issue title, description, equipment, tag...">
+                   value="{{ search_term }}" placeholder="Search issues…">
         </div>
         <div class="filter-group">
             <label for="status">Status:</label>
