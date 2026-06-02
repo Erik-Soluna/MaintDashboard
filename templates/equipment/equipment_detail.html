@@ -77,7 +77,14 @@
         <div class="card">
             <div class="card-body text-center">
                 <h6>Next Maintenance</h6>
-                {% if equipment.next_maintenance_date %}
+                {% if next_maintenance_activity %}
+                    <p class="mb-0">
+                        <a href="{% url 'maintenance:activity_detail' next_maintenance_activity.id %}">
+                            {% localtime off %}{{ next_maintenance_activity.get_scheduled_start_in_timezone|date:"M d, Y" }}{% endlocaltime %}
+                        </a>
+                    </p>
+                    <small class="text-muted">{{ next_maintenance_activity.activity_type.name }}</small>
+                {% elif equipment.next_maintenance_date %}
                     <p class="mb-0">{{ equipment.next_maintenance_date|date:"M d, Y" }}</p>
                 {% else %}
                     <p class="text-muted mb-0">Not scheduled</p>
@@ -85,24 +92,24 @@
             </div>
         </div>
     </div>
+    {% if is_transformer %}
     <div class="col-md-3">
         <div class="card">
             <div class="card-body text-center">
                 <h6>DGA Due Date</h6>
                 {% if equipment.dga_due_date %}
                     <p class="mb-0">{{ equipment.dga_due_date|date:"M d, Y" }}</p>
-                    {% if equipment.category.name|lower == 'transformer' or 'transformer' in equipment.category.name|lower %}
-                        <a href="{% url 'maintenance:add_activity' %}?equipment={{ equipment.id }}&type=dga" 
-                           class="btn btn-sm btn-outline-primary mt-2">
-                            <i class="fas fa-flask"></i> Schedule DGA
-                        </a>
-                    {% endif %}
                 {% else %}
-                    <p class="text-muted mb-0">Not applicable</p>
+                    <p class="text-muted mb-0">Not scheduled</p>
                 {% endif %}
+                <a href="{% url 'maintenance:add_activity' %}?equipment={{ equipment.id }}&type=dga"
+                   class="btn btn-sm btn-outline-primary mt-2">
+                    <i class="fas fa-flask"></i> Schedule DGA
+                </a>
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 
 <!-- Tabbed Content -->
@@ -119,6 +126,14 @@
                     <li class="nav-item">
                         <a class="nav-link" id="maintenance-tab" data-toggle="tab" href="#maintenance" role="tab">
                             <i class="fas fa-wrench me-1"></i> Maintenance History
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="schedules-tab" data-toggle="tab" href="#schedules" role="tab">
+                            <i class="fas fa-calendar-alt me-1"></i> Schedules
+                            {% if maintenance_schedules %}
+                                <span class="badge badge-secondary">{{ maintenance_schedules|length }}</span>
+                            {% endif %}
                         </a>
                     </li>
                     <li class="nav-item">
@@ -349,7 +364,75 @@
                             </div>
                         {% endif %}
                     </div>
-                    
+
+                    <!-- Schedules Tab -->
+                    <div class="tab-pane fade" id="schedules" role="tabpanel">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">Maintenance Schedules</h6>
+                            <a href="{% url 'maintenance:add_schedule' %}?equipment={{ equipment.id }}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-plus me-1"></i> Add Schedule
+                            </a>
+                        </div>
+
+                        {% if maintenance_schedules %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Activity Type</th>
+                                            <th>Frequency</th>
+                                            <th>Start Date</th>
+                                            <th>Next Due</th>
+                                            <th>Auto-generate</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for schedule in maintenance_schedules %}
+                                        <tr>
+                                            <td>{{ schedule.activity_type.name }}</td>
+                                            <td>{{ schedule.get_frequency_display }}</td>
+                                            <td>{{ schedule.start_date|date:"M d, Y" }}</td>
+                                            <td>{{ schedule.get_next_due_date|date:"M d, Y"|default:"—" }}</td>
+                                            <td>
+                                                {% if schedule.auto_generate %}
+                                                    <span class="badge badge-success">On</span>
+                                                {% else %}
+                                                    <span class="badge badge-secondary">Off</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if schedule.is_active %}
+                                                    <span class="badge badge-primary">Active</span>
+                                                {% else %}
+                                                    <span class="badge badge-secondary">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'maintenance:schedule_detail' schedule.id %}" class="btn btn-sm btn-outline-primary" title="View">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="{% url 'maintenance:edit_schedule' schedule.id %}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+                                <p class="text-muted">No recurring schedules configured for this equipment</p>
+                                <a href="{% url 'maintenance:add_schedule' %}?equipment={{ equipment.id }}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-1"></i> Add First Schedule
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+
                     <!-- Components Tab -->
                     <div class="tab-pane fade" id="components" role="tabpanel">
                         <div class="d-flex justify-content-between align-items-center mb-3">

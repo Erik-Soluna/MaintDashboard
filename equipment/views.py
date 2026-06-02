@@ -405,7 +405,24 @@ def equipment_detail(request, equipment_id):
     open_issues_count = issues.filter(status='open').count()
     in_progress_issues_count = issues.filter(status='in_progress').count()
     resolved_issues_count = issues.filter(status='resolved').count()
-    
+
+    # Next scheduled maintenance = soonest upcoming activity not yet completed or
+    # cancelled. equipment.next_maintenance_date is only refreshed on completion,
+    # so it's empty for equipment that have pending-but-never-completed schedules
+    # (the "Not scheduled" bug). Read the real upcoming activity instead.
+    next_maintenance_activity = (
+        equipment.maintenance_activities
+        .exclude(status__in=['completed', 'cancelled'])
+        .order_by('scheduled_start')
+        .first()
+    )
+
+    # DGA (dissolved gas analysis) only applies to transformers.
+    is_transformer = bool(equipment.category and 'transformer' in equipment.category.name.lower())
+
+    # Recurring schedules configured for this specific piece of equipment.
+    maintenance_schedules = equipment.maintenance_schedules.select_related('activity_type').all()
+
     context = {
         'equipment': equipment,
         'maintenance_status': maintenance_status,
@@ -427,6 +444,9 @@ def equipment_detail(request, equipment_id):
         'open_issues_count': open_issues_count,
         'in_progress_issues_count': in_progress_issues_count,
         'resolved_issues_count': resolved_issues_count,
+        'next_maintenance_activity': next_maintenance_activity,
+        'is_transformer': is_transformer,
+        'maintenance_schedules': maintenance_schedules,
     }
     
     return render(request, 'equipment/equipment_detail.html', context)
