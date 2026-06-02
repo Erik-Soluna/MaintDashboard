@@ -2546,9 +2546,10 @@ def create_maintenance_from_issue(request, equipment_id, issue_id):
     """Create a corrective maintenance activity from an equipment issue."""
     from maintenance.models import MaintenanceActivityType, ActivityTypeCategory
     from maintenance.forms import MaintenanceActivityForm
+    from maintenance.utils import DEFAULT_ACTIVITY_TIMEZONE
     from django.utils import timezone
     from datetime import timedelta
-    
+
     equipment = get_object_or_404(Equipment, id=equipment_id)
     issue = get_object_or_404(EquipmentIssue, id=issue_id, equipment=equipment)
     
@@ -2590,6 +2591,7 @@ def create_maintenance_from_issue(request, equipment_id, issue_id):
             'status': 'pending',
             'scheduled_start': timezone.now(),
             'scheduled_end': timezone.now() + timedelta(hours=2),
+            'timezone': DEFAULT_ACTIVITY_TIMEZONE,
         }
         
         form = MaintenanceActivityForm(initial=initial_data, request=request)
