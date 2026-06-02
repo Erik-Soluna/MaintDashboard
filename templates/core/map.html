@@ -19,10 +19,15 @@
 .lg-critical { background:#f56565; } .lg-warning { background:#ed8936; } .lg-maintenance { background:#4299e1; }
 .lg-ok { background:#48bb78; } .lg-idle { background:#718096; }
 
-#canvasWrap { position: relative; width: 100%; overflow: hidden; background:#1a2238;
-    background-image: linear-gradient(#2a3550 1px, transparent 1px), linear-gradient(90deg, #2a3550 1px, transparent 1px);
-    background-size: 40px 40px; border: 1px solid #4a5568; border-radius: 8px; }
+#canvasWrap { position: relative; width: 100%; overflow: auto; max-height: 80vh;
+    -webkit-overflow-scrolling: touch; background:#1a2238;
+    border: 1px solid #4a5568; border-radius: 8px; }
 #canvasWrap.editing { outline: 2px dashed #4299e1; outline-offset: -2px; }
+/* Sizer holds the scaled footprint so the wrapper scrolls correctly; the
+   canvas is visually scaled on top of it. */
+#canvasSizer { position: relative;
+    background-image: linear-gradient(#2a3550 1px, transparent 1px), linear-gradient(90deg, #2a3550 1px, transparent 1px);
+    background-size: 40px 40px; }
 #facilityCanvas { position: absolute; top: 0; left: 0; transform-origin: top left; }
 
 .pod-zone { position: absolute; border: 1px solid #5a6987; border-radius: 8px;
@@ -116,7 +121,9 @@
         <i class="fas fa-info-circle me-1"></i> Drag zone headers and equipment to arrange; drag the corner handle to resize. Moving a zone moves its equipment. Click <strong>Save</strong> when done.
     </div>
     <div id="canvasWrap">
-        <div id="facilityCanvas"></div>
+        <div id="canvasSizer">
+            <div id="facilityCanvas"></div>
+        </div>
     </div>
     <div id="mapEmpty" class="map-empty" style="display:none;">
         <i class="fas fa-vector-square"></i>
@@ -137,8 +144,10 @@
     if (!layout) { return; }
 
     var canvas = document.getElementById('facilityCanvas');
+    var sizer = document.getElementById('canvasSizer');
     var wrap = document.getElementById('canvasWrap');
     var empty = document.getElementById('mapEmpty');
+    var MIN_SCALE = 0.45;  // below this the map is unreadable — scroll instead of shrink
     var canEdit = {{ can_edit_map|yesno:"true,false" }};
     var saveUrl = "{% url 'core:save_map_layout' %}";
 
@@ -275,9 +284,14 @@
 
     // ----- fit to width -----
     function fit() {
-        scale = Math.min(1, wrap.clientWidth / layout.site.width);
+        // Fit to width, but never shrink below MIN_SCALE — if the site is too
+        // large for the viewport (e.g. on mobile) keep it readable and let the
+        // wrapper scroll/pan instead.
+        var fitScale = wrap.clientWidth / layout.site.width;
+        scale = Math.min(1, Math.max(fitScale, MIN_SCALE));
         canvas.style.transform = 'scale(' + scale + ')';
-        wrap.style.height = (layout.site.height * scale) + 'px';
+        sizer.style.width = (layout.site.width * scale) + 'px';
+        sizer.style.height = (layout.site.height * scale) + 'px';
     }
     fit();
     window.addEventListener('resize', fit);
