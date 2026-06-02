@@ -22,19 +22,22 @@
 #canvasWrap { position: relative; width: 100%; overflow: hidden; background:#1a2238;
     background-image: linear-gradient(#2a3550 1px, transparent 1px), linear-gradient(90deg, #2a3550 1px, transparent 1px);
     background-size: 40px 40px; border: 1px solid #4a5568; border-radius: 8px; }
+#canvasWrap.editing { outline: 2px dashed #4299e1; outline-offset: -2px; }
 #facilityCanvas { position: absolute; top: 0; left: 0; transform-origin: top left; }
 
 .pod-zone { position: absolute; border: 1px solid #5a6987; border-radius: 8px;
-    background: rgba(45,55,72,0.55); box-sizing: border-box; }
+    background: rgba(45,55,72,0.45); box-sizing: border-box; }
 .pod-header { position: absolute; top: 0; left: 0; right: 0; height: 26px; padding: 4px 8px;
     font-size: 12px; font-weight: 600; color: #e2e8f0; border-bottom: 1px solid #4a5568;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pod-header .pod-counts { float: right; font-weight: 400; color: #a0aec0; }
+#canvasWrap.editing .pod-header { cursor: move; }
 
 .eq-box { position: absolute; border-radius: 5px; box-sizing: border-box; cursor: pointer;
     border: 2px solid; padding: 3px 5px; font-size: 11px; line-height: 1.15; color: #fff;
-    overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; }
+    overflow: hidden; display: flex; align-items: center; justify-content: center; text-align: center; z-index: 2; }
 .eq-box:hover { filter: brightness(1.18); outline: 2px solid #fff; }
+#canvasWrap.editing .eq-box { cursor: move; }
 .eq-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .eq-critical { background:#9b2c2c; border-color:#f56565; }
 .eq-warning { background:#9c4221; border-color:#ed8936; }
@@ -42,7 +45,12 @@
 .eq-ok { background:#276749; border-color:#48bb78; }
 .eq-idle { background:#3a4456; border-color:#718096; }
 .eq-badge { position:absolute; top:-6px; right:-6px; background:#f56565; color:#fff; border-radius:9px;
-    font-size:9px; font-weight:700; padding:0 5px; line-height:14px; min-width:14px; }
+    font-size:9px; font-weight:700; padding:0 5px; line-height:14px; min-width:14px; z-index:3; }
+
+.resize-handle { position:absolute; right:-3px; bottom:-3px; width:14px; height:14px; cursor:se-resize;
+    display:none; background:#fff; border:2px solid #4299e1; border-radius:3px; z-index:6; }
+#canvasWrap.editing .resize-handle { display:block; }
+.dragging { opacity:.85; z-index:20 !important; }
 
 .map-empty { text-align:center; padding:60px 20px; color:#a0aec0; }
 .map-empty i { font-size:46px; color:#4a5568; margin-bottom:16px; }
@@ -61,6 +69,20 @@
                 {% if selected_site %}{{ selected_site.name }} — equipment by zone, color-coded by health{% else %}Select a site{% endif %}
             </p>
         </div>
+        {% if can_edit_map and selected_site %}
+        <div class="map-toolbar">
+            {% csrf_token %}
+            <button type="button" id="editLayoutBtn" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-arrows-alt me-1"></i> Edit Layout
+            </button>
+            <button type="button" id="saveLayoutBtn" class="btn btn-success btn-sm" style="display:none;">
+                <i class="fas fa-save me-1"></i> Save
+            </button>
+            <button type="button" id="cancelLayoutBtn" class="btn btn-secondary btn-sm" style="display:none;">
+                Cancel
+            </button>
+        </div>
+        {% endif %}
     </div>
     <div class="map-controls">
         {% if sites %}
@@ -90,13 +112,16 @@
         <p>Add a site under Settings → Locations to use the facility map.</p>
     </div>
 {% else %}
+    <div id="editHint" class="text-info small mb-2" style="display:none;">
+        <i class="fas fa-info-circle me-1"></i> Drag zone headers and equipment to arrange; drag the corner handle to resize. Moving a zone moves its equipment. Click <strong>Save</strong> when done.
+    </div>
     <div id="canvasWrap">
         <div id="facilityCanvas"></div>
     </div>
     <div id="mapEmpty" class="map-empty" style="display:none;">
         <i class="fas fa-vector-square"></i>
         <h5 class="text-muted">No equipment to map for this site</h5>
-        <p>Once this site has zones and equipment, they'll appear here. (Drag-to-arrange editor coming soon.)</p>
+        <p>Once this site has zones and equipment, they'll appear here.</p>
     </div>
     <div id="unzonedWrap" class="unzoned-wrap" style="display:none;">
         <h6 class="text-muted"><i class="fas fa-layer-group me-1"></i> Not assigned to a zone</h6>
@@ -114,13 +139,28 @@
     var canvas = document.getElementById('facilityCanvas');
     var wrap = document.getElementById('canvasWrap');
     var empty = document.getElementById('mapEmpty');
+    var canEdit = {{ can_edit_map|yesno:"true,false" }};
+    var saveUrl = "{% url 'core:save_map_layout' %}";
+
+    var scale = 1, editing = false, dirty = false;
+    var eqByPod = {};   // podId -> [equipment box elements]
 
     function eqHref(id) { return '/equipment/' + id + '/'; }
+    function px(el, prop) { return parseFloat(el.style[prop]) || 0; }
+
+    function addResizeHandle(el) {
+        var h = document.createElement('div');
+        h.className = 'resize-handle';
+        h.addEventListener('pointerdown', function (e) { beginResize(e, el); });
+        el.appendChild(h);
+        return h;
+    }
 
     function makeEqBox(eq, absolute) {
         var box = document.createElement('div');
         box.className = 'eq-box eq-' + eq.health;
         box.title = eq.tooltip;
+        box.dataset.id = eq.id;
         if (absolute && eq.x !== null && eq.x !== undefined) {
             box.style.left = eq.x + 'px'; box.style.top = eq.y + 'px';
             box.style.width = (eq.w || 90) + 'px'; box.style.height = (eq.h || 40) + 'px';
@@ -135,7 +175,14 @@
             b.textContent = eq.open_issues;
             box.appendChild(b);
         }
-        box.addEventListener('click', function () { window.location.href = eqHref(eq.id); });
+        box.addEventListener('click', function () { if (!editing) window.location.href = eqHref(eq.id); });
+        if (absolute) {
+            box.addEventListener('pointerdown', function (e) {
+                if (!editing || e.target.classList.contains('resize-handle')) return;
+                beginDrag(e, [box]);
+            });
+            addResizeHandle(box);
+        }
         return box;
     }
 
@@ -143,6 +190,7 @@
     if (!hasContent) {
         wrap.style.display = 'none';
         if (empty) empty.style.display = 'block';
+        var et = document.querySelector('.map-toolbar'); if (et) et.style.display = 'none';
         return;
     }
 
@@ -152,6 +200,7 @@
     (layout.pods || []).forEach(function (pod) {
         var zone = document.createElement('div');
         zone.className = 'pod-zone';
+        zone.dataset.id = pod.id;
         zone.style.left = pod.x + 'px'; zone.style.top = pod.y + 'px';
         zone.style.width = pod.w + 'px'; zone.style.height = pod.h + 'px';
 
@@ -161,10 +210,23 @@
         if (pod.counts.critical) counts += '<span style="color:#f56565">●</span>' + pod.counts.critical + ' ';
         if (pod.counts.warning) counts += '<span style="color:#ed8936">●</span>' + pod.counts.warning + ' ';
         header.innerHTML = '<span class="pod-counts">' + counts + '</span>' + pod.name;
+        header.addEventListener('pointerdown', function (e) {
+            if (!editing) return;
+            beginDrag(e, [zone].concat(eqByPod[pod.id] || []));
+        });
         zone.appendChild(header);
-
-        (pod.equipment || []).forEach(function (eq) { zone.appendChild(makeEqBox(eq, true)); });
+        addResizeHandle(zone);
         canvas.appendChild(zone);
+
+        // Equipment sit ON the canvas (single coordinate space), not inside the
+        // zone div — keeps coords absolute and dragging simple.
+        eqByPod[pod.id] = [];
+        (pod.equipment || []).forEach(function (eq) {
+            var box = makeEqBox(eq, true);
+            box.dataset.podId = pod.id;
+            canvas.appendChild(box);
+            eqByPod[pod.id].push(box);
+        });
     });
 
     if (layout.unzoned && layout.unzoned.length) {
@@ -174,13 +236,100 @@
         layout.unzoned.forEach(function (eq) { ug.appendChild(makeEqBox(eq, false)); });
     }
 
+    // ----- drag / resize (account for canvas scale) -----
+    function beginDrag(e, els) {
+        e.preventDefault();
+        var sx = e.clientX, sy = e.clientY;
+        var origins = els.map(function (el) { el.classList.add('dragging'); return { el: el, l: px(el, 'left'), t: px(el, 'top') }; });
+        function move(ev) {
+            var dx = (ev.clientX - sx) / scale, dy = (ev.clientY - sy) / scale;
+            origins.forEach(function (o) { o.el.style.left = (o.l + dx) + 'px'; o.el.style.top = (o.t + dy) + 'px'; });
+        }
+        function up() {
+            origins.forEach(function (o) { o.el.classList.remove('dragging'); });
+            document.removeEventListener('pointermove', move);
+            document.removeEventListener('pointerup', up);
+            dirty = true;
+        }
+        document.addEventListener('pointermove', move);
+        document.addEventListener('pointerup', up);
+    }
+
+    function beginResize(e, el) {
+        e.preventDefault(); e.stopPropagation();
+        var sx = e.clientX, sy = e.clientY;
+        var w0 = px(el, 'width') || el.offsetWidth, h0 = px(el, 'height') || el.offsetHeight;
+        function move(ev) {
+            var dw = (ev.clientX - sx) / scale, dh = (ev.clientY - sy) / scale;
+            el.style.width = Math.max(30, w0 + dw) + 'px';
+            el.style.height = Math.max(20, h0 + dh) + 'px';
+        }
+        function up() {
+            document.removeEventListener('pointermove', move);
+            document.removeEventListener('pointerup', up);
+            dirty = true;
+        }
+        document.addEventListener('pointermove', move);
+        document.addEventListener('pointerup', up);
+    }
+
+    // ----- fit to width -----
     function fit() {
-        var scale = Math.min(1, wrap.clientWidth / layout.site.width);
+        scale = Math.min(1, wrap.clientWidth / layout.site.width);
         canvas.style.transform = 'scale(' + scale + ')';
         wrap.style.height = (layout.site.height * scale) + 'px';
     }
     fit();
     window.addEventListener('resize', fit);
+
+    // ----- editor controls -----
+    if (canEdit) {
+        var editBtn = document.getElementById('editLayoutBtn');
+        var saveBtn = document.getElementById('saveLayoutBtn');
+        var cancelBtn = document.getElementById('cancelLayoutBtn');
+        var hint = document.getElementById('editHint');
+
+        function setEditing(on) {
+            editing = on;
+            wrap.classList.toggle('editing', on);
+            editBtn.style.display = on ? 'none' : '';
+            saveBtn.style.display = on ? '' : 'none';
+            cancelBtn.style.display = on ? '' : 'none';
+            if (hint) hint.style.display = on ? 'block' : 'none';
+        }
+
+        editBtn && editBtn.addEventListener('click', function () { setEditing(true); });
+        cancelBtn && cancelBtn.addEventListener('click', function () {
+            if (dirty && !confirm('Discard layout changes?')) return;
+            window.location.reload();
+        });
+
+        saveBtn && saveBtn.addEventListener('click', function () {
+            var pods = Array.prototype.map.call(canvas.querySelectorAll('.pod-zone'), function (z) {
+                return { id: parseInt(z.dataset.id, 10), x: px(z, 'left'), y: px(z, 'top'), w: px(z, 'width'), h: px(z, 'height') };
+            });
+            var equipment = Array.prototype.map.call(canvas.querySelectorAll('.eq-box'), function (b) {
+                return { id: parseInt(b.dataset.id, 10), x: px(b, 'left'), y: px(b, 'top'), w: px(b, 'width'), h: px(b, 'height') };
+            });
+            var token = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
+            saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
+            fetch(saveUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token, 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ site_id: layout.site.id, canvas: { width: layout.site.width, height: layout.site.height }, pods: pods, equipment: equipment })
+            }).then(function (r) { return r.json(); }).then(function (resp) {
+                if (resp.success) { dirty = false; window.location.reload(); }
+                else { alert('Save failed: ' + (resp.error || 'unknown error')); saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save'; }
+            }).catch(function () {
+                alert('Save failed. Please try again.');
+                saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fas fa-save me-1"></i> Save';
+            });
+        });
+
+        window.addEventListener('beforeunload', function (e) {
+            if (editing && dirty) { e.preventDefault(); e.returnValue = ''; }
+        });
+    }
 })();
 </script>
 {% endblock %}
