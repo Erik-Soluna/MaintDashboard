@@ -41,7 +41,7 @@
 .issue-stat-card .num { font-size: 28px; font-weight: 700; line-height: 1; }
 .issue-stat-card .lbl { color: #a0aec0; font-size: 13px; margin-top: 6px; text-transform: uppercase; letter-spacing: .04em; }
 .issue-stat-card.open .num { color: #f56565; }
-.issue-stat-card.progress .num { color: #ed8936; }
+.issue-stat-card.inprog .num { color: #ed8936; }
 .issue-stat-card.resolved .num { color: #48bb78; }
 .issue-stat-card.total .num { color: #4299e1; }
 
@@ -86,7 +86,7 @@
             <div class="num">{{ stats.open }}</div>
             <div class="lbl">Open{% if stats.critical_open %} &middot; {{ stats.critical_open }} critical{% endif %}</div>
         </div>
-        <div class="issue-stat-card progress">
+        <div class="issue-stat-card inprog">
             <div class="num">{{ stats.in_progress }}</div>
             <div class="lbl">In Progress</div>
         </div>
