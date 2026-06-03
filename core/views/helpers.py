@@ -236,35 +236,57 @@ def get_comprehensive_system_health():
     celery_beat_health = check_celery_beat_health()
     health_data['components']['celery_beat'] = celery_beat_health
     
+    # Email / SMTP health
+    email_health = check_email_health()
+    health_data['components']['email'] = email_health
+
     # System metrics
     try:
         system_metrics = get_system_metrics()
         health_data['components']['system'] = system_metrics
     except Exception as e:
         health_data['components']['system'] = {'error': str(e)}
-    
+
     # Determine overall status
     if db_health.get('status') == 'unhealthy':
         health_data['overall_status'] = 'critical'
-    elif cache_health.get('status') == 'unhealthy':
+    elif (cache_health.get('status') == 'unhealthy'
+          or celery_health.get('status') == 'unhealthy'
+          or celery_beat_health.get('status') == 'unhealthy'
+          or email_health.get('status') == 'unhealthy'):
         health_data['overall_status'] = 'warning'
-    elif celery_health.get('status') == 'unhealthy' or celery_beat_health.get('status') == 'unhealthy':
-        health_data['overall_status'] = 'warning'
-    
+
     return health_data
 
 
-def check_celery_worker_health():
-    """Check Celery worker health by running inspect ping."""
+def check_email_health():
+    """Check email config: SMTP connectivity, or note a non-SMTP backend."""
+    from django.conf import settings
+    from django.core.mail import get_connection
+    backend = getattr(settings, 'EMAIL_BACKEND', '') or ''
+    short = backend.rsplit('.', 1)[-1] if backend else 'unknown'
+    if 'smtp' not in backend.lower():
+        # console/locmem/filebased backends don't send real mail — not an error.
+        return {'status': 'healthy', 'message': f'{short} (no SMTP relay configured)'}
+    host = getattr(settings, 'EMAIL_HOST', '')
+    port = getattr(settings, 'EMAIL_PORT', '')
     try:
-        import subprocess
-        result = subprocess.run([
-            'celery', '-A', 'maintenance_dashboard', 'inspect', 'ping'
-        ], capture_output=True, text=True, timeout=10)
-        if result.returncode == 0 and 'pong' in result.stdout:
-            return {'status': 'healthy', 'output': result.stdout}
-        else:
-            return {'status': 'unhealthy', 'output': result.stdout + result.stderr}
+        conn = get_connection(timeout=5)
+        conn.open()
+        conn.close()
+        return {'status': 'healthy', 'message': f'SMTP {host}:{port} reachable'}
+    except Exception as e:
+        return {'status': 'unhealthy', 'error': f'{host}:{port} — {e}'}
+
+
+def check_celery_worker_health():
+    """Check Celery worker health via a broker ping (no subprocess/celery binary)."""
+    try:
+        from maintenance_dashboard.celery import app
+        replies = app.control.inspect(timeout=3).ping()
+        if replies:
+            return {'status': 'healthy', 'message': f"{len(replies)} worker(s) responding"}
+        return {'status': 'unhealthy', 'message': 'No workers responded to ping'}
     except Exception as e:
         return {'status': 'unhealthy', 'error': str(e)}
 
