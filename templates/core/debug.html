@@ -500,7 +500,7 @@ function loadDatabaseStats() {
     document.getElementById('database-stats').innerHTML = statsHtml;
     
     // Fetch actual stats
-    fetch('/core/api/database-stats/', {
+    fetch('{% url "core:database_stats_api" %}', {
         credentials: 'same-origin',
         headers: {
             'Accept': 'application/json',
