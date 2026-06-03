@@ -28,7 +28,6 @@ app.conf.worker_send_task_events = True
 app.conf.task_send_sent_event = True
 # Disable superuser privileges - workers should not run as root.
 # os.geteuid only exists on Unix; guard so imports don't crash on Windows dev.
-import os
 if hasattr(os, 'geteuid') and os.geteuid() == 0:
     logging.warning("Celery worker is running as root. This is not recommended for security.")
     # Try to switch to non-root user if available
@@ -44,44 +43,12 @@ if hasattr(os, 'geteuid') and os.geteuid() == 0:
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
-# Configure Celery to handle Redis connection failures gracefully
-def configure_celery_broker():
-    """Configure Celery broker with fallback options."""
-    broker_url = getattr(settings, 'CELERY_BROKER_URL', None)
-    if not broker_url:
-        # Build Redis URL from settings
-        redis_url = getattr(settings, 'REDIS_URL', 'redis://redis:6379')
-        broker_url = f'{redis_url}/0'
-    
-    # If Redis is disabled or we're in development without Redis
-    if broker_url.startswith('memory://') or broker_url.startswith('rpc://'):
-        app.conf.update(
-            broker_url=broker_url,
-            result_backend=getattr(settings, 'CELERY_RESULT_BACKEND', 'rpc://'),
-            task_always_eager=True,  # Execute tasks synchronously
-            task_eager_propagates=True,
-        )
-        logging.info("Celery configured with memory/RPC broker for development")
-    else:
-        # Try to configure Redis broker
-        try:
-            import redis
-            # Test Redis connection
-            redis_url = broker_url.replace('/0', '')  # Remove database number for connection test
-            r = redis.Redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
-            r.ping()
-            logging.info("Redis connection successful, using Redis broker")
-        except Exception as e:
-            logging.warning(f"Redis connection failed: {e}. Falling back to memory broker.")
-            app.conf.update(
-                broker_url='memory://',
-                result_backend='rpc://',
-                task_always_eager=True,
-                task_eager_propagates=True,
-            )
-
-# Configure broker on startup
-configure_celery_broker()
+# Broker, result backend and task_always_eager all come from settings via
+# config_from_object (CELERY_BROKER_URL / CELERY_RESULT_BACKEND /
+# CELERY_TASK_ALWAYS_EAGER). We deliberately do NOT auto-detect Redis and flip
+# to an in-memory/eager broker on a transient ping failure — that silently ran
+# tasks synchronously in the web process and masked broker misconfig. To run
+# without a broker (local dev), set CELERY_TASK_ALWAYS_EAGER=True explicitly.
 
 # Ensure Django is fully initialized before beat scheduler starts
 # This is critical when running worker + beat in the same process

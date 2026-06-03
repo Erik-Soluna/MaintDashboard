@@ -296,21 +296,24 @@ def check_celery_beat_health():
     try:
         from django_celery_beat.models import PeriodicTask
         from django.utils import timezone
+        from django.conf import settings as s
         enabled_tasks = PeriodicTask.objects.filter(enabled=True)
         if not enabled_tasks.exists():
             return {'status': 'warning', 'message': 'No periodic tasks enabled'}
-        recent = None
-        for task in enabled_tasks:
-            if task.last_run_at and (recent is None or task.last_run_at > recent):
-                recent = task.last_run_at
+        # Allow up to ~2x the most-frequent scheduled interval before warning —
+        # the old fixed 10-min threshold false-warned because the most frequent
+        # task only runs every couple of hours.
+        intervals = [v.get('schedule') for v in (getattr(s, 'CELERY_BEAT_SCHEDULE', {}) or {}).values()
+                     if isinstance(v.get('schedule'), (int, float))]
+        threshold = (min(intervals) if intervals else 3600) * 2 + 300
+        recent = max((t.last_run_at for t in enabled_tasks if t.last_run_at), default=None)
         if recent:
             seconds_since = (timezone.now() - recent).total_seconds()
-            if seconds_since < 600:
-                return {'status': 'healthy', 'message': f'Recent heartbeat ({int(seconds_since)}s ago)'}
-            else:
-                return {'status': 'warning', 'message': f'No recent heartbeat (last was {int(seconds_since//60)} min ago)'}
-        else:
-            return {'status': 'warning', 'message': 'No periodic tasks have ever run'}
+            if seconds_since <= threshold:
+                return {'status': 'healthy', 'message': f'Last run {int(seconds_since // 60)} min ago'}
+            return {'status': 'warning',
+                    'message': f'No run in {int(seconds_since // 60)} min (expected within {int(threshold // 60)})'}
+        return {'status': 'warning', 'message': 'No periodic tasks have run yet'}
     except Exception as e:
         return {'status': 'unhealthy', 'error': str(e)}
 
