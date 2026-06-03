@@ -98,12 +98,15 @@ def maintenance_list(request):
             status__in=['scheduled', 'pending']
         ).order_by('scheduled_start')[:10]
         
-        # Get overdue maintenance
-        overdue_activities = base_queryset.filter(
+        # Get overdue maintenance. Keep the queryset UNSLICED for an accurate
+        # count, then cap only the displayed list (the old code sliced [:10]
+        # then counted the slice, so it never reported more than 10).
+        overdue_qs = base_queryset.filter(
             scheduled_end__lt=timezone.now(),
-            status__in=['scheduled', 'pending']
-        ).order_by('scheduled_start')[:10]
-        
+            status__in=['scheduled', 'pending', 'overdue']
+        ).order_by('scheduled_start')
+        overdue_activities = overdue_qs[:50]
+
         # Get in progress
         in_progress = base_queryset.filter(
             status='in_progress'
@@ -121,7 +124,7 @@ def maintenance_list(request):
             # so counting only 'pending' badly undercounts.
             'pending_count': stats_queryset.filter(status__in=['scheduled', 'pending']).count(),
             'in_progress_count': stats_queryset.filter(status='in_progress').count(),
-            'overdue_count': overdue_activities.count(),
+            'overdue_count': overdue_qs.count(),
             'completed_this_month': stats_queryset.filter(
                 status='completed',
                 actual_end__gte=timezone.now().replace(day=1)
@@ -184,11 +187,12 @@ def maintenance_list(request):
                 status__in=['scheduled', 'pending']
             ).order_by('scheduled_start')[:10]
             
-            overdue_activities = base_queryset.filter(
+            overdue_qs = base_queryset.filter(
                 scheduled_end__lt=timezone.now(),
-                status__in=['scheduled', 'pending']
-            ).order_by('scheduled_start')[:10]
-            
+                status__in=['scheduled', 'pending', 'overdue']
+            ).order_by('scheduled_start')
+            overdue_activities = overdue_qs[:50]
+
             in_progress = base_queryset.filter(
                 status='in_progress'
             )
@@ -203,7 +207,7 @@ def maintenance_list(request):
                 'total_activities': stats_queryset.count(),
                 'pending_count': stats_queryset.filter(status__in=['scheduled', 'pending']).count(),
                 'in_progress_count': stats_queryset.filter(status='in_progress').count(),
-                'overdue_count': overdue_activities.count(),
+                'overdue_count': overdue_qs.count(),
                 'completed_this_month': stats_queryset.filter(
                     status='completed',
                     actual_end__gte=timezone.now().replace(day=1)
