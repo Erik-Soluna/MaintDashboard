@@ -919,7 +919,7 @@ def equipment_documents(request, equipment_id):
     return render(request, 'equipment/equipment_documents.html', context)
 
 
-@login_required
+@permission_required('equipment.edit')
 def add_document(request, equipment_id):
     """Add document to equipment."""
     equipment = get_object_or_404(Equipment, id=equipment_id)
