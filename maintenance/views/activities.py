@@ -260,11 +260,38 @@ def activity_list(request):
                 Q(activity_type__name__icontains=search_term)
             )
         
-        # Pagination
-        paginator = Paginator(queryset, 25)
-        page_number = request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        
+        # Sorting (whitelisted columns)
+        SORT_MAP = {
+            'title': 'title', 'equipment': 'equipment__name',
+            'activity_type': 'activity_type__name', 'scheduled_start': 'scheduled_start',
+            'status': 'status', 'priority': 'priority', 'assigned_to': 'assigned_to__username',
+        }
+        sort = request.GET.get('sort', '-scheduled_start')
+        field = sort[1:] if sort.startswith('-') else sort
+        if field in SORT_MAP:
+            order = ('-' if sort.startswith('-') else '') + SORT_MAP[field]
+        else:
+            sort, order = '-scheduled_start', '-scheduled_start'
+        queryset = queryset.order_by(order)
+
+        # Page size
+        try:
+            per_page = int(request.GET.get('per_page', 25))
+        except (TypeError, ValueError):
+            per_page = 25
+        if per_page not in (25, 50, 100, 200):
+            per_page = 25
+
+        paginator = Paginator(queryset, per_page)
+        page_obj = paginator.get_page(request.GET.get('page'))
+
+        # Querystrings for pagination/sort links (preserve filters)
+        params = request.GET.copy()
+        params.pop('page', None)
+        base_qs = params.urlencode()
+        params.pop('sort', None)
+        sort_qs = params.urlencode()
+
         context = {
             'page_obj': page_obj,
             'search_term': search_term,
@@ -274,8 +301,17 @@ def activity_list(request):
             'selected_status': status,
             'selected_equipment': equipment_id,
             'selected_activity_type': activity_type_id,
+            'sort': sort,
+            'per_page': per_page,
+            'base_qs': base_qs,
+            'sort_qs': sort_qs,
+            'sortable_columns': [
+                ('title', 'Title'), ('equipment', 'Equipment'),
+                ('activity_type', 'Activity Type'), ('scheduled_start', 'Scheduled Start'),
+                ('status', 'Status'), ('priority', 'Priority'), ('assigned_to', 'Assigned To'),
+            ],
         }
-        
+
         return render(request, 'maintenance/activity_list.html', context)
         
     except Exception as e:
@@ -318,6 +354,15 @@ def activity_list(request):
                 'selected_status': status,
                 'selected_equipment': equipment_id,
                 'selected_activity_type': activity_type_id,
+                'sort': '-scheduled_start',
+                'per_page': 25,
+                'base_qs': '',
+                'sort_qs': '',
+                'sortable_columns': [
+                    ('title', 'Title'), ('equipment', 'Equipment'),
+                    ('activity_type', 'Activity Type'), ('scheduled_start', 'Scheduled Start'),
+                    ('status', 'Status'), ('priority', 'Priority'), ('assigned_to', 'Assigned To'),
+                ],
                 'database_error': True,
                 'error_message': 'Database schema issue detected. Some functionality may be limited.'
             }
