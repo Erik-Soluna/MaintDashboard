@@ -25,42 +25,46 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <div class="row">
-                        <div class="col-md-8">
-                            <h5 class="mb-0">Activity List</h5>
-                        </div>
-                        <div class="col-md-4">
-                            <form method="get" class="d-flex">
-                                <input type="text" name="search" class="form-control me-2" placeholder="Search activities..." value="{{ search_term }}">
-                                <button type="submit" class="btn btn-outline-secondary">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </div>
+                <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h5 class="mb-0">Activity List</h5>
+                    <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
+                        <input type="hidden" name="sort" value="{{ sort }}">
+                        <input type="hidden" name="status" value="{{ selected_status|default:'' }}">
+                        <input type="hidden" name="equipment" value="{{ selected_equipment|default:'' }}">
+                        <input type="hidden" name="activity_type" value="{{ selected_activity_type|default:'' }}">
+                        <input type="text" name="search" class="form-control form-control-sm" placeholder="Search activities..." value="{{ search_term }}" style="max-width:220px;">
+                        <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="fas fa-search"></i></button>
+                        <select name="per_page" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+                            <option value="25" {% if per_page == 25 %}selected{% endif %}>25 / page</option>
+                            <option value="50" {% if per_page == 50 %}selected{% endif %}>50 / page</option>
+                            <option value="100" {% if per_page == 100 %}selected{% endif %}>100 / page</option>
+                            <option value="200" {% if per_page == 200 %}selected{% endif %}>200 / page</option>
+                        </select>
+                    </form>
                 </div>
                 <div class="card-body">
                     <form id="bulkDeleteForm" method="post" action="{% url 'maintenance:bulk_delete_activities' %}">
                         {% csrf_token %}
                         <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                        <div class="mb-3">
+                        <div class="mb-3 d-flex align-items-center gap-3 flex-wrap">
                             <button type="submit" id="bulkDeleteBtn" class="btn btn-danger btn-sm" disabled>
                                 <i class="fas fa-trash"></i> Delete Selected (<span id="bulkSelectedCount">0</span>)
                             </button>
+                            <small class="text-muted"><i class="fas fa-info-circle me-1"></i>Tip: click a checkbox, then <strong>Shift</strong>+click another to select a range.</small>
                         </div>
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
                                 <tr>
                                     <th style="width:32px;"><input type="checkbox" id="bulkSelectAll" title="Select all on this page"></th>
-                                    <th>Title</th>
-                                    <th>Equipment</th>
-                                    <th>Activity Type</th>
-                                    <th>Scheduled Start</th>
-                                    <th>Status</th>
-                                    <th>Priority</th>
-                                    <th>Assigned To</th>
+                                    {% for key, label in sortable_columns %}
+                                    <th>
+                                        <a href="?{% if sort_qs %}{{ sort_qs }}&{% endif %}sort={% if sort == key %}-{{ key }}{% else %}{{ key }}{% endif %}" class="text-reset text-decoration-none">
+                                            {{ label }}
+                                            {% if sort == key %}<i class="fas fa-sort-up ms-1"></i>{% elif sort == '-'|add:key %}<i class="fas fa-sort-down ms-1"></i>{% else %}<i class="fas fa-sort ms-1 text-muted"></i>{% endif %}
+                                        </a>
+                                    </th>
+                                    {% endfor %}
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -118,25 +122,25 @@
                         <ul class="pagination justify-content-center">
                             {% if page_obj.has_previous %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                                    <a class="page-link" href="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>
                                 </li>
                             {% endif %}
-                            
+
                             {% for num in page_obj.paginator.page_range %}
                                 {% if page_obj.number == num %}
                                     <li class="page-item active">
                                         <span class="page-link">{{ num }}</span>
                                     </li>
-                                {% else %}
+                                {% elif num > page_obj.number|add:'-5' and num < page_obj.number|add:'5' %}
                                     <li class="page-item">
-                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                        <a class="page-link" href="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ num }}">{{ num }}</a>
                                     </li>
                                 {% endif %}
                             {% endfor %}
-                            
+
                             {% if page_obj.has_next %}
                                 <li class="page-item">
-                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                                    <a class="page-link" href="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ page_obj.next_page_number }}">Next</a>
                                 </li>
                             {% endif %}
                         </ul>
@@ -171,7 +175,23 @@ document.addEventListener('DOMContentLoaded', function () {
         items().forEach(function (c) { c.checked = selectAll.checked; });
         update();
     });
-    items().forEach(function (c) { c.addEventListener('change', update); });
+
+    // Shift-click range selection: click one checkbox, then Shift+click another
+    // to (de)select everything in between, matching the anchor's new state.
+    var lastIndex = null;
+    items().forEach(function (c) {
+        c.addEventListener('click', function (e) {
+            var all = items();
+            var idx = all.indexOf(c);
+            if (e.shiftKey && lastIndex !== null && lastIndex !== idx) {
+                var start = Math.min(lastIndex, idx);
+                var end = Math.max(lastIndex, idx);
+                for (var i = start; i <= end; i++) { all[i].checked = c.checked; }
+            }
+            lastIndex = idx;
+            update();
+        });
+    });
     if (form) form.addEventListener('submit', function (e) {
         var n = items().filter(function (c) { return c.checked; }).length;
         if (n === 0) { e.preventDefault(); return; }
