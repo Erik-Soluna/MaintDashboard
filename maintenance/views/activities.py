@@ -117,7 +117,10 @@ def maintenance_list(request):
         
         stats = {
             'total_activities': stats_queryset.count(),
-            'pending_count': stats_queryset.filter(status='pending').count(),
+            # "Pending" = open/upcoming work; activities default to 'scheduled',
+            # so counting only 'pending' badly undercounts.
+            'pending_count': stats_queryset.filter(status__in=['scheduled', 'pending']).count(),
+            'in_progress_count': stats_queryset.filter(status='in_progress').count(),
             'overdue_count': overdue_activities.count(),
             'completed_this_month': stats_queryset.filter(
                 status='completed',
@@ -198,7 +201,8 @@ def maintenance_list(request):
             
             stats = {
                 'total_activities': stats_queryset.count(),
-                'pending_count': stats_queryset.filter(status='pending').count(),
+                'pending_count': stats_queryset.filter(status__in=['scheduled', 'pending']).count(),
+                'in_progress_count': stats_queryset.filter(status='in_progress').count(),
                 'overdue_count': overdue_activities.count(),
                 'completed_this_month': stats_queryset.filter(
                     status='completed',
