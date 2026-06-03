@@ -7,6 +7,7 @@ from equipment.models import Equipment
 from maintenance.models import MaintenanceActivity
 from events.models import CalendarEvent
 from core.models import Location, EquipmentCategory, Role, Permission, UserProfile, Customer, BrandingSettings, DashboardSettings, CSSCustomization
+from core.rbac import permission_required
 from core.forms import LocationForm, EquipmentCategoryForm, CustomerForm, UserForm, BrandingSettingsForm, BrandingBasicForm, BrandingNavigationForm, BrandingAppearanceForm, CSSCustomizationForm, CSSPreviewForm, DashboardSettingsForm
 from django.utils import timezone
 from django.db.models import Q, Count
@@ -43,8 +44,7 @@ from django.utils import timezone
 from .helpers import *  # noqa: F401,F403 (shared helpers + globals)
 
 
-@login_required
-@user_passes_test(lambda u: u.is_superuser)
+@permission_required('admin.full_access')
 def clear_maintenance_data(request):
     """Clear all maintenance activities and calendar events (superuser only)."""
     if request.method == 'POST':
@@ -103,8 +103,7 @@ def clear_maintenance_data(request):
     return render(request, 'core/clear_data_confirm.html', context)
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('site_map.write')
 @require_http_methods(["POST"])
 def generate_pdus(request):
     """Generate PDU equipment ("PDU {building}-{n}") under an MDC location.
@@ -148,8 +147,7 @@ def generate_pdus(request):
         }, status=500)
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('site_map.write')
 @require_http_methods(["POST"])
 def generate_pods(request):
     """Generate PODs for selected sites or all sites."""
@@ -225,8 +223,7 @@ def generate_pods(request):
         }, status=500)
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('site_map.write')
 @require_http_methods(["POST"])
 def generate_mdcs(request):
     """Generate MDCs for existing PODs."""
@@ -379,8 +376,7 @@ def generate_mdcs(request):
         }, status=500)
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('admin.full_access')
 @require_http_methods(["POST"])
 def populate_demo_data(request):
     """Populate the database with comprehensive demo data."""
@@ -445,8 +441,7 @@ def populate_demo_data(request):
         }, status=500)
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('admin.full_access')
 @require_http_methods(["POST"])
 def clear_maintenance_activities(request):
     """Clear scheduled maintenance activities without wiping entire database (web interface version)."""
@@ -521,8 +516,7 @@ def clear_maintenance_activities(request):
 
 
 @login_required
-@user_passes_test(is_staff_or_superuser)
-@csrf_exempt
+@permission_required('admin.full_access')
 @require_http_methods(["POST"])
 def clear_database(request):
     """Clear the database with safety confirmations."""

@@ -518,8 +518,7 @@ def location_detail_api(request, location_id):
             }, status=500)
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('site_map.write')
 def add_location(request):
     """Add new location."""
     if request.method == 'POST':
@@ -545,8 +544,7 @@ def add_location(request):
     return render(request, 'core/add_location.html', context)
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('site_map.write')
 def edit_location(request, location_id):
     """Edit existing location."""
     location = get_object_or_404(Location, id=location_id)
@@ -610,7 +608,7 @@ def export_sites_csv(request):
     return response
 
 
-@login_required
+@permission_required('site_map.write')
 @require_http_methods(["POST"])
 def import_sites_csv(request):
     """Import sites data from CSV file."""
@@ -702,8 +700,7 @@ def import_sites_csv(request):
     return redirect('core:locations_settings')
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('site_map.write')
 def delete_location(request, location_id):
     """Delete location."""
     location = get_object_or_404(Location, id=location_id)
@@ -782,7 +779,7 @@ def export_locations_csv(request):
     return response
 
 
-@login_required
+@permission_required('site_map.write')
 @require_http_methods(["POST"])
 def import_locations_csv(request):
     """Import locations (map data) from CSV file."""
@@ -943,7 +940,7 @@ def import_locations_csv(request):
 
 
 @login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('site_map.write')
 @require_http_methods(["GET", "POST"])
 def bulk_edit_locations(request):
     """Bulk edit locations (sites and sub-locations)."""
