@@ -436,6 +436,10 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+# Run tasks synchronously in-process (no broker) only when explicitly opted in
+# — e.g. local dev without Redis. Never auto-enabled on a broker hiccup.
+CELERY_TASK_ALWAYS_EAGER = config('CELERY_TASK_ALWAYS_EAGER', default=False, cast=bool)
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # Caching Configuration
 # Use Redis if available, fall back to database for development
