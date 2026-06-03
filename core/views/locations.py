@@ -100,8 +100,12 @@ def _build_site_layout(site):
     pod_ids = {p.id for p in pods}
 
     site_loc_ids = get_all_descendant_location_ids(site, include_inactive=True)
+    # Show ALL equipment under the site (matching the equipment list, which does
+    # not filter on is_active). Filtering is_active=True here hid equipment that
+    # was wrongly deactivated by the old edit bug — visible on the list but not
+    # the map. Coloring is driven by operational status, not is_active.
     equipment = list(
-        Equipment.objects.filter(location_id__in=site_loc_ids, is_active=True)
+        Equipment.objects.filter(location_id__in=site_loc_ids)
         .select_related('location', 'category')
     )
     eq_ids = [e.id for e in equipment]
