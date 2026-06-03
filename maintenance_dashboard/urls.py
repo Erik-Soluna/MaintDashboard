@@ -20,6 +20,7 @@ def robots_txt(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('robots.txt', robots_txt, name='robots_txt'),
+    path('api/v1/', include('api.urls')),  # Dynamic read-only API (DRF) - before core root include
     path('', include('core.urls')),  # Include core URLs at root level - MUST BE FIRST
     path('equipment/', include('equipment.urls')),
     path('maintenance/', include('maintenance.urls')),

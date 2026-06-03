@@ -145,6 +145,9 @@ def initialize_default_permissions():
         # Administration permissions (Settings, Users, System Config)
         ('administration.read', 'Administration Read', 'View system settings, users, and configuration', 'administration'),
         ('administration.write', 'Administration Write', 'Manage system settings, users, and configuration', 'administration'),
+
+        # Diagnostics / API permission (read-only programmatic access — AI agent)
+        ('diagnostics.read', 'Diagnostics Read', 'Read-only access to system diagnostics and the dynamic API', 'administration'),
         
         # Events permissions  
         ('events.read', 'Events Read', 'View calendar events and schedules', 'events'),
@@ -275,6 +278,24 @@ def initialize_default_permissions():
                 'maintenance.view',
                 'calendar.view',
                 'reports.view'
+            ]
+        },
+        {
+            'name': 'ai_diagnostics',
+            'display_name': 'AI Diagnostics (Read-Only)',
+            'description': 'Least-privilege read-only API/diagnostics access for the AI service account',
+            'is_system_role': True,
+            'permissions': [
+                'diagnostics.read',
+                'events.read',
+                'site_map.read',
+                'maintenance_calendar.read',
+                # Legacy read permissions for backward compatibility
+                'equipment.view',
+                'issues.view',
+                'maintenance.view',
+                'calendar.view',
+                'reports.view',
             ]
         },
         {
