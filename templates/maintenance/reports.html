@@ -5,221 +5,135 @@
 
 {% block content %}
 <div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1 class="h3 mb-0">Maintenance Reports</h1>
-                <div>
-                    <a href="{% url 'maintenance:overdue_maintenance' %}" class="btn btn-warning me-2">
-                        <i class="fas fa-exclamation-triangle"></i> Overdue Maintenance
-                    </a>
-                    <a href="{% url 'maintenance:export_maintenance_activities_csv' %}?{% for key, value in request.GET.items %}{{ key }}={{ value }}&{% endfor %}" class="btn btn-success">
-                        <i class="fas fa-download"></i> Export to CSV
-                    </a>
-                </div>
-            </div>
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h1 class="h4 mb-0">Maintenance Reports</h1>
+        <div class="d-flex gap-2">
+            <a href="{% url 'maintenance:overdue_maintenance' %}" class="btn btn-warning btn-sm">
+                <i class="fas fa-exclamation-triangle me-1"></i> Overdue
+            </a>
+            <a href="{% url 'maintenance:export_maintenance_activities_csv' %}?{% for key, value in request.GET.items %}{{ key }}={{ value }}&{% endfor %}" class="btn btn-success btn-sm">
+                <i class="fas fa-download me-1"></i> Export CSV
+            </a>
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-filter me-2"></i>
-                        Filters
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form method="get" action="{% url 'maintenance:maintenance_reports' %}" class="row g-3">
-                        <div class="col-md-3">
-                            <label for="category" class="form-label">Equipment Category</label>
-                            <select name="category" id="category" class="form-select">
-                                <option value="">All Categories</option>
-                                {% for category in categories %}
-                                <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>
-                                    {{ category.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-3">
-                            <label for="location" class="form-label">Location</label>
-                            <select name="location" id="location" class="form-select">
-                                <option value="">All Locations</option>
-                                {% for location in locations %}
-                                <option value="{{ location.id }}" {% if selected_location == location.id %}selected{% endif %}>
-                                    {{ location.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="status" class="form-label">Status</label>
-                            <select name="status" id="status" class="form-select">
-                                <option value="">All Statuses</option>
-                                <option value="scheduled" {% if selected_status == 'scheduled' %}selected{% endif %}>Scheduled</option>
-                                <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Pending</option>
-                                <option value="in_progress" {% if selected_status == 'in_progress' %}selected{% endif %}>In Progress</option>
-                                <option value="completed" {% if selected_status == 'completed' %}selected{% endif %}>Completed</option>
-                                <option value="overdue" {% if selected_status == 'overdue' %}selected{% endif %}>Overdue</option>
-                                <option value="cancelled" {% if selected_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="date_from" class="form-label">Date From</label>
-                            <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
-                        </div>
-                        <div class="col-md-2">
-                            <label for="date_to" class="form-label">Date To</label>
-                            <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
-                        </div>
-                        <div class="col-12">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-search me-1"></i> Apply Filters
-                            </button>
-                            <a href="{% url 'maintenance:maintenance_reports' %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-times me-1"></i> Clear
-                            </a>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Daily Completion Chart -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-chart-line me-2"></i>
-                        Activities Completed Per Day
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="dailyCompletionsChart" height="80"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Maintenance Trends Chart -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-chart-area me-2"></i>
-                        Maintenance Trends
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="maintenanceTrendsChart" height="80"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- Statistics Cards -->
-    <div class="row">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Activity Status Distribution</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Status</th>
-                                    <th>Count</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for stat in status_stats %}
-                                <tr>
-                                    <td>{{ stat.status|title }}</td>
-                                    <td>{{ stat.count }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="2" class="text-center">No data available</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+    <!-- Status KPI strip -->
+    <div class="row g-2 mb-3">
+        {% for stat in status_stats %}
+        <div class="col-6 col-md">
+            <div class="card h-100">
+                <div class="card-body text-center py-2">
+                    <div class="h4 mb-0
+                        {% if stat.status == 'completed' %}text-success{% elif stat.status == 'overdue' %}text-danger{% elif stat.status == 'in_progress' %}text-warning{% elif stat.status == 'pending' %}text-info{% elif stat.status == 'scheduled' %}text-primary{% else %}text-secondary{% endif %}">
+                        {{ stat.count }}
                     </div>
+                    <small class="text-muted text-uppercase" style="font-size:11px; letter-spacing:.03em;">{{ stat.status|cut:"_"|title }}</small>
                 </div>
             </div>
         </div>
+        {% empty %}
+        <div class="col-12"><div class="card"><div class="card-body py-2 text-center text-muted">No activities match these filters</div></div></div>
+        {% endfor %}
+    </div>
 
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Top Equipment (Most Maintenance)</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Equipment</th>
-                                    <th>Activities</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for stat in equipment_stats %}
-                                <tr>
-                                    <td>{{ stat.equipment__name }}</td>
-                                    <td>{{ stat.count }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="2" class="text-center">No data available</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+    <!-- Compact filter bar -->
+    <form method="get" action="{% url 'maintenance:maintenance_reports' %}" class="row g-2 align-items-end mb-3 p-2 rounded border border-secondary">
+        <div class="col-6 col-md">
+            <label for="category" class="form-label mb-1 small text-muted">Category</label>
+            <select name="category" id="category" class="form-select form-select-sm">
+                <option value="">All</option>
+                {% for category in categories %}
+                <option value="{{ category.id }}" {% if selected_category == category.id %}selected{% endif %}>{{ category.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md">
+            <label for="location" class="form-label mb-1 small text-muted">Location</label>
+            <select name="location" id="location" class="form-select form-select-sm">
+                <option value="">All</option>
+                {% for location in locations %}
+                <option value="{{ location.id }}" {% if selected_location == location.id %}selected{% endif %}>{{ location.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md">
+            <label for="status" class="form-label mb-1 small text-muted">Status</label>
+            <select name="status" id="status" class="form-select form-select-sm">
+                <option value="">All</option>
+                <option value="scheduled" {% if selected_status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="in_progress" {% if selected_status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                <option value="completed" {% if selected_status == 'completed' %}selected{% endif %}>Completed</option>
+                <option value="overdue" {% if selected_status == 'overdue' %}selected{% endif %}>Overdue</option>
+                <option value="cancelled" {% if selected_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+            </select>
+        </div>
+        <div class="col-6 col-md">
+            <label for="date_from" class="form-label mb-1 small text-muted">From</label>
+            <input type="date" name="date_from" id="date_from" class="form-control form-control-sm" value="{{ date_from }}">
+        </div>
+        <div class="col-6 col-md">
+            <label for="date_to" class="form-label mb-1 small text-muted">To</label>
+            <input type="date" name="date_to" id="date_to" class="form-control form-control-sm" value="{{ date_to }}">
+        </div>
+        <div class="col-6 col-md-auto">
+            <button type="submit" class="btn btn-primary btn-sm w-100"><i class="fas fa-filter me-1"></i> Apply</button>
+        </div>
+        <div class="col-6 col-md-auto">
+            <a href="{% url 'maintenance:maintenance_reports' %}" class="btn btn-outline-secondary btn-sm w-100"><i class="fas fa-times me-1"></i> Clear</a>
+        </div>
+    </form>
+
+    <!-- Charts side by side -->
+    <div class="row g-3 mb-3">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header"><i class="fas fa-chart-line me-2"></i>Completed Per Day</div>
+                <div class="card-body"><canvas id="dailyCompletionsChart" height="120"></canvas></div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header"><i class="fas fa-chart-area me-2"></i>Maintenance Trends</div>
+                <div class="card-body"><canvas id="maintenanceTrendsChart" height="120"></canvas></div>
             </div>
         </div>
     </div>
 
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Monthly Completions (Last 12 Months)</h5>
+    <!-- Tables side by side -->
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">Top Equipment</div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead><tr><th>Equipment</th><th class="text-end">Activities</th></tr></thead>
+                        <tbody>
+                            {% for stat in equipment_stats %}
+                            <tr><td>{{ stat.equipment__name }}</td><td class="text-end">{{ stat.count }}</td></tr>
+                            {% empty %}
+                            <tr><td colspan="2" class="text-center text-muted">No data</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Month</th>
-                                    <th>Completed Activities</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for stat in monthly_stats %}
-                                <tr>
-                                    <td>{{ stat.month }}</td>
-                                    <td>{{ stat.count }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="2" class="text-center">No data available</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">Monthly Completions <small class="text-muted">(last 12 months)</small></div>
+                <div class="card-body p-0">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead><tr><th>Month</th><th class="text-end">Completed</th></tr></thead>
+                        <tbody>
+                            {% for stat in monthly_stats %}
+                            <tr><td>{{ stat.month }}</td><td class="text-end">{{ stat.count }}</td></tr>
+                            {% empty %}
+                            <tr><td colspan="2" class="text-center text-muted">No data</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
