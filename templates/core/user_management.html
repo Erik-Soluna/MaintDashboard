@@ -23,6 +23,10 @@
                 <i class="fas fa-user-shield me-1"></i>
                 Manage Roles
             </a>
+            <button type="button" class="btn btn-outline-success me-2" data-bs-toggle="modal" data-bs-target="#createAgentModal">
+                <i class="fas fa-robot me-1"></i>
+                New API Agent
+            </button>
             <a href="{% url 'core:add_user' %}" class="btn btn-primary">
                 <i class="fas fa-user-plus me-1"></i>
                 Add User
@@ -243,6 +247,94 @@
         {% endif %}
     </div>
 </div>
+
+<!-- API Agents -->
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-robot me-2"></i>
+            API Agents
+            <small class="text-muted ms-2" style="font-weight:400;">Read-only service accounts with copy-pastable API tokens</small>
+        </h5>
+        <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#createAgentModal">
+            <i class="fas fa-plus me-1"></i> New Agent
+        </button>
+    </div>
+    <div class="card-body">
+        {% csrf_token %}
+        <div id="agentsEmpty" class="text-center py-4 text-muted" style="display:none;">
+            <i class="fas fa-robot fa-2x mb-2"></i>
+            <p class="mb-0">No API agents yet. Create one to give an AI assistant read-only access.</p>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="agentsTable">
+                <thead>
+                    <tr>
+                        <th>Agent</th>
+                        <th>Role</th>
+                        <th>API Token</th>
+                        <th>Created</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="agentsTableBody">
+                    <tr><td colspan="5" class="text-center text-muted py-3">Loading…</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <small class="text-muted">
+            Use a token with <code>Authorization: Token &lt;key&gt;</code> against <code>/api/v1/</code>.
+            See <code>docs/api.md</code>. Tokens are shown here for copying — treat them as secrets.
+        </small>
+    </div>
+</div>
+
+<!-- Create Agent Modal -->
+<div class="modal fade" id="createAgentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-robot me-2"></i>New API Agent</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="createAgentForm">
+          <div class="mb-3">
+            <label class="form-label">Agent name</label>
+            <input type="text" class="form-control" id="agentName" placeholder="e.g. ai-agent" autocomplete="off">
+            <div class="form-text">Used as the username. Letters, numbers and @/./+/-/_ only.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Role</label>
+            <select class="form-select" id="agentRole">
+              {% for role in roles %}
+                <option value="{{ role.id }}" {% if role.name == 'ai_diagnostics' %}selected{% endif %}>{{ role.display_name }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Defaults to the least-privilege <strong>AI Diagnostics (Read-Only)</strong> role.</div>
+          </div>
+          <div id="agentCreateError" class="alert alert-danger" style="display:none;"></div>
+        </div>
+        <div id="createAgentResult" style="display:none;">
+          <div class="alert alert-success mb-2"><i class="fas fa-check-circle me-1"></i> Agent created. Copy the token now:</div>
+          <div class="input-group">
+            <input type="text" class="form-control font-monospace" id="newAgentToken" readonly>
+            <button class="btn btn-outline-primary" type="button" onclick="copyAgentToken('newAgentToken', this)">
+              <i class="fas fa-copy"></i> Copy
+            </button>
+          </div>
+          <small class="text-muted">Store it in your MCP/Portainer env. You can re-copy or rotate it from the table below.</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="agentModalClose">Close</button>
+        <button type="button" class="btn btn-success" id="agentCreateBtn" onclick="createAgent()">
+          <i class="fas fa-plus me-1"></i> Create Agent
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_css %}
@@ -312,6 +404,165 @@ $(document).ready(function() {
             e.preventDefault();
         }
     });
+
+    loadAgents();
 });
+
+// ---- API Agents ----
+function agentCsrf() {
+    var el = document.querySelector('[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+}
+
+function escapeHtml(s) {
+    return (s == null ? '' : String(s)).replace(/[&<>"']/g, function(c) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+}
+
+function loadAgents() {
+    fetch("{% url 'core:agents_api' %}", {headers: {'X-Requested-With': 'XMLHttpRequest'}, credentials: 'same-origin'})
+        .then(function(r) { return r.json(); })
+        .then(function(agents) {
+            var body = document.getElementById('agentsTableBody');
+            var empty = document.getElementById('agentsEmpty');
+            var table = document.getElementById('agentsTable');
+            if (!Array.isArray(agents) || agents.length === 0) {
+                body.innerHTML = '';
+                table.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+            table.style.display = '';
+            empty.style.display = 'none';
+            body.innerHTML = agents.map(function(a) {
+                var created = a.created ? new Date(a.created).toLocaleString() : '—';
+                var tid = 'tok-' + a.id;
+                var tokenCell = a.token
+                    ? '<div class="input-group input-group-sm" style="max-width:340px;">'
+                      + '<input type="password" class="form-control font-monospace" id="' + tid + '" value="' + escapeHtml(a.token) + '" readonly>'
+                      + '<button class="btn btn-outline-secondary" type="button" title="Show/hide" onclick="toggleToken(\'' + tid + '\', this)"><i class="fas fa-eye"></i></button>'
+                      + '<button class="btn btn-outline-primary" type="button" title="Copy" onclick="copyAgentToken(\'' + tid + '\', this)"><i class="fas fa-copy"></i></button>'
+                      + '</div>'
+                    : '<span class="text-muted">no token</span>';
+                return '<tr>'
+                    + '<td><i class="fas fa-robot text-success me-2"></i><strong>' + escapeHtml(a.username) + '</strong>'
+                    + (a.is_active ? '' : ' <span class="badge bg-secondary">inactive</span>') + '</td>'
+                    + '<td>' + escapeHtml(a.role || '—') + '</td>'
+                    + '<td>' + tokenCell + '</td>'
+                    + '<td><small>' + created + '</small></td>'
+                    + '<td class="text-end">'
+                    + '<button class="btn btn-sm btn-outline-warning me-1" title="Rotate token" onclick="rotateAgent(' + a.id + ', \'' + escapeHtml(a.username) + '\')"><i class="fas fa-sync-alt"></i></button>'
+                    + '<button class="btn btn-sm btn-outline-danger" title="Remove agent" onclick="deleteAgent(' + a.id + ', \'' + escapeHtml(a.username) + '\')"><i class="fas fa-trash"></i></button>'
+                    + '</td></tr>';
+            }).join('');
+        })
+        .catch(function() {
+            document.getElementById('agentsTableBody').innerHTML =
+                '<tr><td colspan="5" class="text-danger text-center py-3">Failed to load agents.</td></tr>';
+        });
+}
+
+function toggleToken(id, btn) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var show = el.type === 'password';
+    el.type = show ? 'text' : 'password';
+    btn.innerHTML = show ? '<i class="fas fa-eye-slash"></i>' : '<i class="fas fa-eye"></i>';
+}
+
+function copyAgentToken(id, btn) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var val = el.value;
+    var done = function() {
+        var old = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        setTimeout(function() { btn.innerHTML = old; }, 1200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(val).then(done, function() { el.type='text'; el.select(); document.execCommand('copy'); done(); });
+    } else {
+        el.type = 'text'; el.select(); document.execCommand('copy'); done();
+    }
+}
+
+function createAgent() {
+    var name = document.getElementById('agentName').value.trim();
+    var roleId = document.getElementById('agentRole').value;
+    var errBox = document.getElementById('agentCreateError');
+    var btn = document.getElementById('agentCreateBtn');
+    errBox.style.display = 'none';
+    if (!name) { errBox.textContent = 'Agent name is required.'; errBox.style.display = 'block'; return; }
+    btn.disabled = true;
+    fetch("{% url 'core:agents_api' %}", {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': agentCsrf(), 'X-Requested-With': 'XMLHttpRequest'},
+        credentials: 'same-origin',
+        body: JSON.stringify({username: name, role_id: roleId})
+    })
+    .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, d: d}; }); })
+    .then(function(res) {
+        btn.disabled = false;
+        if (!res.ok) {
+            errBox.textContent = res.d.error || 'Failed to create agent.';
+            errBox.style.display = 'block';
+            return;
+        }
+        document.getElementById('createAgentForm').style.display = 'none';
+        btn.style.display = 'none';
+        document.getElementById('newAgentToken').value = res.d.token || '';
+        document.getElementById('createAgentResult').style.display = 'block';
+        loadAgents();
+    })
+    .catch(function() {
+        btn.disabled = false;
+        errBox.textContent = 'Request failed.';
+        errBox.style.display = 'block';
+    });
+}
+
+// reset the modal each time it opens
+document.addEventListener('DOMContentLoaded', function() {
+    var modal = document.getElementById('createAgentModal');
+    if (modal) modal.addEventListener('show.bs.modal', function() {
+        document.getElementById('agentName').value = '';
+        document.getElementById('agentCreateError').style.display = 'none';
+        document.getElementById('createAgentForm').style.display = 'block';
+        document.getElementById('createAgentResult').style.display = 'none';
+        var b = document.getElementById('agentCreateBtn');
+        b.style.display = ''; b.disabled = false;
+    });
+});
+
+function rotateAgent(id, name) {
+    if (!confirm('Rotate the API token for "' + name + '"? The old token stops working immediately.')) return;
+    fetch("/api/agents/" + id + "/", {
+        method: 'POST',
+        headers: {'X-CSRFToken': agentCsrf(), 'X-Requested-With': 'XMLHttpRequest'},
+        credentials: 'same-origin'
+    })
+    .then(function(r) { return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
+    .then(function(res) {
+        if (!res.ok) { alert(res.d.error || 'Failed to rotate token.'); return; }
+        loadAgents();
+    })
+    .catch(function(){ alert('Request failed.'); });
+}
+
+function deleteAgent(id, name) {
+    if (!confirm('Remove agent "' + name + '"? This deletes the account and revokes its token.')) return;
+    fetch("/api/agents/" + id + "/", {
+        method: 'DELETE',
+        headers: {'X-CSRFToken': agentCsrf(), 'X-Requested-With': 'XMLHttpRequest'},
+        credentials: 'same-origin'
+    })
+    .then(function(r) { return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
+    .then(function(res) {
+        if (!res.ok) { alert(res.d.error || 'Failed to remove agent.'); return; }
+        loadAgents();
+    })
+    .catch(function(){ alert('Request failed.'); });
+}
 </script>
 {% endblock %}
