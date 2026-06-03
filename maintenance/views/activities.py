@@ -899,11 +899,26 @@ def bulk_delete_activities(request):
     if not ids:
         messages.warning(request, 'No activities were selected for deletion.')
     else:
+        from django.db.models.signals import pre_delete, post_delete
+        from events.models import CalendarEvent
+        from maintenance.signals import delete_calendar_event
+        from events.signals import invalidate_dashboard_cache_on_event_delete
+
         qs = MaintenanceActivity.objects.filter(id__in=ids)
         count = qs.count()
-        # QuerySet.delete() sends pre_delete per object, so the calendar-event
-        # cleanup signal runs for each deleted activity.
-        qs.delete()
+        # Fast bulk delete: the per-object signals delete each activity's calendar
+        # event and invalidate the dashboard cache ONE ROW AT A TIME (N queries +
+        # N cache busts + log spam). Disconnect them, do the work in two bulk
+        # queries, then invalidate the cache once. (CalendarEvent.maintenance_activity
+        # is SET_NULL, so events must be deleted explicitly, not via cascade.)
+        pre_delete.disconnect(delete_calendar_event, sender=MaintenanceActivity)
+        post_delete.disconnect(invalidate_dashboard_cache_on_event_delete, sender=CalendarEvent)
+        try:
+            CalendarEvent.objects.filter(maintenance_activity_id__in=ids).delete()
+            qs.delete()
+        finally:
+            pre_delete.connect(delete_calendar_event, sender=MaintenanceActivity)
+            post_delete.connect(invalidate_dashboard_cache_on_event_delete, sender=CalendarEvent)
         try:
             from core.views import invalidate_dashboard_cache
             invalidate_dashboard_cache(user_id=request.user.id)
