@@ -396,8 +396,15 @@ if not REDIS_URL:
     else:
         REDIS_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}'
 
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default=f'{REDIS_URL}/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default=f'{REDIS_URL}/0')
+# REDIS_URL may or may not carry a trailing /<db> (e.g. redis://redis:6379/0).
+# Strip it so we can assign dedicated DBs below (/0 Celery, /1 cache) without
+# producing invalid URLs like redis://redis:6379/0/0 (the "Database is int
+# between 0 and limit - 1" error) or /0/1 (cache read/write mismatch).
+import re as _re
+REDIS_BASE_URL = _re.sub(r'/\d+$', '', REDIS_URL)
+
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default=f'{REDIS_BASE_URL}/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default=f'{REDIS_BASE_URL}/0')
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -437,8 +444,9 @@ USE_REDIS = config('USE_REDIS', default=True, cast=bool)
 # Test Redis connectivity and fall back gracefully
 def get_cache_config():
     """Get cache configuration with Redis fallback."""
-    if USE_REDIS and not DEBUG:
-        # Try Redis for production
+    if USE_REDIS:
+        # Use Redis when available (dev + prod); the connection test below falls
+        # back to the database/dummy cache if Redis can't be reached.
         try:
             import redis
             r = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=2, socket_timeout=2)
@@ -446,7 +454,7 @@ def get_cache_config():
             return {
                 'default': {
                     'BACKEND': 'django_redis.cache.RedisCache',
-                    'LOCATION': f'{REDIS_URL}/1',
+                    'LOCATION': f'{REDIS_BASE_URL}/1',
                     'OPTIONS': {
                         'CLIENT_CLASS': 'django_redis.client.DefaultClient',
                     },
