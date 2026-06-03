@@ -1100,25 +1100,15 @@
                      <i class="fas fa-cog me-1"></i> {{ navigation_settings_label }}
                  </a>
                                  <div class="dropdown-menu">
-                     <a class="dropdown-item" href="{% url 'core:branding_settings' %}">
-                         <i class="fas fa-palette me-1"></i> Branding
+                     <a class="dropdown-item" href="{% url 'core:settings' %}">
+                         <i class="fas fa-sliders-h me-1"></i> All Settings
                      </a>
-                     <a class="dropdown-item" href="{% url 'core:dashboard_settings' %}">
-                         <i class="fas fa-tachometer-alt me-1"></i> Dashboard Settings
-                     </a>
-                     <a class="dropdown-item" href="{% url 'equipment:field_configuration_settings' %}">
-                         <i class="fas fa-list-alt me-1"></i> Equipment Field Configuration
-                     </a>
-                     <a class="dropdown-item" href="{% url 'core:settings' %}">General Settings</a>
-                     <a class="dropdown-item" href="{% url 'core:locations_settings' %}">Locations</a>
-                     <a class="dropdown-item" href="{% url 'core:customers_settings' %}">Customers</a>
-                     <a class="dropdown-item" href="{% url 'core:equipment_items_settings' %}">Equipment Items</a>
                      <div class="dropdown-divider"></div>
-                     <a class="dropdown-item" href="{% url 'core:version_html' %}">
-                         <i class="fas fa-code-branch me-1"></i> Version Info
+                     <a class="dropdown-item" href="{% url 'core:user_management' %}">
+                         <i class="fas fa-users me-1"></i> User Management
                      </a>
-                     <a class="dropdown-item" href="{% url 'core:version_form' %}">
-                         <i class="fas fa-edit me-1"></i> Set Version
+                     <a class="dropdown-item" href="{% url 'core:roles_permissions_management' %}">
+                         <i class="fas fa-user-shield me-1"></i> Roles &amp; Permissions
                      </a>
                  </div>
             </li>
