@@ -41,115 +41,259 @@ import redis
 from django_celery_beat.models import PeriodicTask
 from django.utils import timezone
 from .helpers import *  # noqa: F401,F403 (shared helpers + globals)
+from core.rbac import permission_required, user_has_permission
+
+
+def _auto_grid(count, area_x, area_y, area_w, area_h, pad):
+    """Lay `count` items out in a centered grid within the given area.
+    Returns a list of (x, y, w, h) rectangles in canvas coordinates."""
+    import math
+    rects = []
+    if count <= 0:
+        return rects
+    cols = max(1, int(math.ceil(math.sqrt(count))))
+    rows = max(1, int(math.ceil(count / cols)))
+    cell_w = (area_w - pad * (cols + 1)) / cols
+    cell_h = (area_h - pad * (rows + 1)) / rows
+    cell_w = max(cell_w, 1)
+    cell_h = max(cell_h, 1)
+    for i in range(count):
+        r, c = divmod(i, cols)
+        x = area_x + pad + c * (cell_w + pad)
+        y = area_y + pad + r * (cell_h + pad)
+        rects.append((round(x, 1), round(y, 1), round(cell_w, 1), round(cell_h, 1)))
+    return rects
+
+
+def _equipment_health(status, open_issues, has_critical_issue, maint):
+    """Reduce a piece of equipment to one of five facility-map health levels."""
+    if has_critical_issue or maint == 'overdue':
+        return 'critical'
+    if open_issues > 0 or maint == 'due':
+        return 'warning'
+    if status == 'maintenance':
+        return 'maintenance'
+    if status == 'active':
+        return 'ok'
+    return 'idle'
+
+
+def _build_site_layout(site):
+    """Build the facility floor-plan for one site as a nested hierarchy:
+    POD zones -> MDC tiles -> equipment (collapsed behind each MDC).
+
+    POD and MDC zones are positioned from saved layout_* coords when present,
+    otherwise auto-flowed so the map is usable before anything is hand-placed.
+    Equipment is NOT individually positioned — it flows inside its MDC tile and
+    is revealed on click (there can be dozens of PDUs per MDC)."""
+    import math
+    from equipment.models import Equipment, EquipmentIssue
+    from core.utils import get_all_descendant_location_ids
+
+    PAD, HEADER, TILE_W, TILE_H, TPAD = 24, 28, 156, 58, 10
+    canvas_w = site.layout_width or 1280
+
+    pods = sorted(
+        Location.objects.filter(parent_location=site, is_active=True),
+        key=lambda l: natural_sort_key(l.name),
+    )
+    pod_ids = {p.id for p in pods}
+
+    site_loc_ids = get_all_descendant_location_ids(site, include_inactive=True)
+    equipment = list(
+        Equipment.objects.filter(location_id__in=site_loc_ids, is_active=True)
+        .select_related('location', 'category')
+    )
+    eq_ids = [e.id for e in equipment]
+
+    issues_by_eq = {}
+    for row in (EquipmentIssue.objects
+                .filter(equipment_id__in=eq_ids, status__in=['open', 'in_progress'])
+                .values('equipment')
+                .annotate(total=Count('id'), crit=Count('id', filter=Q(severity='critical')))):
+        issues_by_eq[row['equipment']] = (row['total'], row['crit'])
+
+    now = timezone.now()
+    soon = now + timedelta(days=14)
+    overdue_ids = set(MaintenanceActivity.objects
+                      .filter(equipment_id__in=eq_ids, status='overdue')
+                      .values_list('equipment_id', flat=True))
+    due_ids = set(MaintenanceActivity.objects
+                  .filter(equipment_id__in=eq_ids, status__in=['scheduled', 'pending'],
+                          scheduled_start__lte=soon)
+                  .values_list('equipment_id', flat=True))
+
+    def eq_payload(e):
+        total, crit = issues_by_eq.get(e.id, (0, 0))
+        maint = 'overdue' if e.id in overdue_ids else ('due' if e.id in due_ids else 'ok')
+        health = _equipment_health(e.status, total, crit > 0, maint)
+        tip = [e.name, f"Status: {e.get_status_display()}"]
+        if total:
+            tip.append(f"{total} open issue{'s' if total != 1 else ''}" + (f" ({crit} critical)" if crit else ""))
+        if maint == 'overdue':
+            tip.append("Maintenance overdue")
+        elif maint == 'due':
+            tip.append("Maintenance due soon")
+        return {'id': e.id, 'name': e.name, 'health': health, 'open_issues': total,
+                'tooltip': " • ".join(tip)}
+
+    # Group equipment by (pod, mdc). The MDC is the chain element directly below
+    # the POD; equipment sitting directly on the POD goes to an "Unzoned" group.
+    groups = {p.id: {} for p in pods}   # pod_id -> { mdc_id|None: {'mdc': loc|None, 'eq': []} }
+    for e in equipment:
+        chain, loc = [], e.location
+        while loc is not None:
+            chain.append(loc)
+            loc = loc.parent_location
+        pod = next((l for l in chain if l.id in pod_ids), None)
+        if not pod:
+            continue
+        idx = chain.index(pod)
+        mdc = chain[idx - 1] if idx > 0 else None
+        mid = mdc.id if mdc else None
+        groups[pod.id].setdefault(mid, {'mdc': mdc, 'eq': []})['eq'].append(e)
+
+    # Include every MDC under each POD even if it has no equipment yet.
+    mdc_by_pod = {}
+    for p in pods:
+        mdcs = sorted(Location.objects.filter(parent_location=p, is_active=True),
+                      key=lambda l: natural_sort_key(l.name))
+        mdc_by_pod[p.id] = mdcs
+        for m in mdcs:
+            groups[p.id].setdefault(m.id, {'mdc': m, 'eq': []})
+
+    # Flow PODs left-to-right, wrapping; grid MDC tiles inside each POD.
+    x_cur, y_cur, row_h = PAD, PAD, 0
+    pods_payload = []
+    for p in pods:
+        g = groups[p.id]
+        ordered = [(m.id, g.get(m.id) or {'mdc': m, 'eq': []}) for m in mdc_by_pod[p.id]]
+        if None in g:
+            ordered.append((None, g[None]))
+        n = max(1, len(ordered))
+        cols = max(1, int(math.ceil(math.sqrt(n))))
+        rows = int(math.ceil(n / cols))
+        comp_w = cols * TILE_W + (cols + 1) * TPAD
+        comp_h = HEADER + rows * TILE_H + (rows + 1) * TPAD
+
+        if x_cur + comp_w > canvas_w and x_cur > PAD:
+            x_cur, y_cur, row_h = PAD, y_cur + row_h + PAD, 0
+        px = p.layout_x if p.layout_x is not None else x_cur
+        py = p.layout_y if p.layout_y is not None else y_cur
+        pw = p.layout_width or comp_w
+        ph = p.layout_height or comp_h
+        x_cur += comp_w + PAD
+        row_h = max(row_h, comp_h)
+
+        mdcs_payload = []
+        for i, (mid, data) in enumerate(ordered):
+            r, c = divmod(i, cols)
+            mdc = data['mdc']
+            tx = px + TPAD + c * (TILE_W + TPAD)
+            ty = py + HEADER + TPAD + r * (TILE_H + TPAD)
+            if mdc is not None and mdc.layout_x is not None:
+                tx, ty = mdc.layout_x, mdc.layout_y
+            tw = (mdc.layout_width if mdc and mdc.layout_width else TILE_W)
+            th = (mdc.layout_height if mdc and mdc.layout_height else TILE_H)
+            eqs = [eq_payload(e) for e in sorted(data['eq'], key=lambda e: natural_sort_key(e.name))]
+            counts = {lvl: 0 for lvl in ('critical', 'warning', 'maintenance', 'ok', 'idle')}
+            for e in eqs:
+                counts[e['health']] += 1
+            mdcs_payload.append({
+                'id': mid, 'name': (mdc.name if mdc else 'Unzoned'),
+                'x': round(tx, 1), 'y': round(ty, 1), 'w': round(tw, 1), 'h': round(th, 1),
+                'count': len(eqs), 'counts': counts, 'equipment': eqs,
+            })
+
+        pods_payload.append({
+            'id': p.id, 'name': p.name,
+            'x': round(px, 1), 'y': round(py, 1), 'w': round(pw, 1), 'h': round(ph, 1),
+            'mdcs': mdcs_payload,
+        })
+
+    canvas_h = site.layout_height or (y_cur + row_h + PAD)
+    return {
+        'site': {'id': site.id, 'name': site.name, 'width': canvas_w, 'height': canvas_h},
+        'pods': pods_payload,
+        'equipment_total': len(equipment),
+    }
 
 
 @login_required
 def map_view(request):
-    """Map view showing customer-specific equipment with connections."""
-    from equipment.models import EquipmentConnection
-    import json
-    
-    # Get selected customer from request or show all
-    selected_customer_id = request.GET.get('customer_id', 'all')
-    
-    customers = Customer.objects.filter(is_active=True).order_by('name')
-    
-    # Build customer-specific maps
-    customer_maps = []
-    
-    if selected_customer_id == 'all':
-        # Show all customers
-        customer_list = customers
-    else:
-        # Show specific customer
-        try:
-            customer_list = [customers.get(id=selected_customer_id)]
-        except Customer.DoesNotExist:
-            customer_list = customers
-            selected_customer_id = 'all'
-    
-    for customer in customer_list:
-        # Get all locations for this customer (sites and sub-locations)
-        customer_locations = Location.objects.filter(
-            Q(customer=customer) | Q(parent_location__customer=customer),
-            is_active=True
-        ).select_related('parent_location', 'customer')
-        
-        # Get all equipment at these locations
-        customer_equipment = Equipment.objects.filter(
-            location__in=customer_locations,
-            is_active=True
-        ).select_related('location', 'category')
-        
-        if not customer_equipment.exists():
-            continue
-        
-        # Get equipment IDs for this customer
-        equipment_ids = list(customer_equipment.values_list('id', flat=True))
-        
-        # Get connections between this customer's equipment
-        customer_connections = EquipmentConnection.objects.filter(
-            upstream_equipment__id__in=equipment_ids,
-            downstream_equipment__id__in=equipment_ids,
-            is_active=True
-        ).select_related('upstream_equipment', 'downstream_equipment')
-        
-        # Build connection data for JavaScript
-        connection_data = []
-        for conn in customer_connections:
-            connection_data.append({
-                'id': conn.id,
-                'upstream_id': conn.upstream_equipment.id,
-                'downstream_id': conn.downstream_equipment.id,
-                'connection_type': conn.connection_type,
-                'is_critical': conn.is_critical,
-            })
-        
-        # Build equipment data with effective status
-        equipment_data = []
-        for equip in customer_equipment:
-            effective_status = equip.get_effective_status()
-            equipment_data.append({
-                'id': equip.id,
-                'name': equip.name,
-                'location_id': equip.location.id if equip.location else None,
-                'location_name': equip.location.name if equip.location else 'Unknown',
-                'status': equip.status,
-                'effective_status': effective_status,
-                'is_cascade_offline': effective_status == 'cascade_offline',
-            })
-        
-        # Group locations by site
-        sites = customer_locations.filter(is_site=True)
-        location_groups = {}
-        for site in sites:
-            location_groups[site] = customer_locations.filter(parent_location=site)
-        
-        # Add independent locations (no parent)
-        independent_locations = customer_locations.filter(parent_location=None, is_site=False)
-        if independent_locations.exists():
-            location_groups[None] = independent_locations
-        
-        customer_maps.append({
-            'customer': customer,
-            'locations': customer_locations,
-            'location_groups': location_groups,
-            'equipment': customer_equipment,
-            'connections': customer_connections,
-            'connections_json': json.dumps(connection_data),
-            'equipment_json': json.dumps(equipment_data),
-        })
-    
-    # Get all equipment for connection manager dropdowns
-    all_equipment = Equipment.objects.filter(is_active=True).select_related('location', 'category')
-    
+    """Per-site facility floor-plan map: POD/container zones with equipment placed
+    inside, color-coded by status / open issues / maintenance-due. Honors the
+    global site selector; falls back to an auto-grid where nothing is hand-placed."""
+    sites = sorted(
+        Location.objects.filter(is_site=True, is_active=True),
+        key=lambda s: natural_sort_key(s.name),
+    )
+
+    selected_site_id = request.GET.get('site_id') or request.session.get('selected_site_id')
+    selected_site = None
+    if selected_site_id and selected_site_id != 'all':
+        selected_site = next((s for s in sites if str(s.id) == str(selected_site_id)), None)
+    if selected_site is None and sites:
+        selected_site = sites[0]
+
+    site_layout = _build_site_layout(selected_site) if selected_site else None
+
     context = {
-        'customer_maps': customer_maps,
-        'customers': customers,
-        'selected_customer_id': selected_customer_id,
-        'all_equipment': all_equipment,
+        'sites': sites,
+        'selected_site': selected_site,
+        'selected_site_id': str(selected_site.id) if selected_site else '',
+        'site_layout_json': json.dumps(site_layout) if site_layout else 'null',
+        'can_edit_map': user_has_permission(request.user, 'site_map.write'),
     }
     return render(request, 'core/map.html', context)
+
+
+@permission_required('site_map.write')
+@require_POST
+def save_map_layout(request):
+    """Persist facility-map zone positions from the drag editor. Accepts JSON:
+    {site_id, canvas:{width,height}, zones:[{id,x,y,w,h}]}.
+    Zones are POD/MDC locations under the site (validated)."""
+    from core.utils import get_all_descendant_location_ids
+    try:
+        data = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+
+    site = get_object_or_404(Location, id=data.get('site_id'), is_site=True)
+
+    def num(v):
+        try:
+            return round(float(v), 1)
+        except (TypeError, ValueError):
+            return None
+
+    canvas = data.get('canvas') or {}
+    cw, ch = num(canvas.get('width')), num(canvas.get('height'))
+    fields = []
+    if cw:
+        site.layout_width = cw; fields.append('layout_width')
+    if ch:
+        site.layout_height = ch; fields.append('layout_height')
+    if fields:
+        site.save(update_fields=fields)
+
+    # Zones are POD/MDC locations under this site. Restrict updates to that set.
+    allowed_ids = set(get_all_descendant_location_ids(site, include_inactive=True))
+    zones_saved = 0
+    for z in data.get('zones', []):
+        try:
+            zid = int(z.get('id'))
+        except (TypeError, ValueError):
+            continue
+        if zid not in allowed_ids:
+            continue
+        zones_saved += Location.objects.filter(id=zid).update(
+            layout_x=num(z.get('x')), layout_y=num(z.get('y')),
+            layout_width=num(z.get('w')), layout_height=num(z.get('h')),
+        )
+
+    return JsonResponse({'success': True, 'zones_saved': zones_saved})
 
 
 @login_required
@@ -172,11 +316,22 @@ def locations_settings(request):
             child.child_locations_sorted = sorted(child.child_locations.all(), key=lambda loc: natural_sort_key(loc.name))
     
     customers = Customer.objects.filter(is_active=True).order_by('name')
-    
+
+    # MDC-level locations (children of PODs) — targets for the Generate PDUs modal.
+    mdc_locations = sorted(
+        Location.objects.filter(is_site=False, parent_location__is_site=False, is_active=True)
+            .select_related('parent_location', 'parent_location__parent_location'),
+        key=lambda l: natural_sort_key(l.get_hierarchical_display()),
+    )
+    for mdc in mdc_locations:
+        site_loc = mdc.get_site_location()
+        mdc.site_id = site_loc.id if site_loc else ''
+
     context = {
         'locations': locations,
         'sites': sites,
         'customers': customers,
+        'mdc_locations': mdc_locations,
     }
     return render(request, 'core/locations_settings.html', context)
 
@@ -363,8 +518,7 @@ def location_detail_api(request, location_id):
             }, status=500)
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('site_map.write')
 def add_location(request):
     """Add new location."""
     if request.method == 'POST':
@@ -390,8 +544,7 @@ def add_location(request):
     return render(request, 'core/add_location.html', context)
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('site_map.write')
 def edit_location(request, location_id):
     """Edit existing location."""
     location = get_object_or_404(Location, id=location_id)
@@ -455,7 +608,7 @@ def export_sites_csv(request):
     return response
 
 
-@login_required
+@permission_required('site_map.write')
 @require_http_methods(["POST"])
 def import_sites_csv(request):
     """Import sites data from CSV file."""
@@ -547,8 +700,7 @@ def import_sites_csv(request):
     return redirect('core:locations_settings')
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('site_map.write')
 def delete_location(request, location_id):
     """Delete location."""
     location = get_object_or_404(Location, id=location_id)
@@ -627,7 +779,7 @@ def export_locations_csv(request):
     return response
 
 
-@login_required
+@permission_required('site_map.write')
 @require_http_methods(["POST"])
 def import_locations_csv(request):
     """Import locations (map data) from CSV file."""
@@ -788,7 +940,7 @@ def import_locations_csv(request):
 
 
 @login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('site_map.write')
 @require_http_methods(["GET", "POST"])
 def bulk_edit_locations(request):
     """Bulk edit locations (sites and sub-locations)."""
@@ -982,4 +1134,4 @@ def bulk_locations_view(request):
     return render(request, 'core/bulk_locations.html', context)
 
 
-__all__ = ["map_view", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]
+__all__ = ["map_view", "save_map_layout", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]

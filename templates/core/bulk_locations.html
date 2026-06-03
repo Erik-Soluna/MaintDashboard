@@ -40,70 +40,7 @@
     font-size: 14px;
 }
 
-.bulk-action-btn {
-    padding: 10px 20px;
-    border: 2px solid var(--bs-secondary);
-    background: var(--bs-dark);
-    color: var(--bs-light);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 14px;
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.bulk-action-btn:hover {
-    background: var(--bs-secondary);
-    color: var(--bs-light);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-
-.bulk-action-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.bulk-action-btn.primary {
-    background: var(--bs-primary);
-    border-color: var(--bs-primary);
-    color: white;
-}
-
-.bulk-action-btn.primary:hover {
-    background: #0056b3;
-    border-color: #0056b3;
-    color: white;
-}
-
-.bulk-action-btn.danger {
-    background: var(--bs-danger);
-    border-color: var(--bs-danger);
-    color: white;
-}
-
-.bulk-action-btn.danger:hover {
-    background: #c82333;
-    border-color: #c82333;
-    color: white;
-}
-
-.bulk-action-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-}
-
-.bulk-action-btn:disabled:hover {
-    transform: none;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
+/* Bulk action buttons now use Bootstrap .btn classes (matches the rest of the app). */
 
 .locations-section {
     background: var(--bs-dark);
@@ -127,38 +64,7 @@
     justify-content: space-between;
 }
 
-.locations-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: var(--bs-dark);
-}
-
-.locations-table th,
-.locations-table td {
-    padding: 12px 15px;
-    text-align: left;
-    border: 1px solid var(--bs-secondary);
-    background: var(--bs-dark);
-}
-
-.locations-table th {
-    background: var(--bs-darker);
-    color: var(--bs-light);
-    font-weight: 600;
-    border-bottom: 2px solid var(--bs-primary);
-}
-
-.locations-table tr:nth-child(even) {
-    background: rgba(255, 255, 255, 0.02);
-}
-
-.locations-table tr:hover {
-    background: rgba(255, 255, 255, 0.08);
-}
-
-.locations-table tr:hover td {
-    background: rgba(255, 255, 255, 0.08);
-}
+/* Tables now use Bootstrap .table .table-hover (themed globally in base.html). */
 
 .checkbox-cell {
     width: 40px;
@@ -286,20 +192,7 @@
     font-weight: 500;
 }
 
-.bulk-form-control {
-    width: 100%;
-    padding: 10px 12px;
-    background: var(--bs-darker);
-    border: 1px solid var(--bs-secondary);
-    border-radius: 4px;
-    color: var(--bs-light);
-}
-
-.bulk-form-control:focus {
-    outline: none;
-    border-color: var(--bs-primary);
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
+/* Modal form controls now use Bootstrap .form-control. */
 
 .bulk-modal-footer {
     padding: 15px 20px;
@@ -383,24 +276,24 @@
             <div class="selection-info">
                 <span id="selected-count">0</span> of <span id="visible-count">{{ total_sub_locations }}</span> selected
             </div>
-            <button class="bulk-action-btn" onclick="selectAll()">
+            <button class="btn btn-outline-light" onclick="selectAll()">
                 <i class="fas fa-check-square"></i> Select All
             </button>
-            <button class="bulk-action-btn" onclick="deselectAll()">
+            <button class="btn btn-outline-light" onclick="deselectAll()">
                 <i class="fas fa-square"></i> Deselect All
             </button>
         </div>
         <div class="bulk-actions-right">
-            <button class="bulk-action-btn" onclick="showBulkEditModal()" id="bulk-edit-btn" disabled>
+            <button class="btn btn-outline-light" onclick="showBulkEditModal()" id="bulk-edit-btn" disabled>
                 <i class="fas fa-edit"></i> Edit
             </button>
-            <button class="bulk-action-btn" onclick="showBulkMoveModal()" id="bulk-move-btn" disabled>
+            <button class="btn btn-outline-light" onclick="showBulkMoveModal()" id="bulk-move-btn" disabled>
                 <i class="fas fa-arrows-alt"></i> Move
             </button>
-            <button class="bulk-action-btn primary" onclick="showBulkGeneratePodsModal()" id="bulk-pods-btn" disabled>
+            <button class="btn btn-primary" onclick="showBulkGeneratePodsModal()" id="bulk-pods-btn" disabled>
                 <i class="fas fa-sitemap"></i> Generate Pods
             </button>
-            <button class="bulk-action-btn danger" onclick="showBulkDeleteModal()" id="bulk-delete-btn" disabled>
+            <button class="btn btn-danger" onclick="showBulkDeleteModal()" id="bulk-delete-btn" disabled>
                 <i class="fas fa-trash"></i> Delete
             </button>
         </div>
@@ -415,7 +308,7 @@
             </h5>
         </div>
         <div class="table-responsive">
-            <table class="locations-table">
+            <table class="table table-hover mb-0">
                 <thead>
                     <tr>
                         <th class="checkbox-cell">
@@ -528,7 +421,7 @@
             </h5>
         </div>
         <div class="table-responsive">
-            <table class="locations-table" id="sub-locations-table">
+            <table class="table table-hover mb-0" id="sub-locations-table">
                 <thead>
                     <tr>
                         <th class="checkbox-cell">
@@ -611,11 +504,11 @@
             <form id="bulkEditForm">
                 <div class="bulk-form-group">
                     <label for="bulk-name">Name (leave blank to keep current)</label>
-                    <input type="text" id="bulk-name" class="bulk-form-control" placeholder="New name for all selected locations">
+                    <input type="text" id="bulk-name" class="form-control" placeholder="New name for all selected locations">
                 </div>
                 <div class="bulk-form-group">
                     <label for="bulk-customer">Customer</label>
-                    <select id="bulk-customer" class="bulk-form-control">
+                    <select id="bulk-customer" class="form-control">
                         <option value="">Keep current customer</option>
                         {% for customer in customers %}
                         <option value="{{ customer.id }}">{{ customer.name }}</option>
@@ -624,7 +517,7 @@
                 </div>
                 <div class="bulk-form-group">
                     <label for="bulk-status">Status</label>
-                    <select id="bulk-status" class="bulk-form-control">
+                    <select id="bulk-status" class="form-control">
                         <option value="">Keep current status</option>
                         <option value="true">Active</option>
                         <option value="false">Inactive</option>
@@ -633,8 +526,8 @@
             </form>
         </div>
         <div class="bulk-modal-footer">
-            <button class="bulk-action-btn" onclick="closeModal('bulkEditModal')">Cancel</button>
-            <button class="bulk-action-btn primary" onclick="executeBulkEdit()">Update Locations</button>
+            <button class="btn btn-outline-light" onclick="closeModal('bulkEditModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="executeBulkEdit()">Update Locations</button>
         </div>
     </div>
 </div>
@@ -650,7 +543,7 @@
             <form id="bulkMoveForm">
                 <div class="bulk-form-group">
                     <label for="bulk-new-parent">New Parent Site</label>
-                    <select id="bulk-new-parent" class="bulk-form-control">
+                    <select id="bulk-new-parent" class="form-control">
                         <option value="">No parent (make top-level)</option>
                         {% for site in sites %}
                         <option value="{{ site.id }}">{{ site.name }}</option>
@@ -660,8 +553,8 @@
             </form>
         </div>
         <div class="bulk-modal-footer">
-            <button class="bulk-action-btn" onclick="closeModal('bulkMoveModal')">Cancel</button>
-            <button class="bulk-action-btn primary" onclick="executeBulkMove()">Move Locations</button>
+            <button class="btn btn-outline-light" onclick="closeModal('bulkMoveModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="executeBulkMove()">Move Locations</button>
         </div>
     </div>
 </div>
@@ -681,17 +574,17 @@
             <form id="bulkGeneratePodsForm">
                 <div class="bulk-form-group">
                     <label for="bulk-pod-count">Number of Pods per Site</label>
-                    <input type="number" id="bulk-pod-count" class="bulk-form-control" value="11" min="1" max="50">
+                    <input type="number" id="bulk-pod-count" class="form-control" value="11" min="1" max="50">
                 </div>
                 <div class="bulk-form-group">
                     <label for="bulk-mdcs-per-pod">MDCs per Pod</label>
-                    <input type="number" id="bulk-mdcs-per-pod" class="bulk-form-control" value="2" min="1" max="10">
+                    <input type="number" id="bulk-mdcs-per-pod" class="form-control" value="2" min="1" max="10">
                 </div>
             </form>
         </div>
         <div class="bulk-modal-footer">
-            <button class="bulk-action-btn" onclick="closeModal('bulkGeneratePodsModal')">Cancel</button>
-            <button class="bulk-action-btn primary" onclick="executeBulkGeneratePods()">Generate Pods</button>
+            <button class="btn btn-outline-light" onclick="closeModal('bulkGeneratePodsModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="executeBulkGeneratePods()">Generate Pods</button>
         </div>
     </div>
 </div>
@@ -717,8 +610,8 @@
             </div>
         </div>
         <div class="bulk-modal-footer">
-            <button class="bulk-action-btn" onclick="closeModal('bulkDeleteModal')">Cancel</button>
-            <button class="bulk-action-btn danger" onclick="executeBulkDelete()">Delete Locations</button>
+            <button class="btn btn-outline-light" onclick="closeModal('bulkDeleteModal')">Cancel</button>
+            <button class="btn btn-danger" onclick="executeBulkDelete()">Delete Locations</button>
         </div>
     </div>
 </div>

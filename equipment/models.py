@@ -96,6 +96,13 @@ class Equipment(TimeStampedModel):
         help_text="Next scheduled maintenance date",
         db_column='item_due_date'  # Keep original column name
     )
+
+    # Facility-map layout — position within the site canvas (same coordinate space
+    # as Location zones, pixels). Null until placed via the map editor.
+    layout_x = models.FloatField(null=True, blank=True, help_text="Facility-map X (site canvas units)")
+    layout_y = models.FloatField(null=True, blank=True, help_text="Facility-map Y (site canvas units)")
+    layout_width = models.FloatField(null=True, blank=True, help_text="Facility-map box width (site canvas units)")
+    layout_height = models.FloatField(null=True, blank=True, help_text="Facility-map box height (site canvas units)")
     
     # Additional tracking fields
     commissioning_date = models.DateField(null=True, blank=True)
@@ -242,13 +249,38 @@ class Equipment(TimeStampedModel):
         return None
     
     def save(self, *args, **kwargs):
-        """Override save to automatically apply category schedules."""
+        """Override save to apply category schedules and, when a unit is retired,
+        relocate it to its site's "Archive" sublocation."""
         is_new = self.pk is None
+
+        # On transition to 'retired', move the unit into the site's Archive
+        # sublocation (created on demand). Bulk .update() bypasses save() and is
+        # not affected — retirement normally goes through the edit form/admin.
+        if not is_new and self.status == 'retired':
+            prev = Equipment.objects.filter(pk=self.pk).only('status').first()
+            if prev and prev.status != 'retired':
+                archive = self._get_or_create_archive_location()
+                if archive and self.location_id != archive.id:
+                    self.location = archive
+
         super().save(*args, **kwargs)
-        
+
         # Apply category schedules for new equipment
         if is_new:
             self.apply_category_schedules()
+
+    def _get_or_create_archive_location(self):
+        """Return this equipment's site-level "Archive" sublocation, creating it
+        under the site if it doesn't exist. Returns None if there's no site."""
+        site = self.get_site()
+        if not site:
+            return None
+        from core.models import Location
+        archive, _ = Location.objects.get_or_create(
+            name='Archive', parent_location=site, is_site=False,
+            defaults={'is_active': True},
+        )
+        return archive
 
     def clean(self):
         """Custom validation for equipment."""

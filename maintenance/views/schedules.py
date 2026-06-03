@@ -41,6 +41,7 @@ from django.contrib.auth.models import User
 from core.models import Location
 from core.utils import get_all_descendant_location_ids  # noqa: F401
 from .helpers import *  # noqa: F401,F403 (shared helpers + globals)
+from core.rbac import permission_required
 
 
 @login_required
@@ -73,7 +74,7 @@ def schedule_list(request):
             return redirect('maintenance:maintenance_list')
 
 
-@login_required
+@permission_required('maintenance.create')
 def add_schedule(request):
     """Add new maintenance schedule."""
     if request.method == 'POST':
@@ -119,7 +120,7 @@ def schedule_detail(request, schedule_id):
     return render(request, 'maintenance/schedule_detail.html', context)
 
 
-@login_required
+@permission_required('maintenance.edit')
 def edit_schedule(request, schedule_id):
     """Edit maintenance schedule."""
     schedule = get_object_or_404(MaintenanceSchedule, id=schedule_id)
@@ -169,7 +170,7 @@ def edit_schedule(request, schedule_id):
     return render(request, 'maintenance/edit_schedule.html', context)
 
 
-@login_required
+@permission_required('maintenance.create')
 def generate_scheduled_activities(request):
     """Generate maintenance activities from schedules."""
     if request.method == 'POST':
@@ -207,7 +208,7 @@ def generate_scheduled_activities(request):
     return render(request, 'maintenance/generate_activities.html', context)
 
 
-@login_required
+@permission_required('maintenance.delete')
 def delete_schedule(request, schedule_id):
     """Delete maintenance schedule."""
     schedule = get_object_or_404(MaintenanceSchedule, id=schedule_id)
@@ -282,7 +283,7 @@ def category_schedule_list(request):
         return render(request, 'maintenance/category_schedule_list.html', context)
 
 
-@login_required
+@permission_required('maintenance.manage_all')
 def add_category_schedule(request):
     """Add new equipment category schedule."""
     if request.method == 'POST':
@@ -304,7 +305,7 @@ def add_category_schedule(request):
     return render(request, 'maintenance/category_schedule_form.html', context)
 
 
-@login_required
+@permission_required('maintenance.manage_all')
 def edit_category_schedule(request, schedule_id):
     """Edit equipment category schedule."""
     schedule = get_object_or_404(EquipmentCategorySchedule, id=schedule_id)
@@ -378,7 +379,7 @@ def global_schedule_list(request):
         return render(request, 'maintenance/global_schedule_list.html', context)
 
 
-@login_required
+@permission_required('maintenance.manage_all')
 def add_global_schedule(request):
     """Add new global schedule."""
     if request.method == 'POST':
@@ -400,7 +401,7 @@ def add_global_schedule(request):
     return render(request, 'maintenance/global_schedule_form.html', context)
 
 
-@login_required
+@permission_required('maintenance.manage_all')
 def edit_global_schedule(request, schedule_id):
     """Edit global schedule."""
     schedule = get_object_or_404(GlobalSchedule, id=schedule_id)
@@ -470,7 +471,7 @@ def schedule_override_list(request):
         return render(request, 'maintenance/schedule_override_list.html', context)
 
 
-@login_required
+@permission_required('maintenance.manage_all')
 def add_schedule_override(request):
     """Add new schedule override."""
     if request.method == 'POST':
@@ -495,7 +496,7 @@ def add_schedule_override(request):
     return render(request, 'maintenance/schedule_override_form.html', context)
 
 
-@login_required
+@permission_required('maintenance.manage_all')
 def edit_schedule_override(request, override_id):
     """Edit schedule override."""
     override = get_object_or_404(ScheduleOverride, id=override_id)

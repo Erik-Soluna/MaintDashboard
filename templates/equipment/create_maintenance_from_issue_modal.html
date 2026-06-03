@@ -42,11 +42,14 @@
     </div>
     
     <div class="row">
-        <div class="col-md-6">
+        <div class="col-md-4">
             {{ form.scheduled_start|as_crispy_field }}
         </div>
-        <div class="col-md-6">
+        <div class="col-md-4">
             {{ form.scheduled_end|as_crispy_field }}
+        </div>
+        <div class="col-md-4">
+            {{ form.timezone|as_crispy_field }}
         </div>
     </div>
 </form>

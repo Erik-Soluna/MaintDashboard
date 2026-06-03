@@ -41,6 +41,7 @@ from django.contrib.auth.models import User
 from core.models import Location
 from core.utils import get_all_descendant_location_ids  # noqa: F401
 from .helpers import *  # noqa: F401,F403 (shared helpers + globals)
+from core.rbac import permission_required
 
 
 @login_required
@@ -97,12 +98,15 @@ def maintenance_list(request):
             status__in=['scheduled', 'pending']
         ).order_by('scheduled_start')[:10]
         
-        # Get overdue maintenance
-        overdue_activities = base_queryset.filter(
+        # Get overdue maintenance. Keep the queryset UNSLICED for an accurate
+        # count, then cap only the displayed list (the old code sliced [:10]
+        # then counted the slice, so it never reported more than 10).
+        overdue_qs = base_queryset.filter(
             scheduled_end__lt=timezone.now(),
-            status__in=['scheduled', 'pending']
-        ).order_by('scheduled_start')[:10]
-        
+            status__in=['scheduled', 'pending', 'overdue']
+        ).order_by('scheduled_start')
+        overdue_activities = overdue_qs[:50]
+
         # Get in progress
         in_progress = base_queryset.filter(
             status='in_progress'
@@ -116,8 +120,11 @@ def maintenance_list(request):
         
         stats = {
             'total_activities': stats_queryset.count(),
-            'pending_count': stats_queryset.filter(status='pending').count(),
-            'overdue_count': overdue_activities.count(),
+            # "Pending" = open/upcoming work; activities default to 'scheduled',
+            # so counting only 'pending' badly undercounts.
+            'pending_count': stats_queryset.filter(status__in=['scheduled', 'pending']).count(),
+            'in_progress_count': stats_queryset.filter(status='in_progress').count(),
+            'overdue_count': overdue_qs.count(),
             'completed_this_month': stats_queryset.filter(
                 status='completed',
                 actual_end__gte=timezone.now().replace(day=1)
@@ -180,11 +187,12 @@ def maintenance_list(request):
                 status__in=['scheduled', 'pending']
             ).order_by('scheduled_start')[:10]
             
-            overdue_activities = base_queryset.filter(
+            overdue_qs = base_queryset.filter(
                 scheduled_end__lt=timezone.now(),
-                status__in=['scheduled', 'pending']
-            ).order_by('scheduled_start')[:10]
-            
+                status__in=['scheduled', 'pending', 'overdue']
+            ).order_by('scheduled_start')
+            overdue_activities = overdue_qs[:50]
+
             in_progress = base_queryset.filter(
                 status='in_progress'
             )
@@ -197,8 +205,9 @@ def maintenance_list(request):
             
             stats = {
                 'total_activities': stats_queryset.count(),
-                'pending_count': stats_queryset.filter(status='pending').count(),
-                'overdue_count': overdue_activities.count(),
+                'pending_count': stats_queryset.filter(status__in=['scheduled', 'pending']).count(),
+                'in_progress_count': stats_queryset.filter(status='in_progress').count(),
+                'overdue_count': overdue_qs.count(),
                 'completed_this_month': stats_queryset.filter(
                     status='completed',
                     actual_end__gte=timezone.now().replace(day=1)
@@ -321,7 +330,7 @@ def activity_list(request):
             return redirect('maintenance:maintenance_list')
 
 
-@login_required
+@permission_required('maintenance.create')
 def bulk_add_activity(request):
     """Bulk create maintenance activities for multiple equipment items."""
     from django.db import connection, transaction
@@ -659,7 +668,7 @@ def activity_detail(request, activity_id):
     return render(request, 'maintenance/activity_detail.html', context)
 
 
-@login_required
+@permission_required('maintenance.create')
 def add_activity(request):
     """Add new maintenance activity with improved database connection handling."""
     from django.db import connection
@@ -778,7 +787,7 @@ def add_activity(request):
             return redirect('maintenance:maintenance_list')
 
 
-@login_required
+@permission_required('maintenance.edit')
 def edit_activity(request, activity_id):
     """Edit maintenance activity."""
     activity = get_object_or_404(MaintenanceActivity, id=activity_id)
@@ -804,7 +813,7 @@ def edit_activity(request, activity_id):
     return render(request, 'maintenance/edit_activity.html', context)
 
 
-@login_required
+@permission_required('maintenance.complete')
 def complete_activity(request, activity_id):
     """Mark maintenance activity as completed."""
     activity = get_object_or_404(MaintenanceActivity, id=activity_id)
@@ -838,7 +847,7 @@ def overdue_maintenance(request):
     return render(request, 'maintenance/overdue_maintenance.html', context)
 
 
-@login_required
+@permission_required('maintenance.delete')
 def delete_activity(request, activity_id):
     """Delete maintenance activity and associated calendar events."""
     activity = get_object_or_404(MaintenanceActivity, id=activity_id)
@@ -880,7 +889,7 @@ def delete_activity(request, activity_id):
     return render(request, 'maintenance/delete_activity.html', context)
 
 
-@login_required
+@permission_required('maintenance.delete')
 def bulk_delete_activities(request):
     """Delete multiple maintenance activities selected on the activity list."""
     if request.method != 'POST':

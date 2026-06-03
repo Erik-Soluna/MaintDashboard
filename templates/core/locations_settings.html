@@ -313,6 +313,10 @@
                 <i class="fas fa-magic me-1"></i>
                 Generate MDCs
             </button>
+            <button class="btn btn-outline-success me-2" data-toggle="modal" data-target="#generatePdusModal">
+                <i class="fas fa-magic me-1"></i>
+                Generate PDUs
+            </button>
             <button class="btn btn-outline-info" data-toggle="modal" data-target="#addCustomerModal">
                 <i class="fas fa-user-plus me-1"></i>
                 Add Customer
@@ -846,6 +850,62 @@
         </div>
     </div>
 </div>
+
+<!-- Generate PDUs Modal -->
+<div class="modal fade" id="generatePdusModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-bolt me-2"></i> Generate PDUs</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <form id="generatePdusForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        Creates PDUs for each <strong>MDC (building)</strong> — named <code>PDU {building}-{n}</code>,
+                        where the building number comes from the MDC's name (e.g. <em>MDC 10</em> → <code>PDU 10-1</code>, <code>PDU 10-2</code>…).
+                        <br>Existing PDUs are <strong>skipped</strong>, so re-running never duplicates or recreates them.
+                    </div>
+                    <div class="mb-3">
+                        <label for="pduSiteSelect" class="form-label">Site <span class="text-danger">*</span></label>
+                        <select id="pduSiteSelect" name="site_id" class="form-control" required>
+                            <option value="">Select a site…</option>
+                            {% for site in sites %}
+                            <option value="{{ site.id }}">{{ site.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Generates PDUs for <strong>every MDC</strong> under this site.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="pduMdcSelect" class="form-label">Limit to one MDC (optional)</label>
+                        <select id="pduMdcSelect" name="location_id" class="form-control" disabled>
+                            <option value="">All MDCs in the site</option>
+                            {% for mdc in mdc_locations %}
+                            <option value="{{ mdc.id }}" data-site-id="{{ mdc.site_id }}">{{ mdc.get_hierarchical_display }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Leave as “All MDCs” to do the whole site at once.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="pduCount" class="form-label">PDUs per MDC (building) <span class="text-danger">*</span></label>
+                        <input type="number" id="pduCount" name="count" class="form-control" min="1" placeholder="e.g. 36" required>
+                    </div>
+                    <div id="generatePdusOutput" class="mt-3" style="display: none;">
+                        <label class="form-label">Output</label>
+                        <pre id="generatePdusOutputText" class="bg-dark text-light p-3 rounded" style="max-height: 200px; overflow-y: auto; font-size: 12px;"></pre>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="generatePdusBtn">
+                        <i class="fas fa-magic me-1"></i> Generate PDUs
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -1312,6 +1372,68 @@ $(document).ready(function() {
         });
     });
     
+    // Generate PDUs: filter the optional MDC dropdown to the chosen site.
+    $('#pduSiteSelect').on('change', function() {
+        var siteId = $(this).val();
+        var $mdc = $('#pduMdcSelect');
+        $mdc.val('');
+        $mdc.find('option').each(function() {
+            var opt = $(this);
+            if (opt.val() === '') return; // keep the "All MDCs" option
+            var match = String(opt.data('site-id')) === String(siteId);
+            opt.prop('hidden', !match).prop('disabled', !match);
+        });
+        $mdc.prop('disabled', !siteId);
+    });
+
+    // Generate PDUs Form
+    $('#generatePdusForm').on('submit', function(e) {
+        e.preventDefault();
+
+        const $submitBtn = $('#generatePdusBtn');
+        const originalText = $submitBtn.html();
+        const $output = $('#generatePdusOutput');
+        const $outputText = $('#generatePdusOutputText');
+
+        $submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Generating...');
+        $output.hide();
+
+        const formData = new FormData(this);
+
+        $.ajax({
+            url: '{% url "core:generate_pdus" %}',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    $outputText.text(response.output || 'PDUs generated successfully!');
+                    $output.show();
+                    $('<div class="alert alert-success alert-dismissible fade show" role="alert">' +
+                      response.message +
+                      '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                      '</div>').prependTo('.locations-header').delay(5000).fadeOut();
+                    setTimeout(function() { location.reload(); }, 2000);
+                } else {
+                    alert('Error: ' + (response.error || 'Unknown error occurred'));
+                }
+            },
+            error: function(xhr) {
+                let errorMessage = 'Error generating PDUs';
+                if (xhr.responseJSON) {
+                    errorMessage += ': ' + (xhr.responseJSON.error || xhr.responseJSON.message || 'Unknown error');
+                } else if (xhr.responseText) {
+                    errorMessage += ': ' + xhr.responseText;
+                }
+                alert(errorMessage);
+            },
+            complete: function() {
+                $submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+
     // Load PODs when site is selected in Generate MDCs modal
     $('#generateMdcsSiteSelect').on('change', function() {
         const siteId = $(this).val();

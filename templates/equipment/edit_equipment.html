@@ -81,7 +81,26 @@
                             {{ form.non_field_errors }}
                         </div>
                     {% endif %}
-                    
+
+                    <!-- is_active is NOT part of the configurable-fields list, so it must be
+                         rendered explicitly. Without it the checkbox isn't posted and the
+                         BooleanField saves as False, deactivating the equipment and hiding it
+                         from the maintenance pickers. -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                {{ form.is_active }}
+                                <label for="{{ form.is_active.id_for_label }}" class="form-check-label ms-1">
+                                    {{ form.is_active.label }}
+                                    <small class="text-muted">(uncheck only to deactivate/hide this equipment)</small>
+                                </label>
+                            </div>
+                            {% if form.is_active.errors %}
+                                <div class="text-danger">{{ form.is_active.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
                     {% load equipment_filters %}
                     
                     <!-- Basic Information Section -->

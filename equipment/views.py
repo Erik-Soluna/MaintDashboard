@@ -161,6 +161,101 @@ def equipment_list(request):
 
 
 @login_required
+def issues_list(request):
+    """
+    Site-wide issues overview — every EquipmentIssue across all equipment in one
+    place, so a technician/manager can see what needs to be repaired at a glance.
+    Respects the global site selector (session 'selected_site_id').
+    """
+    log_view_access('issues_list', request, request.user)
+
+    from django.db.models import Case, When, IntegerField, Value
+
+    queryset = EquipmentIssue.objects.select_related(
+        'equipment', 'equipment__location', 'equipment__category',
+        'created_by', 'resolved_by',
+    ).prefetch_related('tags')
+
+    # Filter by selected site (same pattern as equipment_list).
+    selected_site_id = request.GET.get('site_id')
+    if selected_site_id is None:
+        selected_site_id = request.session.get('selected_site_id')
+
+    selected_site = None
+    if selected_site_id and selected_site_id != 'all':
+        try:
+            selected_site = Location.objects.get(id=selected_site_id, is_site=True)
+            from core.utils import get_all_descendant_location_ids
+            location_ids = get_all_descendant_location_ids(selected_site, include_inactive=True)
+            queryset = queryset.filter(equipment__location_id__in=location_ids)
+        except (Location.DoesNotExist, ValueError):
+            logger.warning(f"Selected site with ID {selected_site_id} not found")
+        except Exception as e:
+            log_error(e, f"filtering issues by site {selected_site_id}", request=request)
+
+    # Stat cards are computed over the site-filtered set BEFORE status/severity
+    # filtering, so the overview always reflects the true totals.
+    stats = {
+        'open': queryset.filter(status='open').count(),
+        'in_progress': queryset.filter(status='in_progress').count(),
+        'resolved': queryset.filter(status__in=['resolved', 'closed']).count(),
+        'total': queryset.count(),
+        'critical_open': queryset.filter(severity='critical', status__in=['open', 'in_progress']).count(),
+    }
+
+    # Status filter. Default ('active') shows actionable issues (open + in
+    # progress) — what still needs work. 'all' shows everything.
+    status = request.GET.get('status', 'active')
+    if status == 'active':
+        queryset = queryset.filter(status__in=['open', 'in_progress'])
+    elif status and status != 'all':
+        queryset = queryset.filter(status=status)
+
+    # Severity filter.
+    severity = request.GET.get('severity', '')
+    if severity:
+        queryset = queryset.filter(severity=severity)
+
+    # Search across issue + equipment identity.
+    search_term = request.GET.get('search', '')
+    if search_term:
+        queryset = queryset.filter(
+            Q(title__icontains=search_term) |
+            Q(description__icontains=search_term) |
+            Q(equipment__name__icontains=search_term) |
+            Q(equipment__asset_tag__icontains=search_term)
+        )
+
+    # Order by severity (critical first), then newest.
+    queryset = queryset.annotate(
+        severity_rank=Case(
+            When(severity='critical', then=Value(0)),
+            When(severity='high', then=Value(1)),
+            When(severity='medium', then=Value(2)),
+            When(severity='low', then=Value(3)),
+            default=Value(4),
+            output_field=IntegerField(),
+        )
+    ).order_by('severity_rank', '-created_at')
+
+    paginator = Paginator(queryset, 25)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj': page_obj,
+        'stats': stats,
+        'search_term': search_term,
+        'selected_status': status,
+        'selected_severity': severity,
+        'statuses': EquipmentIssue.STATUS_CHOICES,
+        'severities': EquipmentIssue.SEVERITY_CHOICES,
+        'selected_site': selected_site,
+        'selected_site_id': selected_site_id,
+    }
+    return render(request, 'equipment/issues_list.html', context)
+
+
+@login_required
 def manage_equipment(request):
     """
     Equipment management view (replicates original web2py functionality).
@@ -310,7 +405,24 @@ def equipment_detail(request, equipment_id):
     open_issues_count = issues.filter(status='open').count()
     in_progress_issues_count = issues.filter(status='in_progress').count()
     resolved_issues_count = issues.filter(status='resolved').count()
-    
+
+    # Next scheduled maintenance = soonest upcoming activity not yet completed or
+    # cancelled. equipment.next_maintenance_date is only refreshed on completion,
+    # so it's empty for equipment that have pending-but-never-completed schedules
+    # (the "Not scheduled" bug). Read the real upcoming activity instead.
+    next_maintenance_activity = (
+        equipment.maintenance_activities
+        .exclude(status__in=['completed', 'cancelled'])
+        .order_by('scheduled_start')
+        .first()
+    )
+
+    # DGA (dissolved gas analysis) only applies to transformers.
+    is_transformer = bool(equipment.category and 'transformer' in equipment.category.name.lower())
+
+    # Recurring schedules configured for this specific piece of equipment.
+    maintenance_schedules = equipment.maintenance_schedules.select_related('activity_type').all()
+
     context = {
         'equipment': equipment,
         'maintenance_status': maintenance_status,
@@ -332,6 +444,9 @@ def equipment_detail(request, equipment_id):
         'open_issues_count': open_issues_count,
         'in_progress_issues_count': in_progress_issues_count,
         'resolved_issues_count': resolved_issues_count,
+        'next_maintenance_activity': next_maintenance_activity,
+        'is_transformer': is_transformer,
+        'maintenance_schedules': maintenance_schedules,
     }
     
     return render(request, 'equipment/equipment_detail.html', context)
@@ -497,7 +612,7 @@ def equipment_kpi_tracker(request, equipment_id):
     return render(request, 'equipment/kpi_tracker.html', context)
 
 
-@login_required
+@permission_required('equipment.create')
 def add_equipment(request):
     """Add new equipment (improved from original web2py version)."""
     if request.method == 'POST':
@@ -534,7 +649,7 @@ def add_equipment(request):
     return render(request, 'equipment/add_equipment.html', context)
 
 
-@login_required
+@permission_required('equipment.edit')
 def edit_equipment(request, equipment_id):
     """Edit existing equipment."""
     equipment = get_object_or_404(Equipment, id=equipment_id)
@@ -582,7 +697,7 @@ def edit_equipment(request, equipment_id):
     return render(request, 'equipment/edit_equipment.html', context)
 
 
-@login_required
+@permission_required('equipment.delete')
 @require_http_methods(["POST"])
 def delete_equipment(request, equipment_id):
     """Delete equipment (AJAX endpoint)."""
@@ -735,7 +850,7 @@ def equipment_components(request, equipment_id):
     return render(request, 'equipment/equipment_components.html', context)
 
 
-@login_required
+@permission_required('equipment.edit')
 def add_component(request, equipment_id):
     """Add component to equipment."""
     equipment = get_object_or_404(Equipment, id=equipment_id)
@@ -862,7 +977,7 @@ def delete_document(request, equipment_id, document_id):
 
 
 
-@login_required
+@permission_required('site_map.write')
 def import_locations_csv(request):
     """Import locations from CSV file."""
     if request.method == 'POST':
@@ -1034,7 +1149,7 @@ def export_equipment_csv(request):
     return response
 
 
-@login_required
+@permission_required('equipment.create')
 @require_http_methods(["POST"])
 def import_equipment_csv(request):
     """Import equipment data from CSV file."""
@@ -2251,7 +2366,7 @@ def delete_connection(request, connection_id):
         }, status=500)
 
 
-@login_required
+@permission_required('issues.create')
 def log_issue(request, equipment_id):
     """Log a new issue for equipment. Supports both regular POST and AJAX."""
     equipment = get_object_or_404(Equipment, id=equipment_id)
@@ -2426,14 +2541,15 @@ def delete_issue(request, equipment_id, issue_id):
     return redirect('equipment:equipment_detail', equipment_id=equipment_id)
 
 
-@login_required
+@permission_required('maintenance.create')
 def create_maintenance_from_issue(request, equipment_id, issue_id):
     """Create a corrective maintenance activity from an equipment issue."""
     from maintenance.models import MaintenanceActivityType, ActivityTypeCategory
     from maintenance.forms import MaintenanceActivityForm
+    from maintenance.utils import DEFAULT_ACTIVITY_TIMEZONE
     from django.utils import timezone
     from datetime import timedelta
-    
+
     equipment = get_object_or_404(Equipment, id=equipment_id)
     issue = get_object_or_404(EquipmentIssue, id=issue_id, equipment=equipment)
     
@@ -2475,6 +2591,7 @@ def create_maintenance_from_issue(request, equipment_id, issue_id):
             'status': 'pending',
             'scheduled_start': timezone.now(),
             'scheduled_end': timezone.now() + timedelta(hours=2),
+            'timezone': DEFAULT_ACTIVITY_TIMEZONE,
         }
         
         form = MaintenanceActivityForm(initial=initial_data, request=request)

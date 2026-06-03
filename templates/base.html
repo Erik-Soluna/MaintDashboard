@@ -237,8 +237,8 @@
             background-color: var(--card-bg);
             color: var(--content-text);
             border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
+            padding: 12px 16px;
+            margin-bottom: 14px;
             border: 1px solid var(--card-border);
         }
         
@@ -368,11 +368,13 @@
             border-radius: 8px;
             color: var(--content-text);
         }
-        
+
+        /* Compact card headers (filter/list bars) site-wide */
         .card-header {
             background-color: var(--nav-bg);
             border-bottom: 1px solid var(--card-border);
             color: var(--nav-text);
+            padding: 0.5rem 1rem;
         }
         
         .card-body {
@@ -923,14 +925,28 @@
                 padding: 12px 16px;
                 border-bottom: 1px solid var(--card-border);
             }
-            /* Dropdowns render inline within the collapsed menu */
+            /* Dropdowns render inline within the collapsed menu. Popper.js sets
+               inline position/transform/top/left to float the menu — override
+               them so the items flow in-line and don't overlap the nav below. */
             .nav-tabs-custom .dropdown-menu {
                 position: static !important;
+                transform: none !important;
+                top: auto !important;
+                left: auto !important;
+                right: auto !important;
+                inset: auto !important;
                 float: none;
                 width: 100%;
+                max-height: none;
+                margin: 0 !important;
                 border: none;
                 box-shadow: none;
-                padding-left: 24px;
+                padding: 0;
+                background-color: rgba(0, 0, 0, 0.18);
+            }
+            .nav-tabs-custom .dropdown-menu .dropdown-item {
+                padding: 10px 16px 10px 44px;
+                border-bottom: 1px solid var(--card-border);
             }
 
             /* Tables: size to content and scroll horizontally instead of
@@ -1058,8 +1074,14 @@
                  </a>
                 <div class="dropdown-menu">
                     <a class="dropdown-item" href="{% url 'maintenance:maintenance_list' %}">Activities</a>
+                    <a class="dropdown-item" href="{% url 'maintenance:schedule_list' %}">Schedules</a>
                     <a class="dropdown-item" href="{% url 'maintenance:maintenance_reports' %}">Reports</a>
                 </div>
+            </li>
+            <li class="nav-item">
+                                 <a class="nav-link {% if request.resolver_match.url_name == 'issues_list' %}active{% endif %}" href="{% url 'equipment:issues_list' %}">
+                     <i class="fas fa-exclamation-triangle me-1"></i> Issues
+                 </a>
             </li>
             <li class="nav-item">
                                  <a class="nav-link" href="{% url 'events:calendar_view' %}">

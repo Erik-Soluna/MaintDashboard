@@ -10,6 +10,7 @@ app_name = 'equipment'
 urlpatterns = [
     # Equipment list and management
     path('', views.equipment_list, name='equipment_list'),
+    path('issues/', views.issues_list, name='issues_list'),
     path('manage/', views.manage_equipment, name='manage_equipment'),
     path('add/', views.add_equipment, name='add_equipment'),
     path('<int:equipment_id>/', views.equipment_detail, name='equipment_detail'),

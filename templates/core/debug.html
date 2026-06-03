@@ -460,21 +460,39 @@ function loadHealthStatus() {
         .then(response => response.json())
         .then(data => {
             let html = '<table class="data-table"><thead><tr><th>Component</th><th>Status</th><th>Details</th></tr></thead><tbody>';
-            
-            if (data.checks && Array.isArray(data.checks)) {
-                data.checks.forEach(check => {
-                    const statusClass = check.status === 'success' ? 'success' : check.status === 'error' ? 'danger' : 'warning';
-                    const indicatorClass = check.status === 'success' ? 'healthy' : check.status === 'error' ? 'error' : 'warning';
+
+            // comprehensive_health_check returns { components: { name: {status, ...} } }
+            const comps = data.components || {};
+            const entries = Object.entries(comps);
+            if (entries.length === 0) {
+                html += '<tr><td colspan="3" class="text-muted">No health data available</td></tr>';
+            } else {
+                entries.forEach(([key, comp]) => {
+                    comp = comp || {};
+                    const status = comp.status || 'unknown';
+                    const healthy = status === 'healthy' || status === 'ok';
+                    const bad = status === 'unhealthy' || status === 'critical' || status === 'error';
+                    const statusClass = healthy ? 'success' : bad ? 'danger' : 'warning';
+                    const indicatorClass = healthy ? 'healthy' : bad ? 'error' : 'warning';
+                    let detail = comp.message || comp.error || comp.output || '';
+                    if (!detail) {
+                        detail = Object.entries(comp)
+                            .filter(([k, v]) => k !== 'status' && (typeof v === 'string' || typeof v === 'number'))
+                            .map(([k, v]) => `${k}: ${v}`)
+                            .join(', ');
+                    }
+                    if (detail.length > 160) detail = detail.slice(0, 157) + '…';
+                    const name = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
                     html += `
                         <tr>
-                            <td><span class="health-indicator ${indicatorClass}"></span>${check.name}</td>
-                            <td><span class="badge bg-${statusClass}">${check.status}</span></td>
-                            <td><small>${check.message || '-'}</small></td>
+                            <td><span class="health-indicator ${indicatorClass}"></span>${name}</td>
+                            <td><span class="badge bg-${statusClass}">${status}</span></td>
+                            <td><small>${detail || '-'}</small></td>
                         </tr>
                     `;
                 });
             }
-            
+
             html += '</tbody></table>';
             document.getElementById('health-status').innerHTML = html;
         })
@@ -500,7 +518,7 @@ function loadDatabaseStats() {
     document.getElementById('database-stats').innerHTML = statsHtml;
     
     // Fetch actual stats
-    fetch('/core/api/database-stats/', {
+    fetch('{% url "core:database_stats_api" %}', {
         credentials: 'same-origin',
         headers: {
             'Accept': 'application/json',
