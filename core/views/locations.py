@@ -41,6 +41,7 @@ import redis
 from django_celery_beat.models import PeriodicTask
 from django.utils import timezone
 from .helpers import *  # noqa: F401,F403 (shared helpers + globals)
+from core.rbac import permission_required, user_has_permission
 
 
 def _auto_grid(count, area_x, area_y, area_w, area_h, pad):
@@ -242,13 +243,12 @@ def map_view(request):
         'selected_site': selected_site,
         'selected_site_id': str(selected_site.id) if selected_site else '',
         'site_layout_json': json.dumps(site_layout) if site_layout else 'null',
-        'can_edit_map': request.user.is_staff or request.user.is_superuser,
+        'can_edit_map': user_has_permission(request.user, 'site_map.write'),
     }
     return render(request, 'core/map.html', context)
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('site_map.write')
 @require_POST
 def save_map_layout(request):
     """Persist facility-map zone positions from the drag editor. Accepts JSON:

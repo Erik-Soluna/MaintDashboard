@@ -90,6 +90,7 @@
         <div class="map-toolbar">
             {% csrf_token %}
             <button type="button" id="editLayoutBtn" class="btn btn-outline-light btn-sm"><i class="fas fa-arrows-alt me-1"></i> Edit Layout</button>
+            <button type="button" id="autoFitBtn" class="btn btn-outline-info btn-sm" style="display:none;" title="Auto-arrange MDCs into a grid inside each POD"><i class="fas fa-th me-1"></i> Auto-fit</button>
             <button type="button" id="saveLayoutBtn" class="btn btn-success btn-sm" style="display:none;"><i class="fas fa-save me-1"></i> Save</button>
             <button type="button" id="cancelLayoutBtn" class="btn btn-secondary btn-sm" style="display:none;">Cancel</button>
         </div>
@@ -304,6 +305,7 @@
     // ----- editor -----
     if (canEdit) {
         var editBtn = document.getElementById('editLayoutBtn');
+        var autoFitBtn = document.getElementById('autoFitBtn');
         var saveBtn = document.getElementById('saveLayoutBtn');
         var cancelBtn = document.getElementById('cancelLayoutBtn');
         var hint = document.getElementById('editHint');
@@ -312,6 +314,7 @@
             editing = on;
             wrap.classList.toggle('editing', on);
             editBtn.style.display = on ? 'none' : '';
+            if (autoFitBtn) autoFitBtn.style.display = on ? '' : 'none';
             saveBtn.style.display = on ? '' : 'none';
             cancelBtn.style.display = on ? '' : 'none';
             if (hint) hint.style.display = on ? 'block' : 'none';
@@ -320,7 +323,32 @@
             }
         }
 
+        // Auto-fit: re-grid each POD's MDC tiles into a tidy grid and resize the
+        // POD to contain them (POD positions are kept). Matches the server's
+        // default auto-layout constants.
+        function autoFit() {
+            var HEADER = 28, TILE_W = 156, TILE_H = 58, TPAD = 10;
+            Array.prototype.forEach.call(canvas.querySelectorAll('.pod-zone'), function (zone) {
+                var tiles = tilesByPod[zone.dataset.id] || [];
+                var n = tiles.length || 1;
+                var cols = Math.max(1, Math.ceil(Math.sqrt(n)));
+                var rows = Math.ceil(n / cols);
+                var pl = px(zone, 'left'), pt = px(zone, 'top');
+                tiles.forEach(function (tile, i) {
+                    var r = Math.floor(i / cols), c = i % cols;
+                    tile.style.left = (pl + TPAD + c * (TILE_W + TPAD)) + 'px';
+                    tile.style.top = (pt + HEADER + TPAD + r * (TILE_H + TPAD)) + 'px';
+                    tile.style.width = TILE_W + 'px';
+                    tile.style.height = TILE_H + 'px';
+                });
+                zone.style.width = (cols * TILE_W + (cols + 1) * TPAD) + 'px';
+                zone.style.height = (HEADER + rows * TILE_H + (rows + 1) * TPAD) + 'px';
+            });
+            dirty = true;
+        }
+
         editBtn && editBtn.addEventListener('click', function () { setEditing(true); });
+        autoFitBtn && autoFitBtn.addEventListener('click', autoFit);
         cancelBtn && cancelBtn.addEventListener('click', function () {
             if (dirty && !confirm('Discard layout changes?')) return;
             window.location.reload();
