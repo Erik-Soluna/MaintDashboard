@@ -612,7 +612,7 @@ def equipment_kpi_tracker(request, equipment_id):
     return render(request, 'equipment/kpi_tracker.html', context)
 
 
-@login_required
+@permission_required('equipment.create')
 def add_equipment(request):
     """Add new equipment (improved from original web2py version)."""
     if request.method == 'POST':
@@ -649,7 +649,7 @@ def add_equipment(request):
     return render(request, 'equipment/add_equipment.html', context)
 
 
-@login_required
+@permission_required('equipment.edit')
 def edit_equipment(request, equipment_id):
     """Edit existing equipment."""
     equipment = get_object_or_404(Equipment, id=equipment_id)
@@ -697,7 +697,7 @@ def edit_equipment(request, equipment_id):
     return render(request, 'equipment/edit_equipment.html', context)
 
 
-@login_required
+@permission_required('equipment.delete')
 @require_http_methods(["POST"])
 def delete_equipment(request, equipment_id):
     """Delete equipment (AJAX endpoint)."""
@@ -850,7 +850,7 @@ def equipment_components(request, equipment_id):
     return render(request, 'equipment/equipment_components.html', context)
 
 
-@login_required
+@permission_required('equipment.edit')
 def add_component(request, equipment_id):
     """Add component to equipment."""
     equipment = get_object_or_404(Equipment, id=equipment_id)
@@ -977,7 +977,7 @@ def delete_document(request, equipment_id, document_id):
 
 
 
-@login_required
+@permission_required('site_map.write')
 def import_locations_csv(request):
     """Import locations from CSV file."""
     if request.method == 'POST':
@@ -1149,7 +1149,7 @@ def export_equipment_csv(request):
     return response
 
 
-@login_required
+@permission_required('equipment.create')
 @require_http_methods(["POST"])
 def import_equipment_csv(request):
     """Import equipment data from CSV file."""
@@ -2366,7 +2366,7 @@ def delete_connection(request, connection_id):
         }, status=500)
 
 
-@login_required
+@permission_required('issues.create')
 def log_issue(request, equipment_id):
     """Log a new issue for equipment. Supports both regular POST and AJAX."""
     equipment = get_object_or_404(Equipment, id=equipment_id)
@@ -2541,7 +2541,7 @@ def delete_issue(request, equipment_id, issue_id):
     return redirect('equipment:equipment_detail', equipment_id=equipment_id)
 
 
-@login_required
+@permission_required('maintenance.create')
 def create_maintenance_from_issue(request, equipment_id, issue_id):
     """Create a corrective maintenance activity from an equipment issue."""
     from maintenance.models import MaintenanceActivityType, ActivityTypeCategory

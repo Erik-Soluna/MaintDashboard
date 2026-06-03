@@ -41,6 +41,7 @@ from django.contrib.auth.models import User
 from core.models import Location
 from core.utils import get_all_descendant_location_ids  # noqa: F401
 from .helpers import *  # noqa: F401,F403 (shared helpers + globals)
+from core.rbac import permission_required
 
 
 @login_required
@@ -321,7 +322,7 @@ def activity_list(request):
             return redirect('maintenance:maintenance_list')
 
 
-@login_required
+@permission_required('maintenance.create')
 def bulk_add_activity(request):
     """Bulk create maintenance activities for multiple equipment items."""
     from django.db import connection, transaction
@@ -659,7 +660,7 @@ def activity_detail(request, activity_id):
     return render(request, 'maintenance/activity_detail.html', context)
 
 
-@login_required
+@permission_required('maintenance.create')
 def add_activity(request):
     """Add new maintenance activity with improved database connection handling."""
     from django.db import connection
@@ -778,7 +779,7 @@ def add_activity(request):
             return redirect('maintenance:maintenance_list')
 
 
-@login_required
+@permission_required('maintenance.edit')
 def edit_activity(request, activity_id):
     """Edit maintenance activity."""
     activity = get_object_or_404(MaintenanceActivity, id=activity_id)
@@ -804,7 +805,7 @@ def edit_activity(request, activity_id):
     return render(request, 'maintenance/edit_activity.html', context)
 
 
-@login_required
+@permission_required('maintenance.complete')
 def complete_activity(request, activity_id):
     """Mark maintenance activity as completed."""
     activity = get_object_or_404(MaintenanceActivity, id=activity_id)
@@ -838,7 +839,7 @@ def overdue_maintenance(request):
     return render(request, 'maintenance/overdue_maintenance.html', context)
 
 
-@login_required
+@permission_required('maintenance.delete')
 def delete_activity(request, activity_id):
     """Delete maintenance activity and associated calendar events."""
     activity = get_object_or_404(MaintenanceActivity, id=activity_id)
@@ -880,7 +881,7 @@ def delete_activity(request, activity_id):
     return render(request, 'maintenance/delete_activity.html', context)
 
 
-@login_required
+@permission_required('maintenance.delete')
 def bulk_delete_activities(request):
     """Delete multiple maintenance activities selected on the activity list."""
     if request.method != 'POST':

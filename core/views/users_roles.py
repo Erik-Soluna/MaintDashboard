@@ -41,10 +41,10 @@ import redis
 from django_celery_beat.models import PeriodicTask
 from django.utils import timezone
 from .helpers import *  # noqa: F401,F403 (shared helpers + globals)
+from core.rbac import permission_required
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('users.manage')
 def user_management(request):
     """Enhanced user management view with role assignment."""
     if request.method == 'POST':
@@ -110,8 +110,7 @@ def user_management(request):
     return render(request, 'core/user_management.html', context)
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('users.manage')
 def add_user(request):
     """Add new user."""
     if request.method == 'POST':
@@ -131,8 +130,7 @@ def add_user(request):
     return render(request, 'core/user_form.html', context)
 
 
-@login_required
-@user_passes_test(is_staff_or_superuser)
+@permission_required('users.manage')
 def edit_user(request, user_id):
     """Edit existing user."""
     user = get_object_or_404(User, id=user_id)
