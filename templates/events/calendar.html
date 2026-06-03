@@ -640,6 +640,17 @@
         align-items: flex-start;
         gap: 10px;
     }
+
+    /* Calendar toolbar: stack + shrink the oversized month heading on mobile */
+    .fc-toolbar { padding: 10px; }
+    .fc .fc-toolbar.fc-header-toolbar {
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+    .fc-toolbar-title { font-size: 1.05rem; }
+    .fc-toolbar-chunk { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px; }
+    .fc-button { padding: 4px 8px; font-size: 0.8rem; }
 }
 
 /* Legend */
