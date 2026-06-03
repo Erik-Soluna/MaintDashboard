@@ -257,6 +257,22 @@ class UserForm(UserCreationForm):
             Submit('submit', 'Save User', css_class='btn btn-primary')
         )
     
+    def clean_username(self):
+        """Uniqueness check that excludes the current user when editing.
+
+        Django's UserCreationForm.clean_username() does a case-insensitive
+        `exists()` that ignores self.instance, so editing a user reports their
+        own username as a duplicate. Re-check here, excluding the instance.
+        """
+        username = self.cleaned_data.get('username')
+        if username:
+            qs = User.objects.filter(username__iexact=username)
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError("A user with that username already exists.")
+        return username
+
     def clean_password2(self):
         """Override to handle optional passwords when editing."""
         password1 = self.cleaned_data.get("password1")
