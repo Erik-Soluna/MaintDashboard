@@ -2,6 +2,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
+from core.rbac import permission_required
 from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Q
@@ -455,7 +456,7 @@ def event_list(request):
     return render(request, 'events/event_list.html', context)
 
 
-@login_required
+@permission_required('events.write')
 def add_event(request):
     """Redirect to maintenance activity creation - calendar events are now only created from maintenance activities."""
     messages.info(request, 'Calendar events are automatically created from maintenance activities. Please create a maintenance activity instead.')
@@ -480,7 +481,7 @@ def event_detail(request, event_id):
     return redirect('events:calendar_view')
 
 
-@login_required
+@permission_required('events.write')
 def edit_event(request, event_id):
     """Redirect to maintenance activity edit - calendar events are now only updated via maintenance activities."""
     event = get_object_or_404(CalendarEvent, id=event_id)
@@ -495,7 +496,7 @@ def edit_event(request, event_id):
     return redirect('events:calendar_view')
 
 
-@login_required
+@permission_required('events.write')
 def complete_event(request, event_id):
     """Mark an event as complete."""
     if request.method == 'POST':
@@ -511,7 +512,7 @@ def complete_event(request, event_id):
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 
-@login_required
+@permission_required('events.write')
 def delete_event(request, event_id):
     """Redirect to maintenance activity delete - calendar events are now only deleted via maintenance activities."""
     event = get_object_or_404(CalendarEvent, id=event_id)
@@ -534,7 +535,7 @@ def delete_event(request, event_id):
     return render(request, 'events/delete_event.html', context)
 
 
-@login_required
+@permission_required('events.write')
 def delete_event_ajax(request, event_id):
     """Delete a calendar event via AJAX."""
     if request.method == 'POST':

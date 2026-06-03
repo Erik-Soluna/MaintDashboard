@@ -41,9 +41,10 @@ import redis
 from django_celery_beat.models import PeriodicTask
 from django.utils import timezone
 from .helpers import *  # noqa: F401,F403 (shared helpers + globals)
+from core.rbac import permission_required
 
 
-@login_required
+@permission_required('administration.write')
 def branding_settings(request):
     """Branding settings management page"""
     # Check if branding tables exist before trying to access them
@@ -185,7 +186,7 @@ def css_customization_list(request):
         return redirect('core:branding_settings')
 
 
-@login_required
+@permission_required('administration.write')
 def css_customization_create(request):
     """Create a new CSS customization"""
     # Check if CSS customization table exists
@@ -228,7 +229,7 @@ def css_customization_create(request):
         return redirect('core:branding_settings')
 
 
-@login_required
+@permission_required('administration.write')
 def css_customization_edit(request, pk):
     """Edit an existing CSS customization"""
     # Check if CSS customization table exists
@@ -276,7 +277,7 @@ def css_customization_edit(request, pk):
         return redirect('core:branding_settings')
 
 
-@login_required
+@permission_required('administration.write')
 def css_customization_delete(request, pk):
     """Delete a CSS customization"""
     # Check if CSS customization table exists
@@ -357,7 +358,7 @@ def css_preview(request):
         return redirect('core:branding_settings')
 
 
-@login_required
+@permission_required('administration.write')
 def css_toggle(request, pk):
     """Toggle CSS customization active status"""
     # Check if CSS customization table exists
