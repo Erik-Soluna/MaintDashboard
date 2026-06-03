@@ -110,6 +110,29 @@ def user_management(request):
     return render(request, 'core/user_management.html', context)
 
 
+def _send_welcome_email(request, user):
+    """Email a newly-created user a welcome + set-your-password link."""
+    from django.contrib.auth.tokens import default_token_generator
+    from django.utils.http import urlsafe_base64_encode
+    from django.utils.encoding import force_bytes
+    from django.template.loader import render_to_string
+    from django.core.mail import send_mail
+    from django.urls import reverse
+    from django.conf import settings
+
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    ctx = {
+        'user': user,
+        'set_password_url': request.build_absolute_uri(
+            reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})),
+        'login_url': request.build_absolute_uri(reverse('login')),
+    }
+    subject = render_to_string('registration/account_welcome_subject.txt', ctx).strip()
+    body = render_to_string('registration/account_welcome_email.html', ctx)
+    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
+
+
 @permission_required('users.manage')
 def add_user(request):
     """Add new user."""
@@ -117,7 +140,16 @@ def add_user(request):
         form = UserForm(request.POST)
         if form.is_valid():
             user = form.save()
-            messages.success(request, f'User "{user.username}" has been created successfully.')
+            email_note = ''
+            if user.email:
+                try:
+                    _send_welcome_email(request, user)
+                    email_note = f' A welcome email was sent to {user.email}.'
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"Welcome email failed for {user.username}: {e}")
+                    email_note = ' (Could not send the welcome email — check email settings.)'
+            messages.success(request, f'User "{user.username}" has been created successfully.' + email_note)
             return redirect('core:user_management')
     else:
         form = UserForm()
