@@ -539,7 +539,7 @@ $(document).ready(function() {
         
         // Load role data
         $.ajax({
-            url: '/core/api/roles/' + roleId + '/',
+            url: '/api/roles/' + roleId + '/',
             method: 'GET',
             success: function(data) {
                 $('#editRoleId').val(data.id);
@@ -590,7 +590,7 @@ $(document).ready(function() {
         };
         
         $.ajax({
-            url: '/core/api/roles/' + roleId + '/',
+            url: '/api/roles/' + roleId + '/',
             method: 'PUT',
             headers: {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
@@ -622,7 +622,7 @@ $(document).ready(function() {
         const roleId = $('#deleteRoleId').val();
         
         $.ajax({
-            url: '/core/api/roles/' + roleId + '/',
+            url: '/api/roles/' + roleId + '/',
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()

@@ -1227,7 +1227,7 @@ def get_activity_details(request, activity_id):
         return JsonResponse({'error': 'Failed to get activity details'}, status=500)
 
 
-@login_required
+@permission_required('maintenance.create')
 @require_http_methods(["POST"])
 def create_activity_api(request):
     """API endpoint for creating maintenance activities via AJAX."""

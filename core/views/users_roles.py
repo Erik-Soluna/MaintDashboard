@@ -110,6 +110,29 @@ def user_management(request):
     return render(request, 'core/user_management.html', context)
 
 
+def _send_welcome_email(request, user):
+    """Email a newly-created user a welcome + set-your-password link."""
+    from django.contrib.auth.tokens import default_token_generator
+    from django.utils.http import urlsafe_base64_encode
+    from django.utils.encoding import force_bytes
+    from django.template.loader import render_to_string
+    from django.core.mail import send_mail
+    from django.urls import reverse
+    from django.conf import settings
+
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    ctx = {
+        'user': user,
+        'set_password_url': request.build_absolute_uri(
+            reverse('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})),
+        'login_url': request.build_absolute_uri(reverse('login')),
+    }
+    subject = render_to_string('registration/account_welcome_subject.txt', ctx).strip()
+    body = render_to_string('registration/account_welcome_email.html', ctx)
+    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
+
+
 @permission_required('users.manage')
 def add_user(request):
     """Add new user."""
@@ -117,7 +140,16 @@ def add_user(request):
         form = UserForm(request.POST)
         if form.is_valid():
             user = form.save()
-            messages.success(request, f'User "{user.username}" has been created successfully.')
+            email_note = ''
+            if user.email:
+                try:
+                    _send_welcome_email(request, user)
+                    email_note = f' A welcome email was sent to {user.email}.'
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"Welcome email failed for {user.username}: {e}")
+                    email_note = ' (Could not send the welcome email — check email settings.)'
+            messages.success(request, f'User "{user.username}" has been created successfully.' + email_note)
             return redirect('core:user_management')
     else:
         form = UserForm()
@@ -349,6 +381,105 @@ def roles_api(request):
             }, status=500)
 
 
+def _serialize_agent(user):
+    """Serialize an API agent (token-holding service account) for the UI."""
+    from rest_framework.authtoken.models import Token
+    profile = getattr(user, 'userprofile', None)
+    role = profile.role if profile else None
+    token = Token.objects.filter(user=user).first()
+    return {
+        'id': user.id,
+        'username': user.username,
+        'is_active': user.is_active,
+        'role_id': role.id if role else None,
+        'role': role.display_name if role else None,
+        'token': token.key if token else None,
+        'created': token.created.isoformat() if token else None,
+    }
+
+
+@permission_required('users.manage')
+@require_http_methods(["GET", "POST"])
+def agents_api(request):
+    """List API agents or create a new one (read-only AI service account + token).
+
+    GET  -> [{id, username, role, token, created, is_active}, ...]
+    POST -> {username, role_id?} ; creates user + DRF token, returns the token.
+    """
+    from rest_framework.authtoken.models import Token
+
+    if request.method == 'GET':
+        agent_ids = Token.objects.values_list('user_id', flat=True)
+        agents = (User.objects.filter(id__in=list(agent_ids))
+                  .select_related('userprofile', 'userprofile__role').order_by('username'))
+        return JsonResponse([_serialize_agent(u) for u in agents], safe=False)
+
+    # POST — create
+    try:
+        data = json.loads(request.body or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+
+    username = (data.get('username') or '').strip()
+    if not username:
+        return JsonResponse({'error': 'Agent name (username) is required'}, status=400)
+    if not re.match(r'^[\w.@+-]+$', username):
+        return JsonResponse({'error': 'Name may only contain letters, numbers, and @/./+/-/_'}, status=400)
+    if User.objects.filter(username=username).exists():
+        return JsonResponse({'error': f'A user named "{username}" already exists'}, status=400)
+
+    # Resolve role: explicit role_id, else default least-privilege ai_diagnostics.
+    role = None
+    role_id = data.get('role_id')
+    if role_id:
+        role = get_object_or_404(Role, id=role_id)
+    else:
+        role = Role.objects.filter(name='ai_diagnostics').first()
+        if not role:
+            from core.rbac import initialize_default_permissions
+            initialize_default_permissions()
+            role = Role.objects.filter(name='ai_diagnostics').first()
+
+    user = User.objects.create(username=username, email=(data.get('email') or '').strip(),
+                               is_active=True, is_staff=False)
+    user.set_unusable_password()  # token-only; cannot log in with a password
+    user.save()
+
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    profile.role = role
+    profile.is_active = True
+    profile.save()
+
+    token = Token.objects.create(user=user)
+    messages.success(request, f'API agent "{username}" created.')
+    result = _serialize_agent(user)
+    result['message'] = 'Agent created successfully'
+    return JsonResponse(result, status=201)
+
+
+@permission_required('users.manage')
+@require_http_methods(["POST", "DELETE"])
+def agent_detail_api(request, user_id):
+    """Rotate an agent's token (POST) or delete the agent entirely (DELETE)."""
+    from rest_framework.authtoken.models import Token
+    user = get_object_or_404(User, id=user_id)
+
+    if user.is_superuser:
+        return JsonResponse({'error': 'Refusing to manage a superuser as an agent.'}, status=400)
+    if user.id == request.user.id:
+        return JsonResponse({'error': 'You cannot manage your own account here.'}, status=400)
+
+    if request.method == 'DELETE':
+        username = user.username
+        user.delete()  # cascades the token + profile
+        return JsonResponse({'message': f'Agent "{username}" removed.'})
+
+    # POST — rotate token
+    Token.objects.filter(user=user).delete()
+    Token.objects.create(user=user)
+    return JsonResponse(_serialize_agent(user))
+
+
 @login_required
 @user_passes_test(is_staff_or_superuser)
 @require_http_methods(["POST"])
@@ -383,4 +514,4 @@ def reset_rbac(request):
         }, status=500)
 
 
-__all__ = ["user_management", "add_user", "edit_user", "users_api", "roles_permissions_management", "role_detail_api", "roles_api", "reset_rbac"]
+__all__ = ["user_management", "add_user", "edit_user", "users_api", "roles_permissions_management", "role_detail_api", "roles_api", "reset_rbac", "agents_api", "agent_detail_api"]

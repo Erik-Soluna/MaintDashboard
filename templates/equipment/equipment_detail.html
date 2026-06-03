@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load tz %}
+{% load rbac_tags %}
 
 {% block title %}{{ equipment.name }} - Equipment Details{% endblock %}
 
@@ -23,9 +24,11 @@
                     <p class="text-muted mb-0">{{ equipment.category.name|default:"No Category" }} • {{ equipment.location.name|default:"No Location" }}</p>
                 </div>
                 <div>
+                    {% if user|has_permission:'issues.create' %}
                     <button type="button" class="btn btn-warning" data-toggle="modal" data-target="#logIssueModal">
                         <i class="fas fa-exclamation-triangle me-1"></i> Log Issue
                     </button>
+                    {% endif %}
                     <a href="{% url 'equipment:equipment_kpi_tracker' equipment.id %}" class="btn btn-info">
                         <i class="fas fa-chart-line me-1"></i> KPI Tracker
                     </a>
@@ -493,9 +496,11 @@
                     <div class="tab-pane fade" id="documents" role="tabpanel">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h6 class="mb-0">Equipment Documents</h6>
+                            {% if user|has_permission:'equipment.edit' %}
                             <a href="{% url 'equipment:add_document' equipment.id %}" class="btn btn-sm btn-primary">
                                 <i class="fas fa-upload me-1"></i> Upload Document
                             </a>
+                            {% endif %}
                         </div>
                         
                         {% if documents %}
@@ -547,9 +552,11 @@
                             <div class="text-center py-4">
                                 <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
                                 <p class="text-muted">No documents uploaded</p>
+                                {% if user|has_permission:'equipment.edit' %}
                                 <a href="{% url 'equipment:add_document' equipment.id %}" class="btn btn-primary">
                                     <i class="fas fa-upload me-1"></i> Upload First Document
                                 </a>
+                                {% endif %}
                             </div>
                         {% endif %}
                     </div>
@@ -762,9 +769,11 @@
                     <div class="tab-pane fade" id="issues" role="tabpanel">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h6 class="mb-0">Equipment Issues</h6>
+                            {% if user|has_permission:'issues.create' %}
                             <button type="button" class="btn btn-sm btn-warning" data-toggle="modal" data-target="#logIssueModal">
                                 <i class="fas fa-exclamation-triangle me-1"></i> Log New Issue
                             </button>
+                            {% endif %}
                         </div>
                         
                         <!-- Issue Summary Cards -->
@@ -899,9 +908,11 @@
                             <div class="text-center py-4">
                                 <i class="fas fa-exclamation-triangle fa-3x text-muted mb-3"></i>
                                 <p class="text-muted">No issues logged for this equipment</p>
+                                {% if user|has_permission:'issues.create' %}
                                 <button type="button" class="btn btn-warning" data-toggle="modal" data-target="#logIssueModal">
                                     <i class="fas fa-exclamation-triangle me-1"></i> Log First Issue
                                 </button>
+                                {% endif %}
                             </div>
                         {% endif %}
                     </div>

@@ -4,6 +4,27 @@
 
 {% block title %}Maintenance Activities{% endblock %}
 
+{% block extra_css %}
+<style>
+/* Highlight selected rows so the selection is obvious even when the table is
+   scrolled horizontally on mobile. */
+.table tbody tr.row-selected td { background-color: rgba(66, 153, 225, 0.22) !important; }
+
+/* Keep the checkbox column pinned/visible while scrolling the wide table on
+   mobile, so it stays aligned with its row. */
+@media (max-width: 991.98px) {
+    #bulkDeleteForm .table thead th:first-child,
+    #bulkDeleteForm .table tbody td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        background-color: #2d3748;
+    }
+    #bulkDeleteForm .table tbody tr.row-selected td:first-child { background-color: #2b4d6f; }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row">
@@ -170,6 +191,11 @@ document.addEventListener('DOMContentLoaded', function () {
             selectAll.checked = checked > 0 && checked === all.length;
             selectAll.indeterminate = checked > 0 && checked < all.length;
         }
+        // Highlight selected rows (visible even when scrolled horizontally).
+        all.forEach(function (c) {
+            var tr = c.closest('tr');
+            if (tr) tr.classList.toggle('row-selected', c.checked);
+        });
     }
     if (selectAll) selectAll.addEventListener('change', function () {
         items().forEach(function (c) { c.checked = selectAll.checked; });

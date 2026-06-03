@@ -241,6 +241,13 @@ def issues_list(request):
     paginator = Paginator(queryset, 25)
     page_obj = paginator.get_page(request.GET.get('page'))
 
+    # Equipment options for the "Add Issue" picker (scoped to the selected site).
+    eq_choices = Equipment.objects.filter(is_active=True).select_related('location').order_by('name')
+    if selected_site and selected_site_id != 'all':
+        from core.utils import get_all_descendant_location_ids
+        eq_choices = eq_choices.filter(
+            location_id__in=get_all_descendant_location_ids(selected_site, include_inactive=True))
+
     context = {
         'page_obj': page_obj,
         'stats': stats,
@@ -251,6 +258,8 @@ def issues_list(request):
         'severities': EquipmentIssue.SEVERITY_CHOICES,
         'selected_site': selected_site,
         'selected_site_id': selected_site_id,
+        'equipment_choices': eq_choices,
+        'can_create_issue': user_has_permission(request.user, 'issues.create'),
     }
     return render(request, 'equipment/issues_list.html', context)
 
@@ -919,7 +928,7 @@ def equipment_documents(request, equipment_id):
     return render(request, 'equipment/equipment_documents.html', context)
 
 
-@login_required
+@permission_required('equipment.edit')
 def add_document(request, equipment_id):
     """Add document to equipment."""
     equipment = get_object_or_404(Equipment, id=equipment_id)

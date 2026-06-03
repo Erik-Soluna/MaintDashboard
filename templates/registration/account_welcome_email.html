@@ -1,0 +1,17 @@
+{% autoescape off %}
+Hi {{ user.get_full_name|default:user.username }},
+
+An account has been created for you on the Maintenance Dashboard.
+
+  Username: {{ user.username }}
+
+Set your password to get started:
+{{ set_password_url }}
+
+Once your password is set, sign in here:
+{{ login_url }}
+
+If you weren't expecting this, you can safely ignore this email.
+
+— Maintenance Dashboard
+{% endautoescape %}

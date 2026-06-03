@@ -64,6 +64,18 @@ services:
         reservations:
           memory: 128M
 
+  # Outbound SMTP relay (sends mail directly; set RELAY_HOST to use a smarthost).
+  postfix-relay:
+    image: bytemark/smtp
+    container_name: maintenance_mailer_dev
+    restart: unless-stopped
+    networks:
+      - maintenance_network_dev
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
   web-dev:
     build:
       context: .
@@ -98,6 +110,13 @@ services:
       - ADMIN_EMAIL=admin@dev.maintenance.errorlog.app
       - ADMIN_PASSWORD=DevAdminPassword2024!
       - DOMAIN=dev.maintenance.errorlog.app
+      # Email (SMTP via the postfix-relay sidecar; sends as no-reply@errorlog.app)
+      - EMAIL_BACKEND=${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
+      - EMAIL_HOST=${EMAIL_HOST:-postfix-relay}
+      - EMAIL_PORT=${EMAIL_PORT:-25}
+      - EMAIL_USE_TLS=${EMAIL_USE_TLS:-False}
+      - DEFAULT_FROM_EMAIL=${DEFAULT_FROM_EMAIL:-no-reply@errorlog.app}
+      - SERVER_EMAIL=${SERVER_EMAIL:-no-reply@errorlog.app}
       # Development Security Settings
       - SECURE_SSL_REDIRECT=False
       - SESSION_COOKIE_SECURE=False

@@ -334,163 +334,50 @@ def clear_health_logs(request):
 
 @login_required
 def api_explorer(request):
-    """API Explorer: Tree view of all models and API documentation with live data."""
-    from django.db.models import Count, Q
-    from django.urls import reverse
-    from equipment.models import Equipment
-    from maintenance.models import MaintenanceActivity, MaintenanceActivityType, ActivityTypeCategory
-    from events.models import CalendarEvent
-    from django.contrib.auth.models import User
-    
-    # Get live data counts and samples
+    """Dynamic API Explorer — reflects the live /api/v1/ model registry so it
+    never goes stale as the schema evolves. Backed by the `api` app registry."""
+    from api.registry import exposed_models, model_key, field_metadata
+
+    models = []
+    for m in exposed_models():
+        try:
+            count = m.objects.count()
+        except Exception:
+            count = None
+        models.append({
+            'key': model_key(m),
+            'app': m._meta.app_label,
+            'model': m._meta.model_name,
+            'verbose_name': str(m._meta.verbose_name),
+            'verbose_name_plural': str(m._meta.verbose_name_plural),
+            'count': count,
+            'fields': field_metadata(m),
+            'list_path': f'/api/v1/data/{model_key(m)}/',
+        })
+
+    apps_grouped = {}
+    for entry in models:
+        apps_grouped.setdefault(entry['app'], []).append(entry)
+    apps_grouped = [
+        {'app': app, 'models': sorted(group, key=lambda x: x['model'])}
+        for app, group in sorted(apps_grouped.items())
+    ]
+
     context = {
-        # Core models
-        'customers': {
-            'count': Customer.objects.filter(is_active=True).count(),
-            'sample': list(Customer.objects.filter(is_active=True)[:5].values('id', 'name', 'code')),
-            'model_name': 'Customer',
-            # 'admin_url': reverse('admin:core_customer_changelist'),  # Removed, not registered in admin
-            'description': 'Customer/client information and contact details'
-        },
-        'locations': {
-            'count': Location.objects.filter(is_active=True).count(),
-            'sample': list(Location.objects.filter(is_active=True)[:5].values('id', 'name', 'is_site', 'customer__name')),
-            'model_name': 'Location',
-            'admin_url': reverse('admin:core_location_changelist'),
-            'description': 'Hierarchical locations including sites and equipment locations'
-        },
-        'equipment_categories': {
-            'count': EquipmentCategory.objects.filter(is_active=True).count(),
-            'sample': list(EquipmentCategory.objects.filter(is_active=True)[:5].values('id', 'name', 'description')),
-            'model_name': 'EquipmentCategory',
-            'admin_url': reverse('admin:core_equipmentcategory_changelist'),
-            'description': 'Categories for organizing equipment types'
-        },
-        'users': {
-            'count': User.objects.filter(is_active=True).count(),
-            'sample': list(User.objects.filter(is_active=True)[:5].values('id', 'username', 'first_name', 'last_name')),
-            'model_name': 'User',
-            'admin_url': reverse('admin:auth_user_changelist'),
-            'description': 'System users with roles and permissions'
-        },
-        'roles': {
-            'count': Role.objects.filter(is_active=True).count(),
-            'sample': list(Role.objects.filter(is_active=True)[:5].values('id', 'name', 'display_name')),
-            'model_name': 'Role',
-            'admin_url': reverse('admin:core_role_changelist'),
-            'description': 'User roles with associated permissions'
-        },
-        'permissions': {
-            'count': Permission.objects.filter(is_active=True).count(),
-            'sample': list(Permission.objects.filter(is_active=True)[:5].values('id', 'name', 'module')),
-            'model_name': 'Permission',
-            'admin_url': reverse('admin:core_permission_changelist'),
-            'description': 'System permissions for role-based access control'
-        },
-        
-        # Equipment models
-        'equipment': {
-            'count': Equipment.objects.filter(is_active=True).count(),
-            'sample': list(Equipment.objects.filter(is_active=True).select_related('category', 'location')[:5].values(
-                'id', 'name', 'category__name', 'location__name'
-            )),
-            'model_name': 'Equipment',
-            'admin_url': reverse('admin:equipment_equipment_changelist'),
-            'description': 'Equipment items with categories and locations'
-        },
-        
-        # Maintenance models
-        'maintenance_activities': {
-            'count': MaintenanceActivity.objects.count(),
-            'sample': list(MaintenanceActivity.objects.select_related('equipment', 'assigned_to')[:5].values(
-                'id', 'title', 'equipment__name', 'status', 'assigned_to__username'
-            )),
-            'model_name': 'MaintenanceActivity',
-            'admin_url': reverse('admin:maintenance_maintenanceactivity_changelist'),
-            'description': 'Maintenance activities and tasks'
-        },
-        'maintenance_activity_types': {
-            'count': MaintenanceActivityType.objects.filter(is_active=True).count(),
-            'sample': list(MaintenanceActivityType.objects.filter(is_active=True)[:5].values('id', 'name', 'description')),
-            'model_name': 'MaintenanceActivityType',
-            'admin_url': reverse('admin:maintenance_maintenanceactivitytype_changelist'),
-            'description': 'Types of maintenance activities'
-        },
-        'activity_type_categories': {
-            'count': ActivityTypeCategory.objects.filter(is_active=True).count(),
-            'sample': list(ActivityTypeCategory.objects.filter(is_active=True)[:5].values('id', 'name', 'description')),
-            'model_name': 'ActivityTypeCategory',
-            'admin_url': reverse('admin:maintenance_activitytypecategory_changelist'),
-            'description': 'Categories for organizing maintenance activity types'
-        },
-        
-        # Events models
-        'calendar_events': {
-            'count': CalendarEvent.objects.count(),
-            'sample': list(CalendarEvent.objects.select_related('equipment', 'assigned_to')[:5].values(
-                'id', 'title', 'equipment__name', 'event_date', 'assigned_to__username'
-            )),
-            'model_name': 'CalendarEvent',
-            'admin_url': reverse('admin:events_calendarevent_changelist'),
-            'description': 'Calendar events and scheduling'
-        },
-        
-        # API Endpoints
-        'api_endpoints': [
-            {
-                'name': 'Health Check',
-                'url': reverse('core:health_check'),
-                'method': 'GET',
-                'description': 'System health status and metrics',
-                'auth_required': False
-            },
-            {
-                'name': 'Health Check API',
-                'url': reverse('core:health_check_api'),
-                'method': 'GET',
-                'description': 'JSON health check endpoint',
-                'auth_required': False
-            },
-            {
-                'name': 'Locations API',
-                'url': reverse('core:locations_api'),
-                'method': 'GET',
-                'description': 'Get all locations with filtering',
-                'auth_required': True
-            },
-            {
-                'name': 'Equipment Items API',
-                'url': reverse('core:equipment_items_api'),
-                'method': 'GET',
-                'description': 'Get all equipment items',
-                'auth_required': True
-            },
-            {
-                'name': 'Users API',
-                'url': reverse('core:users_api'),
-                'method': 'GET',
-                'description': 'Get all users',
-                'auth_required': True
-            },
-            {
-                'name': 'Roles API',
-                'url': reverse('core:roles_api'),
-                'method': 'GET',
-                'description': 'Get all roles and permissions',
-                'auth_required': True
-            },
+        'apps_grouped': apps_grouped,
+        'total_models': len(models),
+        'total_fields': sum(len(m['fields']) for m in models),
+        'api_base': '/api/v1/',
+        'diagnostics': [
+            {'name': 'System Health', 'path': '/api/v1/diagnostics/health/',
+             'description': 'Comprehensive system health (db, cache, celery, email, system)'},
+            {'name': 'Diagnostics Summary', 'path': '/api/v1/diagnostics/summary/',
+             'description': 'Open/critical issues, overdue maintenance, equipment-by-status'},
         ],
-        
-        # System Information
-        'system_info': {
-            'total_models': 12,  # Count of all models
-            'total_endpoints': 12,  # Count of API endpoints
-            'database_tables': 15,  # Approximate count of database tables
-            'last_updated': timezone.now()
-        }
+        'last_updated': timezone.now(),
     }
-    
     return render(request, 'core/api_explorer.html', context)
+
 
 
 @login_required

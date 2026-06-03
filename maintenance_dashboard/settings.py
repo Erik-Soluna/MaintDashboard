@@ -96,12 +96,34 @@ INSTALLED_APPS = [
     'django_tables2',
     'widget_tweaks',
     'django_celery_beat',
+    'rest_framework',
+    'rest_framework.authtoken',
     # Local apps
     'equipment',
     'maintenance',
     'events',
     'core',
+    'api',
 ]
+
+# Django REST Framework — dynamic read-only API + token auth for the AI agent.
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '600/hour',
+    },
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -396,8 +418,15 @@ if not REDIS_URL:
     else:
         REDIS_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}'
 
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default=f'{REDIS_URL}/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default=f'{REDIS_URL}/0')
+# REDIS_URL may or may not carry a trailing /<db> (e.g. redis://redis:6379/0).
+# Strip it so we can assign dedicated DBs below (/0 Celery, /1 cache) without
+# producing invalid URLs like redis://redis:6379/0/0 (the "Database is int
+# between 0 and limit - 1" error) or /0/1 (cache read/write mismatch).
+import re as _re
+REDIS_BASE_URL = _re.sub(r'/\d+$', '', REDIS_URL)
+
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default=f'{REDIS_BASE_URL}/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default=f'{REDIS_BASE_URL}/0')
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
@@ -429,6 +458,10 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+# Run tasks synchronously in-process (no broker) only when explicitly opted in
+# — e.g. local dev without Redis. Never auto-enabled on a broker hiccup.
+CELERY_TASK_ALWAYS_EAGER = config('CELERY_TASK_ALWAYS_EAGER', default=False, cast=bool)
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # Caching Configuration
 # Use Redis if available, fall back to database for development
@@ -437,8 +470,9 @@ USE_REDIS = config('USE_REDIS', default=True, cast=bool)
 # Test Redis connectivity and fall back gracefully
 def get_cache_config():
     """Get cache configuration with Redis fallback."""
-    if USE_REDIS and not DEBUG:
-        # Try Redis for production
+    if USE_REDIS:
+        # Use Redis when available (dev + prod); the connection test below falls
+        # back to the database/dummy cache if Redis can't be reached.
         try:
             import redis
             r = redis.Redis.from_url(REDIS_URL, socket_connect_timeout=2, socket_timeout=2)
@@ -446,7 +480,7 @@ def get_cache_config():
             return {
                 'default': {
                     'BACKEND': 'django_redis.cache.RedisCache',
-                    'LOCATION': f'{REDIS_URL}/1',
+                    'LOCATION': f'{REDIS_BASE_URL}/1',
                     'OPTIONS': {
                         'CLIENT_CLASS': 'django_redis.client.DefaultClient',
                     },
@@ -489,7 +523,9 @@ EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@maintenance-dashboard.com')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='no-reply@errorlog.app')
+# Used for error/admin mail; defaults to the same from-address.
+SERVER_EMAIL = config('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
 
 # System Monitoring Configuration
 MONITORING_ENABLED = config('MONITORING_ENABLED', default=True, cast=bool)
