@@ -81,13 +81,18 @@
 
 {% block content %}
 <div class="issues-header">
-    <div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
         <h5 class="mb-0 text-white">
             <i class="fas fa-exclamation-triangle me-2"></i> Issues
             <small class="text-muted" style="font-size:12px; font-weight:400;">
                 — what needs repair across {% if selected_site %}{{ selected_site.name }}{% else %}all sites{% endif %}
             </small>
         </h5>
+        {% if can_create_issue %}
+        <button type="button" class="btn btn-warning btn-sm" id="addIssueBtn" data-toggle="modal" data-target="#addIssueModal">
+            <i class="fas fa-plus me-1"></i> Add Issue
+        </button>
+        {% endif %}
     </div>
 
     <!-- Stat cards -->
@@ -276,6 +281,40 @@
         </div>
     </div>
 </div>
+
+{% if can_create_issue %}
+<!-- Add Issue: pick equipment, then load + submit its log-issue form -->
+<div class="modal fade" id="addIssueModal" tabindex="-1" aria-labelledby="addIssueModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addIssueModalLabel"><i class="fas fa-exclamation-triangle me-2"></i>Add Issue</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="addIssueEquipment" class="form-label">Equipment <span class="text-danger">*</span></label>
+                    <select id="addIssueEquipment" class="form-control">
+                        <option value="">Select equipment…</option>
+                        {% for eq in equipment_choices %}
+                        <option value="{{ eq.id }}">{{ eq.name }}{% if eq.location %} — {{ eq.location.get_hierarchical_display }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="addIssueFormBody">
+                    <p class="text-muted">Select equipment to log an issue against.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="submitAddIssue" disabled>
+                    <i class="fas fa-plus me-1"></i> Log Issue
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -333,6 +372,48 @@ $(document).ready(function() {
             }
         });
     }
+
+    // Add Issue: pick equipment -> load its log-issue form -> submit via AJAX.
+    var $addEq = $('#addIssueEquipment');
+    var $addBody = $('#addIssueFormBody');
+    var $addSubmit = $('#submitAddIssue');
+    $addEq.on('change', function() {
+        var eqId = $(this).val();
+        $addSubmit.prop('disabled', true);
+        if (!eqId) { $addBody.html('<p class="text-muted">Select equipment to log an issue against.</p>'); return; }
+        $addBody.html('<div class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Loading form...</p></div>');
+        $.ajax({
+            url: '/equipment/' + eqId + '/issues/log/',
+            type: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(resp) {
+                if (resp.success) { $addBody.html(resp.form_html); $addSubmit.prop('disabled', false); }
+                else { $addBody.html('<div class="alert alert-danger">Error loading form.</div>'); }
+            },
+            error: function() { $addBody.html('<div class="alert alert-danger">Error loading form.</div>'); }
+        });
+    });
+    $(document).on('submit', '#logIssueForm', function(e) { e.preventDefault(); $addSubmit.click(); });
+    $addSubmit.on('click', function() {
+        var form = $('#logIssueForm');
+        if (!form.length) return;
+        var orig = $addSubmit.html();
+        $addSubmit.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Logging...');
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(resp) {
+                if (resp.success) { $('#addIssueModal').modal('hide'); window.location.reload(); }
+                else { alert('Error: ' + (resp.errors ? JSON.stringify(resp.errors) : 'Failed to log issue')); $addSubmit.prop('disabled', false).html(orig); }
+            },
+            error: function(xhr) {
+                var msg = xhr.responseJSON && xhr.responseJSON.errors ? JSON.stringify(xhr.responseJSON.errors) : 'Failed to log issue';
+                alert('Error: ' + msg); $addSubmit.prop('disabled', false).html(orig);
+            }
+        });
+    });
 
     // Search-as-you-type (debounced), consistent with the equipment list.
     var $search = $('#search');
