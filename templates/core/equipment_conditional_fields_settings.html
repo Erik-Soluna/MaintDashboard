@@ -261,7 +261,7 @@ $(document).ready(function() {
          
          if (sourceCategoryId) {
              // Fetch fields for the selected source category
-             $.get(`/core/api/categories/${sourceCategoryId}/fields/`, function(data) {
+             $.get(`/api/categories/${sourceCategoryId}/fields/`, function(data) {
                  fieldSelect.empty();
                  
                  if (data.fields && data.fields.length > 0) {

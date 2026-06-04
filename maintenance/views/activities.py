@@ -1367,7 +1367,7 @@ def create_activity_api(request):
         }, status=500)
 
 
-@login_required
+@permission_required('maintenance.edit')
 def upload_activity_document(request, activity_id):
     """Upload a document to a maintenance activity."""
     activity = get_object_or_404(MaintenanceActivity, id=activity_id)
@@ -1415,7 +1415,7 @@ def upload_activity_document(request, activity_id):
     return render(request, 'maintenance/upload_document.html', context)
 
 
-@login_required
+@permission_required('maintenance.edit')
 def change_activity_status(request, activity_id):
     """Change activity status without editing the entire activity."""
     activity = get_object_or_404(MaintenanceActivity, id=activity_id)
@@ -1482,7 +1482,7 @@ def change_activity_status(request, activity_id):
     return render(request, 'maintenance/change_status.html', context)
 
 
-@login_required
+@permission_required('maintenance.edit')
 def attach_related_activity(request, activity_id):
     """Attach a related activity to the current activity."""
     activity = get_object_or_404(MaintenanceActivity, id=activity_id)

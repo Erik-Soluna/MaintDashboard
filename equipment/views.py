@@ -2271,7 +2271,7 @@ def field_configuration_settings(request):
     return render(request, 'equipment/field_configuration_settings.html', context)
 
 
-@login_required
+@permission_required('equipment.edit')
 @require_http_methods(["POST"])
 def create_connection(request):
     """Create a new equipment connection."""
@@ -2347,7 +2347,7 @@ def create_connection(request):
         }, status=500)
 
 
-@login_required
+@permission_required('equipment.delete')
 @require_http_methods(["DELETE"])
 def delete_connection(request, connection_id):
     """Delete an equipment connection."""
