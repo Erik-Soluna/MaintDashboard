@@ -141,51 +141,65 @@ def _build_site_layout(site):
         return {'id': e.id, 'name': e.name, 'health': health, 'open_issues': total,
                 'tooltip': " • ".join(tip)}
 
-    # Group equipment into tiles. The MDC is the chain element directly below the
-    # POD; equipment sitting directly on a POD (no MDC) is bucketed BY EQUIPMENT
-    # CATEGORY instead of one generic "Unzoned" tile — so e.g. a POD's transformer
-    # shows up as a "Transformer" tile. Tile keys: an int (real MDC location id) or
-    # ('cat', category_id) for a synthetic category tile (no backing location).
-    groups = {p.id: {} for p in pods}   # pod_id -> { key: {'mdc': loc|None, 'label': str, 'eq': []} }
+    # Build the location/equipment tree. Each POD's tiles are its direct child
+    # locations (MDCs, cabinets, …); within a tile, sub-locations nest recursively
+    # to arbitrary depth (POD › MDC › Network Cabinet › switches). Equipment sitting
+    # directly on a POD (no sub-location) is bucketed BY CATEGORY into synthetic
+    # tiles ("Transformer", "VFD", …) instead of one generic "Unzoned" tile.
+    HEALTH_LEVELS = ('critical', 'warning', 'maintenance', 'ok', 'idle')
+    eq_by_loc = {}
     for e in equipment:
-        chain, loc = [], e.location
-        while loc is not None:
-            chain.append(loc)
-            loc = loc.parent_location
-        pod = next((l for l in chain if l.id in pod_ids), None)
-        if not pod:
-            continue
-        idx = chain.index(pod)
-        mdc = chain[idx - 1] if idx > 0 else None
-        if mdc is not None:
-            grp = groups[pod.id].setdefault(mdc.id, {'mdc': mdc, 'label': mdc.name, 'eq': []})
-        else:
-            cat = e.category
-            key = ('cat', cat.id if cat else None)
-            label = cat.name if cat else 'Unzoned'
-            grp = groups[pod.id].setdefault(key, {'mdc': None, 'label': label, 'eq': []})
-        grp['eq'].append(e)
+        eq_by_loc.setdefault(e.location_id, []).append(e)
+    children_by_loc = {}
+    for loc in Location.objects.filter(id__in=site_loc_ids):
+        if loc.parent_location_id:
+            children_by_loc.setdefault(loc.parent_location_id, []).append(loc)
 
-    # Include every MDC under each POD even if it has no equipment yet.
-    mdc_by_pod = {}
-    for p in pods:
-        mdcs = sorted(Location.objects.filter(parent_location=p, is_active=True),
-                      key=lambda l: natural_sort_key(l.name))
-        mdc_by_pod[p.id] = mdcs
-        for m in mdcs:
-            groups[p.id].setdefault(m.id, {'mdc': m, 'label': m.name, 'eq': []})
+    def build_node(loc):
+        """Recursive sub-location node: its equipment + nested child locations,
+        with equipment counts aggregated over the whole subtree."""
+        eqs = [eq_payload(e) for e in sorted(eq_by_loc.get(loc.id, []),
+                                             key=lambda e: natural_sort_key(e.name))]
+        kids = [build_node(c) for c in sorted(children_by_loc.get(loc.id, []),
+                                              key=lambda l: natural_sort_key(l.name))]
+        counts = {lvl: 0 for lvl in HEALTH_LEVELS}
+        for ep in eqs:
+            counts[ep['health']] += 1
+        total = len(eqs)
+        for k in kids:
+            total += k['count']
+            for lvl in HEALTH_LEVELS:
+                counts[lvl] += k['counts'][lvl]
+        return {'id': loc.id, 'name': loc.name, 'equipment': eqs,
+                'children': kids, 'count': total, 'counts': counts}
 
-    # Flow PODs left-to-right, wrapping; grid MDC tiles inside each POD.
+    # Flow PODs left-to-right, wrapping; grid the tiles inside each POD.
     x_cur, y_cur, row_h = PAD, PAD, 0
     pods_payload = []
     for p in pods:
-        g = groups[p.id]
-        # Real MDC tiles first (natural order), then synthetic category tiles by label.
-        ordered = [(m.id, g[m.id]) for m in mdc_by_pod[p.id]]
-        cat_keys = sorted((k for k in g if isinstance(k, tuple)),
-                          key=lambda k: natural_sort_key(g[k]['label']))
-        ordered.extend((k, g[k]) for k in cat_keys)
-        n = max(1, len(ordered))
+        # Tiles = direct child locations (shown if active or non-empty) ...
+        tiles = []
+        for child in sorted(children_by_loc.get(p.id, []), key=lambda l: natural_sort_key(l.name)):
+            node = build_node(child)
+            if child.is_active or node['count'] > 0:
+                tiles.append((child, node))
+        # ... plus per-category buckets for equipment sitting directly on the POD.
+        cat_buckets = {}
+        for e in sorted(eq_by_loc.get(p.id, []), key=lambda e: natural_sort_key(e.name)):
+            cat = e.category
+            b = cat_buckets.setdefault(cat.id if cat else None,
+                                       {'label': cat.name if cat else 'Unzoned', 'eq': []})
+            b['eq'].append(e)
+        for key in sorted(cat_buckets, key=lambda k: natural_sort_key(cat_buckets[k]['label'])):
+            b = cat_buckets[key]
+            eqs = [eq_payload(e) for e in b['eq']]
+            counts = {lvl: 0 for lvl in HEALTH_LEVELS}
+            for ep in eqs:
+                counts[ep['health']] += 1
+            tiles.append((None, {'id': None, 'name': b['label'], 'equipment': eqs,
+                                 'children': [], 'count': len(eqs), 'counts': counts}))
+
+        n = max(1, len(tiles))
         cols = max(1, int(math.ceil(math.sqrt(n))))
         rows = int(math.ceil(n / cols))
         comp_w = cols * TILE_W + (cols + 1) * TPAD
@@ -201,26 +215,22 @@ def _build_site_layout(site):
         row_h = max(row_h, comp_h)
 
         mdcs_payload = []
-        for i, (mid, data) in enumerate(ordered):
+        for i, (loc, node) in enumerate(tiles):
             r, c = divmod(i, cols)
-            mdc = data['mdc']
             tx = px + TPAD + c * (TILE_W + TPAD)
             ty = py + HEADER + TPAD + r * (TILE_H + TPAD)
-            if mdc is not None and mdc.layout_x is not None:
-                tx, ty = mdc.layout_x, mdc.layout_y
-            tw = (mdc.layout_width if mdc and mdc.layout_width else TILE_W)
-            th = (mdc.layout_height if mdc and mdc.layout_height else TILE_H)
-            eqs = [eq_payload(e) for e in sorted(data['eq'], key=lambda e: natural_sort_key(e.name))]
-            counts = {lvl: 0 for lvl in ('critical', 'warning', 'maintenance', 'ok', 'idle')}
-            for e in eqs:
-                counts[e['health']] += 1
+            if loc is not None and loc.layout_x is not None:
+                tx, ty = loc.layout_x, loc.layout_y
+            tw = (loc.layout_width if loc and loc.layout_width else TILE_W)
+            th = (loc.layout_height if loc and loc.layout_height else TILE_H)
             mdcs_payload.append({
-                # Real MDC -> its location id (draggable/saveable); synthetic
-                # category tile -> null id (renders + expands, excluded from save).
-                'id': (mid if isinstance(mid, int) else None),
-                'name': data['label'],
+                # Real location -> its id (draggable/saveable); synthetic category
+                # tile -> null id (renders + expands, excluded from layout save).
+                'id': (loc.id if loc is not None else None),
+                'name': node['name'],
                 'x': round(tx, 1), 'y': round(ty, 1), 'w': round(tw, 1), 'h': round(th, 1),
-                'count': len(eqs), 'counts': counts, 'equipment': eqs,
+                'count': node['count'], 'counts': node['counts'],
+                'equipment': node['equipment'], 'children': node['children'],
             })
 
         pods_payload.append({
