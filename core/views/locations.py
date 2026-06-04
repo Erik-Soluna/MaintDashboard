@@ -251,27 +251,53 @@ def _build_site_layout(site):
     # positioned here. Empty grid cells are allowed → the map mirrors the site.
     POD_W, POD_H = 250, 210
     auto_cols = max(1, int((canvas_w - PAD) // (POD_W + PAD)))
-    cells, ncols = assign_cells([(p.grid_row, p.grid_col) for p in pods], auto_cols)
+
+    # Each block is a real POD plus, if needed, a synthetic "Site-level" block for
+    # equipment NOT captured by any POD — attached directly to the site, or under
+    # an inactive direct child not shown as a POD. Without this it was invisible.
+    blocks = [{'pod': p, 'gr': p.grid_row, 'gc': p.grid_col} for p in pods]
+
+    rendered_loc_ids = set()
+    for p in pods:
+        rendered_loc_ids.add(p.id)
+        stack = [p.id]
+        while stack:
+            for ch in children_by_loc.get(stack.pop(), []):
+                rendered_loc_ids.add(ch.id)
+                stack.append(ch.id)
+    orphan_eq = [e for e in equipment if e.location_id not in rendered_loc_ids]
+    if orphan_eq:
+        site_tiles = []
+        for g in category_groups(orphan_eq):
+            site_tiles.append({'id': None, 'name': g['name'], 'count': g['count'],
+                               'counts': g['counts'], 'equipment': g['equipment'],
+                               'equipment_groups': [], 'children': []})
+        blocks.append({'pod': None, 'gr': None, 'gc': None,
+                       'name': 'Site-level', 'tiles': site_tiles})
+
+    cells, ncols = assign_cells([(b['gr'], b['gc']) for b in blocks], auto_cols)
     nrows = max((r for (r, c) in cells), default=0) + 1
 
     # Center each block within its cell square (split the PAD gutter both sides).
     cx, cy = PAD // 2, PAD // 2
     pods_payload = []
-    for p, (r, c) in zip(pods, cells):
+    for b, (r, c) in zip(blocks, cells):
         px = PAD + c * (POD_W + PAD) + cx
         py = PAD + r * (POD_H + PAD) + cy
-        mdcs_payload = []
-        for (loc, node) in build_pod_tiles(p):
-            mdcs_payload.append({
+        if b['pod'] is not None:
+            block_id, block_name = b['pod'].id, b['pod'].name
+            mdcs_payload = [{
                 'id': (loc.id if loc is not None else None),
                 'name': node['name'],
                 'count': node['count'], 'counts': node['counts'],
                 'equipment': node.get('equipment', []),
                 'equipment_groups': node.get('equipment_groups', []),
                 'children': node.get('children', []),
-            })
+            } for (loc, node) in build_pod_tiles(b['pod'])]
+        else:
+            block_id, block_name, mdcs_payload = None, b['name'], b['tiles']
         pods_payload.append({
-            'id': p.id, 'name': p.name, 'row': r, 'col': c,
+            'id': block_id, 'name': block_name, 'row': r, 'col': c,
             'x': round(px, 1), 'y': round(py, 1), 'w': POD_W, 'h': POD_H,
             'mdcs': mdcs_payload,
         })
