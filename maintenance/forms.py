@@ -845,6 +845,19 @@ class MaintenanceScheduleForm(forms.ModelForm):
                     except (Location.DoesNotExist, ValueError):
                         pass
         
+        # Include the submitted / instance equipment even if inactive or off-site
+        # (the map/lists show all equipment, so schedules can target such items).
+        include_ids = set()
+        if self.is_bound:
+            if hasattr(self.data, 'getlist'):
+                include_ids.update(self.data.getlist('equipment'))
+            include_ids.add(self.data.get('equipment'))
+        if getattr(self.instance, 'equipment_id', None):
+            include_ids.add(str(self.instance.equipment_id))
+        include_ids = {i for i in include_ids if i}
+        if include_ids:
+            equipment_queryset = (equipment_queryset | Equipment.objects.filter(id__in=include_ids)).distinct()
+
         self.fields['equipment'].queryset = equipment_queryset.select_related('category')
         self.fields['activity_type'].queryset = MaintenanceActivityType.objects.filter(is_active=True).select_related('category')
         
@@ -1081,6 +1094,19 @@ class ScheduleOverrideForm(forms.ModelForm):
                     except (Location.DoesNotExist, ValueError):
                         pass
         
+        # Include the submitted / instance equipment even if inactive or off-site
+        # (the map/lists show all equipment, so schedules can target such items).
+        include_ids = set()
+        if self.is_bound:
+            if hasattr(self.data, 'getlist'):
+                include_ids.update(self.data.getlist('equipment'))
+            include_ids.add(self.data.get('equipment'))
+        if getattr(self.instance, 'equipment_id', None):
+            include_ids.add(str(self.instance.equipment_id))
+        include_ids = {i for i in include_ids if i}
+        if include_ids:
+            equipment_queryset = (equipment_queryset | Equipment.objects.filter(id__in=include_ids)).distinct()
+
         self.fields['equipment'].queryset = equipment_queryset.select_related('category')
         self.fields['activity_type'].queryset = MaintenanceActivityType.objects.filter(is_active=True).select_related('category')
         
