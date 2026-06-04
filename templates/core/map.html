@@ -13,6 +13,10 @@
 .map-controls { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
 .map-controls label { color: #e2e8f0; font-size: 14px; font-weight: 500; margin: 0; white-space: nowrap; }
 .map-select { background-color: #1a2238; color: #fff; border: 1px solid #4a5568; border-radius: 6px; padding: 6px 12px; font-size: 14px; min-width: 200px; }
+.zoom-control { display: flex; align-items: center; gap: 8px; }
+.zoom-control label { color: #e2e8f0; font-size: 14px; font-weight: 500; margin: 0; white-space: nowrap; }
+.zoom-control input[type=range] { width: 120px; cursor: pointer; }
+.zoom-control #zoomPct { color: #a0aec0; font-size: 13px; min-width: 42px; text-align: right; }
 .map-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-left: auto; }
 .legend-item { display: flex; align-items: center; gap: 6px; color: #cbd5e0; font-size: 12px; }
 .legend-swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
@@ -170,6 +174,14 @@
                 {% endfor %}
             </select>
         </form>
+        {% endif %}
+        {% if selected_site %}
+        <div class="zoom-control">
+            <label class="me-1"><i class="fas fa-search"></i> Zoom:</label>
+            <input type="range" id="zoomRange" min="30" max="150" step="5" value="100" title="Scale the map">
+            <span id="zoomPct">100%</span>
+            <button type="button" id="zoomFitBtn" class="btn btn-outline-light btn-sm" title="Fit to width">Fit</button>
+        </div>
         {% endif %}
         <div class="map-legend">
             <span class="legend-item"><span class="legend-swatch lg-critical"></span> Critical / overdue</span>
@@ -556,16 +568,43 @@
         document.addEventListener('pointerup', up);
     }
 
-    // ----- fit to width (scroll when too large) -----
-    function fit() {
-        var fitScale = wrap.clientWidth / layout.site.width;
-        scale = Math.min(1, Math.max(fitScale, MIN_SCALE));
+    // ----- zoom: fit-to-width by default, or a user-chosen scale (persisted) -----
+    var manualScale = null;
+    try { var z = localStorage.getItem('mapZoom'); if (z) manualScale = parseFloat(z); } catch (e) {}
+    var zoomRange = document.getElementById('zoomRange');
+    var zoomPct = document.getElementById('zoomPct');
+
+    function applyScale(s) {
+        scale = Math.min(2, Math.max(0.2, s));
         canvas.style.transform = 'scale(' + scale + ')';
         sizer.style.width = (layout.site.width * scale) + 'px';
         sizer.style.height = (layout.site.height * scale) + 'px';
+        var pct = Math.round(scale * 100);
+        if (zoomPct) zoomPct.textContent = pct + '%';
+        if (zoomRange && parseInt(zoomRange.value, 10) !== pct) zoomRange.value = pct;
+    }
+    function fit() {
+        if (manualScale != null) { applyScale(manualScale); return; }
+        applyScale(Math.min(1, Math.max(wrap.clientWidth / layout.site.width, MIN_SCALE)));
     }
     fit();
     window.addEventListener('resize', fit);
+
+    if (zoomRange) {
+        zoomRange.addEventListener('input', function () {
+            manualScale = parseInt(zoomRange.value, 10) / 100;
+            try { localStorage.setItem('mapZoom', manualScale); } catch (e) {}
+            applyScale(manualScale);
+        });
+    }
+    var zoomFitBtn = document.getElementById('zoomFitBtn');
+    if (zoomFitBtn) {
+        zoomFitBtn.addEventListener('click', function () {
+            manualScale = null;
+            try { localStorage.removeItem('mapZoom'); } catch (e) {}
+            fit();
+        });
+    }
 
     // ----- editor -----
     if (canEdit) {
