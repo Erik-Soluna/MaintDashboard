@@ -385,14 +385,15 @@
     //       new rows). Dropping on an occupied cell SWAPS the occupant out of the
     //       way (it glides to the cell you came from). -----
     var GRID_PAD = 24, GRID_SX = 250 + 24, GRID_SY = 210 + 24;  // POD_W+PAD, POD_H+PAD
+    var GRID_CX = 12, GRID_CY = 12;  // center the block within its cell (half the gutter)
     function gridCols() {
         return Math.max(1, Math.floor(((layout.site.width || 1280) - GRID_PAD) / GRID_SX));
     }
     function cellOf(el) {
-        return { r: Math.max(0, Math.round((px(el, 'top') - GRID_PAD) / GRID_SY)),
-                 c: Math.max(0, Math.round((px(el, 'left') - GRID_PAD) / GRID_SX)) };
+        return { r: Math.max(0, Math.round((px(el, 'top') - GRID_PAD - GRID_CY) / GRID_SY)),
+                 c: Math.max(0, Math.round((px(el, 'left') - GRID_PAD - GRID_CX) / GRID_SX)) };
     }
-    function posFor(r, c) { return { left: GRID_PAD + c * GRID_SX, top: GRID_PAD + r * GRID_SY }; }
+    function posFor(r, c) { return { left: GRID_PAD + c * GRID_SX + GRID_CX, top: GRID_PAD + r * GRID_SY + GRID_CY }; }
     function placeAt(el, r, c) { var p = posFor(r, c); el.style.left = p.left + 'px'; el.style.top = p.top + 'px'; }
     function podAtCell(r, c, except) {
         var hit = null;
@@ -421,8 +422,8 @@
         function move(ev) {
             var nx = l0 + (ev.clientX - sx) / scale, ny = t0 + (ev.clientY - sy) / scale;
             el.style.left = nx + 'px'; el.style.top = ny + 'px';   // dragged follows pointer
-            var c = Math.max(0, Math.min(cols - 1, Math.round((nx - GRID_PAD) / GRID_SX)));
-            var r = Math.max(0, Math.round((ny - GRID_PAD) / GRID_SY));
+            var c = Math.max(0, Math.min(cols - 1, Math.round((nx - GRID_PAD - GRID_CX) / GRID_SX)));
+            var r = Math.max(0, Math.round((ny - GRID_PAD - GRID_CY) / GRID_SY));
             if (r !== lastR || c !== lastC) {
                 lastR = r; lastC = c;
                 restore();
@@ -508,8 +509,8 @@
             var cols = Math.max(1, Math.floor((canvasW - PAD) / (POD_W + PAD)));
             Array.prototype.forEach.call(canvas.querySelectorAll('.pod-zone'), function (zone, i) {
                 var r = Math.floor(i / cols), c = i % cols;
-                zone.style.left = (PAD + c * (POD_W + PAD)) + 'px';
-                zone.style.top = (PAD + r * (POD_H + PAD)) + 'px';
+                zone.style.left = (PAD + c * (POD_W + PAD) + GRID_CX) + 'px';
+                zone.style.top = (PAD + r * (POD_H + PAD) + GRID_CY) + 'px';
                 zone.style.width = POD_W + 'px';
                 zone.style.height = POD_H + 'px';
             });
