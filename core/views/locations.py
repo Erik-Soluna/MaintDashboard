@@ -958,7 +958,7 @@ def export_sites_csv(request):
     ])
     
     # Get sites data (locations marked as sites)
-    from .models import Location
+    from core.models import Location
     sites = Location.objects.filter(is_site=True).order_by('name')
     
     # Write data rows
@@ -998,7 +998,7 @@ def import_sites_csv(request):
         header = next(csv_data)
         
         # Import data
-        from .models import Location
+        from core.models import Location
         
         imported_count = 0
         error_count = 0
@@ -1118,7 +1118,7 @@ def export_locations_csv(request):
     ])
     
     # Get all locations
-    from .models import Location
+    from core.models import Location
     locations = Location.objects.select_related('parent_location').order_by('name')
     
     # Apply site filter if provided
@@ -1169,7 +1169,7 @@ def import_locations_csv(request):
         header = next(csv_data)
         
         # Import data
-        from .models import Location
+        from core.models import Location
         
         imported_count = 0
         error_count = 0
