@@ -15,6 +15,8 @@ the Maintenance Dashboard deployment through its **read-only** dynamic API
 | `equipment_status()` | Fleet counts grouped by status |
 | `list_models()` | Discover every model the API exposes + its fields |
 | `query_model(app, model, filters, ordering, page_size)` | Ad-hoc query against any reflected model |
+| `redeploy_status()` | Whether a Portainer stack redeploy is configured |
+| `trigger_redeploy()` | **Privileged** — trigger a Portainer GitOps stack redeploy (needs `diagnostics.deploy`) |
 
 ## Setup
 

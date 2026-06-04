@@ -148,6 +148,7 @@ def initialize_default_permissions():
 
         # Diagnostics / API permission (read-only programmatic access — AI agent)
         ('diagnostics.read', 'Diagnostics Read', 'Read-only access to system diagnostics and the dynamic API', 'administration'),
+        ('diagnostics.deploy', 'Diagnostics Deploy', 'Trigger a Portainer stack redeploy via the API/MCP', 'administration'),
         
         # Events permissions  
         ('events.read', 'Events Read', 'View calendar events and schedules', 'events'),
@@ -224,7 +225,7 @@ def initialize_default_permissions():
             'display_name': 'Administrator',
             'description': 'Full system access with all permissions',
             'is_system_role': True,
-            'permissions': ['admin.full_access']
+            'permissions': ['admin.full_access', 'diagnostics.deploy']
         },
         {
             'name': 'manager',
@@ -308,7 +309,7 @@ def initialize_default_permissions():
                 'site_map.read', 'site_map.write',
                 'maintenance_calendar.read', 'maintenance_calendar.write',
                 'administration.read', 'administration.write',
-                'admin.full_access'
+                'admin.full_access', 'diagnostics.deploy'
             ]
         }
     ]
