@@ -152,21 +152,21 @@
 
 /* Bootstrap dark theme override */
 .bg-dark .location-select,
-[data-bs-theme="dark"] .location-select {
+.theme-dark .location-select {
     background-color: #2d3748;
     border-color: #4a5568;
     color: #e2e8f0;
 }
 
 .bg-dark .location-select option,
-[data-bs-theme="dark"] .location-select option {
+.theme-dark .location-select option {
     background-color: #2d3748;
     color: #e2e8f0;
     border-bottom: 1px solid #4a5568;
 }
 
 .bg-dark .location-select option[data-level="0"],
-[data-bs-theme="dark"] .location-select option[data-level="0"] {
+.theme-dark .location-select option[data-level="0"] {
     background-color: #1a202c;
     color: #f7fafc;
     border-bottom: 2px solid #4a5568;
@@ -174,27 +174,27 @@
 }
 
 .bg-dark .location-select option[data-level="1"],
-[data-bs-theme="dark"] .location-select option[data-level="1"] {
+.theme-dark .location-select option[data-level="1"] {
     background-color: #2d3748;
     color: #e2e8f0;
     padding-left: 20px;
 }
 
 .bg-dark .location-select option[data-level="2"],
-[data-bs-theme="dark"] .location-select option[data-level="2"] {
+.theme-dark .location-select option[data-level="2"] {
     background-color: #2d3748;
     color: #a0aec0;
     padding-left: 40px;
 }
 
 .bg-dark .location-select option:hover,
-[data-bs-theme="dark"] .location-select option:hover {
+.theme-dark .location-select option:hover {
     background-color: #4a5568 !important;
     color: #f7fafc !important;
 }
 
 .bg-dark .location-select option:checked,
-[data-bs-theme="dark"] .location-select option:checked {
+.theme-dark .location-select option:checked {
     background-color: #3182ce !important;
     color: #ffffff !important;
 }
@@ -206,7 +206,7 @@
 }
 
 .bg-dark .location-select:focus,
-[data-bs-theme="dark"] .location-select:focus {
+.theme-dark .location-select:focus {
     border-color: #63b3ed;
     box-shadow: 0 0 0 0.2rem rgba(99, 179, 237, 0.25);
 }
@@ -217,14 +217,14 @@
 }
 
 .bg-dark #site-filter,
-[data-bs-theme="dark"] #site-filter {
+.theme-dark #site-filter {
     background-color: #2d3748;
     border-color: #4a5568;
     color: #e2e8f0;
 }
 
 .bg-dark #site-filter option,
-[data-bs-theme="dark"] #site-filter option {
+.theme-dark #site-filter option {
     background-color: #2d3748;
     color: #e2e8f0;
 }
@@ -274,7 +274,7 @@ $(document).ready(function() {
     // Auto-detect dark mode and apply styles
     function applyDarkModeStyles() {
         const isDarkMode = $('body').hasClass('bg-dark') || 
-                          $('html').attr('data-bs-theme') === 'dark' ||
+                          document.body.classList.contains('theme-dark') ||
                           window.matchMedia('(prefers-color-scheme: dark)').matches;
         
         if (isDarkMode) {
