@@ -88,6 +88,8 @@
 .subloc-cat > .subloc-header .subloc-icon { color: #63b3ed; }   /* category = blue */
 .subloc-loc > .subloc-header .subloc-icon { color: #a0aec0; }   /* location = grey */
 .subloc-count { color: #a0aec0; font-weight: 400; }
+.subloc-dots { font-size: 9px; margin-right: 5px; }
+.subloc-dots .dot { font-weight: 700; }
 .subloc-caret { color: #718096; font-size: 8px; display: inline-block; }
 .subloc-body { display: none; flex-wrap: wrap; gap: 4px; padding: 4px 6px; }
 .subloc.expanded > .subloc-body { display: flex; }
@@ -344,10 +346,18 @@
         var icon = kind === 'cat'
             ? '<i class="fas fa-layer-group subloc-icon"></i> '
             : '<i class="fas fa-folder subloc-icon"></i> ';
+        // health breakdown dots (same as the MDC header), reflecting this group only
+        var dots = '';
+        ['critical', 'warning', 'maintenance', 'ok', 'idle'].forEach(function (lvl) {
+            if (node.counts && node.counts[lvl]) {
+                dots += '<span class="dot" style="color:' + DOT[lvl] + '">&#9679;</span>' + node.counts[lvl] + ' ';
+            }
+        });
         var h = document.createElement('div');
         h.className = 'subloc-header';
         h.innerHTML = '<span class="subloc-name">' + icon + escapeHtml(node.name) +
-            '</span><span class="subloc-count">' + node.count +
+            '</span><span class="subloc-count">' +
+            (dots ? '<span class="subloc-dots">' + dots + '</span>' : '') + node.count +
             ' <span class="subloc-caret">&#9656;</span></span>';
         h.addEventListener('click', function (ev) { ev.stopPropagation(); g.classList.toggle('expanded'); });
         g.appendChild(h);
