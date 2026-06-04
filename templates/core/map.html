@@ -111,7 +111,9 @@
         <div class="map-toolbar">
             {% csrf_token %}
             <button type="button" id="editLayoutBtn" class="btn btn-outline-light btn-sm"><i class="fas fa-arrows-alt me-1"></i> Edit Layout</button>
-            <button type="button" id="autoFitBtn" class="btn btn-outline-info btn-sm" style="display:none;" title="Auto-arrange MDCs into a grid inside each POD"><i class="fas fa-th me-1"></i> Auto-fit</button>
+            <button type="button" id="autoFitBtn" class="btn btn-outline-info btn-sm" style="display:none;" title="Pack POD blocks into a tidy grid (removes gaps)"><i class="fas fa-th me-1"></i> Auto-fit</button>
+            <button type="button" id="addRowBtn" class="btn btn-outline-light btn-sm" style="display:none;" title="Add an empty row at the bottom"><i class="fas fa-plus me-1"></i> Row</button>
+            <button type="button" id="removeRowBtn" class="btn btn-outline-light btn-sm" style="display:none;" title="Remove the bottom row (if empty)"><i class="fas fa-minus me-1"></i> Row</button>
             <button type="button" id="saveLayoutBtn" class="btn btn-success btn-sm" style="display:none;"><i class="fas fa-save me-1"></i> Save</button>
             <button type="button" id="cancelLayoutBtn" class="btn btn-secondary btn-sm" style="display:none;">Cancel</button>
             <button type="button" class="btn btn-outline-warning btn-sm" data-toggle="modal" data-target="#importCsvModal" title="Build/arrange this site's layout from a CSV"><i class="fas fa-file-csv me-1"></i> Import CSV</button>
@@ -176,7 +178,7 @@
     </div>
 {% else %}
     <div id="editHint" class="text-info small mb-2" style="display:none;">
-        <i class="fas fa-info-circle me-1"></i> Drag POD or MDC headers to arrange. On <strong>Save</strong>, zones snap to a clean grid (row/column) based on their arrangement — no more drift. Moving a POD moves its MDCs.
+        <i class="fas fa-info-circle me-1"></i> Drag a POD block to snap it to any grid cell — leave blanks where you want. Dropping on an occupied cell <strong>swaps</strong> the two. Use <strong>+ Row</strong> to add space below, <strong>Auto-fit</strong> to pack tightly, then <strong>Save</strong>.
     </div>
     <div id="canvasWrap">
         <div id="canvasSizer">
@@ -373,54 +375,60 @@
 
     function escapeHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-    // ----- drag: sortable grid. Dragging a block over a cell shifts the other
-    //       blocks aside (animated) to open that slot, instead of overlapping. -----
+    // ----- drag: absolute grid cells. Snap to any cell (blanks allowed, including
+    //       new rows). Dropping on an occupied cell SWAPS the occupant out of the
+    //       way (it glides to the cell you came from). -----
     var GRID_PAD = 24, GRID_SX = 250 + 24, GRID_SY = 210 + 24;  // POD_W+PAD, POD_H+PAD
     function gridCols() {
         return Math.max(1, Math.floor(((layout.site.width || 1280) - GRID_PAD) / GRID_SX));
     }
-    function podOrder() {  // current PODs in visual (row-major) order
-        var zones = Array.prototype.slice.call(canvas.querySelectorAll('.pod-zone'));
-        zones.sort(function (a, b) {
-            var ay = px(a, 'top'), by = px(b, 'top');
-            if (Math.abs(ay - by) > GRID_SY / 2) return ay - by;
-            return px(a, 'left') - px(b, 'left');
-        });
-        return zones;
+    function cellOf(el) {
+        return { r: Math.max(0, Math.round((px(el, 'top') - GRID_PAD) / GRID_SY)),
+                 c: Math.max(0, Math.round((px(el, 'left') - GRID_PAD) / GRID_SX)) };
     }
-    function layoutOrder(order, skipEl) {  // place each block at its packed cell
-        var cols = gridCols();
-        order.forEach(function (el, i) {
-            if (el === skipEl) return;
-            el.style.left = (GRID_PAD + (i % cols) * GRID_SX) + 'px';
-            el.style.top = (GRID_PAD + Math.floor(i / cols) * GRID_SY) + 'px';
+    function posFor(r, c) { return { left: GRID_PAD + c * GRID_SX, top: GRID_PAD + r * GRID_SY }; }
+    function placeAt(el, r, c) { var p = posFor(r, c); el.style.left = p.left + 'px'; el.style.top = p.top + 'px'; }
+    function podAtCell(r, c, except) {
+        var hit = null;
+        Array.prototype.forEach.call(canvas.querySelectorAll('.pod-zone'), function (z) {
+            if (z === except) return;
+            var cc = cellOf(z);
+            if (cc.r === r && cc.c === c) hit = z;
         });
+        return hit;
+    }
+    function ensureCanvasForRow(r) {
+        var need = GRID_PAD + (r + 1) * GRID_SY + GRID_PAD;
+        if (need > (layout.site.height || 0)) { layout.site.height = need; canvas.style.height = need + 'px'; fit(); }
     }
     function beginDrag(e, els) {
         e.preventDefault();
         var el = els[0];
-        var order = podOrder();
-        var idx = order.indexOf(el);
         var cols = gridCols();
-        var sx = e.clientX, sy = e.clientY;
-        var l0 = px(el, 'left'), t0 = px(el, 'top');
+        var origin = cellOf(el);
+        var sx = e.clientX, sy = e.clientY, l0 = px(el, 'left'), t0 = px(el, 'top');
+        var lastR = origin.r, lastC = origin.c, displaced = null, dispHome = null;
         el.classList.add('dragging');
+        function restore() {
+            if (displaced) { placeAt(displaced, dispHome.r, dispHome.c); displaced = null; dispHome = null; }
+        }
         function move(ev) {
             var nx = l0 + (ev.clientX - sx) / scale, ny = t0 + (ev.clientY - sy) / scale;
             el.style.left = nx + 'px'; el.style.top = ny + 'px';   // dragged follows pointer
-            var c = Math.min(cols - 1, Math.max(0, Math.round((nx - GRID_PAD) / GRID_SX)));
+            var c = Math.max(0, Math.min(cols - 1, Math.round((nx - GRID_PAD) / GRID_SX)));
             var r = Math.max(0, Math.round((ny - GRID_PAD) / GRID_SY));
-            var ti = Math.min(order.length - 1, Math.max(0, r * cols + c));
-            if (ti !== idx) {                       // reorder + shift others aside
-                order.splice(idx, 1);
-                order.splice(ti, 0, el);
-                idx = ti;
-                layoutOrder(order, el);
+            if (r !== lastR || c !== lastC) {
+                lastR = r; lastC = c;
+                restore();
+                var occ = podAtCell(r, c, el);
+                if (occ) { displaced = occ; dispHome = { r: r, c: c }; placeAt(occ, origin.r, origin.c); }
+                ensureCanvasForRow(r);
             }
         }
         function up() {
             el.classList.remove('dragging');
-            layoutOrder(order, null);               // drop into the open slot
+            placeAt(el, lastR, lastC);   // drop into the target cell (occupant stays swapped)
+            displaced = null; dispHome = null;
             document.removeEventListener('pointermove', move);
             document.removeEventListener('pointerup', up);
             dirty = true;
@@ -461,6 +469,8 @@
     if (canEdit) {
         var editBtn = document.getElementById('editLayoutBtn');
         var autoFitBtn = document.getElementById('autoFitBtn');
+        var addRowBtn = document.getElementById('addRowBtn');
+        var removeRowBtn = document.getElementById('removeRowBtn');
         var saveBtn = document.getElementById('saveLayoutBtn');
         var cancelBtn = document.getElementById('cancelLayoutBtn');
         var hint = document.getElementById('editHint');
@@ -470,6 +480,8 @@
             wrap.classList.toggle('editing', on);
             editBtn.style.display = on ? 'none' : '';
             if (autoFitBtn) autoFitBtn.style.display = on ? '' : 'none';
+            if (addRowBtn) addRowBtn.style.display = on ? '' : 'none';
+            if (removeRowBtn) removeRowBtn.style.display = on ? '' : 'none';
             saveBtn.style.display = on ? '' : 'none';
             cancelBtn.style.display = on ? '' : 'none';
             if (hint) hint.style.display = on ? 'block' : 'none';
@@ -496,45 +508,36 @@
 
         editBtn && editBtn.addEventListener('click', function () { setEditing(true); });
         autoFitBtn && autoFitBtn.addEventListener('click', autoFit);
+        // Add a blank row at the bottom (grows the canvas so you can drag into it).
+        addRowBtn && addRowBtn.addEventListener('click', function () {
+            layout.site.height = (layout.site.height || GRID_PAD) + GRID_SY;
+            canvas.style.height = layout.site.height + 'px';
+            fit(); dirty = true;
+        });
+        // Remove the bottom row if it has no blocks.
+        removeRowBtn && removeRowBtn.addEventListener('click', function () {
+            var maxR = -1;
+            Array.prototype.forEach.call(canvas.querySelectorAll('.pod-zone'), function (z) {
+                maxR = Math.max(maxR, cellOf(z).r);
+            });
+            var minH = GRID_PAD + (maxR + 1) * GRID_SY + GRID_PAD;
+            var next = (layout.site.height || minH) - GRID_SY;
+            if (next < minH) { alert('Bottom row is not empty.'); return; }
+            layout.site.height = next;
+            canvas.style.height = next + 'px';
+            fit(); dirty = true;
+        });
         cancelBtn && cancelBtn.addEventListener('click', function () {
             if (dirty && !confirm('Discard layout changes?')) return;
             window.location.reload();
         });
 
-        // Infer a clean grid from a free-form arrangement: cluster items into rows
-        // by their Y (within a tolerance), then order each row by X -> (row, col).
-        // This is the "snap to grid": drag roughly, Save snaps to tidy row/col cells.
-        function inferGrid(items) {
-            var ROW_TOL = 40;
-            var sorted = items.slice().sort(function (a, b) { return a.y - b.y; });
-            var rows = [];
-            sorted.forEach(function (it) {
-                var row = null;
-                for (var i = 0; i < rows.length; i++) {
-                    if (Math.abs(rows[i].y - it.y) <= ROW_TOL) { row = rows[i]; break; }
-                }
-                if (!row) { row = { y: it.y, items: [] }; rows.push(row); }
-                row.items.push(it);
-            });
-            rows.sort(function (a, b) { return a.y - b.y; });
-            var out = {};
-            rows.forEach(function (row, r) {
-                row.items.sort(function (a, b) { return a.x - b.x; });
-                row.items.forEach(function (it, c) { out[it.id] = { row: r, col: c }; });
-            });
-            return out;
-        }
-
         saveBtn && saveBtn.addEventListener('click', function () {
-            // PODs -> site grid cells
-            var podEls = [];
-            Array.prototype.forEach.call(canvas.querySelectorAll('.pod-zone[data-id]'), function (el) {
-                podEls.push({ id: parseInt(el.dataset.id, 10), x: px(el, 'left'), y: px(el, 'top') });
-            });
+            // PODs -> absolute grid cells (preserves blank cells / gaps).
             var zones = [];
-            var podGrid = inferGrid(podEls);
-            Object.keys(podGrid).forEach(function (id) {
-                zones.push({ id: parseInt(id, 10), grid_row: podGrid[id].row, grid_col: podGrid[id].col });
+            Array.prototype.forEach.call(canvas.querySelectorAll('.pod-zone[data-id]'), function (el) {
+                var cell = cellOf(el);
+                zones.push({ id: parseInt(el.dataset.id, 10), grid_row: cell.r, grid_col: cell.c });
             });
             // (MDC tiles flow inside their POD block — no positions to save.)
             var token = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
