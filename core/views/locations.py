@@ -310,6 +310,9 @@ def map_view(request):
         'selected_site_id': str(selected_site.id) if selected_site else '',
         'site_layout_json': json.dumps(site_layout) if site_layout else 'null',
         'can_edit_map': user_has_permission(request.user, 'site_map.write'),
+        'can_add_equipment': user_has_permission(request.user, 'equipment.create'),
+        'can_delete_equipment': user_has_permission(request.user, 'equipment.delete'),
+        'equipment_categories': EquipmentCategory.objects.filter(is_active=True).order_by('name'),
     }
     return render(request, 'core/map.html', context)
 
@@ -525,6 +528,62 @@ def add_map_location(request):
         name=name, parent_location=parent, is_site=False, is_active=True,
         grid_row=gi(data.get('grid_row')), grid_col=gi(data.get('grid_col')))
     return JsonResponse({'success': True, 'id': loc.id, 'name': loc.name})
+
+
+@permission_required('equipment.create')
+@require_POST
+def add_map_equipment(request):
+    """Create equipment under a map location (right-click → Add equipment). JSON:
+    {site_id, location_id, name, category_id, status?, manufacturer_serial?, asset_tag?}.
+    name/serial/asset_tag are unique; blank serial/asset_tag are auto-generated."""
+    import uuid
+    from core.utils import get_all_descendant_location_ids
+    try:
+        data = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+
+    name = (data.get('name') or '').strip()
+    if not name:
+        return JsonResponse({'success': False, 'error': 'Equipment name is required.'}, status=400)
+    if Equipment.objects.filter(name=name).exists():
+        return JsonResponse({'success': False, 'error': f'Equipment "{name}" already exists.'}, status=400)
+
+    site = get_object_or_404(Location, id=data.get('site_id'), is_site=True)
+    allowed = set(get_all_descendant_location_ids(site, include_inactive=True)) | {site.id}
+    try:
+        loc_id = int(data.get('location_id'))
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'Invalid location.'}, status=400)
+    if loc_id not in allowed:
+        return JsonResponse({'success': False, 'error': 'Location is not part of this site.'}, status=400)
+    location = get_object_or_404(Location, id=loc_id)
+
+    category = EquipmentCategory.objects.filter(id=data.get('category_id')).first()
+    if not category:
+        return JsonResponse({'success': False, 'error': 'A category is required.'}, status=400)
+
+    status = data.get('status') or 'active'
+    serial = (data.get('manufacturer_serial') or '').strip() or f'AUTO-{uuid.uuid4().hex[:10].upper()}'
+    asset = (data.get('asset_tag') or '').strip() or f'AUTO-{uuid.uuid4().hex[:10].upper()}'
+    eq = Equipment.objects.create(
+        name=name, category=category, location=location, status=status,
+        manufacturer_serial=serial, asset_tag=asset, is_active=True)
+    return JsonResponse({'success': True, 'id': eq.id, 'name': eq.name})
+
+
+@permission_required('equipment.delete')
+@require_POST
+def remove_map_equipment(request):
+    """Delete a piece of equipment (right-click an equipment chip → Remove)."""
+    try:
+        data = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+    eq = get_object_or_404(Equipment, id=data.get('equipment_id'))
+    name = eq.name
+    eq.delete()
+    return JsonResponse({'success': True, 'name': name})
 
 
 @login_required
@@ -1365,4 +1424,4 @@ def bulk_locations_view(request):
     return render(request, 'core/bulk_locations.html', context)
 
 
-__all__ = ["map_view", "save_map_layout", "import_map_layout", "add_map_location", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]
+__all__ = ["map_view", "save_map_layout", "import_map_layout", "add_map_location", "add_map_equipment", "remove_map_equipment", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]
