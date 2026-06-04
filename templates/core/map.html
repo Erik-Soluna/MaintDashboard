@@ -35,31 +35,34 @@
 .h-ok { background:#276749; border-color:#48bb78; }
 .h-idle { background:#3a4456; border-color:#718096; }
 
+/* Uniform POD block: fixed-size card; header + scrollable body of MDC tiles. */
 .pod-zone { position: absolute; border: 1px solid #5a6987; border-radius: 8px;
-    background: rgba(45,55,72,0.45); box-sizing: border-box; }
-.pod-header { position: absolute; top: 0; left: 0; right: 0; height: 26px; padding: 4px 10px;
-    font-size: 12px; font-weight: 700; color: #e2e8f0; border-bottom: 1px solid #4a5568;
+    background: rgba(45,55,72,0.45); box-sizing: border-box;
+    display: flex; flex-direction: column; overflow: hidden; }
+.pod-header { flex: 0 0 auto; padding: 5px 10px; font-size: 12px; font-weight: 700;
+    color: #e2e8f0; border-bottom: 1px solid #4a5568;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #canvasWrap.editing .pod-header { cursor: move; }
+.pod-body { flex: 1 1 auto; overflow: auto; padding: 6px; display: flex;
+    flex-wrap: wrap; gap: 6px; align-content: flex-start; }
 
-.mdc-tile { position: absolute; border: 1px solid #5a6987; border-radius: 6px;
-    background: #222c40; box-sizing: border-box; }
+/* MDC tiles flow inside the block; expanding one takes the full block width. */
+.mdc-tile { position: relative; border: 1px solid #5a6987; border-radius: 6px;
+    background: #222c40; box-sizing: border-box; width: 108px; align-self: flex-start; }
+.mdc-tile.expanded { width: 100%; }
 .mdc-tile-header { padding: 4px 8px; font-size: 11px; font-weight: 600; color: #e2e8f0;
     display: flex; justify-content: space-between; align-items: center; gap: 6px; cursor: pointer;
     white-space: nowrap; overflow: hidden; }
 .mdc-tile-header:hover { background: #2a3550; border-radius: 6px 6px 0 0; }
-#canvasWrap.editing .mdc-tile-header { cursor: move; }
 .mdc-tile-name { overflow: hidden; text-overflow: ellipsis; }
 .mdc-count { color: #a0aec0; font-weight: 400; font-size: 10px; white-space: nowrap; }
 .mdc-summary { display: flex; gap: 6px; padding: 0 8px 5px; flex-wrap: wrap; font-size: 10px; }
 .mdc-summary .dot { font-weight: 700; }
 .mdc-caret { color: #718096; font-size: 9px; margin-left: 2px; }
 
-.mdc-body { display: none; position: absolute; left: -1px; top: 100%; min-width: calc(100% + 2px);
-    max-width: 320px; max-height: 220px; overflow: auto; background: #1a2238;
-    border: 1px solid #4299e1; border-top: none; border-radius: 0 0 6px 6px; padding: 6px;
-    flex-wrap: wrap; gap: 4px; z-index: 25; }
-.mdc-tile.expanded { z-index: 30; }
+.mdc-body { display: none; overflow: auto; max-height: 240px; background: #1a2238;
+    border-top: 1px solid #4299e1; border-radius: 0 0 6px 6px; padding: 6px;
+    flex-wrap: wrap; gap: 4px; }
 .mdc-tile.expanded .mdc-body { display: flex; }
 .mdc-tile.expanded .mdc-caret { transform: rotate(90deg); }
 .mdc-empty { color: #718096; font-size: 11px; padding: 2px 4px; }
@@ -127,8 +130,8 @@
                   Columns: <code>pod, pod_row, pod_col, mdc, mdc_row, mdc_col</code> (0-based; blank
                   <code>mdc</code> places just the POD). Missing locations are created under this site.
                 </p>
-                <a href="{% url 'core:import_map_layout' %}" class="btn btn-link btn-sm px-0">
-                  <i class="fas fa-download me-1"></i> Download template
+                <a href="{% url 'core:import_map_layout' %}?site_id={{ selected_site.id }}" class="btn btn-link btn-sm px-0">
+                  <i class="fas fa-download me-1"></i> Download current layout
                 </a>
                 <input type="file" id="importCsvFile" accept=".csv,text/csv" class="form-control mt-2">
                 <div id="importCsvResult" class="mt-2" style="font-size:.86rem;"></div>
@@ -320,30 +323,24 @@
         ph.className = 'pod-header';
         ph.textContent = pod.name;
         ph.addEventListener('pointerdown', function (e) {
-            if (!editing) return;
-            beginDrag(e, [zone].concat(tilesByPod[pod.id] || []));
+            if (editing) beginDrag(e, [zone]);  // moving the block moves its tiles (they're children)
         });
         zone.appendChild(ph);
-        addResizeHandle(zone);
-        canvas.appendChild(zone);
 
-        tilesByPod[pod.id] = [];
+        var pbody = document.createElement('div');
+        pbody.className = 'pod-body';
         (pod.mdcs || []).forEach(function (mdc) {
             var tile = document.createElement('div');
             tile.className = 'mdc-tile';
             if (mdc.id != null) tile.dataset.id = mdc.id;
             tile.dataset.podId = pod.id;
-            tile.style.left = mdc.x + 'px'; tile.style.top = mdc.y + 'px';
-            tile.style.width = mdc.w + 'px'; tile.style.height = mdc.h + 'px';
 
             var hdr = document.createElement('div');
             hdr.className = 'mdc-tile-header';
             hdr.innerHTML = '<span class="mdc-tile-name">' + escapeHtml(mdc.name) +
                 '</span><span class="mdc-count">' + mdc.count + ' <span class="mdc-caret">&#9656;</span></span>';
-            hdr.addEventListener('pointerdown', function (e) {
-                if (editing) { beginDrag(e, [tile]); }
-            });
-            hdr.addEventListener('click', function () {
+            hdr.addEventListener('click', function (ev) {
+                ev.stopPropagation();
                 if (!editing) tile.classList.toggle('expanded');
             });
             tile.appendChild(hdr);
@@ -366,9 +363,10 @@
             fillNodeBody(body, mdc);
             tile.appendChild(body);
 
-            canvas.appendChild(tile);
-            tilesByPod[pod.id].push(tile);
+            pbody.appendChild(tile);
         });
+        zone.appendChild(pbody);
+        canvas.appendChild(zone);
     });
 
     function escapeHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -441,34 +439,18 @@
             }
         }
 
-        // Auto-fit: flow PODs left-to-right (wrapping at canvas width), and re-grid
-        // each POD's MDC tiles into a tidy grid inside it. Mirrors the server's
-        // default auto-layout (_build_site_layout) so the result matches a fresh map.
+        // Auto-fit: re-pack the uniform POD blocks into a tidy grid (row-major,
+        // wrapping at the canvas width) in their current DOM order.
         function autoFit() {
-            var PAD = 24, HEADER = 28, TILE_W = 156, TILE_H = 58, TPAD = 10;
+            var PAD = 24, POD_W = 250, POD_H = 210;
             var canvasW = (layout.site && layout.site.width) || canvas.clientWidth || 1280;
-            var xCur = PAD, yCur = PAD, rowH = 0;
-            Array.prototype.forEach.call(canvas.querySelectorAll('.pod-zone'), function (zone) {
-                var tiles = tilesByPod[zone.dataset.id] || [];
-                var n = Math.max(1, tiles.length);
-                var cols = Math.max(1, Math.ceil(Math.sqrt(n)));
-                var rows = Math.ceil(n / cols);
-                var compW = cols * TILE_W + (cols + 1) * TPAD;
-                var compH = HEADER + rows * TILE_H + (rows + 1) * TPAD;
-                // wrap to the next row when this POD would overflow the canvas width
-                if (xCur + compW > canvasW && xCur > PAD) { xCur = PAD; yCur += rowH + PAD; rowH = 0; }
-                var pl = xCur, pt = yCur;
-                zone.style.left = pl + 'px'; zone.style.top = pt + 'px';
-                zone.style.width = compW + 'px'; zone.style.height = compH + 'px';
-                tiles.forEach(function (tile, i) {
-                    var r = Math.floor(i / cols), c = i % cols;
-                    tile.style.left = (pl + TPAD + c * (TILE_W + TPAD)) + 'px';
-                    tile.style.top = (pt + HEADER + TPAD + r * (TILE_H + TPAD)) + 'px';
-                    tile.style.width = TILE_W + 'px';
-                    tile.style.height = TILE_H + 'px';
-                });
-                xCur += compW + PAD;
-                rowH = Math.max(rowH, compH);
+            var cols = Math.max(1, Math.floor((canvasW - PAD) / (POD_W + PAD)));
+            Array.prototype.forEach.call(canvas.querySelectorAll('.pod-zone'), function (zone, i) {
+                var r = Math.floor(i / cols), c = i % cols;
+                zone.style.left = (PAD + c * (POD_W + PAD)) + 'px';
+                zone.style.top = (PAD + r * (POD_H + PAD)) + 'px';
+                zone.style.width = POD_W + 'px';
+                zone.style.height = POD_H + 'px';
             });
             dirty = true;
         }
@@ -515,18 +497,7 @@
             Object.keys(podGrid).forEach(function (id) {
                 zones.push({ id: parseInt(id, 10), grid_row: podGrid[id].row, grid_col: podGrid[id].col });
             });
-            // MDC tiles -> per-POD grid cells
-            var byPod = {};
-            Array.prototype.forEach.call(canvas.querySelectorAll('.mdc-tile[data-id]'), function (el) {
-                var pid = el.dataset.podId || '_';
-                (byPod[pid] = byPod[pid] || []).push({ id: parseInt(el.dataset.id, 10), x: px(el, 'left'), y: px(el, 'top') });
-            });
-            Object.keys(byPod).forEach(function (pid) {
-                var g = inferGrid(byPod[pid]);
-                Object.keys(g).forEach(function (id) {
-                    zones.push({ id: parseInt(id, 10), grid_row: g[id].row, grid_col: g[id].col });
-                });
-            });
+            // (MDC tiles flow inside their POD block — no positions to save.)
             var token = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
             saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
             fetch(saveUrl, {
