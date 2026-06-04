@@ -31,6 +31,11 @@
 }
 .search-input::placeholder { color: #a0aec0; }
 .action-buttons { margin-left: auto; display: flex; gap: 10px; }
+/* Add-Issue equipment combobox results */
+.eq-results { border: 1px solid #4a5568; border-radius: 6px; max-height: 240px; overflow-y: auto; background: #1a2238; margin-top: 4px; }
+.eq-result { padding: 7px 12px; cursor: pointer; color: #e2e8f0; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.eq-result:hover, .eq-result.active { background: #2a3550; }
+.eq-result-empty { padding: 10px 12px; color: #a0aec0; font-size: 13px; }
 
 /* Stat cards (compact) */
 .issue-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -303,16 +308,14 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label for="addIssueEquipment" class="form-label">Equipment <span class="text-danger">*</span></label>
-                    <input type="text" id="addIssueEquipmentSearch" class="form-control mb-2"
+                    <label for="addIssueEquipmentSearch" class="form-label">Equipment <span class="text-danger">*</span></label>
+                    <input type="text" id="addIssueEquipmentSearch" class="form-control"
                            placeholder="Search equipment by name or location…" autocomplete="off">
-                    <select id="addIssueEquipment" class="form-control" size="8">
-                        <option value="">Select equipment…</option>
-                        {% for eq in equipment_choices %}
-                        <option value="{{ eq.id }}" data-search="{{ eq.name|lower }} {% if eq.location %}{{ eq.location.get_hierarchical_display|lower }}{% endif %}">{{ eq.name }}{% if eq.location %} — {{ eq.location.get_hierarchical_display }}{% endif %}</option>
-                        {% endfor %}
-                    </select>
-                    <small id="addIssueEquipmentEmpty" class="text-muted" style="display:none;">No equipment matches.</small>
+                    <input type="hidden" id="addIssueEquipment">
+                    <div id="addIssueEquipmentResults" class="eq-results" style="display:none;"></div>
+                    <script type="application/json" id="addIssueEquipmentData">[
+                        {% for eq in equipment_choices %}{"id": {{ eq.id }}, "label": "{{ eq.name|escapejs }}{% if eq.location %} — {{ eq.location.get_hierarchical_display|escapejs }}{% endif %}"}{% if not forloop.last %},{% endif %}{% endfor %}
+                    ]</script>
                 </div>
                 <div id="addIssueFormBody">
                     <p class="text-muted">Select equipment to log an issue against.</p>
@@ -410,30 +413,41 @@ $(document).ready(function() {
         });
     }
 
-    // Add Issue: search-filter the equipment list, pick -> load form -> submit.
-    var $addEq = $('#addIssueEquipment');
+    // Add Issue: searchable equipment combobox (scrollable results) -> load form.
+    var $addEq = $('#addIssueEquipment');            // hidden input holding the chosen id
     var $addEqSearch = $('#addIssueEquipmentSearch');
-    var $addEqEmpty = $('#addIssueEquipmentEmpty');
-    // Cache the real option nodes and rebuild the list on search (reliable across
-    // browsers; the sized <select> scrolls natively).
-    var allEqOptions = $addEq.find('option').filter(function() { return this.value !== ''; }).toArray();
-    function filterEqOptions(q) {
+    var $addEqResults = $('#addIssueEquipmentResults');
+    var allEqItems = [];
+    try { allEqItems = JSON.parse(document.getElementById('addIssueEquipmentData').textContent) || []; } catch (e) {}
+    allEqItems.forEach(function (o) { o.search = (o.label || '').toLowerCase(); });
+    var eqActiveIdx = -1;
+    function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
+    function renderEqResults(q) {
         q = (q || '').trim().toLowerCase();
-        $addEq.find('option').filter(function() { return this.value !== ''; }).remove();
-        var shown = 0;
-        allEqOptions.forEach(function(o) {
-            var hay = (o.getAttribute('data-search') || o.textContent || '').toLowerCase();
-            if (q === '' || hay.indexOf(q) !== -1) { $addEq.append(o); shown++; }
-        });
-        $addEqEmpty.toggle(shown === 0);
+        var matches = allEqItems.filter(function (o) { return q === '' || o.search.indexOf(q) !== -1; });
+        eqActiveIdx = -1;
+        if (!matches.length) { $addEqResults.html('<div class="eq-result-empty">No equipment matches.</div>').show(); return; }
+        $addEqResults.html(matches.slice(0, 300).map(function (o) {
+            return '<div class="eq-result" data-id="' + o.id + '" data-label="' + esc(o.label) + '">' + esc(o.label) + '</div>';
+        }).join('')).show();
     }
-    $addEqSearch.on('input', function() { filterEqOptions($(this).val()); });
-    // reset the filter whenever the modal opens
-    $('#addIssueModal').on('show.bs.modal', function() {
-        $addEqSearch.val('');
-        filterEqOptions('');
-        $addEqEmpty.hide();
+    function selectEq(id, label) { $addEq.val(id).trigger('change'); $addEqSearch.val(label); $addEqResults.hide(); }
+    $addEqSearch.on('focus input', function () { renderEqResults($(this).val()); });
+    // mousedown (not click) so selection fires before the input blur hides the list
+    $addEqResults.on('mousedown', '.eq-result', function (e) { e.preventDefault(); selectEq($(this).data('id'), $(this).data('label')); });
+    $addEqSearch.on('keydown', function (e) {
+        var items = $addEqResults.find('.eq-result');
+        if (!items.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); eqActiveIdx = Math.min(eqActiveIdx + 1, items.length - 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); eqActiveIdx = Math.max(eqActiveIdx - 1, 0); }
+        else if (e.key === 'Enter' && eqActiveIdx >= 0) { e.preventDefault(); var it = items.eq(eqActiveIdx); selectEq(it.data('id'), it.data('label')); return; }
+        else return;
+        items.removeClass('active'); items.eq(eqActiveIdx).addClass('active')[0].scrollIntoView({ block: 'nearest' });
     });
+    $(document).on('click', function (e) {
+        if (!$(e.target).closest('#addIssueEquipmentResults, #addIssueEquipmentSearch').length) $addEqResults.hide();
+    });
+    $('#addIssueModal').on('show.bs.modal', function () { $addEqSearch.val(''); $addEq.val(''); $addEqResults.hide(); });
     var $addBody = $('#addIssueFormBody');
     var $addSubmit = $('#submitAddIssue');
     $addEq.on('change', function() {
