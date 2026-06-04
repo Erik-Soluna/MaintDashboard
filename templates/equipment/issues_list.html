@@ -80,6 +80,7 @@
 {% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="issues-header">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
         <h5 class="mb-0 text-white">
@@ -221,6 +222,15 @@
                                        class="btn btn-sm btn-outline-primary" title="View on equipment">
                                         <i class="fas fa-arrow-right"></i>
                                     </a>
+                                    {% if can_delete_issue %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger delete-issue-btn"
+                                            data-issue-id="{{ issue.id }}"
+                                            data-equipment-id="{{ issue.equipment.id }}"
+                                            data-issue-title="{{ issue.title }}"
+                                            title="Delete issue">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -326,6 +336,30 @@ $(document).ready(function() {
     // Auto-submit on filter change
     $('#status, #severity').on('change', function() { $(this).closest('form').submit(); });
 
+    // Delete an issue (perms-gated; button only rendered when allowed).
+    function getCookie(name) {
+        var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? m.pop() : '';
+    }
+    $('.delete-issue-btn').on('click', function() {
+        var issueId = $(this).data('issue-id');
+        var equipmentId = $(this).data('equipment-id');
+        var title = $(this).data('issue-title');
+        if (!confirm('Delete issue "' + title + '"? This cannot be undone.')) return;
+        var $btn = $(this);
+        $btn.prop('disabled', true);
+        $.ajax({
+            url: '/equipment/' + equipmentId + '/issues/' + issueId + '/delete/',
+            type: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': ($('input[name=csrfmiddlewaretoken]').val() || getCookie('csrftoken')) },
+            success: function(resp) {
+                if (resp && resp.success) { $btn.closest('tr').fadeOut(200, function() { $(this).remove(); }); }
+                else { alert((resp && resp.message) || 'Could not delete issue.'); $btn.prop('disabled', false); }
+            },
+            error: function() { alert('Could not delete issue.'); $btn.prop('disabled', false); }
+        });
+    });
+
     // Create maintenance activity from an issue (same flow as the equipment
     // detail Issues tab): load the form into the modal, then submit via AJAX.
     $('.create-maintenance-btn').on('click', function() {
@@ -380,23 +414,24 @@ $(document).ready(function() {
     var $addEq = $('#addIssueEquipment');
     var $addEqSearch = $('#addIssueEquipmentSearch');
     var $addEqEmpty = $('#addIssueEquipmentEmpty');
-    $addEqSearch.on('input', function() {
-        var q = $(this).val().trim().toLowerCase();
+    // Cache the real option nodes and rebuild the list on search (reliable across
+    // browsers; the sized <select> scrolls natively).
+    var allEqOptions = $addEq.find('option').filter(function() { return this.value !== ''; }).toArray();
+    function filterEqOptions(q) {
+        q = (q || '').trim().toLowerCase();
+        $addEq.find('option').filter(function() { return this.value !== ''; }).remove();
         var shown = 0;
-        $addEq.find('option').each(function() {
-            var opt = $(this);
-            if (!opt.val()) { return; }  // keep the placeholder
-            var hay = opt.attr('data-search') || opt.text().toLowerCase();
-            var match = q === '' || hay.indexOf(q) !== -1;
-            opt.prop('hidden', !match);
-            if (match) shown++;
+        allEqOptions.forEach(function(o) {
+            var hay = (o.getAttribute('data-search') || o.textContent || '').toLowerCase();
+            if (q === '' || hay.indexOf(q) !== -1) { $addEq.append(o); shown++; }
         });
         $addEqEmpty.toggle(shown === 0);
-    });
+    }
+    $addEqSearch.on('input', function() { filterEqOptions($(this).val()); });
     // reset the filter whenever the modal opens
     $('#addIssueModal').on('show.bs.modal', function() {
         $addEqSearch.val('');
-        $addEq.find('option').prop('hidden', false);
+        filterEqOptions('');
         $addEqEmpty.hide();
     });
     var $addBody = $('#addIssueFormBody');

@@ -260,6 +260,7 @@ def issues_list(request):
         'selected_site_id': selected_site_id,
         'equipment_choices': eq_choices,
         'can_create_issue': user_has_permission(request.user, 'issues.create'),
+        'can_delete_issue': user_has_permission(request.user, 'issues.delete'),
     }
     return render(request, 'equipment/issues_list.html', context)
 
