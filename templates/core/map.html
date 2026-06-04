@@ -23,10 +23,14 @@
     -webkit-overflow-scrolling: touch; background:#1a2238;
     border: 1px solid #4a5568; border-radius: 8px; }
 #canvasWrap.editing { outline: 2px dashed #4299e1; outline-offset: -2px; }
-#canvasSizer { position: relative;
+#canvasSizer { position: relative; }
+/* Background grid = one cell per square (POD_W+PAD x POD_H+PAD), offset to the
+   PAD origin so blocks align to the grid. Lives on the scaled canvas so it
+   tracks zoom. */
+#facilityCanvas { position: absolute; top: 0; left: 0; transform-origin: top left;
     background-image: linear-gradient(#2a3550 1px, transparent 1px), linear-gradient(90deg, #2a3550 1px, transparent 1px);
-    background-size: 40px 40px; }
-#facilityCanvas { position: absolute; top: 0; left: 0; transform-origin: top left; }
+    background-size: 274px 234px;
+    background-position: 24px 24px; }
 
 /* health palette (zones, tiles, chips, dots) */
 .h-critical { background:#9b2c2c; border-color:#f56565; }
@@ -114,6 +118,8 @@
             <button type="button" id="autoFitBtn" class="btn btn-outline-info btn-sm" style="display:none;" title="Pack POD blocks into a tidy grid (removes gaps)"><i class="fas fa-th me-1"></i> Auto-fit</button>
             <button type="button" id="addRowBtn" class="btn btn-outline-light btn-sm" style="display:none;" title="Add an empty row at the bottom"><i class="fas fa-plus me-1"></i> Row</button>
             <button type="button" id="removeRowBtn" class="btn btn-outline-light btn-sm" style="display:none;" title="Remove the bottom row (if empty)"><i class="fas fa-minus me-1"></i> Row</button>
+            <button type="button" id="addColBtn" class="btn btn-outline-light btn-sm" style="display:none;" title="Add an empty column on the right"><i class="fas fa-plus me-1"></i> Col</button>
+            <button type="button" id="removeColBtn" class="btn btn-outline-light btn-sm" style="display:none;" title="Remove the right column (if empty)"><i class="fas fa-minus me-1"></i> Col</button>
             <button type="button" id="saveLayoutBtn" class="btn btn-success btn-sm" style="display:none;"><i class="fas fa-save me-1"></i> Save</button>
             <button type="button" id="cancelLayoutBtn" class="btn btn-secondary btn-sm" style="display:none;">Cancel</button>
             <button type="button" class="btn btn-outline-warning btn-sm" data-toggle="modal" data-target="#importCsvModal" title="Build/arrange this site's layout from a CSV"><i class="fas fa-file-csv me-1"></i> Import CSV</button>
@@ -178,7 +184,7 @@
     </div>
 {% else %}
     <div id="editHint" class="text-info small mb-2" style="display:none;">
-        <i class="fas fa-info-circle me-1"></i> Drag a POD block to snap it to any grid cell — leave blanks where you want. Dropping on an occupied cell <strong>swaps</strong> the two. Use <strong>+ Row</strong> to add space below, <strong>Auto-fit</strong> to pack tightly, then <strong>Save</strong>.
+        <i class="fas fa-info-circle me-1"></i> Drag a POD block to snap it to any grid cell — leave blanks where you want. Dropping on an occupied cell <strong>swaps</strong> the two. Use <strong>± Row / ± Col</strong> to resize the grid, <strong>Auto-fit</strong> to pack tightly, then <strong>Save</strong>.
     </div>
     <div id="canvasWrap">
         <div id="canvasSizer">
@@ -471,6 +477,8 @@
         var autoFitBtn = document.getElementById('autoFitBtn');
         var addRowBtn = document.getElementById('addRowBtn');
         var removeRowBtn = document.getElementById('removeRowBtn');
+        var addColBtn = document.getElementById('addColBtn');
+        var removeColBtn = document.getElementById('removeColBtn');
         var saveBtn = document.getElementById('saveLayoutBtn');
         var cancelBtn = document.getElementById('cancelLayoutBtn');
         var hint = document.getElementById('editHint');
@@ -482,6 +490,8 @@
             if (autoFitBtn) autoFitBtn.style.display = on ? '' : 'none';
             if (addRowBtn) addRowBtn.style.display = on ? '' : 'none';
             if (removeRowBtn) removeRowBtn.style.display = on ? '' : 'none';
+            if (addColBtn) addColBtn.style.display = on ? '' : 'none';
+            if (removeColBtn) removeColBtn.style.display = on ? '' : 'none';
             saveBtn.style.display = on ? '' : 'none';
             cancelBtn.style.display = on ? '' : 'none';
             if (hint) hint.style.display = on ? 'block' : 'none';
@@ -525,6 +535,25 @@
             if (next < minH) { alert('Bottom row is not empty.'); return; }
             layout.site.height = next;
             canvas.style.height = next + 'px';
+            fit(); dirty = true;
+        });
+        // Add a blank column on the right (grows the canvas width).
+        addColBtn && addColBtn.addEventListener('click', function () {
+            layout.site.width = (layout.site.width || GRID_PAD) + GRID_SX;
+            canvas.style.width = layout.site.width + 'px';
+            fit(); dirty = true;
+        });
+        // Remove the right column if it has no blocks.
+        removeColBtn && removeColBtn.addEventListener('click', function () {
+            var maxC = -1;
+            Array.prototype.forEach.call(canvas.querySelectorAll('.pod-zone'), function (z) {
+                maxC = Math.max(maxC, cellOf(z).c);
+            });
+            var minW = GRID_PAD + (maxC + 1) * GRID_SX + GRID_PAD;
+            var next = (layout.site.width || minW) - GRID_SX;
+            if (next < minW) { alert('Right column is not empty.'); return; }
+            layout.site.width = next;
+            canvas.style.width = next + 'px';
             fit(); dirty = true;
         });
         cancelBtn && cancelBtn.addEventListener('click', function () {
