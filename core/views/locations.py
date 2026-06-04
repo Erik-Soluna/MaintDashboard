@@ -361,7 +361,8 @@ def map_view(request):
 @require_POST
 def save_map_layout(request):
     """Persist facility-map zone positions from the drag editor. Accepts JSON:
-    {site_id, canvas:{width,height}, zones:[{id,x,y,w,h}]}.
+    {site_id, canvas:{width,height}, zones:[...]}. Each zone is either a grid
+    placement {id, grid_row, grid_col} (preferred) or legacy pixels {id,x,y,w,h}.
     Zones are POD/MDC locations under the site (validated)."""
     from core.utils import get_all_descendant_location_ids
     try:
@@ -389,6 +390,12 @@ def save_map_layout(request):
 
     # Zones are POD/MDC locations under this site. Restrict updates to that set.
     allowed_ids = set(get_all_descendant_location_ids(site, include_inactive=True))
+    def grid_int(v):
+        try:
+            return max(0, int(v))
+        except (TypeError, ValueError):
+            return None
+
     zones_saved = 0
     for z in data.get('zones', []):
         try:
@@ -397,10 +404,17 @@ def save_map_layout(request):
             continue
         if zid not in allowed_ids:
             continue
-        zones_saved += Location.objects.filter(id=zid).update(
-            layout_x=num(z.get('x')), layout_y=num(z.get('y')),
-            layout_width=num(z.get('w')), layout_height=num(z.get('h')),
-        )
+        if 'grid_row' in z or 'grid_col' in z:
+            # Grid placement (preferred): row/col cell on the site/POD grid.
+            zones_saved += Location.objects.filter(id=zid).update(
+                grid_row=grid_int(z.get('grid_row')), grid_col=grid_int(z.get('grid_col')),
+            )
+        else:
+            # Legacy free-form pixel placement.
+            zones_saved += Location.objects.filter(id=zid).update(
+                layout_x=num(z.get('x')), layout_y=num(z.get('y')),
+                layout_width=num(z.get('w')), layout_height=num(z.get('h')),
+            )
 
     return JsonResponse({'success': True, 'zones_saved': zones_saved})
 

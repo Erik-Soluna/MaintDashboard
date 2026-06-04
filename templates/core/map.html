@@ -141,7 +141,7 @@
     </div>
 {% else %}
     <div id="editHint" class="text-info small mb-2" style="display:none;">
-        <i class="fas fa-info-circle me-1"></i> Drag POD or MDC headers to arrange; drag a POD corner to resize. Moving a POD moves its MDCs. Click <strong>Save</strong> when done.
+        <i class="fas fa-info-circle me-1"></i> Drag POD or MDC headers to arrange. On <strong>Save</strong>, zones snap to a clean grid (row/column) based on their arrangement — no more drift. Moving a POD moves its MDCs.
     </div>
     <div id="canvasWrap">
         <div id="canvasSizer">
@@ -408,10 +408,52 @@
             window.location.reload();
         });
 
+        // Infer a clean grid from a free-form arrangement: cluster items into rows
+        // by their Y (within a tolerance), then order each row by X -> (row, col).
+        // This is the "snap to grid": drag roughly, Save snaps to tidy row/col cells.
+        function inferGrid(items) {
+            var ROW_TOL = 40;
+            var sorted = items.slice().sort(function (a, b) { return a.y - b.y; });
+            var rows = [];
+            sorted.forEach(function (it) {
+                var row = null;
+                for (var i = 0; i < rows.length; i++) {
+                    if (Math.abs(rows[i].y - it.y) <= ROW_TOL) { row = rows[i]; break; }
+                }
+                if (!row) { row = { y: it.y, items: [] }; rows.push(row); }
+                row.items.push(it);
+            });
+            rows.sort(function (a, b) { return a.y - b.y; });
+            var out = {};
+            rows.forEach(function (row, r) {
+                row.items.sort(function (a, b) { return a.x - b.x; });
+                row.items.forEach(function (it, c) { out[it.id] = { row: r, col: c }; });
+            });
+            return out;
+        }
+
         saveBtn && saveBtn.addEventListener('click', function () {
+            // PODs -> site grid cells
+            var podEls = [];
+            Array.prototype.forEach.call(canvas.querySelectorAll('.pod-zone[data-id]'), function (el) {
+                podEls.push({ id: parseInt(el.dataset.id, 10), x: px(el, 'left'), y: px(el, 'top') });
+            });
             var zones = [];
-            Array.prototype.forEach.call(canvas.querySelectorAll('.pod-zone[data-id], .mdc-tile[data-id]'), function (el) {
-                zones.push({ id: parseInt(el.dataset.id, 10), x: px(el, 'left'), y: px(el, 'top'), w: px(el, 'width'), h: px(el, 'height') });
+            var podGrid = inferGrid(podEls);
+            Object.keys(podGrid).forEach(function (id) {
+                zones.push({ id: parseInt(id, 10), grid_row: podGrid[id].row, grid_col: podGrid[id].col });
+            });
+            // MDC tiles -> per-POD grid cells
+            var byPod = {};
+            Array.prototype.forEach.call(canvas.querySelectorAll('.mdc-tile[data-id]'), function (el) {
+                var pid = el.dataset.podId || '_';
+                (byPod[pid] = byPod[pid] || []).push({ id: parseInt(el.dataset.id, 10), x: px(el, 'left'), y: px(el, 'top') });
+            });
+            Object.keys(byPod).forEach(function (pid) {
+                var g = inferGrid(byPod[pid]);
+                Object.keys(g).forEach(function (id) {
+                    zones.push({ id: parseInt(id, 10), grid_row: g[id].row, grid_col: g[id].col });
+                });
             });
             var token = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
             saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
