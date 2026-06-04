@@ -172,7 +172,7 @@ function showDebugMessage(message, type = 'info') {
     messageDiv.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} alert-dismissible fade show`;
     messageDiv.innerHTML = `
         ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        <button type="button" class="close" data-dismiss="alert"><span aria-hidden="true">&times;</span></button>
     `;
     
     debugDiv.appendChild(messageDiv);
