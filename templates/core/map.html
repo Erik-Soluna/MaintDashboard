@@ -109,6 +109,36 @@
             <button type="button" id="autoFitBtn" class="btn btn-outline-info btn-sm" style="display:none;" title="Auto-arrange MDCs into a grid inside each POD"><i class="fas fa-th me-1"></i> Auto-fit</button>
             <button type="button" id="saveLayoutBtn" class="btn btn-success btn-sm" style="display:none;"><i class="fas fa-save me-1"></i> Save</button>
             <button type="button" id="cancelLayoutBtn" class="btn btn-secondary btn-sm" style="display:none;">Cancel</button>
+            <button type="button" class="btn btn-outline-warning btn-sm" data-toggle="modal" data-target="#importCsvModal" title="Build/arrange this site's layout from a CSV"><i class="fas fa-file-csv me-1"></i> Import CSV</button>
+        </div>
+        {% endif %}
+
+        {% if can_edit_map and selected_site %}
+        <div class="modal fade" id="importCsvModal" tabindex="-1" role="dialog" aria-hidden="true">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-file-csv me-2"></i>Import layout — {{ selected_site.name }}</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+              </div>
+              <div class="modal-body">
+                <p class="text-muted" style="font-size:.86rem;">
+                  Upload a CSV to <strong>create &amp; position</strong> PODs and MDCs on the grid.
+                  Columns: <code>pod, pod_row, pod_col, mdc, mdc_row, mdc_col</code> (0-based; blank
+                  <code>mdc</code> places just the POD). Missing locations are created under this site.
+                </p>
+                <a href="{% url 'core:import_map_layout' %}" class="btn btn-link btn-sm px-0">
+                  <i class="fas fa-download me-1"></i> Download template
+                </a>
+                <input type="file" id="importCsvFile" accept=".csv,text/csv" class="form-control mt-2">
+                <div id="importCsvResult" class="mt-2" style="font-size:.86rem;"></div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-warning" id="importCsvSubmit"><i class="fas fa-upload me-1"></i> Import</button>
+              </div>
+            </div>
+          </div>
         </div>
         {% endif %}
     </div>
@@ -220,11 +250,53 @@
         kids.forEach(function (child) { body.appendChild(makeSubGroup(child, 'loc')); });
     }
 
+    // CSV import — works even on an empty site (the main use case: build from scratch).
+    (function () {
+        var importBtn = document.getElementById('importCsvSubmit');
+        if (!importBtn) return;
+        importBtn.addEventListener('click', function () {
+            var fileInput = document.getElementById('importCsvFile');
+            var resultEl = document.getElementById('importCsvResult');
+            if (!fileInput.files.length) {
+                resultEl.innerHTML = '<span class="text-danger">Choose a CSV file first.</span>';
+                return;
+            }
+            var fd = new FormData();
+            fd.append('file', fileInput.files[0]);
+            fd.append('site_id', layout.site.id);
+            var token = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
+            importBtn.disabled = true; resultEl.textContent = 'Importing…';
+            fetch("{% url 'core:import_map_layout' %}", {
+                method: 'POST',
+                headers: { 'X-CSRFToken': token, 'X-Requested-With': 'XMLHttpRequest' },
+                body: fd
+            }).then(function (r) { return r.json(); }).then(function (resp) {
+                importBtn.disabled = false;
+                if (!resp.success) {
+                    resultEl.innerHTML = '<span class="text-danger">' + (resp.error || 'Import failed.') + '</span>';
+                    return;
+                }
+                var msg = 'Created ' + resp.pods_created + ' POD(s), ' + resp.mdcs_created +
+                    ' MDC(s); positioned ' + resp.positioned + '.';
+                if (resp.errors && resp.errors.length) msg += ' ' + resp.errors.length + ' row issue(s): ' + resp.errors.join('; ');
+                resultEl.innerHTML = '<span class="text-success">' + msg + ' Reloading…</span>';
+                setTimeout(function () { window.location.reload(); }, 1300);
+            }).catch(function () {
+                importBtn.disabled = false;
+                resultEl.innerHTML = '<span class="text-danger">Import failed.</span>';
+            });
+        });
+    })();
+
     var hasContent = layout.pods && layout.pods.length;
     if (!hasContent) {
         wrap.style.display = 'none';
         if (empty) empty.style.display = 'block';
-        var tb = document.querySelector('.map-toolbar'); if (tb) tb.style.display = 'none';
+        // keep the toolbar (Import CSV) reachable on an empty site, but hide the
+        // layout-editing buttons since there's nothing to arrange yet.
+        ['editLayoutBtn', 'autoFitBtn', 'saveLayoutBtn', 'cancelLayoutBtn'].forEach(function (id) {
+            var b = document.getElementById(id); if (b) b.style.display = 'none';
+        });
         return;
     }
 

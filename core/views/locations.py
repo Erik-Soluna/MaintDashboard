@@ -419,6 +419,82 @@ def save_map_layout(request):
     return JsonResponse({'success': True, 'zones_saved': zones_saved})
 
 
+@permission_required('site_map.write')
+@require_http_methods(["GET", "POST"])
+def import_map_layout(request):
+    """CSV import for the facility-map grid. GET returns a template; POST ingests
+    a CSV (columns: pod,pod_row,pod_col,mdc,mdc_row,mdc_col) and CREATES any
+    missing POD/MDC locations under the selected site, then sets their grid cells.
+    A blank mdc places just the POD. Coordinates are 0-based; blank = leave as-is."""
+    if request.method == 'GET':
+        sample = ("pod,pod_row,pod_col,mdc,mdc_row,mdc_col\n"
+                  "POD 1,0,0,MDC 1,0,0\n"
+                  "POD 1,0,0,MDC 2,0,1\n"
+                  "POD 2,0,1,,,\n")
+        resp = HttpResponse(sample, content_type='text/csv')
+        resp['Content-Disposition'] = 'attachment; filename="map_layout_template.csv"'
+        return resp
+
+    site = get_object_or_404(Location, id=request.POST.get('site_id'), is_site=True)
+    upload = request.FILES.get('file')
+    if not upload:
+        return JsonResponse({'success': False, 'error': 'No CSV file uploaded.'}, status=400)
+    try:
+        text = upload.read().decode('utf-8-sig')
+    except Exception:
+        return JsonResponse({'success': False, 'error': 'Could not read the file as UTF-8 text.'}, status=400)
+
+    def norm(k):
+        return (k or '').strip().lower().replace(' ', '_')
+
+    def gi(v):
+        v = (v or '').strip()
+        if not v:
+            return None
+        try:
+            return max(0, int(float(v)))
+        except (TypeError, ValueError):
+            return None
+
+    pods_created = mdcs_created = positioned = 0
+    errors = []
+    pod_cache = {}
+    reader = csv.DictReader(StringIO(text))
+    for i, raw in enumerate(reader, start=2):  # row 1 is the header
+        row = {norm(k): (v or '').strip() for k, v in raw.items()}
+        pod_name = row.get('pod') or row.get('pod_name')
+        if not pod_name:
+            errors.append(f'Row {i}: missing "pod".')
+            continue
+        pod = pod_cache.get(pod_name.lower())
+        if pod is None:
+            pod, created = Location.objects.get_or_create(
+                name=pod_name, parent_location=site,
+                defaults={'is_site': False, 'is_active': True})
+            pods_created += 1 if created else 0
+            pod_cache[pod_name.lower()] = pod
+        pr, pc = gi(row.get('pod_row')), gi(row.get('pod_col'))
+        if pr is not None and pc is not None and (pod.grid_row, pod.grid_col) != (pr, pc):
+            pod.grid_row, pod.grid_col = pr, pc
+            pod.save(update_fields=['grid_row', 'grid_col'])
+            positioned += 1
+        mdc_name = row.get('mdc') or row.get('mdc_name')
+        if mdc_name:
+            mdc, created = Location.objects.get_or_create(
+                name=mdc_name, parent_location=pod,
+                defaults={'is_site': False, 'is_active': True})
+            mdcs_created += 1 if created else 0
+            mr, mc = gi(row.get('mdc_row')), gi(row.get('mdc_col'))
+            if mr is not None and mc is not None and (mdc.grid_row, mdc.grid_col) != (mr, mc):
+                mdc.grid_row, mdc.grid_col = mr, mc
+                mdc.save(update_fields=['grid_row', 'grid_col'])
+                positioned += 1
+
+    return JsonResponse({'success': True, 'pods_created': pods_created,
+                         'mdcs_created': mdcs_created, 'positioned': positioned,
+                         'errors': errors[:50]})
+
+
 @login_required
 @user_passes_test(is_staff_or_superuser)
 def locations_settings(request):
@@ -1257,4 +1333,4 @@ def bulk_locations_view(request):
     return render(request, 'core/bulk_locations.html', context)
 
 
-__all__ = ["map_view", "save_map_layout", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]
+__all__ = ["map_view", "save_map_layout", "import_map_layout", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]
