@@ -49,6 +49,7 @@
     display: flex; flex-direction: column; overflow: hidden;
     transition: left .15s ease, top .15s ease; }
 .pod-zone.dragging { transition: none; }  /* dragged block follows the pointer */
+.pod-synthetic { border-style: dashed; background: rgba(66,153,225,0.06); }  /* site-level catch-all */
 .pod-header { flex: 0 0 auto; padding: 5px 10px; font-size: 12px; font-weight: 700;
     color: #e2e8f0; border-bottom: 1px solid #4a5568;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -433,14 +434,15 @@
     layout.pods.forEach(function (pod) {
         var zone = document.createElement('div');
         zone.className = 'pod-zone';
-        zone.dataset.id = pod.id;
+        if (pod.id != null) zone.dataset.id = pod.id;  // synthetic "Site-level" block has no id
+        else zone.classList.add('pod-synthetic');
         zone.style.left = pod.x + 'px'; zone.style.top = pod.y + 'px';
         zone.style.width = pod.w + 'px'; zone.style.height = pod.h + 'px';
         var ph = document.createElement('div');
         ph.className = 'pod-header';
         ph.textContent = pod.name;
         ph.addEventListener('pointerdown', function (e) {
-            if (editing) beginDrag(e, [zone]);  // moving the block moves its tiles (they're children)
+            if (editing && pod.id != null) beginDrag(e, [zone]);  // real PODs only; site block stays put
         });
         zone.appendChild(ph);
 
