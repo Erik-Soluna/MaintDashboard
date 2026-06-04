@@ -168,6 +168,12 @@ class Location(TimeStampedModel):
     layout_width = models.FloatField(null=True, blank=True, help_text="Facility-map width (or canvas width for a site)")
     layout_height = models.FloatField(null=True, blank=True, help_text="Facility-map height (or canvas height for a site)")
 
+    # Facility-map GRID placement (preferred over free-form layout_x/y when set).
+    # A POD's cell on its site's grid; an MDC's cell within its POD's grid.
+    # Zero-based. Null until placed via snap-to-grid drag or CSV import.
+    grid_row = models.PositiveSmallIntegerField(null=True, blank=True, help_text="Facility-map grid row (0-based)")
+    grid_col = models.PositiveSmallIntegerField(null=True, blank=True, help_text="Facility-map grid column (0-based)")
+
     # Custom manager for natural sorting
     objects = NaturalSortManager()
 
