@@ -64,9 +64,22 @@
 .mdc-tile.expanded .mdc-caret { transform: rotate(90deg); }
 .mdc-empty { color: #718096; font-size: 11px; padding: 2px 4px; }
 
+/* nested sub-location groups (POD › MDC › Cabinet › …), collapsible */
+.subloc { width: 100%; border: 1px solid #3a4760; border-radius: 4px; margin: 2px 0; background: #222c40; }
+.subloc-header { display: flex; justify-content: space-between; align-items: center; gap: 6px;
+    padding: 3px 6px; font-size: 10px; font-weight: 600; color: #cbd5e0; cursor: pointer; white-space: nowrap; }
+.subloc-header:hover { background: #2a3550; }
+.subloc-name { overflow: hidden; text-overflow: ellipsis; }
+.subloc-count { color: #a0aec0; font-weight: 400; }
+.subloc-caret { color: #718096; font-size: 8px; display: inline-block; }
+.subloc-body { display: none; flex-wrap: wrap; gap: 4px; padding: 4px 6px; }
+.subloc.expanded > .subloc-body { display: flex; }
+.subloc.expanded > .subloc-header .subloc-caret { transform: rotate(90deg); }
+
 .eq-chip { font-size: 10px; line-height: 1.2; padding: 2px 5px; border-radius: 3px;
-    border: 1px solid; color: #fff; cursor: pointer; white-space: nowrap; }
-.eq-chip:hover { filter: brightness(1.2); outline: 1px solid #fff; }
+    border: 1px solid; color: #fff; cursor: pointer; white-space: nowrap;
+    text-decoration: none; display: inline-block; }
+.eq-chip:hover { filter: brightness(1.2); outline: 1px solid #fff; color: #fff; }
 
 .map-empty { text-align:center; padding:60px 20px; color:#a0aec0; }
 .map-empty i { font-size:46px; color:#4a5568; margin-bottom:16px; }
@@ -160,6 +173,43 @@
 
     function px(el, p) { return parseFloat(el.style[p]) || 0; }
 
+    // ----- equipment chips + recursive sub-location rendering -----
+    function makeChip(eq) {
+        var chip = document.createElement('a');
+        chip.className = 'eq-chip h-' + eq.health;
+        chip.href = '/equipment/' + eq.id + '/';
+        chip.title = eq.tooltip;
+        chip.textContent = eq.name + (eq.open_issues ? ' (' + eq.open_issues + ')' : '');
+        chip.addEventListener('click', function (ev) { ev.stopPropagation(); });
+        return chip;
+    }
+    function makeSubGroup(node) {
+        var g = document.createElement('div');
+        g.className = 'subloc';
+        var h = document.createElement('div');
+        h.className = 'subloc-header';
+        h.innerHTML = '<span class="subloc-name">' + escapeHtml(node.name) +
+            '</span><span class="subloc-count">' + node.count +
+            ' <span class="subloc-caret">&#9656;</span></span>';
+        h.addEventListener('click', function (ev) { ev.stopPropagation(); g.classList.toggle('expanded'); });
+        g.appendChild(h);
+        var b = document.createElement('div');
+        b.className = 'subloc-body';
+        fillNodeBody(b, node);
+        g.appendChild(b);
+        return g;
+    }
+    // Fill a body element with a node's direct equipment, then its nested children.
+    function fillNodeBody(body, node) {
+        var eqs = node.equipment || [], kids = node.children || [];
+        if (!eqs.length && !kids.length) {
+            body.innerHTML = '<span class="mdc-empty">No equipment</span>';
+            return;
+        }
+        eqs.forEach(function (eq) { body.appendChild(makeChip(eq)); });
+        kids.forEach(function (child) { body.appendChild(makeSubGroup(child)); });
+    }
+
     var hasContent = layout.pods && layout.pods.length;
     if (!hasContent) {
         wrap.style.display = 'none';
@@ -228,24 +278,10 @@
             });
             tile.appendChild(sum);
 
-            // body (equipment chips, revealed on expand)
+            // body: equipment chips + nested sub-location groups, revealed on expand
             var body = document.createElement('div');
             body.className = 'mdc-body';
-            if (!mdc.equipment.length) {
-                body.innerHTML = '<span class="mdc-empty">No equipment</span>';
-            } else {
-                mdc.equipment.forEach(function (eq) {
-                    var chip = document.createElement('div');
-                    chip.className = 'eq-chip h-' + eq.health;
-                    chip.title = eq.tooltip;
-                    chip.textContent = eq.name + (eq.open_issues ? ' (' + eq.open_issues + ')' : '');
-                    chip.addEventListener('click', function (ev) {
-                        ev.stopPropagation();
-                        window.location.href = '/equipment/' + eq.id + '/';
-                    });
-                    body.appendChild(chip);
-                });
-            }
+            fillNodeBody(body, mdc);
             tile.appendChild(body);
 
             canvas.appendChild(tile);
