@@ -155,22 +155,43 @@ def _build_site_layout(site):
         if loc.parent_location_id:
             children_by_loc.setdefault(loc.parent_location_id, []).append(loc)
 
+    def category_groups(eq_list):
+        """Group a flat equipment list into expandable per-category groups
+        (Transformer, Switchgear, PDU, …) so types are never mixed/mistaken."""
+        buckets = {}
+        for e in eq_list:
+            cat = e.category
+            b = buckets.setdefault(cat.id if cat else None,
+                                   {'name': cat.name if cat else 'Uncategorized', 'eq': []})
+            b['eq'].append(e)
+        groups = []
+        for key in sorted(buckets, key=lambda k: natural_sort_key(buckets[k]['name'])):
+            b = buckets[key]
+            chips = [eq_payload(e) for e in sorted(b['eq'], key=lambda e: natural_sort_key(e.name))]
+            counts = {lvl: 0 for lvl in HEALTH_LEVELS}
+            for ep in chips:
+                counts[ep['health']] += 1
+            groups.append({'name': b['name'], 'equipment': chips,
+                           'count': len(chips), 'counts': counts})
+        return groups
+
     def build_node(loc):
-        """Recursive sub-location node: its equipment + nested child locations,
-        with equipment counts aggregated over the whole subtree."""
-        eqs = [eq_payload(e) for e in sorted(eq_by_loc.get(loc.id, []),
-                                             key=lambda e: natural_sort_key(e.name))]
+        """Recursive sub-location node: its direct equipment grouped by category,
+        plus nested child locations. Counts aggregate over the whole subtree."""
+        eq_groups = category_groups(eq_by_loc.get(loc.id, []))
         kids = [build_node(c) for c in sorted(children_by_loc.get(loc.id, []),
                                               key=lambda l: natural_sort_key(l.name))]
         counts = {lvl: 0 for lvl in HEALTH_LEVELS}
-        for ep in eqs:
-            counts[ep['health']] += 1
-        total = len(eqs)
+        total = 0
+        for g in eq_groups:
+            total += g['count']
+            for lvl in HEALTH_LEVELS:
+                counts[lvl] += g['counts'][lvl]
         for k in kids:
             total += k['count']
             for lvl in HEALTH_LEVELS:
                 counts[lvl] += k['counts'][lvl]
-        return {'id': loc.id, 'name': loc.name, 'equipment': eqs,
+        return {'id': loc.id, 'name': loc.name, 'equipment_groups': eq_groups,
                 'children': kids, 'count': total, 'counts': counts}
 
     # Flow PODs left-to-right, wrapping; grid the tiles inside each POD.
@@ -230,7 +251,11 @@ def _build_site_layout(site):
                 'name': node['name'],
                 'x': round(tx, 1), 'y': round(ty, 1), 'w': round(tw, 1), 'h': round(th, 1),
                 'count': node['count'], 'counts': node['counts'],
-                'equipment': node['equipment'], 'children': node['children'],
+                # Category tiles carry flat 'equipment'; location tiles carry
+                # 'equipment_groups' (category groups) + nested 'children'.
+                'equipment': node.get('equipment', []),
+                'equipment_groups': node.get('equipment_groups', []),
+                'children': node.get('children', []),
             })
 
         pods_payload.append({
