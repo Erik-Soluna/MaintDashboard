@@ -758,6 +758,14 @@ class BrandingSettings(models.Model):
             BrandingSettings.objects.exclude(pk=self.pk).update(is_active=False)
         super().save(*args, **kwargs)
 
+    @classmethod
+    def get_active(cls):
+        """Return the active branding settings, creating defaults if none exist."""
+        obj = cls.objects.filter(is_active=True).first()
+        if obj is None:
+            obj = cls.objects.create(is_active=True)
+        return obj
+
 
 class DashboardSettings(models.Model):
     """Dashboard/Overview page configuration settings"""

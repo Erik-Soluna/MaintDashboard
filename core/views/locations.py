@@ -915,7 +915,7 @@ def import_sites_csv(request):
     try:
         # Read CSV file
         file_data = csv_file.read().decode('utf-8')
-        csv_data = csv.reader(io.StringIO(file_data))
+        csv_data = csv.reader(StringIO(file_data))
         
         # Skip header row
         header = next(csv_data)
@@ -1086,7 +1086,7 @@ def import_locations_csv(request):
     try:
         # Read CSV file
         file_data = csv_file.read().decode('utf-8')
-        csv_data = csv.reader(io.StringIO(file_data))
+        csv_data = csv.reader(StringIO(file_data))
         
         # Skip header row
         header = next(csv_data)
@@ -1306,7 +1306,7 @@ def bulk_edit_locations(request):
                             continue
                         
                         # Check if location has equipment
-                        if hasattr(location, 'equipment_set') and location.equipment_set.exists():
+                        if location.equipment.exists():
                             errors.append(f'Cannot delete "{location.name}" - has associated equipment')
                             continue
                         

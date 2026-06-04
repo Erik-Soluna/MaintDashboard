@@ -920,6 +920,7 @@ def get_event_color(event_type, priority):
         return base_color + '99'  # 60% opacity
 
 
+@login_required
 @require_http_methods(["GET"])
 def get_event(request, event_id):
     """API endpoint to get a specific event."""
