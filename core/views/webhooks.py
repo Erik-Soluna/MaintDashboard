@@ -47,7 +47,7 @@ from .helpers import *  # noqa: F401,F403 (shared helpers + globals)
 @user_passes_test(is_staff_or_superuser)
 def webhook_settings(request):
     """Webhook management settings page."""
-    from .models import PortainerConfig
+    from core.models import PortainerConfig
     
     # Add comprehensive debugging
     logger.info(f"=== WEBHOOK SETTINGS DEBUG ===")

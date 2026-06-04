@@ -587,7 +587,7 @@ def database_stats(request):
     try:
         from django.db import connection
         from django.db.models import Count
-        from .models import Location, Customer
+        from core.models import Location, Customer
         from equipment.models import Equipment
         from maintenance.models import MaintenanceActivity
         from events.models import CalendarEvent

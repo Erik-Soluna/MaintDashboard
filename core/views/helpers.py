@@ -322,7 +322,7 @@ def trigger_portainer_stack_update():
     """Trigger a stack update by calling the webhook URL."""
     logger.info("=== TRIGGER PORTAINER STACK UPDATE STARTED ===")
     try:
-        from .models import PortainerConfig
+        from core.models import PortainerConfig
         config = PortainerConfig.get_config()
         
         webhook_url = config.portainer_url
@@ -378,7 +378,7 @@ def test_portainer_connection():
     """Test connection to webhook URL."""
     logger.info("=== TEST WEBHOOK CONNECTION STARTED ===")
     try:
-        from .models import PortainerConfig
+        from core.models import PortainerConfig
         config = PortainerConfig.get_config()
         
         webhook_url = config.portainer_url
