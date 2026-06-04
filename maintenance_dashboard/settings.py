@@ -487,7 +487,10 @@ def get_cache_config():
                     'KEY_PREFIX': 'maintenance_dashboard',
                     'TIMEOUT': 300,  # 5 minutes default timeout
                 }
-            }, 'django.contrib.sessions.backends.cache'
+            # cached_db (NOT cache): sessions are persisted in Postgres and cached
+            # in Redis for speed. A redeploy that restarts Redis wipes the cache but
+            # sessions survive in the DB, so users stay logged in across deploys.
+            }, 'django.contrib.sessions.backends.cached_db'
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
