@@ -371,14 +371,21 @@
 
     function escapeHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-    // ----- drag / resize (account for canvas scale) -----
+    // ----- drag (snaps to the POD grid live; account for canvas scale) -----
+    var GRID_PAD = 24, GRID_SX = 250 + 24, GRID_SY = 210 + 24;  // POD_W+PAD, POD_H+PAD
+    function snap(v, stride) {
+        return GRID_PAD + Math.max(0, Math.round((v - GRID_PAD) / stride)) * stride;
+    }
     function beginDrag(e, els) {
         e.preventDefault();
         var sx = e.clientX, sy = e.clientY;
         var origins = els.map(function (el) { el.classList.add('dragging'); return { el: el, l: px(el, 'left'), t: px(el, 'top') }; });
         function move(ev) {
             var dx = (ev.clientX - sx) / scale, dy = (ev.clientY - sy) / scale;
-            origins.forEach(function (o) { o.el.style.left = (o.l + dx) + 'px'; o.el.style.top = (o.t + dy) + 'px'; });
+            origins.forEach(function (o) {
+                o.el.style.left = snap(o.l + dx, GRID_SX) + 'px';
+                o.el.style.top = snap(o.t + dy, GRID_SY) + 'px';
+            });
         }
         function up() {
             origins.forEach(function (o) { o.el.classList.remove('dragging'); });
