@@ -4,30 +4,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Maintenance Dashboard{% endblock %}</title>
+    <title>{% block title %}{{ site_name|default:"Maintenance Dashboard" }}{% endblock %}</title>
+    <link rel="icon" href="{% if branding.favicon %}{{ branding.favicon.url }}{% else %}{% static 'images/favicon.ico' %}{% endif %}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh;
+        :root {
+            --auth-primary: {{ primary_color|default:"#4299e1" }};
+            --auth-secondary: {{ secondary_color|default:"#2d3748" }};
+        }
+        body { background: linear-gradient(135deg, var(--auth-primary) 0%, var(--auth-secondary) 100%); min-height: 100vh;
             display: flex; align-items: center; justify-content: center;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         .login-container { max-width: 420px; width: 100%; padding: 20px; }
         .card { border: none; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            backdrop-filter: blur(10px); background: rgba(255,255,255,0.95); }
+            backdrop-filter: blur(10px); background: rgba(255,255,255,0.97); }
         .card-body { padding: 40px; }
-        .login-title { text-align: center; color: #333; margin-bottom: 24px; font-weight: 600; }
+        .login-title { text-align: center; color: #333; margin-bottom: 6px; font-weight: 600; }
+        .login-tagline { text-align: center; color: #6c757d; font-size: .9rem; margin-bottom: 22px; }
         .login-icon { text-align: center; margin-bottom: 16px; }
-        .login-icon i { font-size: 3rem; color: #667eea; }
-        .btn-login { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;
+        .login-icon i { font-size: 3rem; color: var(--auth-primary); }
+        .login-icon img { max-height: 64px; max-width: 240px; object-fit: contain; }
+        .btn-login { background: linear-gradient(135deg, var(--auth-primary) 0%, var(--auth-secondary) 100%); border: none;
             border-radius: 8px; padding: 12px; font-weight: 600; text-transform: uppercase;
             letter-spacing: 0.5px; transition: all 0.3s ease; color: #fff; }
-        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102,126,234,0.4); color:#fff; }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.25); color:#fff; }
         .form-control { border-radius: 8px; border: 2px solid #e9ecef; padding: 12px 15px; }
-        .form-control:focus { border-color: #667eea; box-shadow: 0 0 0 0.2rem rgba(102,126,234,0.25); }
+        .form-control:focus { border-color: var(--auth-primary); box-shadow: 0 0 0 0.2rem rgba(0,0,0,0.12); }
         .form-group label { font-weight: 600; color: #555; margin-bottom: 8px; }
         .alert { border-radius: 8px; border: none; }
         .auth-links { text-align: center; margin-top: 20px; }
-        .auth-links a { color: #667eea; text-decoration: none; font-size: 0.9rem; }
+        .auth-links a { color: var(--auth-primary); text-decoration: none; font-size: 0.9rem; }
         .auth-links a:hover { text-decoration: underline; }
         .text-muted-sm { color: #6c757d; font-size: 0.92rem; }
     </style>
@@ -36,8 +43,15 @@
     <div class="login-container">
         <div class="card">
             <div class="card-body">
-                <div class="login-icon"><i class="fas fa-tools"></i></div>
-                <h2 class="login-title">{% block heading %}Maintenance Dashboard{% endblock %}</h2>
+                <div class="login-icon">
+                    {% if site_logo and site_logo.image %}
+                        <img src="{{ site_logo.image.url }}" alt="{{ site_name|default:'Logo' }}">
+                    {% else %}
+                        <i class="fas fa-tools"></i>
+                    {% endif %}
+                </div>
+                <h2 class="login-title">{% block heading %}{{ site_name|default:"Maintenance Dashboard" }}{% endblock %}</h2>
+                {% if site_tagline %}<div class="login-tagline">{{ site_tagline }}</div>{% endif %}
                 {% if messages %}
                     {% for message in messages %}
                         <div class="alert alert-{{ message.tags }}" role="alert">{{ message }}</div>
