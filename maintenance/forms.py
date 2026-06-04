@@ -635,19 +635,22 @@ class MaintenanceActivityForm(forms.ModelForm):
                     except (Location.DoesNotExist, ValueError):
                         pass
         
-        # If equipment_id is provided (from URL parameter), ensure it's included in queryset
-        # even if site filtering would exclude it
+        # Always include explicitly-selected equipment in the choices — even if it
+        # is inactive or outside the current site filter. The map / calendar /
+        # equipment list show ALL equipment (is_active no longer filtered), so a
+        # user can select an inactive item to log an activity against; the dropdown
+        # otherwise lists active equipment only.
+        include_ids = set()
         if equipment_id:
-            try:
-                equipment = Equipment.objects.get(id=equipment_id, is_active=True)
-                # Check if equipment is already in queryset
-                if not equipment_queryset.filter(id=equipment_id).exists():
-                    # Add it to the queryset using union
-                    from django.db.models import Q
-                    equipment_queryset = equipment_queryset | Equipment.objects.filter(id=equipment_id, is_active=True)
-            except (Equipment.DoesNotExist, ValueError):
-                pass
-        
+            include_ids.add(str(equipment_id))
+        if self.is_bound:
+            if hasattr(self.data, 'getlist'):
+                include_ids.update(self.data.getlist('equipment'))
+            include_ids.add(self.data.get('equipment'))
+        include_ids = {i for i in include_ids if i}
+        if include_ids:
+            equipment_queryset = (equipment_queryset | Equipment.objects.filter(id__in=include_ids)).distinct()
+
         self.fields['equipment'].queryset = equipment_queryset.select_related('category')
         
         self.fields['activity_type'].queryset = MaintenanceActivityType.objects.filter(is_active=True).select_related('category')
