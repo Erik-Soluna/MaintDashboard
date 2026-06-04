@@ -304,6 +304,24 @@ def map_view(request):
 
     site_layout = _build_site_layout(selected_site) if selected_site else None
 
+    # Flat hierarchical list of locations under the site (for the "move equipment" picker).
+    site_locations = []
+    if selected_site:
+        from core.utils import get_all_descendant_location_ids
+        locs = (Location.objects
+                .filter(id__in=get_all_descendant_location_ids(selected_site))
+                .select_related('parent_location', 'parent_location__parent_location'))
+
+        def _label(loc):
+            parts, cur = [], loc
+            while cur is not None and cur.id != selected_site.id:
+                parts.append(cur.name)
+                cur = cur.parent_location
+            return ' › '.join(reversed(parts)) or loc.name
+        site_locations = sorted(
+            ({'id': l.id, 'label': _label(l)} for l in locs),
+            key=lambda x: natural_sort_key(x['label']))
+
     context = {
         'sites': sites,
         'selected_site': selected_site,
@@ -311,8 +329,9 @@ def map_view(request):
         'site_layout_json': json.dumps(site_layout) if site_layout else 'null',
         'can_edit_map': user_has_permission(request.user, 'site_map.write'),
         'can_add_equipment': user_has_permission(request.user, 'equipment.create'),
-        'can_delete_equipment': user_has_permission(request.user, 'equipment.delete'),
+        'can_edit_equipment': user_has_permission(request.user, 'equipment.edit'),
         'equipment_categories': EquipmentCategory.objects.filter(is_active=True).order_by('name'),
+        'site_locations': site_locations,
     }
     return render(request, 'core/map.html', context)
 
@@ -572,17 +591,49 @@ def add_map_equipment(request):
     return JsonResponse({'success': True, 'id': eq.id, 'name': eq.name})
 
 
-@permission_required('equipment.delete')
+@permission_required('equipment.edit')
 @require_POST
-def remove_map_equipment(request):
-    """Delete a piece of equipment (right-click an equipment chip → Remove)."""
+def move_map_equipment(request):
+    """Move equipment to a different location (right-click chip → Move). JSON:
+    {site_id, equipment_id, location_id}. Target must be under the site."""
+    from core.utils import get_all_descendant_location_ids
     try:
         data = json.loads(request.body or b'{}')
     except (ValueError, TypeError):
         return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
     eq = get_object_or_404(Equipment, id=data.get('equipment_id'))
-    name = eq.name
-    eq.delete()
+    site = get_object_or_404(Location, id=data.get('site_id'), is_site=True)
+    allowed = set(get_all_descendant_location_ids(site, include_inactive=True)) | {site.id}
+    try:
+        loc_id = int(data.get('location_id'))
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'Invalid location.'}, status=400)
+    if loc_id not in allowed:
+        return JsonResponse({'success': False, 'error': 'Target location is not part of this site.'}, status=400)
+    location = get_object_or_404(Location, id=loc_id)
+    eq.location = location
+    eq.save(update_fields=['location'])
+    return JsonResponse({'success': True, 'name': eq.name, 'location': location.name})
+
+
+@permission_required('site_map.write')
+@require_POST
+def remove_map_location(request):
+    """Delete a location from the map — only if it holds NO equipment and has no
+    child locations (right-click a POD/sub-location → Remove)."""
+    try:
+        data = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+    loc = get_object_or_404(Location, id=data.get('location_id'))
+    if loc.is_site:
+        return JsonResponse({'success': False, 'error': 'Cannot remove a site from the map.'}, status=400)
+    if loc.equipment.exists():
+        return JsonResponse({'success': False, 'error': f'"{loc.name}" still has equipment — move or remove it first.'}, status=400)
+    if loc.child_locations.exists():
+        return JsonResponse({'success': False, 'error': f'"{loc.name}" has sub-locations — remove those first.'}, status=400)
+    name = loc.name
+    loc.delete()
     return JsonResponse({'success': True, 'name': name})
 
 
@@ -1424,4 +1475,4 @@ def bulk_locations_view(request):
     return render(request, 'core/bulk_locations.html', context)
 
 
-__all__ = ["map_view", "save_map_layout", "import_map_layout", "add_map_location", "add_map_equipment", "remove_map_equipment", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]
+__all__ = ["map_view", "save_map_layout", "import_map_layout", "add_map_location", "add_map_equipment", "move_map_equipment", "remove_map_location", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]
