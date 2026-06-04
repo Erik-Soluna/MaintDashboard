@@ -254,10 +254,12 @@ def _build_site_layout(site):
     cells, ncols = assign_cells([(p.grid_row, p.grid_col) for p in pods], auto_cols)
     nrows = max((r for (r, c) in cells), default=0) + 1
 
+    # Center each block within its cell square (split the PAD gutter both sides).
+    cx, cy = PAD // 2, PAD // 2
     pods_payload = []
     for p, (r, c) in zip(pods, cells):
-        px = PAD + c * (POD_W + PAD)
-        py = PAD + r * (POD_H + PAD)
+        px = PAD + c * (POD_W + PAD) + cx
+        py = PAD + r * (POD_H + PAD) + cy
         mdcs_payload = []
         for (loc, node) in build_pod_tiles(p):
             mdcs_payload.append({
