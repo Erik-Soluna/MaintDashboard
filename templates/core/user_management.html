@@ -23,7 +23,7 @@
                 <i class="fas fa-user-shield me-1"></i>
                 Manage Roles
             </a>
-            <button type="button" class="btn btn-outline-success me-2" data-bs-toggle="modal" data-bs-target="#createAgentModal">
+            <button type="button" class="btn btn-outline-success me-2" data-toggle="modal" data-target="#createAgentModal">
                 <i class="fas fa-robot me-1"></i>
                 New API Agent
             </button>
@@ -256,7 +256,7 @@
             API Agents
             <small class="text-muted ms-2" style="font-weight:400;">Read-only service accounts with copy-pastable API tokens</small>
         </h5>
-        <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#createAgentModal">
+        <button type="button" class="btn btn-sm btn-outline-success" data-toggle="modal" data-target="#createAgentModal">
             <i class="fas fa-plus me-1"></i> New Agent
         </button>
     </div>
@@ -274,7 +274,7 @@
                         <th>Role</th>
                         <th>API Token</th>
                         <th>Created</th>
-                        <th class="text-end">Actions</th>
+                        <th class="text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="agentsTableBody">
@@ -295,7 +295,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><i class="fas fa-robot me-2"></i>New API Agent</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
       <div class="modal-body">
         <div id="createAgentForm">
@@ -306,7 +306,7 @@
           </div>
           <div class="mb-3">
             <label class="form-label">Role</label>
-            <select class="form-select" id="agentRole">
+            <select class="form-control" id="agentRole">
               {% for role in roles %}
                 <option value="{{ role.id }}" {% if role.name == 'ai_diagnostics' %}selected{% endif %}>{{ role.display_name }}</option>
               {% endfor %}
@@ -318,7 +318,7 @@
         <div id="createAgentResult" style="display:none;">
           <div class="alert alert-success mb-2"><i class="fas fa-check-circle me-1"></i> Agent created. Copy the token now:</div>
           <div class="input-group">
-            <input type="text" class="form-control font-monospace" id="newAgentToken" readonly>
+            <input type="text" class="form-control text-monospace" id="newAgentToken" readonly>
             <button class="btn btn-outline-primary" type="button" onclick="copyAgentToken('newAgentToken', this)">
               <i class="fas fa-copy"></i> Copy
             </button>
@@ -327,7 +327,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="agentModalClose">Close</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" id="agentModalClose">Close</button>
         <button type="button" class="btn btn-success" id="agentCreateBtn" onclick="createAgent()">
           <i class="fas fa-plus me-1"></i> Create Agent
         </button>
@@ -440,7 +440,7 @@ function loadAgents() {
                 var tid = 'tok-' + a.id;
                 var tokenCell = a.token
                     ? '<div class="input-group input-group-sm" style="max-width:340px;">'
-                      + '<input type="password" class="form-control font-monospace" id="' + tid + '" value="' + escapeHtml(a.token) + '" readonly>'
+                      + '<input type="password" class="form-control text-monospace" id="' + tid + '" value="' + escapeHtml(a.token) + '" readonly>'
                       + '<button class="btn btn-outline-secondary" type="button" title="Show/hide" onclick="toggleToken(\'' + tid + '\', this)"><i class="fas fa-eye"></i></button>'
                       + '<button class="btn btn-outline-primary" type="button" title="Copy" onclick="copyAgentToken(\'' + tid + '\', this)"><i class="fas fa-copy"></i></button>'
                       + '</div>'
@@ -451,7 +451,7 @@ function loadAgents() {
                     + '<td>' + escapeHtml(a.role || '—') + '</td>'
                     + '<td>' + tokenCell + '</td>'
                     + '<td><small>' + created + '</small></td>'
-                    + '<td class="text-end">'
+                    + '<td class="text-right">'
                     + '<button class="btn btn-sm btn-outline-warning me-1" title="Rotate token" onclick="rotateAgent(' + a.id + ', \'' + escapeHtml(a.username) + '\')"><i class="fas fa-sync-alt"></i></button>'
                     + '<button class="btn btn-sm btn-outline-danger" title="Remove agent" onclick="deleteAgent(' + a.id + ', \'' + escapeHtml(a.username) + '\')"><i class="fas fa-trash"></i></button>'
                     + '</td></tr>';
@@ -522,17 +522,14 @@ function createAgent() {
     });
 }
 
-// reset the modal each time it opens
-document.addEventListener('DOMContentLoaded', function() {
-    var modal = document.getElementById('createAgentModal');
-    if (modal) modal.addEventListener('show.bs.modal', function() {
-        document.getElementById('agentName').value = '';
-        document.getElementById('agentCreateError').style.display = 'none';
-        document.getElementById('createAgentForm').style.display = 'block';
-        document.getElementById('createAgentResult').style.display = 'none';
-        var b = document.getElementById('agentCreateBtn');
-        b.style.display = ''; b.disabled = false;
-    });
+// reset the modal each time it opens (Bootstrap 4 fires jQuery events)
+$(document).on('show.bs.modal', '#createAgentModal', function() {
+    document.getElementById('agentName').value = '';
+    document.getElementById('agentCreateError').style.display = 'none';
+    document.getElementById('createAgentForm').style.display = 'block';
+    document.getElementById('createAgentResult').style.display = 'none';
+    var b = document.getElementById('agentCreateBtn');
+    b.style.display = ''; b.disabled = false;
 });
 
 function rotateAgent(id, name) {
