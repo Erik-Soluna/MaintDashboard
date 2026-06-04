@@ -29,6 +29,7 @@ urlpatterns = [
     path('map/', views.map_view, name='map_view'),
     path('map/layout/save/', views.save_map_layout, name='save_map_layout'),
     path('map/layout/import/', views.import_map_layout, name='import_map_layout'),
+    path('map/location/add/', views.add_map_location, name='add_map_location'),
     path('locations/settings/', views.locations_settings, name='locations_settings'),
     path('equipment-items/settings/', views.equipment_items_settings, name='equipment_items_settings'),
     path('equipment-conditional-fields/settings/', views.equipment_conditional_fields_settings, name='equipment_conditional_fields_settings'),
