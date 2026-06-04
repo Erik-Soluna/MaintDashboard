@@ -33,6 +33,7 @@ Access requires `diagnostics.read` (granted by the `ai_diagnostics` role) or
 | GET | `/api/v1/data/<app>/<model>/<pk>/` | Single record. |
 | GET | `/api/v1/diagnostics/health/` | Comprehensive system health (db, cache, celery worker/beat, email, system). |
 | GET | `/api/v1/diagnostics/summary/` | Open/critical issues, overdue maintenance, equipment-by-status. |
+| GET/POST | `/api/v1/actions/redeploy/` | GET: is a redeploy configured. **POST: trigger a Portainer GitOps stack redeploy** (re-pull + recreate). Privileged — requires `diagnostics.deploy` / `administration.write` / staff. Uses the webhook from the Webhook Settings page (`PortainerConfig`). |
 
 Every record includes a `display` field (the model's `__str__`) for readability.
 

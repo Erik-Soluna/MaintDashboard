@@ -51,6 +51,24 @@ def _get(path: str, params: dict | None = None):
         return {"error": f"Request failed: {e}"}
 
 
+def _post(path: str, json_body: dict | None = None):
+    """POST a path under /api/v1 (privileged actions) and return parsed JSON."""
+    try:
+        with _client() as c:
+            resp = c.post(path, json=json_body or {})
+        if resp.status_code == 401:
+            return {"error": "Unauthorized — check MAINT_API_TOKEN."}
+        if resp.status_code == 403:
+            return {"error": "Forbidden — the token's account lacks the required permission."}
+        # 200/202/502 all carry a JSON body we want to surface
+        try:
+            return resp.json()
+        except ValueError:
+            return {"error": f"Unexpected response: {resp.status_code}"}
+    except httpx.HTTPError as e:
+        return {"error": f"Request failed: {e}"}
+
+
 @mcp.tool()
 def get_system_health() -> dict:
     """Comprehensive system health: database, cache, Celery worker/beat, email, system."""
@@ -97,6 +115,20 @@ def equipment_status() -> dict:
             "equipment_by_status": summary.get("equipment_by_status", {}),
         }
     return summary
+
+
+@mcp.tool()
+def redeploy_status() -> dict:
+    """Whether a stack redeploy is configured (Portainer webhook set) + the stack name."""
+    return _get("/actions/redeploy/")
+
+
+@mcp.tool()
+def trigger_redeploy() -> dict:
+    """Trigger a Portainer GitOps stack redeploy (re-pull + recreate the stack).
+    PRIVILEGED — the token's account needs diagnostics.deploy / admin. Uses the
+    webhook configured on the dashboard's Webhook Settings page."""
+    return _post("/actions/redeploy/")
 
 
 @mcp.tool()
