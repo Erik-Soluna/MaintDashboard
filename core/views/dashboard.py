@@ -209,6 +209,14 @@ def dashboard(request):
     # Use status filters from dashboard settings
     max_items = 200  # Reasonable limit to prevent excessive memory usage
     now = timezone.now()
+
+    # Aware datetime bounds for filtering DateTimeFields (scheduled_*/actual_end).
+    # Comparing a bare date against a DateTimeField emits a naive-datetime warning
+    # and is coerced to UTC midnight; build explicit aware bounds instead.
+    from datetime import datetime as _dt, time as _time
+    today_dt = timezone.make_aware(_dt.combine(today, _time.min))
+    urgent_cutoff_dt = timezone.make_aware(_dt.combine(urgent_cutoff, _time.max))
+    upcoming_cutoff_dt = timezone.make_aware(_dt.combine(upcoming_cutoff, _time.max))
     
     # Get status filters from dashboard settings
     urgent_statuses = dashboard_settings.urgent_statuses if dashboard_settings and dashboard_settings.urgent_statuses else ['scheduled', 'overdue']
@@ -218,9 +226,9 @@ def dashboard(request):
             Q(status='overdue') |  # Items explicitly marked as overdue
             (Q(scheduled_start__lt=now) & ~Q(status__in=['completed', 'cancelled'])) |  # Items past scheduled start date (overdue)
             # Items within urgent window (0-7 days)
-            (Q(scheduled_end__lte=urgent_cutoff) & Q(scheduled_end__gte=today)) |
+            (Q(scheduled_end__lte=urgent_cutoff_dt) & Q(scheduled_end__gte=today_dt)) |
             # Items with only scheduled_start in urgent window
-            Q(scheduled_end__isnull=True, scheduled_start__lte=urgent_cutoff, scheduled_start__gte=today)
+            Q(scheduled_end__isnull=True, scheduled_start__lte=urgent_cutoff_dt, scheduled_start__gte=today_dt)
         )
     ).order_by('scheduled_end', 'scheduled_start')[:max_items])
     
@@ -240,9 +248,9 @@ def dashboard(request):
     upcoming_maintenance_all = list(maintenance_query.filter(
         Q(
             # Items with scheduled_end AFTER urgent window but within upcoming window (7-30 days)
-            Q(scheduled_end__gt=urgent_cutoff, scheduled_end__lte=upcoming_cutoff) |
+            Q(scheduled_end__gt=urgent_cutoff_dt, scheduled_end__lte=upcoming_cutoff_dt) |
             # Items with only scheduled_start AFTER urgent window but within upcoming window
-            Q(scheduled_end__isnull=True, scheduled_start__gt=urgent_cutoff, scheduled_start__lte=upcoming_cutoff)
+            Q(scheduled_end__isnull=True, scheduled_start__gt=urgent_cutoff_dt, scheduled_start__lte=upcoming_cutoff_dt)
         ),
         status__in=upcoming_statuses
     ).exclude(
@@ -657,9 +665,9 @@ def dashboard(request):
             Q(equipment__location__parent_location_id__in=site_ids) | Q(equipment__location_id__in=site_ids),
             Q(
                 # Items with scheduled_end AFTER urgent window but within upcoming window
-                Q(scheduled_end__gt=urgent_cutoff, scheduled_end__lte=upcoming_cutoff) |
+                Q(scheduled_end__gt=urgent_cutoff_dt, scheduled_end__lte=upcoming_cutoff_dt) |
                 # Items with only scheduled_start AFTER urgent window but within upcoming window
-                Q(scheduled_end__isnull=True, scheduled_start__gt=urgent_cutoff, scheduled_start__lte=upcoming_cutoff)
+                Q(scheduled_end__isnull=True, scheduled_start__gt=urgent_cutoff_dt, scheduled_start__lte=upcoming_cutoff_dt)
             ),
             status__in=['scheduled', 'pending', 'in_progress']
         ).exclude(
@@ -711,7 +719,7 @@ def dashboard(request):
         # Get all recent activities for all sites, then group by site
         all_recent_activities = MaintenanceActivity.objects.filter(
             all_site_filters,
-            actual_end__gte=today - timedelta(days=30),
+            actual_end__gte=today_dt - timedelta(days=30),
             status='completed'
         ).select_related('equipment', 'equipment__location', 'assigned_to').order_by('-actual_end')[:100]  # Limit total
         
@@ -881,7 +889,7 @@ def dashboard(request):
     # Calculate completed this month
     completed_this_month = maintenance_query.filter(
         status='completed',
-        actual_end__gte=today.replace(day=1)
+        actual_end__gte=timezone.make_aware(_dt.combine(today.replace(day=1), _time.min))
     ).count()
     
     site_stats = {
