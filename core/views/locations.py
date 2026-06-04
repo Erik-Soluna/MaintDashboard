@@ -141,9 +141,12 @@ def _build_site_layout(site):
         return {'id': e.id, 'name': e.name, 'health': health, 'open_issues': total,
                 'tooltip': " • ".join(tip)}
 
-    # Group equipment by (pod, mdc). The MDC is the chain element directly below
-    # the POD; equipment sitting directly on the POD goes to an "Unzoned" group.
-    groups = {p.id: {} for p in pods}   # pod_id -> { mdc_id|None: {'mdc': loc|None, 'eq': []} }
+    # Group equipment into tiles. The MDC is the chain element directly below the
+    # POD; equipment sitting directly on a POD (no MDC) is bucketed BY EQUIPMENT
+    # CATEGORY instead of one generic "Unzoned" tile — so e.g. a POD's transformer
+    # shows up as a "Transformer" tile. Tile keys: an int (real MDC location id) or
+    # ('cat', category_id) for a synthetic category tile (no backing location).
+    groups = {p.id: {} for p in pods}   # pod_id -> { key: {'mdc': loc|None, 'label': str, 'eq': []} }
     for e in equipment:
         chain, loc = [], e.location
         while loc is not None:
@@ -154,8 +157,14 @@ def _build_site_layout(site):
             continue
         idx = chain.index(pod)
         mdc = chain[idx - 1] if idx > 0 else None
-        mid = mdc.id if mdc else None
-        groups[pod.id].setdefault(mid, {'mdc': mdc, 'eq': []})['eq'].append(e)
+        if mdc is not None:
+            grp = groups[pod.id].setdefault(mdc.id, {'mdc': mdc, 'label': mdc.name, 'eq': []})
+        else:
+            cat = e.category
+            key = ('cat', cat.id if cat else None)
+            label = cat.name if cat else 'Unzoned'
+            grp = groups[pod.id].setdefault(key, {'mdc': None, 'label': label, 'eq': []})
+        grp['eq'].append(e)
 
     # Include every MDC under each POD even if it has no equipment yet.
     mdc_by_pod = {}
@@ -164,16 +173,18 @@ def _build_site_layout(site):
                       key=lambda l: natural_sort_key(l.name))
         mdc_by_pod[p.id] = mdcs
         for m in mdcs:
-            groups[p.id].setdefault(m.id, {'mdc': m, 'eq': []})
+            groups[p.id].setdefault(m.id, {'mdc': m, 'label': m.name, 'eq': []})
 
     # Flow PODs left-to-right, wrapping; grid MDC tiles inside each POD.
     x_cur, y_cur, row_h = PAD, PAD, 0
     pods_payload = []
     for p in pods:
         g = groups[p.id]
-        ordered = [(m.id, g.get(m.id) or {'mdc': m, 'eq': []}) for m in mdc_by_pod[p.id]]
-        if None in g:
-            ordered.append((None, g[None]))
+        # Real MDC tiles first (natural order), then synthetic category tiles by label.
+        ordered = [(m.id, g[m.id]) for m in mdc_by_pod[p.id]]
+        cat_keys = sorted((k for k in g if isinstance(k, tuple)),
+                          key=lambda k: natural_sort_key(g[k]['label']))
+        ordered.extend((k, g[k]) for k in cat_keys)
         n = max(1, len(ordered))
         cols = max(1, int(math.ceil(math.sqrt(n))))
         rows = int(math.ceil(n / cols))
@@ -204,7 +215,10 @@ def _build_site_layout(site):
             for e in eqs:
                 counts[e['health']] += 1
             mdcs_payload.append({
-                'id': mid, 'name': (mdc.name if mdc else 'Unzoned'),
+                # Real MDC -> its location id (draggable/saveable); synthetic
+                # category tile -> null id (renders + expands, excluded from save).
+                'id': (mid if isinstance(mid, int) else None),
+                'name': data['label'],
                 'x': round(tx, 1), 'y': round(ty, 1), 'w': round(tw, 1), 'h': round(th, 1),
                 'count': len(eqs), 'counts': counts, 'equipment': eqs,
             })
