@@ -198,13 +198,15 @@
 /* Compact mobile filters: hide redundant labels, search on its own row,
    dropdowns flow across one row. */
 @media (max-width: 768px) {
-    .equipment-header { padding: 8px 12px; }
-    .equipment-filters { gap: 8px; }
-    .filter-group { flex: 1 1 30%; }
-    .filter-group.filter-search { flex-basis: 100%; }
+    .equipment-header { padding: 8px 10px; margin-bottom: 10px; }
+    .equipment-header h5 { font-size: 1rem; }
+    .equipment-filters { gap: 6px; }
+    /* search full-width on its own row; the three dropdowns share one tight row */
+    .filter-group { flex: 1 1 0; min-width: 0; }
+    .filter-group.filter-search { flex: 1 1 100%; }
     .filter-group label { display: none; }
-    .filter-select, .search-input { min-width: 0; width: 100%; }
-    .action-buttons { margin-left: auto; }
+    .filter-select, .search-input { min-width: 0; width: 100%; padding: 6px 8px; }
+    .action-buttons { flex: 0 0 auto; margin-left: auto; }
 }
 </style>
 {% endblock %}

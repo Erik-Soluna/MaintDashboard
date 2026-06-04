@@ -111,6 +111,17 @@
     color: #e2e8f0; padding: 7px 10px; font-size: 13px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
 .ctx-menu button:hover { background: #2a3550; }
 .dragging { opacity:.85; z-index:40 !important; }
+
+/* Mobile: tighten the header so the map gets the space, shrink the legend. */
+@media (max-width: 768px) {
+    .map-header { padding: 10px 12px; margin-bottom: 12px; }
+    .map-controls { gap: 8px; }
+    .map-legend { gap: 6px 10px; margin-left: 0; width: 100%; }
+    .legend-item { font-size: 10px; gap: 4px; }
+    .legend-swatch { width: 10px; height: 10px; }
+    .zoom-control input[type=range] { width: 90px; }
+    #canvasWrap { max-height: 70vh; }
+}
 </style>
 {% endblock %}
 
