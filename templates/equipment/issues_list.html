@@ -294,12 +294,15 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label for="addIssueEquipment" class="form-label">Equipment <span class="text-danger">*</span></label>
-                    <select id="addIssueEquipment" class="form-control">
+                    <input type="text" id="addIssueEquipmentSearch" class="form-control mb-2"
+                           placeholder="Search equipment by name or location…" autocomplete="off">
+                    <select id="addIssueEquipment" class="form-control" size="8">
                         <option value="">Select equipment…</option>
                         {% for eq in equipment_choices %}
-                        <option value="{{ eq.id }}">{{ eq.name }}{% if eq.location %} — {{ eq.location.get_hierarchical_display }}{% endif %}</option>
+                        <option value="{{ eq.id }}" data-search="{{ eq.name|lower }} {% if eq.location %}{{ eq.location.get_hierarchical_display|lower }}{% endif %}">{{ eq.name }}{% if eq.location %} — {{ eq.location.get_hierarchical_display }}{% endif %}</option>
                         {% endfor %}
                     </select>
+                    <small id="addIssueEquipmentEmpty" class="text-muted" style="display:none;">No equipment matches.</small>
                 </div>
                 <div id="addIssueFormBody">
                     <p class="text-muted">Select equipment to log an issue against.</p>
@@ -373,8 +376,29 @@ $(document).ready(function() {
         });
     }
 
-    // Add Issue: pick equipment -> load its log-issue form -> submit via AJAX.
+    // Add Issue: search-filter the equipment list, pick -> load form -> submit.
     var $addEq = $('#addIssueEquipment');
+    var $addEqSearch = $('#addIssueEquipmentSearch');
+    var $addEqEmpty = $('#addIssueEquipmentEmpty');
+    $addEqSearch.on('input', function() {
+        var q = $(this).val().trim().toLowerCase();
+        var shown = 0;
+        $addEq.find('option').each(function() {
+            var opt = $(this);
+            if (!opt.val()) { return; }  // keep the placeholder
+            var hay = opt.attr('data-search') || opt.text().toLowerCase();
+            var match = q === '' || hay.indexOf(q) !== -1;
+            opt.prop('hidden', !match);
+            if (match) shown++;
+        });
+        $addEqEmpty.toggle(shown === 0);
+    });
+    // reset the filter whenever the modal opens
+    $('#addIssueModal').on('show.bs.modal', function() {
+        $addEqSearch.val('');
+        $addEq.find('option').prop('hidden', false);
+        $addEqEmpty.hide();
+    });
     var $addBody = $('#addIssueFormBody');
     var $addSubmit = $('#submitAddIssue');
     $addEq.on('change', function() {
