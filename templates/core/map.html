@@ -323,17 +323,25 @@
             }
         }
 
-        // Auto-fit: re-grid each POD's MDC tiles into a tidy grid and resize the
-        // POD to contain them (POD positions are kept). Matches the server's
-        // default auto-layout constants.
+        // Auto-fit: flow PODs left-to-right (wrapping at canvas width), and re-grid
+        // each POD's MDC tiles into a tidy grid inside it. Mirrors the server's
+        // default auto-layout (_build_site_layout) so the result matches a fresh map.
         function autoFit() {
-            var HEADER = 28, TILE_W = 156, TILE_H = 58, TPAD = 10;
+            var PAD = 24, HEADER = 28, TILE_W = 156, TILE_H = 58, TPAD = 10;
+            var canvasW = (layout.site && layout.site.width) || canvas.clientWidth || 1280;
+            var xCur = PAD, yCur = PAD, rowH = 0;
             Array.prototype.forEach.call(canvas.querySelectorAll('.pod-zone'), function (zone) {
                 var tiles = tilesByPod[zone.dataset.id] || [];
-                var n = tiles.length || 1;
+                var n = Math.max(1, tiles.length);
                 var cols = Math.max(1, Math.ceil(Math.sqrt(n)));
                 var rows = Math.ceil(n / cols);
-                var pl = px(zone, 'left'), pt = px(zone, 'top');
+                var compW = cols * TILE_W + (cols + 1) * TPAD;
+                var compH = HEADER + rows * TILE_H + (rows + 1) * TPAD;
+                // wrap to the next row when this POD would overflow the canvas width
+                if (xCur + compW > canvasW && xCur > PAD) { xCur = PAD; yCur += rowH + PAD; rowH = 0; }
+                var pl = xCur, pt = yCur;
+                zone.style.left = pl + 'px'; zone.style.top = pt + 'px';
+                zone.style.width = compW + 'px'; zone.style.height = compH + 'px';
                 tiles.forEach(function (tile, i) {
                     var r = Math.floor(i / cols), c = i % cols;
                     tile.style.left = (pl + TPAD + c * (TILE_W + TPAD)) + 'px';
@@ -341,8 +349,8 @@
                     tile.style.width = TILE_W + 'px';
                     tile.style.height = TILE_H + 'px';
                 });
-                zone.style.width = (cols * TILE_W + (cols + 1) * TPAD) + 'px';
-                zone.style.height = (HEADER + rows * TILE_H + (rows + 1) * TPAD) + 'px';
+                xCur += compW + PAD;
+                rowH = Math.max(rowH, compH);
             });
             dirty = true;
         }
