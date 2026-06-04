@@ -481,6 +481,52 @@ def import_map_layout(request):
                          'errors': errors[:50]})
 
 
+@permission_required('site_map.write')
+@require_POST
+def add_map_location(request):
+    """Create a location/sub-location from the map's right-click menu. JSON:
+    {site_id, name, parent_id?, grid_row?, grid_col?}. parent_id defaults to the
+    site (a new POD); otherwise it's a child under that POD/MDC. Optional grid
+    cell positions a new POD."""
+    from core.utils import get_all_descendant_location_ids
+    try:
+        data = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+
+    name = (data.get('name') or '').strip()
+    if not name:
+        return JsonResponse({'success': False, 'error': 'A name is required.'}, status=400)
+    site = get_object_or_404(Location, id=data.get('site_id'), is_site=True)
+
+    parent_id = data.get('parent_id')
+    if parent_id:
+        allowed = set(get_all_descendant_location_ids(site, include_inactive=True)) | {site.id}
+        try:
+            parent_id = int(parent_id)
+        except (TypeError, ValueError):
+            return JsonResponse({'success': False, 'error': 'Invalid parent.'}, status=400)
+        if parent_id not in allowed:
+            return JsonResponse({'success': False, 'error': 'Parent is not part of this site.'}, status=400)
+        parent = get_object_or_404(Location, id=parent_id)
+    else:
+        parent = site
+
+    if Location.objects.filter(name=name, parent_location=parent).exists():
+        return JsonResponse({'success': False, 'error': f'"{name}" already exists here.'}, status=400)
+
+    def gi(v):
+        try:
+            return max(0, int(v))
+        except (TypeError, ValueError):
+            return None
+
+    loc = Location.objects.create(
+        name=name, parent_location=parent, is_site=False, is_active=True,
+        grid_row=gi(data.get('grid_row')), grid_col=gi(data.get('grid_col')))
+    return JsonResponse({'success': True, 'id': loc.id, 'name': loc.name})
+
+
 @login_required
 @user_passes_test(is_staff_or_superuser)
 def locations_settings(request):
@@ -1319,4 +1365,4 @@ def bulk_locations_view(request):
     return render(request, 'core/bulk_locations.html', context)
 
 
-__all__ = ["map_view", "save_map_layout", "import_map_layout", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]
+__all__ = ["map_view", "save_map_layout", "import_map_layout", "add_map_location", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]

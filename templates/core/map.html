@@ -98,6 +98,11 @@
 .resize-handle { position:absolute; right:-3px; bottom:-3px; width:14px; height:14px; cursor:se-resize;
     display:none; background:#fff; border:2px solid #4299e1; border-radius:3px; z-index:6; }
 #canvasWrap.editing .resize-handle { display:block; }
+.ctx-menu { position: fixed; z-index: 1000; background: #222c40; border: 1px solid #4a5568;
+    border-radius: 6px; padding: 4px; min-width: 210px; box-shadow: 0 6px 20px rgba(0,0,0,.45); }
+.ctx-menu button { display: block; width: 100%; text-align: left; background: none; border: none;
+    color: #e2e8f0; padding: 7px 10px; font-size: 13px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+.ctx-menu button:hover { background: #2a3550; }
 .dragging { opacity:.85; z-index:40 !important; }
 </style>
 {% endblock %}
@@ -196,6 +201,7 @@
         <h5 class="text-muted">No zones to map for this site</h5>
         <p>Once this site has PODs/MDCs and equipment, they'll appear here.</p>
     </div>
+    {% if can_edit_map %}<div id="ctxMenu" class="ctx-menu" style="display:none;"></div>{% endif %}
 {% endif %}
 {% endblock %}
 
@@ -588,6 +594,61 @@
         window.addEventListener('beforeunload', function (e) {
             if (editing && dirty) { e.preventDefault(); e.returnValue = ''; }
         });
+
+        // ----- right-click menu: add a location / sub-location where you click -----
+        var ctxMenu = document.getElementById('ctxMenu');
+        if (ctxMenu) {
+            function hideMenu() { ctxMenu.style.display = 'none'; ctxMenu.innerHTML = ''; }
+            document.addEventListener('click', hideMenu);
+            document.addEventListener('scroll', hideMenu, true);
+            window.addEventListener('resize', hideMenu);
+            canvas.addEventListener('contextmenu', function (ev) {
+                ev.preventDefault();
+                var tile = ev.target.closest && ev.target.closest('.mdc-tile[data-id]');
+                var pod = ev.target.closest && ev.target.closest('.pod-zone[data-id]');
+                var opts = [];
+                if (tile) {
+                    var tn = (tile.querySelector('.mdc-tile-name') || {}).textContent || 'location';
+                    opts.push({ label: '➕ Add sub-location to "' + tn.trim() + '"', parent: tile.dataset.id });
+                }
+                if (pod) {
+                    var pn = (pod.querySelector('.pod-header') || {}).textContent || 'POD';
+                    opts.push({ label: '➕ Add sub-location to "' + pn.trim() + '"', parent: pod.dataset.id });
+                }
+                if (!pod) {  // empty cell -> new POD at that cell
+                    var rect = canvas.getBoundingClientRect();
+                    var c = Math.max(0, Math.floor((((ev.clientX - rect.left) / scale) - GRID_PAD) / GRID_SX));
+                    var r = Math.max(0, Math.floor((((ev.clientY - rect.top) / scale) - GRID_PAD) / GRID_SY));
+                    opts.push({ label: '➕ Add POD here', parent: null, r: r, c: c });
+                }
+                ctxMenu.innerHTML = '';
+                opts.forEach(function (o) {
+                    var b = document.createElement('button');
+                    b.textContent = o.label;
+                    b.addEventListener('click', function (e) { e.stopPropagation(); hideMenu(); addLocation(o); });
+                    ctxMenu.appendChild(b);
+                });
+                ctxMenu.style.left = ev.clientX + 'px';
+                ctxMenu.style.top = ev.clientY + 'px';
+                ctxMenu.style.display = 'block';
+            });
+            function addLocation(o) {
+                var name = (prompt(o.parent ? 'Name of the new sub-location:' : 'Name of the new POD:') || '').trim();
+                if (!name) return;
+                var token = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
+                var body = { site_id: layout.site.id, name: name, parent_id: o.parent };
+                if (o.r != null) { body.grid_row = o.r; body.grid_col = o.c; }
+                fetch("{% url 'core:add_map_location' %}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token, 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin', body: JSON.stringify(body)
+                }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+                  .then(function (res) {
+                      if (!res.ok || !res.d.success) { alert((res.d && res.d.error) || 'Could not add location.'); return; }
+                      window.location.reload();
+                  }).catch(function () { alert('Request failed.'); });
+            }
+        }
     }
 })();
 </script>
