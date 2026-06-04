@@ -70,6 +70,9 @@
     padding: 3px 6px; font-size: 10px; font-weight: 600; color: #cbd5e0; cursor: pointer; white-space: nowrap; }
 .subloc-header:hover { background: #2a3550; }
 .subloc-name { overflow: hidden; text-overflow: ellipsis; }
+.subloc-icon { font-size: 9px; margin-right: 2px; color: #718096; }
+.subloc-cat > .subloc-header .subloc-icon { color: #63b3ed; }   /* category = blue */
+.subloc-loc > .subloc-header .subloc-icon { color: #a0aec0; }   /* location = grey */
 .subloc-count { color: #a0aec0; font-weight: 400; }
 .subloc-caret { color: #718096; font-size: 8px; display: inline-block; }
 .subloc-body { display: none; flex-wrap: wrap; gap: 4px; padding: 4px 6px; }
@@ -183,12 +186,16 @@
         chip.addEventListener('click', function (ev) { ev.stopPropagation(); });
         return chip;
     }
-    function makeSubGroup(node) {
+    function makeSubGroup(node, kind) {
         var g = document.createElement('div');
-        g.className = 'subloc';
+        g.className = 'subloc subloc-' + (kind || 'loc');
+        // location groups get a folder icon, category groups a layer/type icon
+        var icon = kind === 'cat'
+            ? '<i class="fas fa-layer-group subloc-icon"></i> '
+            : '<i class="fas fa-folder subloc-icon"></i> ';
         var h = document.createElement('div');
         h.className = 'subloc-header';
-        h.innerHTML = '<span class="subloc-name">' + escapeHtml(node.name) +
+        h.innerHTML = '<span class="subloc-name">' + icon + escapeHtml(node.name) +
             '</span><span class="subloc-count">' + node.count +
             ' <span class="subloc-caret">&#9656;</span></span>';
         h.addEventListener('click', function (ev) { ev.stopPropagation(); g.classList.toggle('expanded'); });
@@ -199,15 +206,18 @@
         g.appendChild(b);
         return g;
     }
-    // Fill a body element with a node's direct equipment, then its nested children.
+    // Fill a body element with: flat equipment chips (category-tile leaves),
+    // then per-category groups, then nested sub-location children. Category groups
+    // and location children both render via makeSubGroup -> fillNodeBody (recursive).
     function fillNodeBody(body, node) {
-        var eqs = node.equipment || [], kids = node.children || [];
-        if (!eqs.length && !kids.length) {
+        var flat = node.equipment || [], groups = node.equipment_groups || [], kids = node.children || [];
+        if (!flat.length && !groups.length && !kids.length) {
             body.innerHTML = '<span class="mdc-empty">No equipment</span>';
             return;
         }
-        eqs.forEach(function (eq) { body.appendChild(makeChip(eq)); });
-        kids.forEach(function (child) { body.appendChild(makeSubGroup(child)); });
+        flat.forEach(function (eq) { body.appendChild(makeChip(eq)); });
+        groups.forEach(function (g) { body.appendChild(makeSubGroup(g, 'cat')); });
+        kids.forEach(function (child) { body.appendChild(makeSubGroup(child, 'loc')); });
     }
 
     var hasContent = layout.pods && layout.pods.length;
