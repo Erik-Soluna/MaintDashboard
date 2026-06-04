@@ -141,81 +141,141 @@ def _build_site_layout(site):
         return {'id': e.id, 'name': e.name, 'health': health, 'open_issues': total,
                 'tooltip': " • ".join(tip)}
 
-    # Group equipment by (pod, mdc). The MDC is the chain element directly below
-    # the POD; equipment sitting directly on the POD goes to an "Unzoned" group.
-    groups = {p.id: {} for p in pods}   # pod_id -> { mdc_id|None: {'mdc': loc|None, 'eq': []} }
+    # Build the location/equipment tree. Each POD's tiles are its direct child
+    # locations (MDCs, cabinets, …); within a tile, sub-locations nest recursively
+    # to arbitrary depth (POD › MDC › Network Cabinet › switches). Equipment sitting
+    # directly on a POD (no sub-location) is bucketed BY CATEGORY into synthetic
+    # tiles ("Transformer", "VFD", …) instead of one generic "Unzoned" tile.
+    HEALTH_LEVELS = ('critical', 'warning', 'maintenance', 'ok', 'idle')
+    eq_by_loc = {}
     for e in equipment:
-        chain, loc = [], e.location
-        while loc is not None:
-            chain.append(loc)
-            loc = loc.parent_location
-        pod = next((l for l in chain if l.id in pod_ids), None)
-        if not pod:
-            continue
-        idx = chain.index(pod)
-        mdc = chain[idx - 1] if idx > 0 else None
-        mid = mdc.id if mdc else None
-        groups[pod.id].setdefault(mid, {'mdc': mdc, 'eq': []})['eq'].append(e)
+        eq_by_loc.setdefault(e.location_id, []).append(e)
+    children_by_loc = {}
+    for loc in Location.objects.filter(id__in=site_loc_ids):
+        if loc.parent_location_id:
+            children_by_loc.setdefault(loc.parent_location_id, []).append(loc)
 
-    # Include every MDC under each POD even if it has no equipment yet.
-    mdc_by_pod = {}
-    for p in pods:
-        mdcs = sorted(Location.objects.filter(parent_location=p, is_active=True),
-                      key=lambda l: natural_sort_key(l.name))
-        mdc_by_pod[p.id] = mdcs
-        for m in mdcs:
-            groups[p.id].setdefault(m.id, {'mdc': m, 'eq': []})
+    def category_groups(eq_list):
+        """Group a flat equipment list into expandable per-category groups
+        (Transformer, Switchgear, PDU, …) so types are never mixed/mistaken."""
+        buckets = {}
+        for e in eq_list:
+            cat = e.category
+            b = buckets.setdefault(cat.id if cat else None,
+                                   {'name': cat.name if cat else 'Uncategorized', 'eq': []})
+            b['eq'].append(e)
+        groups = []
+        for key in sorted(buckets, key=lambda k: natural_sort_key(buckets[k]['name'])):
+            b = buckets[key]
+            chips = [eq_payload(e) for e in sorted(b['eq'], key=lambda e: natural_sort_key(e.name))]
+            counts = {lvl: 0 for lvl in HEALTH_LEVELS}
+            for ep in chips:
+                counts[ep['health']] += 1
+            groups.append({'name': b['name'], 'equipment': chips,
+                           'count': len(chips), 'counts': counts})
+        return groups
 
-    # Flow PODs left-to-right, wrapping; grid MDC tiles inside each POD.
-    x_cur, y_cur, row_h = PAD, PAD, 0
+    def build_node(loc):
+        """Recursive sub-location node: its direct equipment grouped by category,
+        plus nested child locations. Counts aggregate over the whole subtree."""
+        eq_groups = category_groups(eq_by_loc.get(loc.id, []))
+        kids = [build_node(c) for c in sorted(children_by_loc.get(loc.id, []),
+                                              key=lambda l: natural_sort_key(l.name))]
+        counts = {lvl: 0 for lvl in HEALTH_LEVELS}
+        total = 0
+        for g in eq_groups:
+            total += g['count']
+            for lvl in HEALTH_LEVELS:
+                counts[lvl] += g['counts'][lvl]
+        for k in kids:
+            total += k['count']
+            for lvl in HEALTH_LEVELS:
+                counts[lvl] += k['counts'][lvl]
+        return {'id': loc.id, 'name': loc.name, 'equipment_groups': eq_groups,
+                'children': kids, 'count': total, 'counts': counts}
+
+    def build_pod_tiles(p):
+        """A POD's tiles: its direct child locations (shown if active or non-empty)
+        plus per-category buckets for equipment sitting directly on the POD."""
+        tiles = []
+        for child in sorted(children_by_loc.get(p.id, []),
+                            key=lambda l: (l.grid_row if l.grid_row is not None else 9999,
+                                           l.grid_col if l.grid_col is not None else 9999,
+                                           natural_sort_key(l.name))):
+            node = build_node(child)
+            if child.is_active or node['count'] > 0:
+                tiles.append((child, node))
+        cat_buckets = {}
+        for e in sorted(eq_by_loc.get(p.id, []), key=lambda e: natural_sort_key(e.name)):
+            cat = e.category
+            b = cat_buckets.setdefault(cat.id if cat else None,
+                                       {'label': cat.name if cat else 'Uncategorized', 'eq': []})
+            b['eq'].append(e)
+        for key in sorted(cat_buckets, key=lambda k: natural_sort_key(cat_buckets[k]['label'])):
+            b = cat_buckets[key]
+            eqs = [eq_payload(e) for e in b['eq']]
+            counts = {lvl: 0 for lvl in HEALTH_LEVELS}
+            for ep in eqs:
+                counts[ep['health']] += 1
+            tiles.append((None, {'id': None, 'name': b['label'], 'equipment': eqs,
+                                 'children': [], 'count': len(eqs), 'counts': counts}))
+        return tiles
+
+    def assign_cells(rc_list, auto_cols=None):
+        """Place items on a uniform grid by (row, col). Explicit cells (both set)
+        are honored; the rest auto-fill row-major into free cells. Returns
+        (cells, ncols). auto_cols sets the width when nothing is explicitly placed."""
+        n = len(rc_list)
+        explicit = [(r, c) for (r, c) in rc_list if r is not None and c is not None]
+        default_cols = auto_cols or int(math.ceil(math.sqrt(max(1, n))))
+        if not explicit:
+            ncols = max(1, default_cols)
+            return [divmod(i, ncols) for i in range(n)], ncols
+        ncols = max([c for (r, c) in explicit] + [default_cols - 1]) + 1
+        used = set(explicit)
+        cells = [(r, c) if (r is not None and c is not None) else None for (r, c) in rc_list]
+        cursor = 0
+        for i in range(n):
+            if cells[i] is not None:
+                continue
+            while True:
+                rr, cc = divmod(cursor, ncols)
+                cursor += 1
+                if (rr, cc) not in used:
+                    used.add((rr, cc)); cells[i] = (rr, cc); break
+        return cells, ncols
+
+    # Uniform POD blocks on a grid: every POD is the same fixed-size block, placed
+    # at its (grid_row, grid_col) cell (unplaced PODs auto-fill row-major). MDC tiles
+    # flow inside each block via CSS (the block scrolls if needed), so only PODs are
+    # positioned here. Empty grid cells are allowed → the map mirrors the site.
+    POD_W, POD_H = 250, 210
+    auto_cols = max(1, int((canvas_w - PAD) // (POD_W + PAD)))
+    cells, ncols = assign_cells([(p.grid_row, p.grid_col) for p in pods], auto_cols)
+    nrows = max((r for (r, c) in cells), default=0) + 1
+
     pods_payload = []
-    for p in pods:
-        g = groups[p.id]
-        ordered = [(m.id, g.get(m.id) or {'mdc': m, 'eq': []}) for m in mdc_by_pod[p.id]]
-        if None in g:
-            ordered.append((None, g[None]))
-        n = max(1, len(ordered))
-        cols = max(1, int(math.ceil(math.sqrt(n))))
-        rows = int(math.ceil(n / cols))
-        comp_w = cols * TILE_W + (cols + 1) * TPAD
-        comp_h = HEADER + rows * TILE_H + (rows + 1) * TPAD
-
-        if x_cur + comp_w > canvas_w and x_cur > PAD:
-            x_cur, y_cur, row_h = PAD, y_cur + row_h + PAD, 0
-        px = p.layout_x if p.layout_x is not None else x_cur
-        py = p.layout_y if p.layout_y is not None else y_cur
-        pw = p.layout_width or comp_w
-        ph = p.layout_height or comp_h
-        x_cur += comp_w + PAD
-        row_h = max(row_h, comp_h)
-
+    for p, (r, c) in zip(pods, cells):
+        px = PAD + c * (POD_W + PAD)
+        py = PAD + r * (POD_H + PAD)
         mdcs_payload = []
-        for i, (mid, data) in enumerate(ordered):
-            r, c = divmod(i, cols)
-            mdc = data['mdc']
-            tx = px + TPAD + c * (TILE_W + TPAD)
-            ty = py + HEADER + TPAD + r * (TILE_H + TPAD)
-            if mdc is not None and mdc.layout_x is not None:
-                tx, ty = mdc.layout_x, mdc.layout_y
-            tw = (mdc.layout_width if mdc and mdc.layout_width else TILE_W)
-            th = (mdc.layout_height if mdc and mdc.layout_height else TILE_H)
-            eqs = [eq_payload(e) for e in sorted(data['eq'], key=lambda e: natural_sort_key(e.name))]
-            counts = {lvl: 0 for lvl in ('critical', 'warning', 'maintenance', 'ok', 'idle')}
-            for e in eqs:
-                counts[e['health']] += 1
+        for (loc, node) in build_pod_tiles(p):
             mdcs_payload.append({
-                'id': mid, 'name': (mdc.name if mdc else 'Unzoned'),
-                'x': round(tx, 1), 'y': round(ty, 1), 'w': round(tw, 1), 'h': round(th, 1),
-                'count': len(eqs), 'counts': counts, 'equipment': eqs,
+                'id': (loc.id if loc is not None else None),
+                'name': node['name'],
+                'count': node['count'], 'counts': node['counts'],
+                'equipment': node.get('equipment', []),
+                'equipment_groups': node.get('equipment_groups', []),
+                'children': node.get('children', []),
             })
-
         pods_payload.append({
-            'id': p.id, 'name': p.name,
-            'x': round(px, 1), 'y': round(py, 1), 'w': round(pw, 1), 'h': round(ph, 1),
+            'id': p.id, 'name': p.name, 'row': r, 'col': c,
+            'x': round(px, 1), 'y': round(py, 1), 'w': POD_W, 'h': POD_H,
             'mdcs': mdcs_payload,
         })
 
-    canvas_h = site.layout_height or (y_cur + row_h + PAD)
+    canvas_w = max(canvas_w, PAD + ncols * (POD_W + PAD))
+    canvas_h = max(site.layout_height or 0, PAD + nrows * (POD_H + PAD))
     return {
         'site': {'id': site.id, 'name': site.name, 'width': canvas_w, 'height': canvas_h},
         'pods': pods_payload,
@@ -256,7 +316,8 @@ def map_view(request):
 @require_POST
 def save_map_layout(request):
     """Persist facility-map zone positions from the drag editor. Accepts JSON:
-    {site_id, canvas:{width,height}, zones:[{id,x,y,w,h}]}.
+    {site_id, canvas:{width,height}, zones:[...]}. Each zone is either a grid
+    placement {id, grid_row, grid_col} (preferred) or legacy pixels {id,x,y,w,h}.
     Zones are POD/MDC locations under the site (validated)."""
     from core.utils import get_all_descendant_location_ids
     try:
@@ -284,6 +345,12 @@ def save_map_layout(request):
 
     # Zones are POD/MDC locations under this site. Restrict updates to that set.
     allowed_ids = set(get_all_descendant_location_ids(site, include_inactive=True))
+    def grid_int(v):
+        try:
+            return max(0, int(v))
+        except (TypeError, ValueError):
+            return None
+
     zones_saved = 0
     for z in data.get('zones', []):
         try:
@@ -292,12 +359,124 @@ def save_map_layout(request):
             continue
         if zid not in allowed_ids:
             continue
-        zones_saved += Location.objects.filter(id=zid).update(
-            layout_x=num(z.get('x')), layout_y=num(z.get('y')),
-            layout_width=num(z.get('w')), layout_height=num(z.get('h')),
-        )
+        if 'grid_row' in z or 'grid_col' in z:
+            # Grid placement (preferred): row/col cell on the site/POD grid.
+            zones_saved += Location.objects.filter(id=zid).update(
+                grid_row=grid_int(z.get('grid_row')), grid_col=grid_int(z.get('grid_col')),
+            )
+        else:
+            # Legacy free-form pixel placement.
+            zones_saved += Location.objects.filter(id=zid).update(
+                layout_x=num(z.get('x')), layout_y=num(z.get('y')),
+                layout_width=num(z.get('w')), layout_height=num(z.get('h')),
+            )
 
     return JsonResponse({'success': True, 'zones_saved': zones_saved})
+
+
+@permission_required('site_map.write')
+@require_http_methods(["GET", "POST"])
+def import_map_layout(request):
+    """CSV for the facility-map grid. GET with ?site_id= exports the site's CURRENT
+    layout (so you can edit & re-upload); GET without it returns a blank template.
+    POST ingests pod,pod_row,pod_col,mdc,mdc_row,mdc_col and CREATES any missing
+    POD/MDC locations under the site, then sets their grid cells. A blank mdc places
+    just the POD. Coordinates are 0-based; blank = leave as-is."""
+    if request.method == 'GET':
+        out = StringIO()
+        writer = csv.writer(out)
+        writer.writerow(['pod', 'pod_row', 'pod_col', 'mdc', 'mdc_row', 'mdc_col'])
+        site = Location.objects.filter(id=request.GET.get('site_id'), is_site=True).first()
+        if site:
+            # Effective POD cell (grid coords if set, else the auto-placed cell).
+            layout = _build_site_layout(site)
+            pod_cell = {p['id']: (p.get('row'), p.get('col')) for p in layout.get('pods', [])}
+            pods = sorted(Location.objects.filter(parent_location=site),
+                          key=lambda l: (l.grid_row if l.grid_row is not None else 9999,
+                                         l.grid_col if l.grid_col is not None else 9999,
+                                         natural_sort_key(l.name)))
+            for pod in pods:
+                pr, pc = pod_cell.get(pod.id, (pod.grid_row, pod.grid_col))
+                mdcs = sorted(Location.objects.filter(parent_location=pod),
+                              key=lambda l: (l.grid_row if l.grid_row is not None else 9999,
+                                             l.grid_col if l.grid_col is not None else 9999,
+                                             natural_sort_key(l.name)))
+                if mdcs:
+                    for mdc in mdcs:
+                        writer.writerow([pod.name, pr, pc, mdc.name,
+                                         mdc.grid_row if mdc.grid_row is not None else '',
+                                         mdc.grid_col if mdc.grid_col is not None else ''])
+                else:
+                    writer.writerow([pod.name, pr, pc, '', '', ''])
+            fname = f'map_layout_{site.name}.csv'.replace(' ', '_')
+        else:
+            # No site -> blank template with a couple of example rows.
+            writer.writerow(['POD 1', 0, 0, 'MDC 1', '', ''])
+            writer.writerow(['POD 1', 0, 0, 'MDC 2', '', ''])
+            writer.writerow(['POD 2', 0, 1, '', '', ''])
+            fname = 'map_layout_template.csv'
+        resp = HttpResponse(out.getvalue(), content_type='text/csv')
+        resp['Content-Disposition'] = f'attachment; filename="{fname}"'
+        return resp
+
+    site = get_object_or_404(Location, id=request.POST.get('site_id'), is_site=True)
+    upload = request.FILES.get('file')
+    if not upload:
+        return JsonResponse({'success': False, 'error': 'No CSV file uploaded.'}, status=400)
+    try:
+        text = upload.read().decode('utf-8-sig')
+    except Exception:
+        return JsonResponse({'success': False, 'error': 'Could not read the file as UTF-8 text.'}, status=400)
+
+    def norm(k):
+        return (k or '').strip().lower().replace(' ', '_')
+
+    def gi(v):
+        v = (v or '').strip()
+        if not v:
+            return None
+        try:
+            return max(0, int(float(v)))
+        except (TypeError, ValueError):
+            return None
+
+    pods_created = mdcs_created = positioned = 0
+    errors = []
+    pod_cache = {}
+    reader = csv.DictReader(StringIO(text))
+    for i, raw in enumerate(reader, start=2):  # row 1 is the header
+        row = {norm(k): (v or '').strip() for k, v in raw.items()}
+        pod_name = row.get('pod') or row.get('pod_name')
+        if not pod_name:
+            errors.append(f'Row {i}: missing "pod".')
+            continue
+        pod = pod_cache.get(pod_name.lower())
+        if pod is None:
+            pod, created = Location.objects.get_or_create(
+                name=pod_name, parent_location=site,
+                defaults={'is_site': False, 'is_active': True})
+            pods_created += 1 if created else 0
+            pod_cache[pod_name.lower()] = pod
+        pr, pc = gi(row.get('pod_row')), gi(row.get('pod_col'))
+        if pr is not None and pc is not None and (pod.grid_row, pod.grid_col) != (pr, pc):
+            pod.grid_row, pod.grid_col = pr, pc
+            pod.save(update_fields=['grid_row', 'grid_col'])
+            positioned += 1
+        mdc_name = row.get('mdc') or row.get('mdc_name')
+        if mdc_name:
+            mdc, created = Location.objects.get_or_create(
+                name=mdc_name, parent_location=pod,
+                defaults={'is_site': False, 'is_active': True})
+            mdcs_created += 1 if created else 0
+            mr, mc = gi(row.get('mdc_row')), gi(row.get('mdc_col'))
+            if mr is not None and mc is not None and (mdc.grid_row, mdc.grid_col) != (mr, mc):
+                mdc.grid_row, mdc.grid_col = mr, mc
+                mdc.save(update_fields=['grid_row', 'grid_col'])
+                positioned += 1
+
+    return JsonResponse({'success': True, 'pods_created': pods_created,
+                         'mdcs_created': mdcs_created, 'positioned': positioned,
+                         'errors': errors[:50]})
 
 
 @login_required
@@ -1138,4 +1317,4 @@ def bulk_locations_view(request):
     return render(request, 'core/bulk_locations.html', context)
 
 
-__all__ = ["map_view", "save_map_layout", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]
+__all__ = ["map_view", "save_map_layout", "import_map_layout", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]
