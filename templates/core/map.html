@@ -203,6 +203,50 @@
     </div>
     {% if can_edit_map %}<div id="ctxMenu" class="ctx-menu" style="display:none;"></div>{% endif %}
 
+    {% if can_edit_map and selected_site %}
+    <div class="modal fade" id="addLocModal" tabindex="-1" role="dialog" aria-hidden="true">
+      <div class="modal-dialog" role="document"><div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addLocTitle"><i class="fas fa-plus me-2"></i>Add Location</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="addLocParent"><input type="hidden" id="addLocRow"><input type="hidden" id="addLocCol">
+          <div class="mb-2"><label class="form-label" id="addLocLabel">Name</label>
+            <input type="text" id="addLocName" class="form-control" autocomplete="off"></div>
+          <div id="addLocError" class="alert alert-danger" style="display:none;"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-success" id="addLocSubmit"><i class="fas fa-plus me-1"></i> Add</button>
+        </div>
+      </div></div>
+    </div>
+    {% endif %}
+
+    {% if can_edit_equipment and selected_site %}
+    <div class="modal fade" id="moveEqModal" tabindex="-1" role="dialog" aria-hidden="true">
+      <div class="modal-dialog" role="document"><div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-arrows-alt me-2"></i>Move Equipment</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-muted mb-2" style="font-size:.85rem;">Move <strong id="moveEqName"></strong> to:</div>
+          <input type="hidden" id="moveEqId">
+          <select id="moveEqTarget" class="form-control">
+            {% for l in site_locations %}<option value="{{ l.id }}">{{ l.label }}</option>{% endfor %}
+          </select>
+          <div id="moveEqError" class="alert alert-danger mt-2" style="display:none;"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="moveEqSubmit"><i class="fas fa-arrows-alt me-1"></i> Move</button>
+        </div>
+      </div></div>
+    </div>
+    {% endif %}
+
     {% if can_add_equipment and selected_site %}
     <div class="modal fade" id="addEqModal" tabindex="-1" role="dialog" aria-hidden="true">
       <div class="modal-dialog" role="document">
@@ -258,7 +302,7 @@
     var empty = document.getElementById('mapEmpty');
     var canEdit = {{ can_edit_map|yesno:"true,false" }};
     var canAddEq = {{ can_add_equipment|yesno:"true,false" }};
-    var canDeleteEq = {{ can_delete_equipment|yesno:"true,false" }};
+    var canMoveEq = {{ can_edit_equipment|yesno:"true,false" }};
     var saveUrl = "{% url 'core:save_map_layout' %}";
     var DOT = { critical:'#f56565', warning:'#ed8936', maintenance:'#4299e1', ok:'#48bb78', idle:'#718096' };
 
@@ -653,24 +697,26 @@
                 var tile = ev.target.closest && ev.target.closest('.mdc-tile[data-id]');
                 var pod = ev.target.closest && ev.target.closest('.pod-zone[data-id]');
                 var opts = [];
-                if (chip && canDeleteEq) {
-                    opts.push({ label: '🗑 Remove "' + chip.dataset.eqName + '"', removeEq: chip.dataset.eqId, eqName: chip.dataset.eqName });
+                if (chip && canMoveEq) {
+                    opts.push({ label: '↔ Move "' + chip.dataset.eqName + '"', moveEq: chip.dataset.eqId, eqName: chip.dataset.eqName });
                 }
                 if (tile) {
                     var tn = ((tile.querySelector('.mdc-tile-name') || {}).textContent || 'location').trim();
-                    opts.push({ label: '➕ Add sub-location to "' + tn + '"', parent: tile.dataset.id });
+                    opts.push({ label: '➕ Add sub-location to "' + tn + '"', parent: tile.dataset.id, locName: tn });
                     if (canAddEq) opts.push({ label: '🔧 Add equipment to "' + tn + '"', addEq: tile.dataset.id, locName: tn });
+                    opts.push({ label: '🗑 Remove "' + tn + '"', removeLoc: tile.dataset.id, locName: tn });
                 }
                 if (pod) {
                     var pn = ((pod.querySelector('.pod-header') || {}).textContent || 'POD').trim();
-                    opts.push({ label: '➕ Add sub-location to "' + pn + '"', parent: pod.dataset.id });
+                    opts.push({ label: '➕ Add sub-location to "' + pn + '"', parent: pod.dataset.id, locName: pn });
                     if (canAddEq) opts.push({ label: '🔧 Add equipment to "' + pn + '"', addEq: pod.dataset.id, locName: pn });
+                    opts.push({ label: '🗑 Remove "' + pn + '"', removeLoc: pod.dataset.id, locName: pn });
                 }
                 if (!pod) {  // empty cell -> new POD at that cell
                     var rect = canvas.getBoundingClientRect();
                     var c = Math.max(0, Math.floor((((ev.clientX - rect.left) / scale) - GRID_PAD) / GRID_SX));
                     var r = Math.max(0, Math.floor((((ev.clientY - rect.top) / scale) - GRID_PAD) / GRID_SY));
-                    opts.push({ label: '➕ Add POD here', parent: null, r: r, c: c });
+                    opts.push({ label: '➕ Add POD here', parent: null, r: r, c: c, locName: 'POD' });
                 }
                 ctxMenu.innerHTML = '';
                 opts.forEach(function (o) {
@@ -678,9 +724,10 @@
                     b.textContent = o.label;
                     b.addEventListener('click', function (e) {
                         e.stopPropagation(); hideMenu();
-                        if (o.removeEq) removeEquipment(o);
+                        if (o.moveEq) openMoveEquipment(o);
                         else if (o.addEq) openAddEquipment(o);
-                        else addLocation(o);
+                        else if (o.removeLoc) removeLocation(o);
+                        else openAddLocation(o);
                     });
                     ctxMenu.appendChild(b);
                 });
@@ -688,29 +735,79 @@
                 ctxMenu.style.top = ev.clientY + 'px';
                 ctxMenu.style.display = 'block';
             });
-            function addLocation(o) {
-                var name = (prompt(o.parent ? 'Name of the new sub-location:' : 'Name of the new POD:') || '').trim();
-                if (!name) return;
+            // Add location via modal (POD on empty cell, or sub-location under a tile/POD).
+            function openAddLocation(o) {
+                var modal = document.getElementById('addLocModal');
+                if (!modal) return;
+                var isPod = !o.parent;
+                document.getElementById('addLocTitle').innerHTML = '<i class="fas fa-plus me-2"></i>' + (isPod ? 'Add POD' : 'Add sub-location to "' + (o.locName || '') + '"');
+                document.getElementById('addLocLabel').textContent = isPod ? 'POD name' : 'Sub-location name';
+                document.getElementById('addLocParent').value = o.parent || '';
+                document.getElementById('addLocRow').value = (o.r != null ? o.r : '');
+                document.getElementById('addLocCol').value = (o.c != null ? o.c : '');
+                document.getElementById('addLocName').value = '';
+                document.getElementById('addLocError').style.display = 'none';
+                if (window.jQuery) window.jQuery(modal).modal('show');
+            }
+            var addLocSubmit = document.getElementById('addLocSubmit');
+            addLocSubmit && addLocSubmit.addEventListener('click', function () {
+                var err = document.getElementById('addLocError');
+                var name = (document.getElementById('addLocName').value || '').trim();
+                if (!name) { err.textContent = 'A name is required.'; err.style.display = 'block'; return; }
                 var token = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
-                var body = { site_id: layout.site.id, name: name, parent_id: o.parent };
-                if (o.r != null) { body.grid_row = o.r; body.grid_col = o.c; }
+                var parent = document.getElementById('addLocParent').value;
+                var body = { site_id: layout.site.id, name: name, parent_id: parent || null };
+                var rr = document.getElementById('addLocRow').value, cc = document.getElementById('addLocCol').value;
+                if (rr !== '') { body.grid_row = rr; body.grid_col = cc; }
+                addLocSubmit.disabled = true;
                 fetch("{% url 'core:add_map_location' %}", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token, 'X-Requested-With': 'XMLHttpRequest' },
                     credentials: 'same-origin', body: JSON.stringify(body)
                 }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
                   .then(function (res) {
-                      if (!res.ok || !res.d.success) { alert((res.d && res.d.error) || 'Could not add location.'); return; }
+                      addLocSubmit.disabled = false;
+                      if (!res.ok || !res.d.success) { err.textContent = (res.d && res.d.error) || 'Could not add.'; err.style.display = 'block'; return; }
                       window.location.reload();
-                  }).catch(function () { alert('Request failed.'); });
+                  }).catch(function () { addLocSubmit.disabled = false; err.textContent = 'Request failed.'; err.style.display = 'block'; });
+            });
+
+            // Move equipment to another location via modal (no deletion from the map).
+            function openMoveEquipment(o) {
+                var modal = document.getElementById('moveEqModal');
+                if (!modal) return;
+                document.getElementById('moveEqId').value = o.moveEq;
+                document.getElementById('moveEqName').textContent = o.eqName;
+                document.getElementById('moveEqError').style.display = 'none';
+                if (window.jQuery) window.jQuery(modal).modal('show');
             }
-            function removeEquipment(o) {
-                if (!confirm('Remove "' + o.eqName + '"? This permanently deletes the equipment record.')) return;
+            var moveEqSubmit = document.getElementById('moveEqSubmit');
+            moveEqSubmit && moveEqSubmit.addEventListener('click', function () {
+                var err = document.getElementById('moveEqError');
                 var token = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
-                fetch("{% url 'core:remove_map_equipment' %}", {
+                moveEqSubmit.disabled = true;
+                fetch("{% url 'core:move_map_equipment' %}", {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token, 'X-Requested-With': 'XMLHttpRequest' },
-                    credentials: 'same-origin', body: JSON.stringify({ equipment_id: o.removeEq })
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ site_id: layout.site.id, equipment_id: document.getElementById('moveEqId').value,
+                                           location_id: document.getElementById('moveEqTarget').value })
+                }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+                  .then(function (res) {
+                      moveEqSubmit.disabled = false;
+                      if (!res.ok || !res.d.success) { err.textContent = (res.d && res.d.error) || 'Could not move.'; err.style.display = 'block'; return; }
+                      window.location.reload();
+                  }).catch(function () { moveEqSubmit.disabled = false; err.textContent = 'Request failed.'; err.style.display = 'block'; });
+            });
+
+            // Remove a location — backend refuses if it still has equipment or sub-locations.
+            function removeLocation(o) {
+                if (!confirm('Remove "' + o.locName + '"? (Only allowed if it has no equipment or sub-locations.)')) return;
+                var token = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
+                fetch("{% url 'core:remove_map_location' %}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': token, 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin', body: JSON.stringify({ location_id: o.removeLoc })
                 }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
                   .then(function (res) {
                       if (!res.ok || !res.d.success) { alert((res.d && res.d.error) || 'Could not remove.'); return; }
