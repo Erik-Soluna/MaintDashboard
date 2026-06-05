@@ -35,7 +35,15 @@ urlpatterns = [
     path('auth/reset/done/', auth_views.PasswordResetCompleteView.as_view(template_name='registration/password_reset_complete.html'), name='password_reset_complete'),
 ]
 
-# Serve media files during development
+# Serve uploaded media (branding logo/favicon, equipment docs) in ALL environments.
+# Django only auto-serves media under DEBUG, so on prod (DEBUG=False) uploaded logos
+# 404'd. Branding must load even on the (unauthenticated) login page, so serve it
+# via Django's static serve view regardless of DEBUG. (Static files are handled by
+# WhiteNoise in prod; the DEBUG block below covers static during local dev.)
+from django.urls import re_path
+from django.views.static import serve as _media_serve
+urlpatterns += [
+    re_path(r'^media/(?P<path>.*)$', _media_serve, {'document_root': settings.MEDIA_ROOT}),
+]
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
