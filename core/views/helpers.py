@@ -322,7 +322,7 @@ def trigger_portainer_stack_update():
     """Trigger a stack update by calling the webhook URL."""
     logger.info("=== TRIGGER PORTAINER STACK UPDATE STARTED ===")
     try:
-        from .models import PortainerConfig
+        from core.models import PortainerConfig
         config = PortainerConfig.get_config()
         
         webhook_url = config.portainer_url
@@ -343,12 +343,17 @@ def trigger_portainer_stack_update():
             headers['X-Webhook-Secret'] = webhook_secret
             logger.info("Added webhook secret to headers")
         
-        # Build webhook URL with tag parameter
-        webhook_url_with_tag = f"{webhook_url}?tag={image_tag}"
-        logger.info(f"Calling webhook URL with tag: {webhook_url_with_tag}")
-        
+        # For a Portainer GitOps (git-backed) stack, POST the bare webhook to trigger
+        # a git re-pull + redeploy. Only append ?tag=<tag> for image-based stacks
+        # that pin a specific (non-"latest") tag — a stray ?tag=latest makes Portainer
+        # attempt an image-tag update instead of pulling the latest git revision.
+        call_url = webhook_url
+        if image_tag and image_tag.strip().lower() not in ('', 'latest'):
+            call_url = f"{webhook_url}?tag={image_tag.strip()}"
+        logger.info(f"Calling webhook URL: {call_url}")
+
         webhook_response = requests.post(
-            webhook_url_with_tag,
+            call_url,
             headers=headers,
             json={'action': 'update_stack', 'timestamp': time.time()},
             timeout=30
@@ -378,7 +383,7 @@ def test_portainer_connection():
     """Test connection to webhook URL."""
     logger.info("=== TEST WEBHOOK CONNECTION STARTED ===")
     try:
-        from .models import PortainerConfig
+        from core.models import PortainerConfig
         config = PortainerConfig.get_config()
         
         webhook_url = config.portainer_url

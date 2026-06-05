@@ -31,6 +31,11 @@
 }
 .search-input::placeholder { color: #a0aec0; }
 .action-buttons { margin-left: auto; display: flex; gap: 10px; }
+/* Add-Issue equipment combobox results */
+.eq-results { border: 1px solid #4a5568; border-radius: 6px; max-height: 240px; overflow-y: auto; background: #1a2238; margin-top: 4px; }
+.eq-result { padding: 7px 12px; cursor: pointer; color: #e2e8f0; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.eq-result:hover, .eq-result.active { background: #2a3550; }
+.eq-result-empty { padding: 10px 12px; color: #a0aec0; font-size: 13px; }
 
 /* Stat cards (compact) */
 .issue-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -80,6 +85,7 @@
 {% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="issues-header">
     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
         <h5 class="mb-0 text-white">
@@ -221,6 +227,15 @@
                                        class="btn btn-sm btn-outline-primary" title="View on equipment">
                                         <i class="fas fa-arrow-right"></i>
                                     </a>
+                                    {% if can_delete_issue %}
+                                    <button type="button" class="btn btn-sm btn-outline-danger delete-issue-btn"
+                                            data-issue-id="{{ issue.id }}"
+                                            data-equipment-id="{{ issue.equipment.id }}"
+                                            data-issue-title="{{ issue.title }}"
+                                            title="Delete issue">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -293,13 +308,14 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label for="addIssueEquipment" class="form-label">Equipment <span class="text-danger">*</span></label>
-                    <select id="addIssueEquipment" class="form-control">
-                        <option value="">Select equipment…</option>
-                        {% for eq in equipment_choices %}
-                        <option value="{{ eq.id }}">{{ eq.name }}{% if eq.location %} — {{ eq.location.get_hierarchical_display }}{% endif %}</option>
-                        {% endfor %}
-                    </select>
+                    <label for="addIssueEquipmentSearch" class="form-label">Equipment <span class="text-danger">*</span></label>
+                    <input type="text" id="addIssueEquipmentSearch" class="form-control"
+                           placeholder="Search equipment by name or location…" autocomplete="off">
+                    <input type="hidden" id="addIssueEquipment">
+                    <div id="addIssueEquipmentResults" class="eq-results" style="display:none;"></div>
+                    <script type="application/json" id="addIssueEquipmentData">[
+                        {% for eq in equipment_choices %}{"id": {{ eq.id }}, "label": "{{ eq.name|escapejs }}{% if eq.location %} — {{ eq.location.get_hierarchical_display|escapejs }}{% endif %}"}{% if not forloop.last %},{% endif %}{% endfor %}
+                    ]</script>
                 </div>
                 <div id="addIssueFormBody">
                     <p class="text-muted">Select equipment to log an issue against.</p>
@@ -322,6 +338,30 @@
 $(document).ready(function() {
     // Auto-submit on filter change
     $('#status, #severity').on('change', function() { $(this).closest('form').submit(); });
+
+    // Delete an issue (perms-gated; button only rendered when allowed).
+    function getCookie(name) {
+        var m = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return m ? m.pop() : '';
+    }
+    $('.delete-issue-btn').on('click', function() {
+        var issueId = $(this).data('issue-id');
+        var equipmentId = $(this).data('equipment-id');
+        var title = $(this).data('issue-title');
+        if (!confirm('Delete issue "' + title + '"? This cannot be undone.')) return;
+        var $btn = $(this);
+        $btn.prop('disabled', true);
+        $.ajax({
+            url: '/equipment/' + equipmentId + '/issues/' + issueId + '/delete/',
+            type: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': ($('input[name=csrfmiddlewaretoken]').val() || getCookie('csrftoken')) },
+            success: function(resp) {
+                if (resp && resp.success) { $btn.closest('tr').fadeOut(200, function() { $(this).remove(); }); }
+                else { alert((resp && resp.message) || 'Could not delete issue.'); $btn.prop('disabled', false); }
+            },
+            error: function() { alert('Could not delete issue.'); $btn.prop('disabled', false); }
+        });
+    });
 
     // Create maintenance activity from an issue (same flow as the equipment
     // detail Issues tab): load the form into the modal, then submit via AJAX.
@@ -373,8 +413,41 @@ $(document).ready(function() {
         });
     }
 
-    // Add Issue: pick equipment -> load its log-issue form -> submit via AJAX.
-    var $addEq = $('#addIssueEquipment');
+    // Add Issue: searchable equipment combobox (scrollable results) -> load form.
+    var $addEq = $('#addIssueEquipment');            // hidden input holding the chosen id
+    var $addEqSearch = $('#addIssueEquipmentSearch');
+    var $addEqResults = $('#addIssueEquipmentResults');
+    var allEqItems = [];
+    try { allEqItems = JSON.parse(document.getElementById('addIssueEquipmentData').textContent) || []; } catch (e) {}
+    allEqItems.forEach(function (o) { o.search = (o.label || '').toLowerCase(); });
+    var eqActiveIdx = -1;
+    function esc(s) { return $('<div>').text(s == null ? '' : s).html(); }
+    function renderEqResults(q) {
+        q = (q || '').trim().toLowerCase();
+        var matches = allEqItems.filter(function (o) { return q === '' || o.search.indexOf(q) !== -1; });
+        eqActiveIdx = -1;
+        if (!matches.length) { $addEqResults.html('<div class="eq-result-empty">No equipment matches.</div>').show(); return; }
+        $addEqResults.html(matches.slice(0, 300).map(function (o) {
+            return '<div class="eq-result" data-id="' + o.id + '" data-label="' + esc(o.label) + '">' + esc(o.label) + '</div>';
+        }).join('')).show();
+    }
+    function selectEq(id, label) { $addEq.val(id).trigger('change'); $addEqSearch.val(label); $addEqResults.hide(); }
+    $addEqSearch.on('focus input', function () { renderEqResults($(this).val()); });
+    // mousedown (not click) so selection fires before the input blur hides the list
+    $addEqResults.on('mousedown', '.eq-result', function (e) { e.preventDefault(); selectEq($(this).data('id'), $(this).data('label')); });
+    $addEqSearch.on('keydown', function (e) {
+        var items = $addEqResults.find('.eq-result');
+        if (!items.length) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); eqActiveIdx = Math.min(eqActiveIdx + 1, items.length - 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); eqActiveIdx = Math.max(eqActiveIdx - 1, 0); }
+        else if (e.key === 'Enter' && eqActiveIdx >= 0) { e.preventDefault(); var it = items.eq(eqActiveIdx); selectEq(it.data('id'), it.data('label')); return; }
+        else return;
+        items.removeClass('active'); items.eq(eqActiveIdx).addClass('active')[0].scrollIntoView({ block: 'nearest' });
+    });
+    $(document).on('click', function (e) {
+        if (!$(e.target).closest('#addIssueEquipmentResults, #addIssueEquipmentSearch').length) $addEqResults.hide();
+    });
+    $('#addIssueModal').on('show.bs.modal', function () { $addEqSearch.val(''); $addEq.val(''); $addEqResults.hide(); });
     var $addBody = $('#addIssueFormBody');
     var $addSubmit = $('#submitAddIssue');
     $addEq.on('change', function() {

@@ -43,12 +43,85 @@ from django.utils import timezone
 from .helpers import *  # noqa: F401,F403 (shared helpers + globals)
 
 
+def get_deployment_status(config):
+    """Collect as much deployment detail as possible automatically: the running
+    app version, the parsed Portainer endpoint/stack-webhook id, config timestamps,
+    and — when Portainer API credentials are configured — live stack details
+    (name, status, git ref/commit, last update). All best-effort."""
+    import json as _json
+    from urllib.parse import urlparse
+
+    status = {'version': {}, 'portainer': {}, 'stack': None, 'errors': []}
+
+    # Running app version (from version.json — always available)
+    try:
+        vf = settings.BASE_DIR / 'version.json'
+        if vf.exists():
+            with open(vf) as f:
+                vi = _json.load(f)
+            status['version'] = {
+                'version': vi.get('version'), 'full': vi.get('full_version'),
+                'commit': vi.get('commit_hash'), 'branch': vi.get('branch'),
+                'date': vi.get('commit_date'), 'count': vi.get('commit_count'),
+            }
+    except Exception as e:
+        status['errors'].append(f'version: {e}')
+
+    url = (config.portainer_url or '').strip()
+    if url:
+        p = urlparse(url)
+        base = f'{p.scheme}://{p.netloc}' if p.scheme else ''
+        wid = url.rstrip('/').split('/')[-1].split('?')[0]
+        status['portainer'] = {
+            'base': base,
+            'webhook_id': wid,
+            'image_tag': config.image_tag,
+            'polling': config.get_polling_frequency_display() if hasattr(config, 'get_polling_frequency_display') else config.polling_frequency,
+            'stack_name': config.stack_name or None,
+            'last_commit': (config.last_commit_hash or '')[:8] or None,
+            'last_commit_date': config.last_commit_date,
+            'last_check': config.last_check_date,
+            'has_api_creds': bool(config.portainer_user and config.portainer_password),
+        }
+        # Live Portainer stack details (only if API credentials are configured)
+        if config.portainer_user and config.portainer_password and base:
+            try:
+                jwt = requests.post(f'{base}/api/auth',
+                                    json={'username': config.portainer_user, 'password': config.portainer_password},
+                                    timeout=10).json().get('jwt')
+                if jwt:
+                    stacks = requests.get(f'{base}/api/stacks',
+                                          headers={'Authorization': f'Bearer {jwt}'}, timeout=10).json()
+                    match = None
+                    for s in (stacks or []):
+                        au = s.get('AutoUpdate') or {}
+                        if au.get('Webhook') and au.get('Webhook') in url:
+                            match = s
+                            break
+                        if config.stack_name and s.get('Name') == config.stack_name:
+                            match = s
+                    if match:
+                        git = match.get('GitConfig') or {}
+                        status['stack'] = {
+                            'id': match.get('Id'),
+                            'name': match.get('Name'),
+                            'status': 'active' if match.get('Status') == 1 else 'inactive',
+                            'git_url': git.get('URL'),
+                            'git_ref': (git.get('ReferenceName') or '').replace('refs/heads/', '') or None,
+                            'git_commit': (git.get('ConfigHash') or '')[:8] or None,
+                            'update_date': match.get('UpdateDate'),
+                        }
+            except Exception as e:
+                status['errors'].append(f'portainer api: {e}')
+    return status
+
+
 @login_required
 @user_passes_test(is_staff_or_superuser)
 def webhook_settings(request):
     """Webhook management settings page."""
-    from .models import PortainerConfig
-    
+    from core.models import PortainerConfig
+
     # Add comprehensive debugging
     logger.info(f"=== WEBHOOK SETTINGS DEBUG ===")
     logger.info(f"Request method: {request.method}")
@@ -281,6 +354,7 @@ def webhook_settings(request):
         'polling_frequency': config.polling_frequency,
         'polling_choices': config.POLLING_CHOICES,
         'webhook_secret': webhook_secret,
+        'deployment_status': get_deployment_status(config),
         'debug_info': {
             'url_exists': bool(config.portainer_url),
             'stack_exists': bool(config.stack_name),

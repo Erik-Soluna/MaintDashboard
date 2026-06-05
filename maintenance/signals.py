@@ -452,10 +452,14 @@ def create_maintenance_schedules_for_equipment(sender, instance, created, **kwar
         try:
             from maintenance.models import MaintenanceActivityType
             
-            # Get all active activity types that apply to this equipment's category
+            # Get all active activity types that apply to this equipment's category.
+            # Only recurring/preventive types (frequency_days > 0) get an auto-schedule —
+            # corrective/on-demand types (frequency_days 0, e.g. "Corrective Maintenance",
+            # "Emergency Repair") are reactive and shouldn't be put on a recurring schedule.
             applicable_activity_types = MaintenanceActivityType.objects.filter(
                 applicable_equipment_categories=instance.category,
-                is_active=True
+                is_active=True,
+                frequency_days__gt=0,
             )
             
             created_schedules = []

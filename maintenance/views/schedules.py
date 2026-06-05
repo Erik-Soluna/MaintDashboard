@@ -544,7 +544,7 @@ def schedule_override_detail(request, override_id):
     return render(request, 'maintenance/schedule_override_detail.html', context)
 
 
-@login_required
+@permission_required('maintenance.create')
 def apply_schedules_to_equipment(request, equipment_id):
     """Apply category and global schedules to specific equipment."""
     equipment = get_object_or_404(Equipment, id=equipment_id)

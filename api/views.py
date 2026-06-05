@@ -8,7 +8,7 @@ from rest_framework.pagination import PageNumberPagination
 
 from .registry import exposed_models, get_model, model_key, field_metadata, safe_field_names
 from .serializers import build_serializer
-from .permissions import HasApiReadAccess
+from .permissions import HasApiReadAccess, HasApiDeployAccess
 
 
 class ApiPagination(PageNumberPagination):
@@ -133,3 +133,27 @@ class DiagnosticsSummary(APIView):
                 'scheduled_end': a.scheduled_end.isoformat() if a.scheduled_end else None,
             } for a in overdue[:25]],
         })
+
+
+class RedeployView(APIView):
+    """Trigger a Portainer GitOps stack redeploy. Reuses the existing webhook
+    configured on the Webhook Settings page (PortainerConfig) — the same path as
+    the 'Update Stack' button. Privileged: requires diagnostics.deploy /
+    administration.write / staff. Every call is logged."""
+    permission_classes = [HasApiDeployAccess]
+
+    def get(self, request):
+        from core.models import PortainerConfig
+        cfg = PortainerConfig.get_config()
+        return Response({'configured': bool(cfg.portainer_url),
+                         'stack_name': cfg.stack_name or None,
+                         'usage': 'POST here to trigger a Portainer stack redeploy.'})
+
+    def post(self, request):
+        import logging
+        from core.views.helpers import trigger_portainer_stack_update
+        logging.getLogger(__name__).warning(
+            "Stack redeploy triggered via API by user=%s", getattr(request.user, 'username', '?'))
+        result = trigger_portainer_stack_update()
+        ok = 'successfully' in result.lower() or 'triggered' in result.lower()
+        return Response({'success': ok, 'message': result}, status=200 if ok else 502)

@@ -326,7 +326,7 @@ try:
         # Check for common problematic migrations
         problematic_migrations = [
             ('core', '0020_brandingsettings_table_hover_background_color_and_more'),
-            ('equipment', '0021_equipmentissue_issuetag_and_more'),
+            ('equipment', '0023_equipmentissue_issuetag_and_more'),
         ]
         
         fixed_any = False

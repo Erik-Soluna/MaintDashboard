@@ -251,27 +251,53 @@ def _build_site_layout(site):
     # positioned here. Empty grid cells are allowed → the map mirrors the site.
     POD_W, POD_H = 250, 210
     auto_cols = max(1, int((canvas_w - PAD) // (POD_W + PAD)))
-    cells, ncols = assign_cells([(p.grid_row, p.grid_col) for p in pods], auto_cols)
+
+    # Each block is a real POD plus, if needed, a synthetic "Site-level" block for
+    # equipment NOT captured by any POD — attached directly to the site, or under
+    # an inactive direct child not shown as a POD. Without this it was invisible.
+    blocks = [{'pod': p, 'gr': p.grid_row, 'gc': p.grid_col} for p in pods]
+
+    rendered_loc_ids = set()
+    for p in pods:
+        rendered_loc_ids.add(p.id)
+        stack = [p.id]
+        while stack:
+            for ch in children_by_loc.get(stack.pop(), []):
+                rendered_loc_ids.add(ch.id)
+                stack.append(ch.id)
+    orphan_eq = [e for e in equipment if e.location_id not in rendered_loc_ids]
+    if orphan_eq:
+        site_tiles = []
+        for g in category_groups(orphan_eq):
+            site_tiles.append({'id': None, 'name': g['name'], 'count': g['count'],
+                               'counts': g['counts'], 'equipment': g['equipment'],
+                               'equipment_groups': [], 'children': []})
+        blocks.append({'pod': None, 'gr': None, 'gc': None,
+                       'name': 'Site-level', 'tiles': site_tiles})
+
+    cells, ncols = assign_cells([(b['gr'], b['gc']) for b in blocks], auto_cols)
     nrows = max((r for (r, c) in cells), default=0) + 1
 
     # Center each block within its cell square (split the PAD gutter both sides).
     cx, cy = PAD // 2, PAD // 2
     pods_payload = []
-    for p, (r, c) in zip(pods, cells):
+    for b, (r, c) in zip(blocks, cells):
         px = PAD + c * (POD_W + PAD) + cx
         py = PAD + r * (POD_H + PAD) + cy
-        mdcs_payload = []
-        for (loc, node) in build_pod_tiles(p):
-            mdcs_payload.append({
+        if b['pod'] is not None:
+            block_id, block_name = b['pod'].id, b['pod'].name
+            mdcs_payload = [{
                 'id': (loc.id if loc is not None else None),
                 'name': node['name'],
                 'count': node['count'], 'counts': node['counts'],
                 'equipment': node.get('equipment', []),
                 'equipment_groups': node.get('equipment_groups', []),
                 'children': node.get('children', []),
-            })
+            } for (loc, node) in build_pod_tiles(b['pod'])]
+        else:
+            block_id, block_name, mdcs_payload = None, b['name'], b['tiles']
         pods_payload.append({
-            'id': p.id, 'name': p.name, 'row': r, 'col': c,
+            'id': block_id, 'name': block_name, 'row': r, 'col': c,
             'x': round(px, 1), 'y': round(py, 1), 'w': POD_W, 'h': POD_H,
             'mdcs': mdcs_payload,
         })
@@ -304,12 +330,34 @@ def map_view(request):
 
     site_layout = _build_site_layout(selected_site) if selected_site else None
 
+    # Flat hierarchical list of locations under the site (for the "move equipment" picker).
+    site_locations = []
+    if selected_site:
+        from core.utils import get_all_descendant_location_ids
+        locs = (Location.objects
+                .filter(id__in=get_all_descendant_location_ids(selected_site))
+                .select_related('parent_location', 'parent_location__parent_location'))
+
+        def _label(loc):
+            parts, cur = [], loc
+            while cur is not None and cur.id != selected_site.id:
+                parts.append(cur.name)
+                cur = cur.parent_location
+            return ' › '.join(reversed(parts)) or loc.name
+        site_locations = sorted(
+            ({'id': l.id, 'label': _label(l)} for l in locs),
+            key=lambda x: natural_sort_key(x['label']))
+
     context = {
         'sites': sites,
         'selected_site': selected_site,
         'selected_site_id': str(selected_site.id) if selected_site else '',
         'site_layout_json': json.dumps(site_layout) if site_layout else 'null',
         'can_edit_map': user_has_permission(request.user, 'site_map.write'),
+        'can_add_equipment': user_has_permission(request.user, 'equipment.create'),
+        'can_edit_equipment': user_has_permission(request.user, 'equipment.edit'),
+        'equipment_categories': EquipmentCategory.objects.filter(is_active=True).order_by('name'),
+        'site_locations': site_locations,
     }
     return render(request, 'core/map.html', context)
 
@@ -525,6 +573,94 @@ def add_map_location(request):
         name=name, parent_location=parent, is_site=False, is_active=True,
         grid_row=gi(data.get('grid_row')), grid_col=gi(data.get('grid_col')))
     return JsonResponse({'success': True, 'id': loc.id, 'name': loc.name})
+
+
+@permission_required('equipment.create')
+@require_POST
+def add_map_equipment(request):
+    """Create equipment under a map location (right-click → Add equipment). JSON:
+    {site_id, location_id, name, category_id, status?, manufacturer_serial?, asset_tag?}.
+    name/serial/asset_tag are unique; blank serial/asset_tag are auto-generated."""
+    import uuid
+    from core.utils import get_all_descendant_location_ids
+    try:
+        data = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+
+    name = (data.get('name') or '').strip()
+    if not name:
+        return JsonResponse({'success': False, 'error': 'Equipment name is required.'}, status=400)
+    if Equipment.objects.filter(name=name).exists():
+        return JsonResponse({'success': False, 'error': f'Equipment "{name}" already exists.'}, status=400)
+
+    site = get_object_or_404(Location, id=data.get('site_id'), is_site=True)
+    allowed = set(get_all_descendant_location_ids(site, include_inactive=True)) | {site.id}
+    try:
+        loc_id = int(data.get('location_id'))
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'Invalid location.'}, status=400)
+    if loc_id not in allowed:
+        return JsonResponse({'success': False, 'error': 'Location is not part of this site.'}, status=400)
+    location = get_object_or_404(Location, id=loc_id)
+
+    category = EquipmentCategory.objects.filter(id=data.get('category_id')).first()
+    if not category:
+        return JsonResponse({'success': False, 'error': 'A category is required.'}, status=400)
+
+    status = data.get('status') or 'active'
+    serial = (data.get('manufacturer_serial') or '').strip() or f'AUTO-{uuid.uuid4().hex[:10].upper()}'
+    asset = (data.get('asset_tag') or '').strip() or f'AUTO-{uuid.uuid4().hex[:10].upper()}'
+    eq = Equipment.objects.create(
+        name=name, category=category, location=location, status=status,
+        manufacturer_serial=serial, asset_tag=asset, is_active=True)
+    return JsonResponse({'success': True, 'id': eq.id, 'name': eq.name})
+
+
+@permission_required('equipment.edit')
+@require_POST
+def move_map_equipment(request):
+    """Move equipment to a different location (right-click chip → Move). JSON:
+    {site_id, equipment_id, location_id}. Target must be under the site."""
+    from core.utils import get_all_descendant_location_ids
+    try:
+        data = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+    eq = get_object_or_404(Equipment, id=data.get('equipment_id'))
+    site = get_object_or_404(Location, id=data.get('site_id'), is_site=True)
+    allowed = set(get_all_descendant_location_ids(site, include_inactive=True)) | {site.id}
+    try:
+        loc_id = int(data.get('location_id'))
+    except (TypeError, ValueError):
+        return JsonResponse({'success': False, 'error': 'Invalid location.'}, status=400)
+    if loc_id not in allowed:
+        return JsonResponse({'success': False, 'error': 'Target location is not part of this site.'}, status=400)
+    location = get_object_or_404(Location, id=loc_id)
+    eq.location = location
+    eq.save(update_fields=['location'])
+    return JsonResponse({'success': True, 'name': eq.name, 'location': location.name})
+
+
+@permission_required('site_map.write')
+@require_POST
+def remove_map_location(request):
+    """Delete a location from the map — only if it holds NO equipment and has no
+    child locations (right-click a POD/sub-location → Remove)."""
+    try:
+        data = json.loads(request.body or b'{}')
+    except (ValueError, TypeError):
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+    loc = get_object_or_404(Location, id=data.get('location_id'))
+    if loc.is_site:
+        return JsonResponse({'success': False, 'error': 'Cannot remove a site from the map.'}, status=400)
+    if loc.equipment.exists():
+        return JsonResponse({'success': False, 'error': f'"{loc.name}" still has equipment — move or remove it first.'}, status=400)
+    if loc.child_locations.exists():
+        return JsonResponse({'success': False, 'error': f'"{loc.name}" has sub-locations — remove those first.'}, status=400)
+    name = loc.name
+    loc.delete()
+    return JsonResponse({'success': True, 'name': name})
 
 
 @login_required
@@ -822,7 +958,7 @@ def export_sites_csv(request):
     ])
     
     # Get sites data (locations marked as sites)
-    from .models import Location
+    from core.models import Location
     sites = Location.objects.filter(is_site=True).order_by('name')
     
     # Write data rows
@@ -856,13 +992,13 @@ def import_sites_csv(request):
     try:
         # Read CSV file
         file_data = csv_file.read().decode('utf-8')
-        csv_data = csv.reader(io.StringIO(file_data))
+        csv_data = csv.reader(StringIO(file_data))
         
         # Skip header row
         header = next(csv_data)
         
         # Import data
-        from .models import Location
+        from core.models import Location
         
         imported_count = 0
         error_count = 0
@@ -982,7 +1118,7 @@ def export_locations_csv(request):
     ])
     
     # Get all locations
-    from .models import Location
+    from core.models import Location
     locations = Location.objects.select_related('parent_location').order_by('name')
     
     # Apply site filter if provided
@@ -1027,13 +1163,13 @@ def import_locations_csv(request):
     try:
         # Read CSV file
         file_data = csv_file.read().decode('utf-8')
-        csv_data = csv.reader(io.StringIO(file_data))
+        csv_data = csv.reader(StringIO(file_data))
         
         # Skip header row
         header = next(csv_data)
         
         # Import data
-        from .models import Location
+        from core.models import Location
         
         imported_count = 0
         error_count = 0
@@ -1247,7 +1383,7 @@ def bulk_edit_locations(request):
                             continue
                         
                         # Check if location has equipment
-                        if hasattr(location, 'equipment_set') and location.equipment_set.exists():
+                        if location.equipment.exists():
                             errors.append(f'Cannot delete "{location.name}" - has associated equipment')
                             continue
                         
@@ -1365,4 +1501,4 @@ def bulk_locations_view(request):
     return render(request, 'core/bulk_locations.html', context)
 
 
-__all__ = ["map_view", "save_map_layout", "import_map_layout", "add_map_location", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]
+__all__ = ["map_view", "save_map_layout", "import_map_layout", "add_map_location", "add_map_equipment", "move_map_equipment", "remove_map_location", "locations_settings", "locations_api", "location_detail_api", "add_location", "edit_location", "export_sites_csv", "import_sites_csv", "delete_location", "export_locations_csv", "import_locations_csv", "bulk_edit_locations", "bulk_locations_view"]

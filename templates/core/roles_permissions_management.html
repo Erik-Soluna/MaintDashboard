@@ -194,6 +194,15 @@
     border-bottom: none;
 }
 
+.permission-check-item .form-check-input {
+    /* Bootstrap 4 makes .form-check-input position:absolute (for .form-check
+       containers). Here it's a flex child, so keep it in flow + aligned. */
+    position: static;
+    margin: 0 10px 0 0;
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+}
 .form-check-input {
     margin-right: 10px;
     background-color: #1a2238;

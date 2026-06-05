@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}Apply Schedules - {{ equipment.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2 class="mb-0 text-white"><i class="fas fa-calendar-plus me-2"></i>Apply Schedules</h2>
+    <p class="text-muted mb-0">Preview the maintenance schedules that will be applied to
+        <strong>{{ equipment.name }}</strong>{% if equipment.category %} ({{ equipment.category.name }}){% endif %}.</p>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header"><h5 class="mb-0"><i class="fas fa-layer-group me-2"></i>Category Schedules</h5></div>
+    <div class="card-body">
+        {% if category_schedules %}
+        <ul class="list-group">
+            {% for s in category_schedules %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ s }}<span class="badge badge-secondary">{{ s.get_frequency_display|default:s.frequency }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}<p class="text-muted mb-0">No active category schedules for this equipment's category.</p>{% endif %}
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header"><h5 class="mb-0"><i class="fas fa-globe me-2"></i>Global Schedules</h5></div>
+    <div class="card-body">
+        {% if global_schedules %}
+        <ul class="list-group">
+            {% for s in global_schedules %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ s }}<span class="badge badge-secondary">{{ s.get_frequency_display|default:s.frequency }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}<p class="text-muted mb-0">No active global schedules.</p>{% endif %}
+    </div>
+</div>
+
+{% if existing_overrides %}
+<div class="card mb-3">
+    <div class="card-header"><h5 class="mb-0"><i class="fas fa-sliders-h me-2"></i>Existing Overrides</h5></div>
+    <div class="card-body">
+        <ul class="list-group">
+            {% for o in existing_overrides %}<li class="list-group-item">{{ o }}</li>{% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary"><i class="fas fa-check me-1"></i> Apply Schedules</button>
+    <a href="{% url 'equipment:equipment_detail' equipment.id %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}
