@@ -654,7 +654,55 @@
             Portainer Integration
         </h2>
         <p class="text-muted mb-0">Configure your Django app to connect to Portainer and trigger stack updates</p>
-        
+
+        <!-- Auto-detected deployment status -->
+        {% with ds=deployment_status %}
+        <div class="card bg-dark text-light mt-4 mb-2" style="border:1px solid #2d3748;">
+            <div class="card-header" style="background:#0f1419;">
+                <i class="fas fa-info-circle me-2"></i>Deployment Status
+                <small class="text-muted">— auto-detected</small>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <h6 class="text-info mb-1"><i class="fas fa-code-branch me-1"></i>Running Build</h6>
+                        {% with v=ds.version %}
+                        <div><strong>{{ v.full|default:v.version|default:"unknown" }}</strong></div>
+                        <div class="text-muted small">branch <code>{{ v.branch|default:"?" }}</code> · commit <code>{{ v.commit|default:"?" }}</code></div>
+                        {% if v.date %}<div class="text-muted small">built {{ v.date }}</div>{% endif %}
+                        {% endwith %}
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <h6 class="text-info mb-1"><i class="fas fa-server me-1"></i>Portainer Endpoint</h6>
+                        {% with pt=ds.portainer %}
+                        {% if pt.base %}
+                        <div><a href="{{ pt.base }}" target="_blank" class="text-light">{{ pt.base }}</a></div>
+                        <div class="text-muted small">stack webhook <code>{{ pt.webhook_id|truncatechars:14 }}</code></div>
+                        <div class="text-muted small">image tag <code>{{ pt.image_tag|default:"latest" }}</code> · polling {{ pt.polling }}</div>
+                        <div class="text-muted small">API creds: {% if pt.has_api_creds %}<span class="text-success">set</span>{% else %}<span class="text-warning">not set</span>{% endif %}</div>
+                        {% else %}<div class="text-muted">No webhook URL configured yet.</div>{% endif %}
+                        {% endwith %}
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <h6 class="text-info mb-1"><i class="fas fa-layer-group me-1"></i>Stack</h6>
+                        {% with s=ds.stack pt=ds.portainer %}
+                        {% if s %}
+                        <div><strong>{{ s.name }}</strong>
+                            <span class="badge {% if s.status == 'active' %}badge-success{% else %}badge-secondary{% endif %}">{{ s.status }}</span></div>
+                        {% if s.git_ref %}<div class="text-muted small">git <code>{{ s.git_ref }}</code> @ <code>{{ s.git_commit|default:"?" }}</code></div>{% endif %}
+                        {% if s.update_date %}<div class="text-muted small">updated {{ s.update_date }}</div>{% endif %}
+                        {% else %}
+                        <div class="text-muted small">{% if pt.has_api_creds %}Stack not found via the Portainer API.{% else %}Add a Portainer API username/password below to auto-load live stack details (name, status, git ref/commit).{% endif %}</div>
+                        {% if pt.last_commit %}<div class="text-muted small mt-1">last deploy commit <code>{{ pt.last_commit }}</code>{% if pt.last_commit_date %} ({{ pt.last_commit_date }}){% endif %}</div>{% endif %}
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                </div>
+                {% if ds.errors %}<div class="text-warning small mt-2"><i class="fas fa-exclamation-triangle me-1"></i>{{ ds.errors|join:"; " }}</div>{% endif %}
+            </div>
+        </div>
+        {% endwith %}
+
         <!-- Quick Status Overview -->
         <div class="row mt-4">
             <div class="col-md-3">
